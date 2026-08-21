@@ -36,6 +36,12 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+      - name: Emit generated lockfile for bootstrap
+        run: |
+          echo '===ANTHROSIM_CARGO_LOCK_BEGIN==='
+          cat Cargo.lock
+          echo '===ANTHROSIM_CARGO_LOCK_END==='
+
       - name: Test
         run: cargo test --workspace --all-features
 
