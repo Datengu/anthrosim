@@ -1,0 +1,37 @@
+# Rust build output
+/target/
+
+# Benchmark output
+/criterion/
+
+# Local experiment output
+/runs/
+/output/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Python analysis environments / caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Generated profiler data
+perf.data*
+*.profraw
+*.profdata
