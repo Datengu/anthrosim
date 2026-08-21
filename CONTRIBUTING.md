@@ -11,6 +11,7 @@ AnthroSim is being developed as research-oriented simulation software. Changes s
 5. **Performance is tested.** Avoid allocation-heavy hot loops and global all-to-all scans. If complexity is added for speed, attach benchmark evidence.
 6. **Interpretation must be traceable.** A derived explanation must be traceable back to metrics/events/state.
 7. **No silent schema drift.** Persisted experiment, manifest, event, and checkpoint formats are versioned.
+8. **No silent dependency drift.** The Rust toolchain and `Cargo.lock` are part of build/experiment provenance.
 
 ## Pull requests
 
@@ -26,10 +27,25 @@ Run before requesting review:
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-cargo bench -p anthrosim-core --bench empty_run -- --noplot
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace --all-features
+cargo bench --locked -p anthrosim-core --bench empty_run -- --noplot
+cargo build --locked --workspace --release
 ```
+
+## Dependency updates
+
+`Cargo.lock` is committed intentionally. Normal builds and CI use `--locked`; they must not resolve a new dependency graph implicitly.
+
+When dependencies are deliberately changed:
+
+1. edit the relevant `Cargo.toml` manifest(s);
+2. regenerate/update `Cargo.lock` explicitly with the pinned toolchain;
+3. review the direct and transitive dependency changes;
+4. run the full locked validation suite;
+5. commit manifest and lockfile changes together in a reviewable PR.
+
+A lockfile change is part of software provenance and should not be treated as generated noise.
 
 ## Scientific changes
 
@@ -41,4 +57,4 @@ A change is *scientific* when it changes simulated meaning rather than implement
 - expected directional behaviour;
 - validation or sensitivity test required.
 
-Place durable model documentation in `docs/scientific-model.md` and architecture decisions in `docs/adr/`.
+Place durable model documentation in `docs/scientific-model.md`, evidence/provenance notes in `docs/research/`, and architecture decisions in `docs/adr/`.
