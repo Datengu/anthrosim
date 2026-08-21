@@ -1,0 +1,16 @@
+[package]
+name = "anthrosim-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "anthrosim"
+path = "src/main.rs"
+
+[dependencies]
+anthrosim-core = { path = "../anthrosim-core" }
+clap.workspace = true
+serde_json.workspace = true
