@@ -30,17 +30,20 @@ jobs:
           rustc --version --verbose
           cargo --version
 
+      - name: Verify locked dependency graph
+        run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
+
       - name: Format
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
       - name: Test
-        run: cargo test --workspace --all-features
+        run: cargo test --locked --workspace --all-features
 
       - name: Benchmark synthetic world generation
-        run: cargo bench -p anthrosim-core --bench world_generation -- --noplot
+        run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
 
       - name: Build release binaries
-        run: cargo build --workspace --release
+        run: cargo build --locked --workspace --release
