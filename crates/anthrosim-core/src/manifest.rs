@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{config::ExperimentConfig, time::SimTime};
+use crate::{config::ExperimentConfig, time::SimTime, world::WorldSummary};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,11 +16,12 @@ pub struct RunManifest {
     pub model_version: String,
     pub git_commit: Option<String>,
     pub experiment: ExperimentConfig,
+    pub world: WorldSummary,
     pub start_time: SimTime,
     pub end_time: SimTime,
     pub stop_reason: StopReason,
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }

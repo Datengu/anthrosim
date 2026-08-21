@@ -1,6 +1,6 @@
-use std::{fs, path::PathBuf, process::ExitCode};
+use std::{fs, path::Path, path::PathBuf, process::ExitCode};
 
-use anthrosim_core::{ExperimentConfig, Simulation};
+use anthrosim_core::{ExperimentConfig, Simulation, WorldConfig};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -16,7 +16,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Execute the deterministic Milestone 0 simulation lifecycle.
+    /// Execute the deterministic AnthroSim lifecycle.
     Run {
         /// Master seed for all named deterministic random streams.
         #[arg(long, default_value_t = 1)]
@@ -26,9 +26,21 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         years: u64,
 
+        /// Synthetic world width in cells.
+        #[arg(long, default_value_t = 128)]
+        world_width: u32,
+
+        /// Synthetic world height in cells.
+        #[arg(long, default_value_t = 128)]
+        world_height: u32,
+
         /// Optional path to write the JSON run manifest.
         #[arg(long)]
         output: Option<PathBuf>,
+
+        /// Optional path to write the full versioned synthetic world as JSON.
+        #[arg(long)]
+        world_output: Option<PathBuf>,
     },
 }
 
@@ -47,26 +59,44 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Command::Run {
             seed,
             years,
+            world_width,
+            world_height,
             output,
+            world_output,
         } => {
-            let config = ExperimentConfig::new(seed, years);
-            let manifest = Simulation::new(config).run();
-            let json = serde_json::to_string_pretty(&manifest)?;
+            let config = ExperimentConfig::new(seed, years)
+                .with_world(WorldConfig::new(world_width, world_height));
+            let simulation = Simulation::new(config)?;
 
+            if let Some(path) = world_output {
+                write_json(&path, simulation.world())?;
+                println!("wrote world {}", path.display());
+            }
+
+            let manifest = simulation.run();
             if let Some(path) = output {
-                if let Some(parent) = path
-                    .parent()
-                    .filter(|parent| !parent.as_os_str().is_empty())
-                {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::write(&path, format!("{json}\n"))?;
-                println!("wrote {}", path.display());
+                write_json(&path, &manifest)?;
+                println!("wrote manifest {}", path.display());
             } else {
-                println!("{json}");
+                println!("{}", serde_json::to_string_pretty(&manifest)?);
             }
         }
     }
 
+    Ok(())
+}
+
+fn write_json<T: serde::Serialize>(
+    path: &Path,
+    value: &T,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let json = serde_json::to_string_pretty(value)?;
+    fs::write(path, format!("{json}\n"))?;
     Ok(())
 }

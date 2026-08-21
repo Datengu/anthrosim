@@ -63,11 +63,21 @@ The engine should advance to the next moment at which something can change rathe
 
 Persistent domain identities do not imply allocation-heavy objects. Hot state should favour dense IDs, contiguous vectors, compact enums, bitsets/indices, and shared tables referenced by IDs. Rich read models may be constructed for inspection outside hot paths.
 
+M1 applies this directly to geography: cells are stored contiguously and addressed by stable 1-based `CellId` values, while four-neighbour lookup is calculated from coordinates without allocating a neighbour collection per cell.
+
 Dead or otherwise inactive historical state should eventually migrate out of hot memory while remaining queryable through archival outputs.
+
+## Exact numerical state
+
+Where practical, authoritative state uses integer/fixed-point representations. M1 environmental ratios are stored as permille integers (0..=1000), not floating-point values. This improves compactness and exact cross-run comparison and reduces the risk that tiny platform-specific floating-point differences branch long deterministic histories.
+
+Floating-point analysis remains appropriate downstream; avoiding it in authoritative state is not an ideological restriction where a later model genuinely requires it.
 
 ## Deterministic randomness
 
 Randomness is explicit. The master seed derives named deterministic streams such as `world`, `demography`, and `migration`. A draw added to migration should not silently rewrite world generation. Streams must use an algorithm with documented portable deterministic behaviour.
+
+M1 consumes the `world` stream only to derive stable field seeds. Per-cell heterogeneity is then coordinate-derived, so generation order can change without changing the world itself.
 
 Parallelism is introduced only with a declared deterministic strategy. Faster but nondeterministic execution may be offered later as a separate mode, never silently substituted for research runs.
 

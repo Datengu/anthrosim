@@ -10,11 +10,16 @@ publish = false
 rand.workspace = true
 rand_chacha.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 criterion = "0.8.2"
+serde_json.workspace = true
 
 [[bench]]
 name = "empty_run"
+harness = false
+
+[[bench]]
+name = "world_generation"
 harness = false
