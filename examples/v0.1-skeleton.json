@@ -1,5 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "seed": 1847291,
-  "durationYears": 10000
+  "durationYears": 10000,
+  "world": {
+    "schemaVersion": 1,
+    "width": 128,
+    "height": 128
+  }
 }

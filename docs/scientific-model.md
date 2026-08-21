@@ -27,13 +27,15 @@ A household is a co-resident resource-sharing unit. It is not assumed to be a tr
 
 Cells contain movement cost, water accessibility, baseline food productivity, renewable food stock, seasonality, temporary environmental stress, and occupancy/density information.
 
+In M1, these values form a **synthetic engine-validation landscape**. Environmental ratios are dimensionless fixed-point permille values. Relative elevation, water access, productivity, movement cost, and seasonality are spatially autocorrelated synthetic fields; they do not correspond to measured palaeoenvironmental units and must not be interpreted as empirical geography.
+
 ### Time
 
 Authoritative simulation time is represented in integer days. Systems execute at explicit event or periodic boundaries rather than through continuous real-time ticking.
 
 ### Space
 
-v0.1 uses a synthetic grid. Real Earth and palaeoenvironmental reconstruction are explicitly deferred.
+v0.1 uses a synthetic rectangular grid with deterministic north/east/south/west adjacency and hard boundaries. Real Earth and palaeoenvironmental reconstruction are explicitly deferred.
 
 ## 3. Process overview and scheduling
 
@@ -91,10 +93,10 @@ The model emits both ground-truth events and aggregate measurements. Interpretiv
 A run specifies:
 
 - seed;
-- synthetic world dimensions and generator parameters;
-- initial population count and spatial clustering;
-- starting age/sex distribution;
-- household initialization rule;
+- synthetic world dimensions and generator schema;
+- initial population count and spatial clustering (from M2 onward);
+- starting age/sex distribution (from M2 onward);
+- household initialization rule (from M2 onward);
 - demographic parameters;
 - food/environment parameters;
 - migration parameters;
@@ -107,6 +109,12 @@ No default parameter should be described as empirically realistic until a source
 v0.1 has no external anthropological or archaeological input dataset. Synthetic environment and placeholder demographic parameters are generated/configured internally. This is intentional so engine verification can precede empirical claims.
 
 ## 7. Submodels planned for v0.1
+
+### Synthetic environment (M1)
+
+The initial environment is generated from several smoothly varying deterministic fields derived from the run's `world` random stream. Water accessibility depends partly on synthetic wetness and lowland favourability; productivity combines water, a separate fertility field, and lowland favourability; movement cost combines ruggedness and relative elevation. Seasonality uses a synthetic latitude gradient plus a spatial climate field.
+
+These relationships exist to provide heterogeneous, causally inspectable test conditions for later systems. They are **not yet evidence-grounded ecological equations**.
 
 ### Food and resource renewal
 
@@ -133,6 +141,7 @@ Before scientific validation, implementation must satisfy:
 - no impossible ages or household membership states;
 - conservation/accounting rules for modelled resources where applicable;
 - deterministic replay under the supported platform/build boundary;
+- deterministic same-seed world generation and stable cell adjacency;
 - directional tests (for example, severe sustained resource scarcity must not systematically improve health).
 
 ## 9. Validation plan (future)
