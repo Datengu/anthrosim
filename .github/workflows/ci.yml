@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   rust:
@@ -36,11 +36,21 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Emit generated lockfile for bootstrap
+      - name: Bootstrap Cargo.lock onto dependency-lock branch
+        if: github.event_name == 'pull_request' && github.head_ref == 'chore/locked-dependencies'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo '===ANTHROSIM_CARGO_LOCK_BEGIN==='
-          cat Cargo.lock
-          echo '===ANTHROSIM_CARGO_LOCK_END==='
+          if gh api "repos/${GITHUB_REPOSITORY}/contents/Cargo.lock?ref=${{ github.head_ref }}" >/dev/null 2>&1; then
+            echo "Cargo.lock already exists on bootstrap branch"
+            exit 0
+          fi
+          encoded="$(base64 -w0 Cargo.lock)"
+          gh api "repos/${GITHUB_REPOSITORY}/contents/Cargo.lock" \
+            --method PUT \
+            --field message='Commit generated Cargo.lock for reproducible builds' \
+            --field branch='${{ github.head_ref }}' \
+            --field content="$encoded"
 
       - name: Test
         run: cargo test --workspace --all-features
