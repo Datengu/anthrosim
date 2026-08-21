@@ -50,7 +50,7 @@ const fn splitmix64(mut value: u64) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use rand::RngCore;
+    use rand::Rng;
 
     use super::*;
 
