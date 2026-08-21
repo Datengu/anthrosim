@@ -12,9 +12,7 @@ pub mod simulation;
 pub mod time;
 pub mod world;
 
-pub use config::{
-    ExperimentConfig, PopulationConfig, PopulationInitialization, WorldConfig,
-};
+pub use config::{ExperimentConfig, PopulationConfig, PopulationInitialization, WorldConfig};
 pub use manifest::{RunManifest, StopReason};
 pub use population::{
     CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
