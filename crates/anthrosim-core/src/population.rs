@@ -85,14 +85,19 @@ impl CellOccupancy {
         let mut offsets = Vec::with_capacity(cell_count.saturating_add(1));
         offsets.push(0);
         for count in counts {
-            let next = offsets.last().copied().unwrap_or(0_u64).saturating_add(count);
+            let next = offsets
+                .last()
+                .copied()
+                .unwrap_or(0_u64)
+                .saturating_add(count);
             offsets.push(next);
         }
 
         let mut cursor = offsets[..cell_count].to_vec();
         let mut people = vec![PersonId::INVALID; locations.len()];
         for (index, &location) in locations.iter().enumerate() {
-            let cell_index = location_index(location, cell_count).expect("locations were validated");
+            let cell_index =
+                location_index(location, cell_count).expect("locations were validated");
             let write_index = usize::try_from(cursor[cell_index]).map_err(|_| {
                 PopulationValidationError::OccupancyShape {
                     reason: "occupancy offset does not fit usize",
@@ -186,8 +191,8 @@ impl Population {
         let mut age_rng = rng_factory.stream("demography/init/age");
         let mut sex_rng = rng_factory.stream("demography/init/sex");
 
-        let world_cell_count = u64::try_from(world.cell_count())
-            .expect("supported world cell count must fit u64");
+        let world_cell_count =
+            u64::try_from(world.cell_count()).expect("supported world cell count must fit u64");
         let mut household_locations = Vec::with_capacity(household_count);
         for _ in 0..household_count {
             let location = CellId::new(household_rng.next_u64() % world_cell_count + 1);
@@ -333,9 +338,9 @@ impl Population {
             }
 
             let household = self.households[index];
-            let household_location = self.household_location(household).ok_or(
-                PopulationValidationError::InvalidPersonHousehold { person, household },
-            )?;
+            let household_location = self
+                .household_location(household)
+                .ok_or(PopulationValidationError::InvalidPersonHousehold { person, household })?;
             if household_location != location {
                 return Err(PopulationValidationError::HouseholdLocationMismatch {
                     person,
@@ -390,9 +395,8 @@ impl Population {
         if parent == PersonId::INVALID {
             return Ok(());
         }
-        let parent_index = person_index(parent, self.person_count()).ok_or(
-            PopulationValidationError::InvalidParent { person, parent },
-        )?;
+        let parent_index = person_index(parent, self.person_count())
+            .ok_or(PopulationValidationError::InvalidParent { person, parent })?;
         if self.reproductive_sexes[parent_index] != expected_sex {
             return Err(PopulationValidationError::ParentSexMismatch {
                 person,
@@ -433,9 +437,8 @@ impl Population {
                 },
             )?;
             for &person in people {
-                let person_index = person_index(person, self.person_count()).ok_or(
-                    PopulationValidationError::InvalidOccupancyPerson { cell, person },
-                )?;
+                let person_index = person_index(person, self.person_count())
+                    .ok_or(PopulationValidationError::InvalidOccupancyPerson { cell, person })?;
                 if seen[person_index] {
                     return Err(PopulationValidationError::DuplicateOccupancyPerson { person });
                 }
@@ -535,7 +538,7 @@ fn digest_i64(hash: &mut u64, value: i64) {
 fn digest_bytes(hash: &mut u64, bytes: &[u8]) {
     for &byte in bytes {
         *hash ^= u64::from(byte);
-        *hash = hash.wrapping_mul(FNV_PRIME);
+        *hash = (*hash).wrapping_mul(FNV_PRIME);
     }
 }
 
@@ -564,7 +567,9 @@ pub enum PopulationValidationError {
         person: PersonId,
         household: HouseholdId,
     },
-    #[error("person {person:?} is in {person_location:?} but household {household:?} is in {household_location:?}")]
+    #[error(
+        "person {person:?} is in {person_location:?} but household {household:?} is in {household_location:?}"
+    )]
     HouseholdLocationMismatch {
         person: PersonId,
         household: HouseholdId,
@@ -579,7 +584,9 @@ pub enum PopulationValidationError {
     DuplicateParents { person: PersonId },
     #[error("person {person:?} references invalid parent {parent:?}")]
     InvalidParent { person: PersonId, parent: PersonId },
-    #[error("person {person:?} parent {parent:?} has incompatible reproductive sex: expected {expected:?}, found {actual:?}")]
+    #[error(
+        "person {person:?} parent {parent:?} has incompatible reproductive sex: expected {expected:?}, found {actual:?}"
+    )]
     ParentSexMismatch {
         person: PersonId,
         parent: PersonId,
@@ -600,7 +607,9 @@ pub enum PopulationValidationError {
     InvalidOccupancyPerson { cell: CellId, person: PersonId },
     #[error("person {person:?} occurs more than once in occupancy index")]
     DuplicateOccupancyPerson { person: PersonId },
-    #[error("person {person:?} is indexed in {indexed_cell:?} but authoritative location is {actual_cell:?}")]
+    #[error(
+        "person {person:?} is indexed in {indexed_cell:?} but authoritative location is {actual_cell:?}"
+    )]
     OccupancyLocationMismatch {
         person: PersonId,
         indexed_cell: CellId,
@@ -645,7 +654,10 @@ mod tests {
         assert!(person.age_days_at(SimTime::ZERO).is_some());
         assert_eq!(person.female_parent, PersonId::INVALID);
         assert_eq!(person.male_parent, PersonId::INVALID);
-        assert_eq!(population.household_location(person.household), Some(person.location));
+        assert_eq!(
+            population.household_location(person.household),
+            Some(person.location)
+        );
     }
 
     #[test]
