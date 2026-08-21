@@ -17,11 +17,11 @@ v0.1 is not intended to reconstruct a particular prehistoric population or produ
 
 ### People
 
-Persistent individuals have stable identity, birth time/age, sex for the initial reproduction model, health/condition, location, household membership, parent references, and minimal resource/decision state.
+Persistent individuals have stable identity, birth time/age, reproductive sex for the initial reproduction model, health/condition, location, household membership, parent references, and minimal resource/decision state. Reproductive sex is a deliberately limited biological state variable for the v0.1 birth mechanism; it is not a model of social gender.
 
 ### Households
 
-A household is a co-resident resource-sharing unit. It is not assumed to be a tribe, clan, lineage, settlement, or political institution.
+A household is a co-resident resource-sharing unit. It is not assumed to be a tribe, clan, lineage, settlement, marriage, or universal nuclear-family structure. Parentage and household membership are separate relationships.
 
 ### World cells
 
@@ -95,18 +95,22 @@ A run specifies:
 - seed;
 - synthetic world dimensions and generator schema;
 - initial population count and spatial clustering (from M2 onward);
-- starting age/sex distribution (from M2 onward);
+- starting age/reproductive-sex distribution (from M2 onward);
 - household initialization rule (from M2 onward);
-- demographic parameters;
+- demographic schedule/preset and provenance status;
 - food/environment parameters;
 - migration parameters;
 - duration/stop condition.
 
 No default parameter should be described as empirically realistic until a source and validation rationale are documented.
 
+A uniform random age distribution is not considered a scientifically neutral default. M2 will distinguish deterministic synthetic test initialization from schedule-consistent or empirical initialization.
+
 ## 6. Input data
 
-v0.1 has no external anthropological or archaeological input dataset. Synthetic environment and placeholder demographic parameters are generated/configured internally. This is intentional so engine verification can precede empirical claims.
+v0.1 has no external anthropological or archaeological **runtime dataset**. The M1 environment is synthetic. M2 demographic mechanisms are informed by published comparative evidence, documented in `docs/research/demography-v0.1.md`, but the first executable demographic preset remains explicitly synthetic for engine validation.
+
+Later empirical demographic presets may encode published age-specific schedules or derived tables. Such presets must retain source identity, transformation notes, units and provenance status.
 
 ## 7. Submodels planned for v0.1
 
@@ -122,11 +126,17 @@ Cells expose renewable food stock based on baseline productivity and seasonality
 
 ### Demography
 
-Ageing is derived from birth time. Birth and death processes are parameterised and event-recorded. Fertility, spacing, and mortality models begin simple and replaceable.
+M2 uses **replaceable age-specific schedules rather than hidden hard-coded anthropological constants**. Ageing is derived from birth time. Birth and death processes are parameterised, stochastic under named deterministic streams, and event-recorded.
+
+The demographic research baseline is `docs/research/demography-v0.1.md`. It establishes that extant hunter-gatherer populations show substantial demographic diversity and should be used as comparative evidence/ranges rather than as one universal prehistoric proxy.
+
+The first executable preset is therefore named `synthetic_validation_v1`, not `hunter_gatherer`. It may use evidence-informed ranges while remaining explicitly non-empirical. Future population-specific presets must identify their sources and validation targets.
+
+Initial mortality is represented by a transparent piecewise age-specific annual hazard schedule. Initial fertility is represented by an age-specific opportunity/hazard schedule plus an explicit simplified postpartum spacing mechanism. Completed family size and life expectancy are outputs/validation quantities, not values directly forced on individuals.
 
 ### Households
 
-Households share local resources and may coordinate migration. Formation/dissolution rules remain minimal until evidence-grounded social modules are introduced.
+Households share local resources and may coordinate migration. Formation/dissolution rules remain minimal until evidence-grounded social modules are introduced. Household membership is not equivalent to parentage or marriage.
 
 ### Migration
 
@@ -139,22 +149,27 @@ Before scientific validation, implementation must satisfy:
 - exact population accounting;
 - valid IDs and genealogy references;
 - no impossible ages or household membership states;
+- no self-parent or duplicate-parent relationships;
 - conservation/accounting rules for modelled resources where applicable;
 - deterministic replay under the supported platform/build boundary;
 - deterministic same-seed world generation and stable cell adjacency;
+- isolation of named RNG streams so demographic changes cannot alter world generation;
 - directional tests (for example, severe sustained resource scarcity must not systematically improve health).
 
-## 9. Validation plan (future)
+## 9. Validation plan
 
-v0.1 defaults are placeholders until grounded. A research-capable model will require:
+The demographic literature baseline now documents comparative ranges and limitations, but v0.1 remains unvalidated. A research-capable model will require:
 
-- literature-backed demographic ranges;
+- population-specific or explicitly sampled demographic parameterizations where appropriate;
+- comparison of simulated survivorship, age-specific mortality, fertility, birth spacing and growth against claimed calibration targets;
 - comparison with known hunter-gatherer mobility/demographic patterns where appropriate;
 - calibration only where justified by a stated research question;
 - global and local sensitivity analysis;
 - uncertainty quantification;
 - pattern-oriented validation across multiple observables;
 - external domain review.
+
+A preset fails validation if it cannot reproduce the empirical quantities it claims to represent within declared tolerance/uncertainty. Failure is reported rather than tuned away invisibly.
 
 ## 10. First candidate experiment
 
