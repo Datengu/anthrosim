@@ -4,6 +4,7 @@
 //! are added behind this boundary and remain independent of rendering/networking.
 
 pub mod config;
+pub mod demography;
 pub mod ids;
 pub mod manifest;
 pub mod population;
@@ -12,7 +13,11 @@ pub mod simulation;
 pub mod time;
 pub mod world;
 
-pub use config::{ExperimentConfig, PopulationConfig, PopulationInitialization, WorldConfig};
+pub use config::{
+    AgeProbabilityBand, DemographyConfig, ExperimentConfig, ParameterProvenance, PopulationConfig,
+    PopulationInitialization, WorldConfig,
+};
+pub use demography::{DemographyConfigError, annual_probability_for_age, validate_demography_config};
 pub use manifest::{RunManifest, StopReason};
 pub use population::{
     CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
