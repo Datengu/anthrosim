@@ -49,8 +49,10 @@ impl World {
         validate_config(config)?;
 
         let cell_count_u64 = u64::from(config.width) * u64::from(config.height);
-        let cell_count = usize::try_from(cell_count_u64)
-            .map_err(|_| WorldError::CellCountTooLarge { cell_count: cell_count_u64 })?;
+        let cell_count =
+            usize::try_from(cell_count_u64).map_err(|_| WorldError::CellCountTooLarge {
+                cell_count: cell_count_u64,
+            })?;
 
         let mut world_rng = rng_factory.stream("world");
         let elevation_seed = world_rng.next_u64();
@@ -62,7 +64,9 @@ impl World {
         let mut cells = Vec::new();
         cells
             .try_reserve_exact(cell_count)
-            .map_err(|_| WorldError::AllocationFailed { cell_count: cell_count_u64 })?;
+            .map_err(|_| WorldError::AllocationFailed {
+                cell_count: cell_count_u64,
+            })?;
 
         for y in 0..config.height {
             for x in 0..config.width {
@@ -76,14 +80,13 @@ impl World {
                 let water_access = ((wetness * 3 + lowland_favourability) / 4) as u16;
 
                 let fertility = u32::from(coherent_field(fertility_seed, x, y));
-                let productivity =
-                    ((u32::from(water_access) * 5 + fertility * 3 + lowland_favourability * 2)
-                        / 10) as u16;
+                let productivity = ((u32::from(water_access) * 5
+                    + fertility * 3
+                    + lowland_favourability * 2)
+                    / 10) as u16;
 
                 let ruggedness = u32::from(coherent_field(ruggedness_seed, x, y));
-                let movement_cost = (u32::from(BASE_MOVEMENT_COST)
-                    + ruggedness * 2
-                    + abs_elevation)
+                let movement_cost = (u32::from(BASE_MOVEMENT_COST) + ruggedness * 2 + abs_elevation)
                     .min(u32::from(u16::MAX)) as u16;
 
                 let climate = u32::from(coherent_field(climate_seed, x, y));
