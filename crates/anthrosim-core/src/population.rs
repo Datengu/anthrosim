@@ -388,7 +388,7 @@ impl Population {
     fn validate_parent(
         &self,
         person: PersonId,
-        person_index: usize,
+        child_index: usize,
         parent: PersonId,
         expected_sex: ReproductiveSex,
     ) -> Result<(), PopulationValidationError> {
@@ -405,7 +405,7 @@ impl Population {
                 actual: self.reproductive_sexes[parent_index],
             });
         }
-        if self.birth_days[parent_index] >= self.birth_days[person_index] {
+        if self.birth_days[parent_index] >= self.birth_days[child_index] {
             return Err(PopulationValidationError::ParentNotOlder { person, parent });
         }
         Ok(())
