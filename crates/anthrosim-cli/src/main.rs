@@ -82,8 +82,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let config = ExperimentConfig::new(seed, years)
                 .with_world(WorldConfig::new(world_width, world_height))
                 .with_population(
-                    PopulationConfig::new(population)
-                        .with_target_household_size(household_size),
+                    PopulationConfig::new(population).with_target_household_size(household_size),
                 );
             let simulation = Simulation::new(config)?;
 
