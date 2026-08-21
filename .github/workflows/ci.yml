@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   rust:
@@ -30,33 +30,20 @@ jobs:
           rustc --version --verbose
           cargo --version
 
+      - name: Verify locked dependency graph
+        run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
+
       - name: Format
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Bootstrap Cargo.lock onto dependency-lock branch
-        if: github.event_name == 'pull_request' && github.head_ref == 'chore/locked-dependencies'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh api "repos/${GITHUB_REPOSITORY}/contents/Cargo.lock?ref=${{ github.head_ref }}" >/dev/null 2>&1; then
-            echo "Cargo.lock already exists on bootstrap branch"
-            exit 0
-          fi
-          encoded="$(base64 -w0 Cargo.lock)"
-          gh api "repos/${GITHUB_REPOSITORY}/contents/Cargo.lock" \
-            --method PUT \
-            --field message='Commit generated Cargo.lock for reproducible builds' \
-            --field branch='${{ github.head_ref }}' \
-            --field content="$encoded"
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
       - name: Test
-        run: cargo test --workspace --all-features
+        run: cargo test --locked --workspace --all-features
 
       - name: Benchmark synthetic world generation
-        run: cargo bench -p anthrosim-core --bench world_generation -- --noplot
+        run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
 
       - name: Build release binaries
-        run: cargo build --workspace --release
+        run: cargo build --locked --workspace --release
