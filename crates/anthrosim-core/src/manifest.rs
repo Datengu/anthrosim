@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::ExperimentConfig,
-    population::PopulationSummary,
-    time::SimTime,
-    world::WorldSummary,
+    config::ExperimentConfig, population::PopulationSummary, time::SimTime, world::WorldSummary,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
