@@ -45,5 +45,8 @@ jobs:
       - name: Benchmark synthetic world generation
         run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
 
+      - name: Benchmark population initialization
+        run: cargo bench --locked -p anthrosim-core --bench population_initialization -- --noplot
+
       - name: Build release binaries
         run: cargo build --locked --workspace --release
