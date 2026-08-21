@@ -10,7 +10,7 @@ use crate::{
     world::{PERMILLE_MAX, World},
 };
 
-const NO_DEATH_DAY: u64 = u64::MAX;
+const NO_EVENT_DAY: u64 = u64::MAX;
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
@@ -32,6 +32,7 @@ pub struct PersonSnapshot {
     /// Epoch-relative day of birth. Founders born before the run use negative days.
     pub birth_day: i64,
     pub death_day: Option<u64>,
+    pub last_birth_day: Option<u64>,
     pub reproductive_sex: ReproductiveSex,
     pub location: CellId,
     pub household: HouseholdId,
@@ -47,6 +48,11 @@ impl PersonSnapshot {
         let age = now.checked_sub(self.birth_day)?;
         u64::try_from(age).ok()
     }
+
+    #[must_use]
+    pub const fn is_alive(self) -> bool {
+        self.death_day.is_none()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,12 +62,17 @@ pub struct PopulationSummary {
     pub initial_population: u32,
     pub person_records: u64,
     pub living_population: u64,
+    pub births_since_start: u64,
+    pub deaths_since_start: u64,
     pub household_count: u64,
-    pub occupied_cell_count: u64,
+    pub living_occupied_cell_count: u64,
     pub digest64: u64,
 }
 
 /// Compact cell-to-person index rebuilt from authoritative person locations.
+///
+/// It indexes persistent person records, including the dead. Consumers that
+/// need current interaction candidates must additionally filter for alive state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CellOccupancy {
@@ -121,14 +132,6 @@ impl CellOccupancy {
         let end = usize::try_from(self.offsets[end_index]).ok()?;
         self.people.get(start..end)
     }
-
-    #[must_use]
-    pub fn occupied_cell_count(&self) -> u64 {
-        self.offsets
-            .windows(2)
-            .filter(|window| window[0] != window[1])
-            .count() as u64
-    }
 }
 
 /// Authoritative M2 person/household state.
@@ -141,8 +144,12 @@ impl CellOccupancy {
 pub struct Population {
     schema_version: u32,
     initial_population: u32,
+    births_since_start: u64,
+    deaths_since_start: u64,
+    max_person_records: u64,
     birth_days: Vec<i64>,
     death_days: Vec<u64>,
+    last_birth_days: Vec<u64>,
     reproductive_sexes: Vec<ReproductiveSex>,
     locations: Vec<CellId>,
     households: Vec<HouseholdId>,
@@ -154,7 +161,7 @@ pub struct Population {
 }
 
 impl Population {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     pub fn initialize(
         config: PopulationConfig,
@@ -201,6 +208,7 @@ impl Population {
 
         let mut birth_days = Vec::with_capacity(person_count);
         let mut death_days = Vec::with_capacity(person_count);
+        let mut last_birth_days = Vec::with_capacity(person_count);
         let mut reproductive_sexes = Vec::with_capacity(person_count);
         let mut locations = Vec::with_capacity(person_count);
         let mut households = Vec::with_capacity(person_count);
@@ -229,7 +237,8 @@ impl Population {
             };
 
             birth_days.push(birth_day);
-            death_days.push(NO_DEATH_DAY);
+            death_days.push(NO_EVENT_DAY);
+            last_birth_days.push(NO_EVENT_DAY);
             reproductive_sexes.push(reproductive_sex);
             locations.push(location);
             households.push(household);
@@ -242,8 +251,12 @@ impl Population {
         let population = Self {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             initial_population: config.initial_population,
+            births_since_start: 0,
+            deaths_since_start: 0,
+            max_person_records: config.max_person_records,
             birth_days,
             death_days,
+            last_birth_days,
             reproductive_sexes,
             locations,
             households,
@@ -266,7 +279,7 @@ impl Population {
     pub fn living_count(&self) -> u64 {
         self.death_days
             .iter()
-            .filter(|&&death_day| death_day == NO_DEATH_DAY)
+            .filter(|&&death_day| death_day == NO_EVENT_DAY)
             .count() as u64
     }
 
@@ -286,7 +299,8 @@ impl Population {
         Some(PersonSnapshot {
             id,
             birth_day: self.birth_days[index],
-            death_day: death_day_option(self.death_days[index]),
+            death_day: optional_event_day(self.death_days[index]),
+            last_birth_day: optional_event_day(self.last_birth_days[index]),
             reproductive_sex: self.reproductive_sexes[index],
             location: self.locations[index],
             household: self.households[index],
@@ -309,16 +323,118 @@ impl Population {
             initial_population: self.initial_population,
             person_records: self.person_count() as u64,
             living_population: self.living_count(),
+            births_since_start: self.births_since_start,
+            deaths_since_start: self.deaths_since_start,
             household_count: self.household_count() as u64,
-            occupied_cell_count: self.occupancy.occupied_cell_count(),
+            living_occupied_cell_count: self.living_occupied_cell_count(),
             digest64: self.digest64(),
         }
+    }
+
+    #[must_use]
+    pub fn record_limit_reached(&self) -> bool {
+        self.person_count() as u64 >= self.max_person_records
+    }
+
+    #[must_use]
+    pub(crate) fn person_id_at_index(&self, index: usize) -> Option<PersonId> {
+        (index < self.person_count()).then(|| person_id_from_index(index))
+    }
+
+    #[must_use]
+    pub(crate) fn is_alive_index(&self, index: usize) -> bool {
+        self.death_days.get(index).copied() == Some(NO_EVENT_DAY)
+    }
+
+    #[must_use]
+    pub(crate) fn reproductive_sex_at_index(&self, index: usize) -> Option<ReproductiveSex> {
+        self.reproductive_sexes.get(index).copied()
+    }
+
+    #[must_use]
+    pub(crate) fn location_at_index(&self, index: usize) -> Option<CellId> {
+        self.locations.get(index).copied()
+    }
+
+    #[must_use]
+    pub(crate) fn household_at_index(&self, index: usize) -> Option<HouseholdId> {
+        self.households.get(index).copied()
+    }
+
+    #[must_use]
+    pub(crate) fn last_birth_day_at_index(&self, index: usize) -> Option<u64> {
+        self.last_birth_days
+            .get(index)
+            .copied()
+            .and_then(optional_event_day)
+    }
+
+    #[must_use]
+    pub(crate) fn age_days_at_index(&self, index: usize, current_day: u64) -> Option<u64> {
+        let birth_day = *self.birth_days.get(index)?;
+        let current_day = i64::try_from(current_day).ok()?;
+        u64::try_from(current_day.checked_sub(birth_day)?).ok()
+    }
+
+    pub(crate) fn mark_death(&mut self, index: usize, day: u64) -> bool {
+        let Some(death_day) = self.death_days.get_mut(index) else {
+            return false;
+        };
+        if *death_day != NO_EVENT_DAY {
+            return false;
+        }
+        *death_day = day;
+        self.deaths_since_start = self.deaths_since_start.saturating_add(1);
+        true
+    }
+
+    pub(crate) fn note_successful_birth(&mut self, female_parent_index: usize, day: u64) {
+        if let Some(last_birth_day) = self.last_birth_days.get_mut(female_parent_index) {
+            *last_birth_day = day;
+        }
+    }
+
+    pub(crate) fn append_birth(
+        &mut self,
+        day: u64,
+        reproductive_sex: ReproductiveSex,
+        location: CellId,
+        household: HouseholdId,
+        female_parent: PersonId,
+        male_parent: PersonId,
+    ) -> Result<PersonId, PopulationError> {
+        if self.record_limit_reached() {
+            return Err(PopulationError::PersonRecordLimitReached {
+                limit: self.max_person_records,
+            });
+        }
+        let birth_day = i64::try_from(day).map_err(|_| PopulationError::SimulationDayTooLarge {
+            day,
+        })?;
+        let id = person_id_from_index(self.person_count());
+        self.birth_days.push(birth_day);
+        self.death_days.push(NO_EVENT_DAY);
+        self.last_birth_days.push(NO_EVENT_DAY);
+        self.reproductive_sexes.push(reproductive_sex);
+        self.locations.push(location);
+        self.households.push(household);
+        self.female_parents.push(female_parent);
+        self.male_parents.push(male_parent);
+        self.condition_permille.push(PERMILLE_MAX);
+        self.births_since_start = self.births_since_start.saturating_add(1);
+        Ok(id)
+    }
+
+    pub(crate) fn rebuild_occupancy(&mut self, world: &World) -> Result<(), PopulationError> {
+        self.occupancy = CellOccupancy::build(&self.locations, world.cell_count())?;
+        Ok(())
     }
 
     pub fn validate(&self, world: &World) -> Result<(), PopulationValidationError> {
         let person_count = self.person_count();
         let lengths = [
             self.death_days.len(),
+            self.last_birth_days.len(),
             self.reproductive_sexes.len(),
             self.locations.len(),
             self.households.len(),
@@ -328,6 +444,33 @@ impl Population {
         ];
         if lengths.iter().any(|&length| length != person_count) {
             return Err(PopulationValidationError::ColumnLengthMismatch);
+        }
+
+        let records = person_count as u64;
+        let expected_records = u64::from(self.initial_population)
+            .checked_add(self.births_since_start)
+            .ok_or(PopulationValidationError::PopulationAccountingOverflow)?;
+        if records != expected_records {
+            return Err(PopulationValidationError::PersonRecordAccountingMismatch {
+                records,
+                expected: expected_records,
+            });
+        }
+        let expected_living = expected_records
+            .checked_sub(self.deaths_since_start)
+            .ok_or(PopulationValidationError::PopulationAccountingOverflow)?;
+        let living = self.living_count();
+        if living != expected_living {
+            return Err(PopulationValidationError::LivingPopulationAccountingMismatch {
+                living,
+                expected: expected_living,
+            });
+        }
+        if records > self.max_person_records {
+            return Err(PopulationValidationError::PersonRecordLimitExceeded {
+                records,
+                limit: self.max_person_records,
+            });
         }
 
         for index in 0..person_count {
@@ -369,13 +512,27 @@ impl Population {
             self.validate_parent(person, index, male_parent, ReproductiveSex::Male)?;
 
             let death_day = self.death_days[index];
-            if death_day != NO_DEATH_DAY && self.birth_days[index] >= 0 {
+            if death_day != NO_EVENT_DAY && self.birth_days[index] >= 0 {
                 let birth_day = u64::try_from(self.birth_days[index])
                     .expect("non-negative birth day must fit u64");
                 if death_day < birth_day {
                     return Err(PopulationValidationError::DeathBeforeBirth {
                         person,
                         birth_day: self.birth_days[index],
+                        death_day,
+                    });
+                }
+            }
+
+            let last_birth_day = self.last_birth_days[index];
+            if last_birth_day != NO_EVENT_DAY {
+                if self.reproductive_sexes[index] != ReproductiveSex::Female {
+                    return Err(PopulationValidationError::BirthHistoryOnNonFemale { person });
+                }
+                if death_day != NO_EVENT_DAY && last_birth_day > death_day {
+                    return Err(PopulationValidationError::BirthAfterDeath {
+                        person,
+                        birth_day: last_birth_day,
                         death_day,
                     });
                 }
@@ -407,6 +564,20 @@ impl Population {
         }
         if self.birth_days[parent_index] >= self.birth_days[child_index] {
             return Err(PopulationValidationError::ParentNotOlder { person, parent });
+        }
+        let child_birth_day = self.birth_days[child_index];
+        let parent_death_day = self.death_days[parent_index];
+        if child_birth_day >= 0 && parent_death_day != NO_EVENT_DAY {
+            let child_birth_day =
+                u64::try_from(child_birth_day).expect("non-negative birth day must fit u64");
+            if parent_death_day < child_birth_day {
+                return Err(PopulationValidationError::ParentDeadBeforeBirth {
+                    person,
+                    parent,
+                    parent_death_day,
+                    child_birth_day,
+                });
+            }
         }
         Ok(())
     }
@@ -462,14 +633,39 @@ impl Population {
     }
 
     #[must_use]
+    fn living_occupied_cell_count(&self) -> u64 {
+        let mut count = 0_u64;
+        for cell_index in 0..self.occupancy.offsets.len().saturating_sub(1) {
+            let cell = CellId::new(cell_index as u64 + 1);
+            if self
+                .occupancy
+                .people_in_cell(cell)
+                .is_some_and(|people| {
+                    people.iter().any(|&person| {
+                        person_index(person, self.person_count())
+                            .is_some_and(|index| self.is_alive_index(index))
+                    })
+                })
+            {
+                count = count.saturating_add(1);
+            }
+        }
+        count
+    }
+
+    #[must_use]
     pub fn digest64(&self) -> u64 {
         let mut hash = FNV_OFFSET_BASIS;
         digest_u64(&mut hash, u64::from(self.schema_version));
         digest_u64(&mut hash, u64::from(self.initial_population));
+        digest_u64(&mut hash, self.births_since_start);
+        digest_u64(&mut hash, self.deaths_since_start);
+        digest_u64(&mut hash, self.max_person_records);
         digest_u64(&mut hash, self.person_count() as u64);
         for index in 0..self.person_count() {
             digest_i64(&mut hash, self.birth_days[index]);
             digest_u64(&mut hash, self.death_days[index]);
+            digest_u64(&mut hash, self.last_birth_days[index]);
             digest_u64(
                 &mut hash,
                 match self.reproductive_sexes[index] {
@@ -506,6 +702,12 @@ fn validate_config(config: PopulationConfig) -> Result<(), PopulationError> {
             value: config.synthetic_male_permille,
         });
     }
+    if u64::from(config.initial_population) > config.max_person_records {
+        return Err(PopulationError::InitialPopulationExceedsRecordLimit {
+            initial_population: config.initial_population,
+            limit: config.max_person_records,
+        });
+    }
     Ok(())
 }
 
@@ -523,8 +725,8 @@ fn location_index(id: CellId, cell_count: usize) -> Option<usize> {
     (index < cell_count).then_some(index)
 }
 
-fn death_day_option(day: u64) -> Option<u64> {
-    (day != NO_DEATH_DAY).then_some(day)
+fn optional_event_day(day: u64) -> Option<u64> {
+    (day != NO_EVENT_DAY).then_some(day)
 }
 
 fn digest_u64(hash: &mut u64, value: u64) {
@@ -550,6 +752,15 @@ pub enum PopulationError {
     ZeroHouseholdSize,
     #[error("synthetic male share {value} permille is outside 0..=1000")]
     InvalidMalePermille { value: u16 },
+    #[error("initial population {initial_population} exceeds persistent record limit {limit}")]
+    InitialPopulationExceedsRecordLimit {
+        initial_population: u32,
+        limit: u64,
+    },
+    #[error("persistent person record limit {limit} has been reached")]
+    PersonRecordLimitReached { limit: u64 },
+    #[error("simulation day {day} cannot be represented as an epoch-relative signed birth day")]
+    SimulationDayTooLarge { day: u64 },
     #[error("cannot initialize a population into a world with no cells")]
     WorldHasNoCells,
     #[error(transparent)]
@@ -560,6 +771,14 @@ pub enum PopulationError {
 pub enum PopulationValidationError {
     #[error("population structure-of-arrays columns have different lengths")]
     ColumnLengthMismatch,
+    #[error("population accounting overflowed")]
+    PopulationAccountingOverflow,
+    #[error("persistent person records {records} do not match expected {expected}")]
+    PersonRecordAccountingMismatch { records: u64, expected: u64 },
+    #[error("living population {living} does not match expected {expected}")]
+    LivingPopulationAccountingMismatch { living: u64, expected: u64 },
+    #[error("persistent person records {records} exceed operational limit {limit}")]
+    PersonRecordLimitExceeded { records: u64, limit: u64 },
     #[error("person {person:?} references invalid location {location:?}")]
     InvalidPersonLocation { person: PersonId, location: CellId },
     #[error("person {person:?} references invalid household {household:?}")]
@@ -595,10 +814,25 @@ pub enum PopulationValidationError {
     },
     #[error("person {person:?} parent {parent:?} is not older than the child")]
     ParentNotOlder { person: PersonId, parent: PersonId },
+    #[error("person {person:?} parent {parent:?} died on day {parent_death_day} before child birth day {child_birth_day}")]
+    ParentDeadBeforeBirth {
+        person: PersonId,
+        parent: PersonId,
+        parent_death_day: u64,
+        child_birth_day: u64,
+    },
     #[error("person {person:?} dies on day {death_day} before birth day {birth_day}")]
     DeathBeforeBirth {
         person: PersonId,
         birth_day: i64,
+        death_day: u64,
+    },
+    #[error("person {person:?} has a birth-history event despite non-female reproductive sex")]
+    BirthHistoryOnNonFemale { person: PersonId },
+    #[error("person {person:?} has birth on day {birth_day} after death on day {death_day}")]
+    BirthAfterDeath {
+        person: PersonId,
+        birth_day: u64,
         death_day: u64,
     },
     #[error("invalid occupancy index: {reason}")]
@@ -701,12 +935,52 @@ mod tests {
     }
 
     #[test]
+    fn death_and_birth_accounting_remain_exact() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(31)).unwrap();
+        let mut population =
+            Population::initialize(PopulationConfig::new(10), &world, RngFactory::new(31)).unwrap();
+        assert!(population.mark_death(0, 365));
+        let female = population
+            .person_id_at_index(1)
+            .expect("founder ID should exist");
+        let male = population
+            .person_id_at_index(2)
+            .expect("founder ID should exist");
+        population
+            .append_birth(
+                365,
+                ReproductiveSex::Female,
+                CellId::new(1),
+                population.household_at_index(1).unwrap(),
+                female,
+                male,
+            )
+            .unwrap();
+        population.rebuild_occupancy(&world).unwrap();
+
+        assert_eq!(population.person_count(), 11);
+        assert_eq!(population.living_count(), 10);
+        assert_eq!(population.births_since_start, 1);
+        assert_eq!(population.deaths_since_start, 1);
+    }
+
+    #[test]
     fn rejects_zero_household_size() {
         let world = test_world(29);
         let config = PopulationConfig::new(100).with_target_household_size(0);
         assert!(matches!(
             Population::initialize(config, &world, RngFactory::new(29)),
             Err(PopulationError::ZeroHouseholdSize)
+        ));
+    }
+
+    #[test]
+    fn rejects_initial_population_above_record_limit() {
+        let world = test_world(37);
+        let config = PopulationConfig::new(101).with_max_person_records(100);
+        assert!(matches!(
+            Population::initialize(config, &world, RngFactory::new(37)),
+            Err(PopulationError::InitialPopulationExceedsRecordLimit { .. })
         ));
     }
 }
