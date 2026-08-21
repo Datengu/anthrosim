@@ -6,13 +6,20 @@
 pub mod config;
 pub mod ids;
 pub mod manifest;
+pub mod population;
 pub mod rng;
 pub mod simulation;
 pub mod time;
 pub mod world;
 
-pub use config::{ExperimentConfig, WorldConfig};
+pub use config::{
+    ExperimentConfig, PopulationConfig, PopulationInitialization, WorldConfig,
+};
 pub use manifest::{RunManifest, StopReason};
+pub use population::{
+    CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
+    PopulationValidationError, ReproductiveSex,
+};
 pub use simulation::{Simulation, SimulationError};
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};
