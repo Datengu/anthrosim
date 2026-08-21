@@ -39,5 +39,8 @@ jobs:
       - name: Test
         run: cargo test --workspace --all-features
 
+      - name: Benchmark synthetic world generation
+        run: cargo bench -p anthrosim-core --bench world_generation -- --noplot
+
       - name: Build release binaries
         run: cargo build --workspace --release
