@@ -8,5 +8,8 @@ fn identical_skeleton_runs_emit_identical_manifests() {
     let b = Simulation::new(config).run();
 
     assert_eq!(a, b);
-    assert_eq!(serde_json::to_vec(&a).unwrap(), serde_json::to_vec(&b).unwrap());
+    assert_eq!(
+        serde_json::to_vec(&a).unwrap(),
+        serde_json::to_vec(&b).unwrap()
+    );
 }

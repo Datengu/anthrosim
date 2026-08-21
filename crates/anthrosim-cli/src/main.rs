@@ -4,7 +4,11 @@ use anthrosim_core::{ExperimentConfig, Simulation};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[command(name = "anthrosim", version, about = "Headless AnthroSim experiment runner")]
+#[command(
+    name = "anthrosim",
+    version,
+    about = "Headless AnthroSim experiment runner"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -50,7 +54,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let json = serde_json::to_string_pretty(&manifest)?;
 
             if let Some(path) = output {
-                if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+                if let Some(parent) = path
+                    .parent()
+                    .filter(|parent| !parent.as_os_str().is_empty())
+                {
                     fs::create_dir_all(parent)?;
                 }
                 fs::write(&path, format!("{json}\n"))?;
