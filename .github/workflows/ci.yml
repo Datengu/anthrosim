@@ -29,6 +29,8 @@ jobs:
         run: |
           rustc --version --verbose
           cargo --version
+          node --version
+          python3 --version
 
       - name: Verify locked dependency graph
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
@@ -41,6 +43,9 @@ jobs:
 
       - name: Test
         run: cargo test --locked --workspace --all-features
+
+      - name: Test M6 explorer artifact model
+        run: node --test explorer/model.test.mjs
 
       - name: Benchmark synthetic world generation
         run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
@@ -80,6 +85,31 @@ jobs:
           test -f /tmp/anthrosim-m5-resume/events.json
           test -f /tmp/anthrosim-m5-resume/metrics.json
           test -f /tmp/anthrosim-m5-resume/checkpoint.json
+
+      - name: Validate M6 explorer against versioned sample run
+        run: node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m5-resume
+
+      - name: Smoke-test M6 read-only local server
+        run: |
+          sha256sum /tmp/anthrosim-m5-resume/*.json > /tmp/m6-before.sha256
+          python3 scripts/serve-explorer.py /tmp/anthrosim-m5-resume --port 8765 --no-browser >/tmp/m6-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/ >/tmp/m6-index.html; then
+              break
+            fi
+            sleep 0.2
+          done
+          test -s /tmp/m6-index.html
+          curl -fsS http://127.0.0.1:8765/run/manifest.json | cmp - /tmp/anthrosim-m5-resume/manifest.json
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8765/run/manifest.json)
+          test "$status" = "405"
+          kill "$server_pid"
+          wait "$server_pid" 2>/dev/null || true
+          trap - EXIT
+          sha256sum /tmp/anthrosim-m5-resume/*.json > /tmp/m6-after.sha256
+          diff -u /tmp/m6-before.sha256 /tmp/m6-after.sha256
 
       - name: Measure one-million-founder process memory
         run: |
