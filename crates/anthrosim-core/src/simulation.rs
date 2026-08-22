@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::{
     config::ExperimentConfig,
     demography::{
-        DemographyConfigError, DemographyStepOutcome, process_demographic_year,
+        DemographyConfigError, DemographyRngs, DemographyStepOutcome, process_demographic_year,
         validate_demography_config,
     },
     manifest::{RunManifest, StopReason},
@@ -73,10 +73,7 @@ impl Simulation {
     /// operational stop conditions and are recorded distinctly from the
     /// requested-duration stop.
     pub fn run(mut self) -> Result<RunManifest, SimulationError> {
-        let mut mortality_rng = self.rng_factory.stream("demography/mortality");
-        let mut fertility_rng = self.rng_factory.stream("demography/fertility");
-        let mut parentage_rng = self.rng_factory.stream("demography/parentage");
-        let mut newborn_sex_rng = self.rng_factory.stream("demography/newborn_sex");
+        let mut demography_rngs = DemographyRngs::new(self.rng_factory);
 
         let mut stop_reason = StopReason::DurationReached;
         if self.population.living_count() == 0 {
@@ -89,10 +86,7 @@ impl Simulation {
                     &self.world,
                     &self.config.demography,
                     self.time.days(),
-                    &mut mortality_rng,
-                    &mut fertility_rng,
-                    &mut parentage_rng,
-                    &mut newborn_sex_rng,
+                    &mut demography_rngs,
                 )?;
 
                 match outcome {
