@@ -65,6 +65,7 @@ pub struct RunStatistics {
 pub struct RunManifest {
     pub schema_version: u32,
     pub model_version: String,
+    pub model_semantics_id: String,
     pub git_commit: Option<String>,
     pub experiment: ExperimentConfig,
     pub artifact_schemas: ArtifactSchemas,
@@ -80,5 +81,5 @@ pub struct RunManifest {
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 8;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 9;
 }
