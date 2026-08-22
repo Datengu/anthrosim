@@ -1,6 +1,7 @@
 use anthrosim_core::{
-    DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
-    Simulation, StopReason, WorldConfig, config::PROBABILITY_PER_MILLION,
+    DemographyConfig, ExperimentConfig, InvariantError, MigrationConfig, PopulationConfig,
+    ResourceConfig, SimTime, Simulation, StopReason, WorldConfig,
+    config::PROBABILITY_PER_MILLION,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -187,4 +188,29 @@ fn invariant_validator_rejects_cross_artifact_accounting_tampering() {
     tampered.migration.total_distance_cells =
         tampered.migration.total_distance_cells.saturating_add(1);
     assert!(tampered.validate_invariants().is_err());
+}
+
+#[test]
+fn invariant_validator_requires_completed_annual_checkpoint_boundary() {
+    let config = ExperimentConfig::new(7_431, 3)
+        .with_world(WorldConfig::new(4, 4))
+        .with_population(PopulationConfig::new(32).with_max_person_records(1_000))
+        .with_demography(no_event_demography())
+        .with_resources(no_pressure_resources())
+        .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
+
+    let checkpoint = Simulation::new(config)
+        .unwrap()
+        .checkpoint_at_year(1)
+        .unwrap();
+    checkpoint.validate_invariants().unwrap();
+
+    let mut malformed = checkpoint;
+    malformed.time = SimTime::from_days(366);
+    let error = malformed.validate_invariants().unwrap_err();
+    assert!(matches!(
+        error,
+        InvariantError::Violation(message)
+            if message == "checkpoint day is not a completed annual boundary"
+    ));
 }
