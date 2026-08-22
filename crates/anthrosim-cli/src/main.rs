@@ -209,7 +209,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             write_json(&run_dir.join("world.json"), &world)?;
             let initial_path = run_dir.join("initial-population.json");
             if !initial_path.exists() {
-                write_json(&run_dir.join("resume-start-population.json"), &resume_population)?;
+                write_json(
+                    &run_dir.join("resume-start-population.json"),
+                    &resume_population,
+                )?;
             }
             write_recorded_outputs(&run_dir, &recorded)?;
             if let Some(path) = output {
@@ -260,9 +263,7 @@ fn write_checkpoint_bundle(
     Ok(())
 }
 
-fn read_json<T: serde::de::DeserializeOwned>(
-    path: &Path,
-) -> Result<T, Box<dyn std::error::Error>> {
+fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     Ok(serde_json::from_str(&content)?)
 }

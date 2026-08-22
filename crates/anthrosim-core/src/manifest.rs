@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     checkpoint::SimulationCheckpoint,
+    config::ExperimentConfig,
     events::EventLog,
     metrics::MetricSeries,
-    config::ExperimentConfig,
     migration::{MigrationSummary, MigrationSystem},
     population::{Population, PopulationSummary},
     resources::{ResourceSummary, ResourceSystem},

@@ -9,7 +9,10 @@ use crate::{
     },
     events::EventLog,
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
-    metrics::{MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics, ResourceMetrics},
+    metrics::{
+        MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics,
+        ResourceMetrics,
+    },
     migration::{
         MigrationBoundaryContext, MigrationConfigError, MigrationError, MigrationRngs,
         MigrationSystem, validate_migration_config,
@@ -98,9 +101,7 @@ impl Simulation {
         }
         validate_experiment(&checkpoint.experiment)?;
         if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
-            return Err(SimulationError::CheckpointArtifactSchemaMismatch {
-                artifact: "events",
-            });
+            return Err(SimulationError::CheckpointArtifactSchemaMismatch { artifact: "events" });
         }
         if checkpoint.metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION {
             return Err(SimulationError::CheckpointArtifactSchemaMismatch {
@@ -244,7 +245,10 @@ impl Simulation {
     }
 
     /// Advance to a completed annual boundary and return a resumable deterministic checkpoint.
-    pub fn checkpoint_at_year(mut self, target_year: u64) -> Result<SimulationCheckpoint, SimulationError> {
+    pub fn checkpoint_at_year(
+        mut self,
+        target_year: u64,
+    ) -> Result<SimulationCheckpoint, SimulationError> {
         let current_year = self.completed_years()?;
         if target_year < current_year || target_year > self.config.duration_years {
             return Err(SimulationError::InvalidCheckpointTarget {
@@ -358,7 +362,12 @@ impl Simulation {
             migration: MigrationMetrics::from(&migration),
             state_digest64: self.state_digest64(),
         };
-        if self.metrics.snapshots.last().is_some_and(|last| last.day == snapshot.day) {
+        if self
+            .metrics
+            .snapshots
+            .last()
+            .is_some_and(|last| last.day == snapshot.day)
+        {
             let _ = self.metrics.snapshots.pop();
         }
         self.metrics.snapshots.push(snapshot);
@@ -483,7 +492,9 @@ pub enum SimulationError {
     CheckpointArtifactSchemaMismatch { artifact: &'static str },
     #[error("checkpoint day {day} is not a completed annual boundary")]
     UnsupportedCheckpointBoundary { day: u64 },
-    #[error("checkpoint completed year {completed_years} exceeds experiment duration {duration_years}")]
+    #[error(
+        "checkpoint completed year {completed_years} exceeds experiment duration {duration_years}"
+    )]
     CheckpointBeyondDuration {
         completed_years: u64,
         duration_years: u64,
@@ -492,13 +503,17 @@ pub enum SimulationError {
     CheckpointWorldDigestMismatch { expected: u64, actual: u64 },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]
     CheckpointStateDigestMismatch { expected: u64, actual: u64 },
-    #[error("checkpoint target year {target_year} is outside current year {current_year}..={duration_years}")]
+    #[error(
+        "checkpoint target year {target_year} is outside current year {current_year}..={duration_years}"
+    )]
     InvalidCheckpointTarget {
         current_year: u64,
         target_year: u64,
         duration_years: u64,
     },
-    #[error("checkpoint target year {target_year} was not reached: stopped at day {stopped_day} because {stop_reason:?}")]
+    #[error(
+        "checkpoint target year {target_year} was not reached: stopped at day {stopped_day} because {stop_reason:?}"
+    )]
     CheckpointTargetUnreachable {
         target_year: u64,
         stop_reason: StopReason,
@@ -589,9 +604,12 @@ mod tests {
                 - manifest.population.deaths_since_start,
             manifest.population.living_population
         );
-        assert!(run.events().events.iter().all(|event| {
-            event.provenance == EventProvenance::Authoritative
-        }));
+        assert!(
+            run.events()
+                .events
+                .iter()
+                .all(|event| { event.provenance == EventProvenance::Authoritative })
+        );
     }
 
     #[test]
@@ -614,12 +632,24 @@ mod tests {
             .unwrap();
 
         assert_eq!(resumed.manifest, uninterrupted.manifest);
-        assert_eq!(resumed.checkpoint.population, uninterrupted.checkpoint.population);
-        assert_eq!(resumed.checkpoint.resources, uninterrupted.checkpoint.resources);
-        assert_eq!(resumed.checkpoint.migration, uninterrupted.checkpoint.migration);
+        assert_eq!(
+            resumed.checkpoint.population,
+            uninterrupted.checkpoint.population
+        );
+        assert_eq!(
+            resumed.checkpoint.resources,
+            uninterrupted.checkpoint.resources
+        );
+        assert_eq!(
+            resumed.checkpoint.migration,
+            uninterrupted.checkpoint.migration
+        );
         assert_eq!(resumed.checkpoint.events, uninterrupted.checkpoint.events);
         assert_eq!(resumed.checkpoint.metrics, uninterrupted.checkpoint.metrics);
-        assert_eq!(resumed.checkpoint.state_digest64, uninterrupted.checkpoint.state_digest64);
+        assert_eq!(
+            resumed.checkpoint.state_digest64,
+            uninterrupted.checkpoint.state_digest64
+        );
     }
 
     #[test]

@@ -1,14 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::ExperimentConfig,
-    events::EventLog,
-    metrics::MetricSeries,
-    migration::MigrationCheckpointState,
-    population::Population,
-    resources::ResourceSystem,
-    rng::RngStreamPosition,
-    time::SimTime,
+    config::ExperimentConfig, events::EventLog, metrics::MetricSeries,
+    migration::MigrationCheckpointState, population::Population, resources::ResourceSystem,
+    rng::RngStreamPosition, time::SimTime,
 };
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
