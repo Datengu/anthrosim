@@ -89,6 +89,9 @@ jobs:
             experiments/v0.1-resource-variability.json \
             --binary target/release/anthrosim \
             --run-dir /tmp/anthrosim-m7-6-resource-variability
+          cat /tmp/anthrosim-m7-6-resource-variability/reproduction-record.json
+          cat /tmp/anthrosim-m7-6-resource-variability/analysis/summary.json
+          cat /tmp/anthrosim-m7-6-resource-variability/analysis/points.csv
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -108,13 +111,25 @@ jobs:
           assert all(row['failedRuns'] == 0 for row in points)
           assert all(row['incompleteRuns'] == 0 for row in points)
           assert all(row['personRecordLimitReachedRuns'] == 0 for row in points)
-          assert summary['plannedRuns'] == 144
+          assert summary['runRows'] == 144
+          assert summary['pointRows'] == 18
           assert summary['completedRuns'] == 144
+          assert summary['nonCompletedRuns'] == 0
           assert record['sweepId'] == manifest['sweepId']
           PY
-          cat /tmp/anthrosim-m7-6-resource-variability/reproduction-record.json
-          cat /tmp/anthrosim-m7-6-resource-variability/analysis/summary.json
-          cat /tmp/anthrosim-m7-6-resource-variability/analysis/points.csv
+
+      - name: Archive M7.6 derived experiment results
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: m7-6-resource-variability-derived
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            /tmp/anthrosim-m7-6-resource-variability/source-definition.json
+            /tmp/anthrosim-m7-6-resource-variability/reproduction-record.json
+            /tmp/anthrosim-m7-6-resource-variability/sweep-manifest.json
+            /tmp/anthrosim-m7-6-resource-variability/analysis/
 
       - name: Generate completed M5 sample bundle
         run: |
