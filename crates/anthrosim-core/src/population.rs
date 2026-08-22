@@ -680,11 +680,7 @@ impl Population {
                 count = count.saturating_add(1);
             }
         }
-        if count == 0 {
-            0
-        } else {
-            u16::try_from(total / count).unwrap_or(PERMILLE_MAX)
-        }
+        u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX)
     }
 
     #[must_use]

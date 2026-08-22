@@ -340,12 +340,11 @@ impl ResourceSystem {
             )?;
             let need = household_need[household_index_value];
             let harvest = household_harvest[household_index_value];
-            let supplied_permille = if need == 0 {
-                u64::from(PERMILLE_MAX)
-            } else {
-                (harvest.saturating_mul(u64::from(PERMILLE_MAX)) / need)
-                    .min(u64::from(PERMILLE_MAX))
-            };
+            let supplied_permille = harvest
+                .saturating_mul(u64::from(PERMILLE_MAX))
+                .checked_div(need)
+                .unwrap_or(u64::from(PERMILLE_MAX))
+                .min(u64::from(PERMILLE_MAX));
             let current = population.condition_at_index(person_index).ok_or(
                 ResourceError::InternalInvariant("living person has no condition state"),
             )?;
