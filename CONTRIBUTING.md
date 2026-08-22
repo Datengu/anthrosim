@@ -12,6 +12,7 @@ AnthroSim is being developed as research-oriented simulation software. Changes s
 6. **Interpretation must be traceable.** A derived explanation must be traceable back to metrics/events/state.
 7. **No silent schema drift.** Persisted experiment, manifest, event, and checkpoint formats are versioned.
 8. **No silent dependency drift.** The Rust toolchain and `Cargo.lock` are part of build/experiment provenance.
+9. **No silent CI supply-chain drift.** Third-party GitHub Actions are pinned to immutable commit SHAs; version tags remain comments for human readability only.
 
 ## Pull requests
 
@@ -46,6 +47,19 @@ When dependencies are deliberately changed:
 5. commit manifest and lockfile changes together in a reviewable PR.
 
 A lockfile change is part of software provenance and should not be treated as generated noise.
+
+### GitHub Actions dependencies
+
+Third-party actions in `.github/workflows/` are part of the CI supply chain and must use immutable full commit SHAs in `uses:` declarations. Keep the corresponding human-readable release beside the SHA as a comment, for example `# v6.1.0`.
+
+When deliberately updating an action:
+
+1. identify the intended upstream release and its exact commit SHA from the official action repository;
+2. replace the pinned SHA and version comment together;
+3. review the action's release notes and the workflow diff;
+4. let the repository's full CI run against the exact new SHA before merging.
+
+Do not replace a pinned SHA with a mutable branch or version tag merely for update convenience. Automated dependency tooling is acceptable only when it produces an explicit PR containing the reviewed SHA change.
 
 ## Scientific changes
 
