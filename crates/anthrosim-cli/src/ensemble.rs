@@ -27,6 +27,7 @@ pub(crate) struct EnsembleRunSettings {
     pub(crate) household_size: u16,
     pub(crate) max_person_records: u64,
     pub(crate) resource_productivity_scale_permille: u16,
+    pub(crate) resource_seasonality_scale_permille: u16,
     pub(crate) annual_food_need: u32,
     pub(crate) disable_migration: bool,
     pub(crate) migration_radius: u16,
@@ -128,6 +129,7 @@ enum BundleInspection {
 pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> ExperimentConfig {
     let resources = ResourceConfig::synthetic_validation_v1()
         .with_productivity_scale_permille(settings.resource_productivity_scale_permille)
+        .with_seasonality_scale_permille(settings.resource_seasonality_scale_permille)
         .with_annual_need_units_per_person(settings.annual_food_need);
     let migration = MigrationConfig::synthetic_validation_v1()
         .with_enabled(!settings.disable_migration)
@@ -663,6 +665,7 @@ mod tests {
             household_size: 4,
             max_person_records: 100,
             resource_productivity_scale_permille: 1_000,
+            resource_seasonality_scale_permille: 1_000,
             annual_food_need: 100,
             disable_migration: false,
             migration_radius: 3,

@@ -493,10 +493,11 @@ impl ResourceSystem {
                 .checked_mul(u64::from(config.annual_regeneration_units_per_productivity))
                 .ok_or(ResourceError::AccountingOverflow)?;
             let annual_base = scale_permille(annual_base, config.productivity_scale_permille);
-            let seasonal = seasonal_factor_permille(
+            let seasonal = scaled_seasonal_factor_permille(
                 day_of_year,
                 cell.season_phase_days,
                 cell.season_amplitude,
+                config.seasonality_scale_permille,
             );
             let stress_factor = PERMILLE_MAX.saturating_sub(cell.environmental_stress);
             let effective = scale_permille(scale_permille(annual_base, seasonal), stress_factor);
@@ -591,6 +592,11 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
             value: config.productivity_scale_permille,
         });
     }
+    if config.seasonality_scale_permille > PERMILLE_MAX {
+        return Err(ResourceConfigError::InvalidSeasonalityScale {
+            value: config.seasonality_scale_permille,
+        });
+    }
     if config.condition_recovery_per_period > PERMILLE_MAX {
         return Err(ResourceConfigError::InvalidConditionRecovery {
             value: config.condition_recovery_per_period,
@@ -624,6 +630,20 @@ fn cell_capacity(base_productivity: u16, config: &ResourceConfig) -> u64 {
 fn scale_permille(value: u64, scale: u16) -> u64 {
     u64::try_from(u128::from(value) * u128::from(scale) / u128::from(PERMILLE_MAX))
         .unwrap_or(u64::MAX)
+}
+
+fn scaled_seasonal_factor_permille(
+    day_of_year: u16,
+    phase: u16,
+    cell_amplitude: u16,
+    seasonality_scale_permille: u16,
+) -> u16 {
+    let scaled_amplitude = scale_permille(u64::from(cell_amplitude), seasonality_scale_permille);
+    seasonal_factor_permille(
+        day_of_year,
+        phase,
+        u16::try_from(scaled_amplitude).unwrap_or(PERMILLE_MAX),
+    )
 }
 
 /// Integer triangular seasonal factor centred on a cell's phase.
@@ -679,6 +699,8 @@ pub enum ResourceConfigError {
     InvalidPeriodsPerYear { value: u16 },
     #[error("resource productivity scale {value} permille is outside 0..=1000")]
     InvalidProductivityScale { value: u16 },
+    #[error("resource seasonality scale {value} permille is outside 0..=1000")]
+    InvalidSeasonalityScale { value: u16 },
     #[error("condition recovery {value} permille is outside 0..=1000")]
     InvalidConditionRecovery { value: u16 },
     #[error("maximum condition loss {value} permille is outside 0..=1000")]
@@ -815,5 +837,15 @@ mod tests {
         assert_eq!(seasonal_factor_permille(0, 0, 1_000), 2_000);
         assert_eq!(seasonal_factor_permille(182, 0, 1_000), 0);
         assert_eq!(seasonal_factor_permille(100, 100, 0), 1_000);
+        assert_eq!(scaled_seasonal_factor_permille(0, 0, 800, 0), 1_000);
+        assert_eq!(scaled_seasonal_factor_permille(0, 0, 800, 500), 1_400);
+        assert_eq!(scaled_seasonal_factor_permille(0, 0, 800, 1_000), 1_800);
+
+        let invalid =
+            ResourceConfig::synthetic_validation_v1().with_seasonality_scale_permille(1_001);
+        assert!(matches!(
+            validate_resource_config(&invalid),
+            Err(ResourceConfigError::InvalidSeasonalityScale { .. })
+        ));
     }
 }

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "definitionId": "v0.1_resource_variability_synthetic_validation",
+  "scientificStatus": "synthetic_validation",
+  "question": "How do synthetic resource-productivity magnitude and seasonal variability affect population persistence, spatial dispersion and migration in AnthroSim v0.1?",
+  "base": {
+    "years": 100,
+    "worldWidth": 64,
+    "worldHeight": 64,
+    "population": 5000,
+    "householdSize": 5,
+    "maxPersonRecords": 150000,
+    "resourceProductivityScalePermille": 1000,
+    "resourceSeasonalityScalePermille": 1000,
+    "annualFoodNeed": 100,
+    "disableMigration": false,
+    "migrationRadius": 3
+  },
+  "seeds": [71001, 71002, 71003, 71004, 71005, 71006, 71007, 71008],
+  "dimensions": {
+    "resourceProductivityScalePermille": [250, 500, 1000],
+    "resourceSeasonalityScalePermille": [0, 500, 1000],
+    "disableMigration": [false, true]
+  },
+  "interpretation": {
+    "resourceProductivityScalePermille": "Synthetic multiplier on baseline local productivity magnitude. These values are dimensionless mechanism-testing settings, not empirical carrying capacities.",
+    "resourceSeasonalityScalePermille": "Synthetic multiplier on each generated cell's seasonal-amplitude field. Zero removes the seasonal swing; 1000 preserves the baseline synthetic amplitude. It does not represent a reconstructed climate series.",
+    "disableMigration": "Factorial mobility response control. false enables the existing bounded M4 household migration mechanism; true disables that mechanism while keeping other systems unchanged."
+  }
+}

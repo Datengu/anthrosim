@@ -41,7 +41,7 @@ pub struct SimulationCheckpoint {
 }
 
 impl SimulationCheckpoint {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[must_use]
