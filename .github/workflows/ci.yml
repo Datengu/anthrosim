@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   rust:
@@ -17,8 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.1.0
         with:
-          persist-credentials: true
-          ref: feat/m5-observability
+          persist-credentials: false
 
       - name: Install pinned Rust toolchain
         run: |
@@ -33,149 +32,6 @@ jobs:
 
       - name: Verify locked dependency graph
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
-
-      - name: Apply M5 interface cleanup once
-        if: github.actor != 'github-actions[bot]'
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          def transform(path, fn):
-              p = Path(path)
-              before = p.read_text()
-              after = fn(before)
-              if after == before:
-                  print(f'no change needed: {path}')
-              else:
-                  p.write_text(after)
-
-          def demography(text):
-              if '#[cfg(test)]\npub(crate) fn process_demographic_year(' not in text:
-                  text = text.replace(
-                      'pub(crate) fn process_demographic_year(\n',
-                      '#[cfg(test)]\npub(crate) fn process_demographic_year(\n',
-                      1,
-                  )
-              return text
-
-          def migration(text):
-              if '    #[cfg(test)]\n    pub(crate) fn process_boundary(' not in text:
-                  text = text.replace(
-                      '    pub(crate) fn process_boundary(\n',
-                      '    #[cfg(test)]\n    pub(crate) fn process_boundary(\n',
-                      1,
-                  )
-              return text
-
-          def resources(text):
-              if "pub(crate) struct ResourcePeriodContext<'a>" not in text:
-                  text = text.replace(
-                      'impl ResourceSystem {\n',
-                      """pub(crate) struct ResourcePeriodContext<'a> {
-              pub world: &'a World,
-              pub config: &'a ResourceConfig,
-              pub period_index_in_year: u16,
-              pub day: u64,
-          }
-
-          impl ResourceSystem {
-          """,
-                      1,
-                  )
-              start = text.index('    pub(crate) fn process_period(\n')
-              end = text.index('        if self.cell_food_stock.len() != world.cell_count() {', start)
-              replacement = """    #[cfg(test)]
-              pub(crate) fn process_period(
-                  &mut self,
-                  population: &mut Population,
-                  world: &World,
-                  config: &ResourceConfig,
-                  period_index_in_year: u16,
-                  day: u64,
-                  scarcity_rng: &mut ChaCha8Rng,
-              ) -> Result<ResourceStepOutcome, ResourceError> {
-                  let mut events = EventLog::new();
-                  self.process_period_recorded(
-                      population,
-                      &ResourcePeriodContext {
-                          world,
-                          config,
-                          period_index_in_year,
-                          day,
-                      },
-                      scarcity_rng,
-                      &mut events,
-                  )
-              }
-
-              pub(crate) fn process_period_recorded(
-                  &mut self,
-                  population: &mut Population,
-                  context: &ResourcePeriodContext<'_>,
-                  scarcity_rng: &mut ChaCha8Rng,
-                  events: &mut EventLog,
-              ) -> Result<ResourceStepOutcome, ResourceError> {
-                  let ResourcePeriodContext {
-                      world,
-                      config,
-                      period_index_in_year,
-                      day,
-                  } = *context;
-          """
-              text = text[:start] + replacement + text[end:]
-              return text
-
-          def simulation(text):
-              text = text.replace(
-                  'ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,\n        validate_resource_config,',
-                  'ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,\n        ResourceStepOutcome, ResourceSystem, validate_resource_config,',
-                  1,
-              )
-              pattern = re.compile(
-                  r'let outcome = self\.resources\.process_period_recorded\(\s*&mut self\.population,\s*&self\.world,\s*&self\.config\.resources,\s*period_index,\s*day,\s*&mut self\.resource_rngs\.scarcity_mortality,\s*&mut self\.events,\s*\)\?;',
-                  re.MULTILINE,
-              )
-              text, count = pattern.subn(
-                  """let outcome = self.resources.process_period_recorded(
-                          &mut self.population,
-                          &ResourcePeriodContext {
-                              world: &self.world,
-                              config: &self.config.resources,
-                              period_index_in_year: period_index,
-                              day,
-                          },
-                          &mut self.resource_rngs.scarcity_mortality,
-                          &mut self.events,
-                      )?;""",
-                  text,
-                  count=1,
-              )
-              if count == 0 and 'ResourcePeriodContext {' not in text:
-                  raise SystemExit('resource process call pattern not found')
-              text = text.replace(
-                  'checkpoint.time.days() % DAYS_PER_YEAR != 0',
-                  '!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)',
-              )
-              text = text.replace(
-                  'self.time.days() % DAYS_PER_YEAR != 0',
-                  '!self.time.days().is_multiple_of(DAYS_PER_YEAR)',
-              )
-              return text
-
-          transform('crates/anthrosim-core/src/demography.rs', demography)
-          transform('crates/anthrosim-core/src/migration.rs', migration)
-          transform('crates/anthrosim-core/src/resources.rs', resources)
-          transform('crates/anthrosim-core/src/simulation.rs', simulation)
-          PY
-          cargo fmt --all
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add crates
-          if ! git diff --cached --quiet; then
-            git commit -m "M5: clean lifecycle observability interfaces"
-            git push origin HEAD:feat/m5-observability
-          fi
 
       - name: Format
         run: cargo fmt --all -- --check
@@ -195,11 +51,35 @@ jobs:
       - name: Benchmark M4 bounded candidate lookup
         run: cargo bench --locked -p anthrosim-core --bench migration_candidates -- --noplot
 
-      - name: Benchmark M4 resource-migration-demographic lifecycle
+      - name: Benchmark full resource-migration-demographic lifecycle
         run: cargo bench --locked -p anthrosim-core --bench empty_run -- --noplot
+
+      - name: Benchmark M5 checkpoint persistence
+        run: cargo bench --locked -p anthrosim-core --bench checkpoint_persistence -- --noplot
 
       - name: Build release binaries
         run: cargo build --locked --workspace --release
+
+      - name: Smoke-test M5 checkpoint resume bundle
+        run: |
+          rm -rf /tmp/anthrosim-m5-resume
+          target/release/anthrosim run \
+            --years 6 \
+            --world-width 32 \
+            --world-height 32 \
+            --population 1000 \
+            --seed 4242 \
+            --run-dir /tmp/anthrosim-m5-resume \
+            --checkpoint-year 3
+          target/release/anthrosim resume \
+            --checkpoint /tmp/anthrosim-m5-resume/checkpoint.json \
+            --run-dir /tmp/anthrosim-m5-resume
+          test -f /tmp/anthrosim-m5-resume/manifest.json
+          test -f /tmp/anthrosim-m5-resume/world.json
+          test -f /tmp/anthrosim-m5-resume/initial-population.json
+          test -f /tmp/anthrosim-m5-resume/events.json
+          test -f /tmp/anthrosim-m5-resume/metrics.json
+          test -f /tmp/anthrosim-m5-resume/checkpoint.json
 
       - name: Measure one-million-founder process memory
         run: |
