@@ -211,8 +211,7 @@ impl MigrationSystem {
         let period_need_per_person = if resource_periods_per_year == 0 {
             0
         } else {
-            u64::from(annual_food_need)
-                .div_ceil(u64::from(resource_periods_per_year))
+            u64::from(annual_food_need).div_ceil(u64::from(resource_periods_per_year))
         };
 
         for household_index in 0..population.household_count() {
@@ -225,13 +224,12 @@ impl MigrationSystem {
                 .checked_add(1)
                 .ok_or(MigrationError::AccountingOverflow)?;
             let household = HouseholdId::new(household_index as u64 + 1);
-            let origin = population
-                .household_location(household)
-                .ok_or(MigrationError::InternalInvariant("household has no location"))?;
-            let mean_condition = u16::try_from(
-                self.condition_sums[household_index] / u64::from(members),
-            )
-            .unwrap_or(PERMILLE_MAX);
+            let origin = population.household_location(household).ok_or(
+                MigrationError::InternalInvariant("household has no location"),
+            )?;
+            let mean_condition =
+                u16::try_from(self.condition_sums[household_index] / u64::from(members))
+                    .unwrap_or(PERMILLE_MAX);
             let origin_population = self.cell_population(origin)?;
             let origin_utility = self.evaluate_cell(
                 household_index,
@@ -270,11 +268,11 @@ impl MigrationSystem {
             let mut best_candidate_utility = i32::MIN;
 
             for &candidate in &self.candidates {
-                let distance = manhattan_distance(world, origin, candidate)
-                    .ok_or(MigrationError::InternalInvariant("candidate coordinates invalid"))?;
-                let destination_population = self
-                    .cell_population(candidate)?
-                    .saturating_add(members);
+                let distance = manhattan_distance(world, origin, candidate).ok_or(
+                    MigrationError::InternalInvariant("candidate coordinates invalid"),
+                )?;
+                let destination_population =
+                    self.cell_population(candidate)?.saturating_add(members);
                 let uncertainty = if config.max_uncertainty_penalty_permille == 0 {
                     0
                 } else {
@@ -303,14 +301,16 @@ impl MigrationSystem {
                     best_candidate = candidate;
                     best_candidate_utility = utility.total_utility;
                 }
-                let required = origin_utility
-                    .total_utility
-                    .saturating_add(i32::try_from(config.minimum_utility_improvement).unwrap_or(i32::MAX));
+                let required = origin_utility.total_utility.saturating_add(
+                    i32::try_from(config.minimum_utility_improvement).unwrap_or(i32::MAX),
+                );
                 if utility.total_utility <= required {
                     continue;
                 }
                 let improvement = i64::from(utility.total_utility) - i64::from(required);
-                let weight = u64::try_from(improvement).unwrap_or(u64::MAX).saturating_add(1);
+                let weight = u64::try_from(improvement)
+                    .unwrap_or(u64::MAX)
+                    .saturating_add(1);
                 total_weight = total_weight
                     .checked_add(weight)
                     .ok_or(MigrationError::AccountingOverflow)?;
@@ -327,10 +327,13 @@ impl MigrationSystem {
             }
             let choice_draw = draw_bounded(&mut rngs.choice, total_weight);
             let mut cursor = choice_draw;
-            let mut selected = *self
-                .evaluations
-                .last()
-                .ok_or(MigrationError::InternalInvariant("positive weight has no candidates"))?;
+            let mut selected =
+                *self
+                    .evaluations
+                    .last()
+                    .ok_or(MigrationError::InternalInvariant(
+                        "positive weight has no candidates",
+                    ))?;
             for evaluation in &self.evaluations {
                 if cursor < evaluation.weight {
                     selected = *evaluation;
@@ -395,17 +398,17 @@ impl MigrationSystem {
             if !population.is_alive_index(person_index) {
                 continue;
             }
-            let household = population
-                .household_at_index(person_index)
-                .ok_or(MigrationError::InternalInvariant("living person has no household"))?;
+            let household = population.household_at_index(person_index).ok_or(
+                MigrationError::InternalInvariant("living person has no household"),
+            )?;
             let household_index = household_index(household, population.household_count())?;
-            let location = population
-                .location_at_index(person_index)
-                .ok_or(MigrationError::InternalInvariant("living person has no location"))?;
+            let location = population.location_at_index(person_index).ok_or(
+                MigrationError::InternalInvariant("living person has no location"),
+            )?;
             let cell_index = cell_index(location, world.cell_count())?;
-            let condition = population
-                .condition_at_index(person_index)
-                .ok_or(MigrationError::InternalInvariant("living person has no condition"))?;
+            let condition = population.condition_at_index(person_index).ok_or(
+                MigrationError::InternalInvariant("living person has no condition"),
+            )?;
             self.living_members[household_index] = self.living_members[household_index]
                 .checked_add(1)
                 .ok_or(MigrationError::AccountingOverflow)?;
@@ -452,8 +455,8 @@ impl MigrationSystem {
         }
         if count < MAX_KIN_LOCATIONS_PER_HOUSEHOLD {
             locations[count] = parent_snapshot.location;
-            self.kin_location_counts[household_index] = self.kin_location_counts[household_index]
-                .saturating_add(1);
+            self.kin_location_counts[household_index] =
+                self.kin_location_counts[household_index].saturating_add(1);
         }
         Ok(())
     }
@@ -477,7 +480,9 @@ impl MigrationSystem {
             .ok_or(MigrationError::InternalInvariant("candidate outside world"))?;
         let stock = resources
             .cell_food_stock(cell)
-            .ok_or(MigrationError::InternalInvariant("resource cell outside world"))?;
+            .ok_or(MigrationError::InternalInvariant(
+                "resource cell outside world",
+            ))?;
         let demand = period_need_per_person.saturating_mul(u64::from(destination_population));
         let resource_score = if demand == 0 {
             PERMILLE_MAX
@@ -502,8 +507,7 @@ impl MigrationSystem {
             .min(PERMILLE_MAX);
         let terrain_excess = world_cell.movement_cost.saturating_sub(BASE_MOVEMENT_COST);
         let travel_penalty = u16::try_from(
-            (u32::from(distance).saturating_mul(120)
-                + u32::from(terrain_excess) / 3)
+            (u32::from(distance).saturating_mul(120) + u32::from(terrain_excess) / 3)
                 .min(u32::from(PERMILLE_MAX)),
         )
         .unwrap_or(PERMILLE_MAX);
@@ -588,12 +592,18 @@ impl MigrationSystem {
             .destination_water_security_score_total
             .checked_add(u64::from(selected.utility.water_security_score_permille))
             .ok_or(MigrationError::AccountingOverflow)?;
-        let (origin_x, origin_y) = world
-            .coordinates(origin)
-            .ok_or(MigrationError::InternalInvariant("origin coordinates invalid"))?;
-        let (destination_x, destination_y) = world
-            .coordinates(selected.cell)
-            .ok_or(MigrationError::InternalInvariant("destination coordinates invalid"))?;
+        let (origin_x, origin_y) =
+            world
+                .coordinates(origin)
+                .ok_or(MigrationError::InternalInvariant(
+                    "origin coordinates invalid",
+                ))?;
+        let (destination_x, destination_y) =
+            world
+                .coordinates(selected.cell)
+                .ok_or(MigrationError::InternalInvariant(
+                    "destination coordinates invalid",
+                ))?;
         self.eastward_steps = self
             .eastward_steps
             .checked_add(u64::from(destination_x.saturating_sub(origin_x)))
@@ -644,16 +654,17 @@ impl MigrationSystem {
         population: &mut Population,
         world: &World,
     ) -> Result<(), MigrationError> {
-        self.post_move_cell_living.copy_from_slice(&self.cell_living);
+        self.post_move_cell_living
+            .copy_from_slice(&self.cell_living);
         for household_index in 0..population.household_count() {
             let destination = self.planned_destinations[household_index];
             if destination == CellId::INVALID {
                 continue;
             }
             let household = HouseholdId::new(household_index as u64 + 1);
-            let origin = population
-                .household_location(household)
-                .ok_or(MigrationError::InternalInvariant("household has no location"))?;
+            let origin = population.household_location(household).ok_or(
+                MigrationError::InternalInvariant("household has no location"),
+            )?;
             let members = self.living_members[household_index];
             let origin_index = cell_index(origin, world.cell_count())?;
             let destination_index = cell_index(destination, world.cell_count())?;
@@ -687,13 +698,14 @@ impl MigrationSystem {
             .travel_condition_cost_total
             .checked_add(relocation.condition_loss_total)
             .ok_or(MigrationError::AccountingOverflow)?;
-        if relocation.people_moved != self
-            .planned_destinations
-            .iter()
-            .enumerate()
-            .filter(|(_, destination)| **destination != CellId::INVALID)
-            .map(|(index, _)| u64::from(self.living_members[index]))
-            .sum::<u64>()
+        if relocation.people_moved
+            != self
+                .planned_destinations
+                .iter()
+                .enumerate()
+                .filter(|(_, destination)| **destination != CellId::INVALID)
+                .map(|(index, _)| u64::from(self.living_members[index]))
+                .sum::<u64>()
         {
             return Err(MigrationError::InternalInvariant(
                 "relocation people count did not reconcile",
@@ -931,10 +943,7 @@ pub fn validate_migration_config(config: &MigrationConfig) -> Result<(), Migrati
             return Err(MigrationConfigError::PermilleOutOfRange { field, value });
         }
     }
-    if config.resource_weight == 0
-        && config.water_security_weight == 0
-        && config.kin_weight == 0
-    {
+    if config.resource_weight == 0 && config.water_security_weight == 0 && config.kin_weight == 0 {
         return Err(MigrationConfigError::NoPositiveUtilityWeights);
     }
     Ok(())
@@ -1007,20 +1016,21 @@ mod tests {
             .with_world(WorldConfig::new(16, 16))
             .with_population(PopulationConfig::new(500))
             .with_resources(
-                ResourceConfig::synthetic_validation_v1()
-                    .with_productivity_scale_permille(250),
+                ResourceConfig::synthetic_validation_v1().with_productivity_scale_permille(250),
             );
         let run = || {
             let factory = RngFactory::new(experiment.seed);
             let world = World::generate(experiment.world, factory).unwrap();
-            let mut population = Population::initialize(experiment.population, &world, factory).unwrap();
+            let mut population =
+                Population::initialize(experiment.population, &world, factory).unwrap();
             for index in 0..population.person_count() {
                 if population.is_alive_index(index) {
                     assert!(population.set_condition_at_index(index, 500));
                 }
             }
             let resources = ResourceSystem::initialize(&world, &experiment.resources).unwrap();
-            let mut migration = MigrationSystem::initialize(&population, &world, &experiment.migration).unwrap();
+            let mut migration =
+                MigrationSystem::initialize(&population, &world, &experiment.migration).unwrap();
             let mut rngs = MigrationRngs::new(factory);
             migration
                 .process_boundary(
