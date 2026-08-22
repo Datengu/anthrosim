@@ -50,6 +50,7 @@ impl RecordedRun {
 pub struct Simulation {
     config: ExperimentConfig,
     time: SimTime,
+    terminal_stop_reason: Option<StopReason>,
     world: World,
     population: Population,
     resources: ResourceSystem,
@@ -77,6 +78,7 @@ impl Simulation {
             migration_rngs: MigrationRngs::new(rng_factory),
             config,
             time: SimTime::ZERO,
+            terminal_stop_reason: None,
             world,
             population,
             resources,
@@ -138,6 +140,7 @@ impl Simulation {
         checkpoint
             .resources
             .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
+        validate_terminal_checkpoint_state(&checkpoint)?;
         let migration = MigrationSystem::from_checkpoint_state(
             &checkpoint.population,
             &world,
@@ -163,6 +166,7 @@ impl Simulation {
         let simulation = Self {
             config: checkpoint.experiment,
             time: checkpoint.time,
+            terminal_stop_reason: checkpoint.terminal_stop_reason,
             world,
             population: checkpoint.population,
             resources: checkpoint.resources,
@@ -234,6 +238,7 @@ impl Simulation {
         let stop_reason = self
             .advance_to_year(target_year)?
             .unwrap_or(StopReason::DurationReached);
+        self.terminal_stop_reason = Some(stop_reason);
         self.ensure_terminal_metric_snapshot();
         self.validate_state()?;
         let manifest = self.build_manifest(stop_reason);
@@ -273,10 +278,15 @@ impl Simulation {
     }
 
     fn advance_to_year(&mut self, target_year: u64) -> Result<Option<StopReason>, SimulationError> {
+        if let Some(stop_reason) = self.terminal_stop_reason {
+            return Ok(Some(stop_reason));
+        }
+
         let current_year = self.completed_years()?;
         if self.population.living_count() == 0 {
+            self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
             self.record_metric_snapshot();
-            return Ok(Some(StopReason::PopulationExtinct));
+            return Ok(self.terminal_stop_reason);
         }
 
         for year in current_year.saturating_add(1)..=target_year {
@@ -300,8 +310,9 @@ impl Simulation {
                     &mut self.events,
                 )?;
                 if outcome == ResourceStepOutcome::PopulationExtinct {
+                    self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
                     self.record_metric_snapshot();
-                    return Ok(Some(StopReason::PopulationExtinct));
+                    return Ok(self.terminal_stop_reason);
                 }
                 self.migration.process_boundary_recorded(
                     &mut self.population,
@@ -332,10 +343,12 @@ impl Simulation {
             match outcome {
                 DemographyStepOutcome::Continue => {}
                 DemographyStepOutcome::PopulationExtinct => {
-                    return Ok(Some(StopReason::PopulationExtinct));
+                    self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
+                    return Ok(self.terminal_stop_reason);
                 }
                 DemographyStepOutcome::PersonRecordLimitReached => {
-                    return Ok(Some(StopReason::PersonRecordLimitReached));
+                    self.terminal_stop_reason = Some(StopReason::PersonRecordLimitReached);
+                    return Ok(self.terminal_stop_reason);
                 }
             }
         }
@@ -457,6 +470,7 @@ impl Simulation {
             experiment: self.config,
             time: self.time,
             completed_years,
+            terminal_stop_reason: self.terminal_stop_reason,
             world_digest64: self.world.digest64(),
             population: self.population,
             resources: self.resources,
@@ -482,6 +496,29 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
     Ok(())
 }
 
+fn validate_terminal_checkpoint_state(
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), SimulationError> {
+    let Some(stop_reason) = checkpoint.terminal_stop_reason else {
+        return Ok(());
+    };
+
+    let matches_state = match stop_reason {
+        StopReason::DurationReached => {
+            checkpoint.completed_years == checkpoint.experiment.duration_years
+        }
+        StopReason::PopulationExtinct => checkpoint.population.living_count() == 0,
+        StopReason::PersonRecordLimitReached => {
+            checkpoint.population.summary().person_records
+                == checkpoint.experiment.population.max_person_records
+        }
+    };
+    if !matches_state {
+        return Err(SimulationError::CheckpointTerminalStateMismatch { stop_reason });
+    }
+    Ok(())
+}
+
 #[derive(Debug, Error)]
 pub enum SimulationError {
     #[error("experiment schema {found} is unsupported; supported schema is {supported}")]
@@ -501,6 +538,8 @@ pub enum SimulationError {
         completed_years: u64,
         duration_years: u64,
     },
+    #[error("checkpoint terminal stop reason {stop_reason:?} does not match checkpoint state")]
+    CheckpointTerminalStateMismatch { stop_reason: StopReason },
     #[error("checkpoint world digest mismatch: expected {expected}, reconstructed {actual}")]
     CheckpointWorldDigestMismatch { expected: u64, actual: u64 },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]
@@ -570,6 +609,23 @@ mod tests {
         MigrationConfig::synthetic_validation_v1().with_enabled(false)
     }
 
+    fn record_limit_config(seed: u64) -> ExperimentConfig {
+        let mut demography = no_event_demography();
+        for band in &mut demography.fertility_bands {
+            band.annual_probability_per_million = PROBABILITY_PER_MILLION;
+        }
+        demography.minimum_birth_spacing_days = 0;
+        demography.male_parent_min_age_years = 0;
+        demography.male_parent_max_age_years_exclusive = 100;
+
+        ExperimentConfig::new(seed, 10)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(PopulationConfig::new(100).with_max_person_records(101))
+            .with_demography(demography)
+            .with_resources(no_pressure_resources())
+            .with_migration(disabled_migration())
+    }
+
     #[test]
     fn run_reaches_configured_duration_when_no_stop_condition_occurs() {
         let config = ExperimentConfig::new(7, 10)
@@ -628,6 +684,7 @@ mod tests {
             .unwrap()
             .checkpoint_at_year(5)
             .unwrap();
+        assert_eq!(checkpoint.terminal_stop_reason, None);
         let resumed = Simulation::from_checkpoint(checkpoint)
             .unwrap()
             .run_recorded()
@@ -651,6 +708,10 @@ mod tests {
         assert_eq!(
             resumed.checkpoint.state_digest64,
             uninterrupted.checkpoint.state_digest64
+        );
+        assert_eq!(
+            resumed.checkpoint.terminal_stop_reason,
+            uninterrupted.checkpoint.terminal_stop_reason
         );
     }
 
@@ -722,26 +783,57 @@ mod tests {
 
     #[test]
     fn record_limit_is_an_explicit_operational_stop() {
-        let mut demography = no_event_demography();
-        for band in &mut demography.fertility_bands {
-            band.annual_probability_per_million = PROBABILITY_PER_MILLION;
-        }
-        demography.minimum_birth_spacing_days = 0;
-        demography.male_parent_min_age_years = 0;
-        demography.male_parent_max_age_years_exclusive = 100;
+        let run = Simulation::new(record_limit_config(101))
+            .unwrap()
+            .run_recorded()
+            .unwrap();
 
-        let config = ExperimentConfig::new(101, 10)
-            .with_world(WorldConfig::new(1, 1))
-            .with_population(PopulationConfig::new(100).with_max_person_records(101))
-            .with_demography(demography)
-            .with_resources(no_pressure_resources())
-            .with_migration(disabled_migration());
-        let manifest = Simulation::new(config).unwrap().run().unwrap();
+        assert_eq!(
+            run.manifest.stop_reason,
+            StopReason::PersonRecordLimitReached
+        );
+        assert_eq!(run.manifest.end_time, SimTime::from_years(1));
+        assert_eq!(run.manifest.population.person_records, 101);
+        assert_eq!(run.manifest.population.births_since_start, 1);
+        assert_eq!(
+            run.checkpoint.terminal_stop_reason,
+            Some(StopReason::PersonRecordLimitReached)
+        );
+    }
 
-        assert_eq!(manifest.stop_reason, StopReason::PersonRecordLimitReached);
-        assert_eq!(manifest.end_time, SimTime::from_years(1));
-        assert_eq!(manifest.population.person_records, 101);
-        assert_eq!(manifest.population.births_since_start, 1);
+    #[test]
+    fn terminal_record_limit_checkpoint_does_not_advance_when_resumed() {
+        let config = record_limit_config(102);
+        let checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+
+        assert_eq!(checkpoint.time, SimTime::from_years(1));
+        assert_eq!(
+            checkpoint.terminal_stop_reason,
+            Some(StopReason::PersonRecordLimitReached)
+        );
+
+        let resumed = Simulation::from_checkpoint(checkpoint.clone())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
+        assert_eq!(
+            resumed.manifest.stop_reason,
+            StopReason::PersonRecordLimitReached
+        );
+        assert_eq!(resumed.manifest.end_time, SimTime::from_years(1));
+        assert_eq!(resumed.checkpoint, checkpoint);
+
+        let mut tampered = checkpoint;
+        tampered.terminal_stop_reason = Some(StopReason::DurationReached);
+        assert!(matches!(
+            Simulation::from_checkpoint(tampered),
+            Err(SimulationError::CheckpointTerminalStateMismatch {
+                stop_reason: StopReason::DurationReached
+            })
+        ));
     }
 
     #[test]
