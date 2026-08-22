@@ -194,6 +194,8 @@ def main() -> int:
         "definitionId": definition["definitionId"],
         "scientificStatus": definition["scientificStatus"],
         "definitionSha256": source_hash,
+        "modelVersion": manifest["modelVersion"],
+        "gitCommit": manifest.get("gitCommit"),
         "sourceDefinition": "source-definition.json",
         "sweepManifest": "sweep-manifest.json",
         "sweepId": manifest["sweepId"],
