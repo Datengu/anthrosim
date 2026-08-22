@@ -29,6 +29,8 @@ jobs:
         run: |
           rustc --version --verbose
           cargo --version
+          node --version
+          python3 --version
 
       - name: Verify locked dependency graph
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
@@ -41,6 +43,16 @@ jobs:
 
       - name: Test
         run: cargo test --locked --workspace --all-features
+
+      - name: Validate M6 source syntax
+        run: |
+          node --check explorer/model.mjs
+          node --check explorer/app.mjs
+          node --check scripts/validate-explorer-bundle.mjs
+          python3 -m py_compile scripts/serve-explorer.py
+
+      - name: Test M6 explorer artifact model
+        run: node --test explorer/model.test.mjs
 
       - name: Benchmark synthetic world generation
         run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
@@ -60,26 +72,95 @@ jobs:
       - name: Build release binaries
         run: cargo build --locked --workspace --release
 
-      - name: Smoke-test M5 checkpoint resume bundle
+      - name: Generate completed M5 sample bundle
         run: |
-          rm -rf /tmp/anthrosim-m5-resume
+          rm -rf /tmp/anthrosim-m6-completed
           target/release/anthrosim run \
             --years 6 \
             --world-width 32 \
             --world-height 32 \
             --population 1000 \
             --seed 4242 \
-            --run-dir /tmp/anthrosim-m5-resume \
+            --run-dir /tmp/anthrosim-m6-completed \
             --checkpoint-year 3
           target/release/anthrosim resume \
-            --checkpoint /tmp/anthrosim-m5-resume/checkpoint.json \
-            --run-dir /tmp/anthrosim-m5-resume
-          test -f /tmp/anthrosim-m5-resume/manifest.json
-          test -f /tmp/anthrosim-m5-resume/world.json
-          test -f /tmp/anthrosim-m5-resume/initial-population.json
-          test -f /tmp/anthrosim-m5-resume/events.json
-          test -f /tmp/anthrosim-m5-resume/metrics.json
-          test -f /tmp/anthrosim-m5-resume/checkpoint.json
+            --checkpoint /tmp/anthrosim-m6-completed/checkpoint.json \
+            --run-dir /tmp/anthrosim-m6-completed
+          test -f /tmp/anthrosim-m6-completed/manifest.json
+          test -f /tmp/anthrosim-m6-completed/world.json
+          test -f /tmp/anthrosim-m6-completed/initial-population.json
+          test -f /tmp/anthrosim-m6-completed/events.json
+          test -f /tmp/anthrosim-m6-completed/metrics.json
+          test -f /tmp/anthrosim-m6-completed/checkpoint.json
+
+      - name: Generate paused M5 sample bundle
+        run: |
+          rm -rf /tmp/anthrosim-m6-paused
+          target/release/anthrosim run \
+            --years 6 \
+            --world-width 32 \
+            --world-height 32 \
+            --population 1000 \
+            --seed 4242 \
+            --run-dir /tmp/anthrosim-m6-paused \
+            --checkpoint-year 3
+          test ! -f /tmp/anthrosim-m6-paused/manifest.json
+          test -f /tmp/anthrosim-m6-paused/world.json
+          test -f /tmp/anthrosim-m6-paused/initial-population.json
+          test -f /tmp/anthrosim-m6-paused/events.json
+          test -f /tmp/anthrosim-m6-paused/metrics.json
+          test -f /tmp/anthrosim-m6-paused/checkpoint.json
+
+      - name: Validate M6 explorer against completed and paused sample runs
+        run: |
+          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-completed
+          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-paused
+
+      - name: Smoke-test M6 completed bundle server as read-only
+        run: |
+          sha256sum /tmp/anthrosim-m6-completed/*.json > /tmp/m6-completed-before.sha256
+          python3 scripts/serve-explorer.py /tmp/anthrosim-m6-completed --port 8765 --no-browser >/tmp/m6-completed-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/ >/tmp/m6-completed-index.html; then
+              break
+            fi
+            sleep 0.2
+          done
+          test -s /tmp/m6-completed-index.html
+          curl -fsS http://127.0.0.1:8765/run/manifest.json | cmp - /tmp/anthrosim-m6-completed/manifest.json
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8765/run/manifest.json)
+          test "$status" = "405"
+          kill "$server_pid"
+          wait "$server_pid" 2>/dev/null || true
+          trap - EXIT
+          sha256sum /tmp/anthrosim-m6-completed/*.json > /tmp/m6-completed-after.sha256
+          diff -u /tmp/m6-completed-before.sha256 /tmp/m6-completed-after.sha256
+
+      - name: Smoke-test M6 paused bundle server as read-only
+        run: |
+          sha256sum /tmp/anthrosim-m6-paused/*.json > /tmp/m6-paused-before.sha256
+          python3 scripts/serve-explorer.py /tmp/anthrosim-m6-paused --port 8766 --no-browser >/tmp/m6-paused-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8766/ >/tmp/m6-paused-index.html; then
+              break
+            fi
+            sleep 0.2
+          done
+          test -s /tmp/m6-paused-index.html
+          curl -fsS http://127.0.0.1:8766/run/checkpoint.json | cmp - /tmp/anthrosim-m6-paused/checkpoint.json
+          manifest_status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8766/run/manifest.json)
+          test "$manifest_status" = "404"
+          write_status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8766/run/checkpoint.json)
+          test "$write_status" = "405"
+          kill "$server_pid"
+          wait "$server_pid" 2>/dev/null || true
+          trap - EXIT
+          sha256sum /tmp/anthrosim-m6-paused/*.json > /tmp/m6-paused-after.sha256
+          diff -u /tmp/m6-paused-before.sha256 /tmp/m6-paused-after.sha256
 
       - name: Measure one-million-founder process memory
         run: |
