@@ -44,6 +44,13 @@ jobs:
       - name: Test
         run: cargo test --locked --workspace --all-features
 
+      - name: Validate M6 source syntax
+        run: |
+          node --check explorer/model.mjs
+          node --check explorer/app.mjs
+          node --check scripts/validate-explorer-bundle.mjs
+          python3 -m py_compile scripts/serve-explorer.py
+
       - name: Test M6 explorer artifact model
         run: node --test explorer/model.test.mjs
 
