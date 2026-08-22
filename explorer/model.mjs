@@ -16,6 +16,8 @@ const ARTIFACT_SCHEMA_KEYS = {
   checkpoint: "checkpoint",
 };
 
+const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+
 function asNumber(value, label) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -26,6 +28,54 @@ function asNumber(value, label) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+export function parseLosslessJson(text) {
+  let output = "";
+  let index = 0;
+  let inString = false;
+  let escaped = false;
+
+  while (index < text.length) {
+    const character = text[index];
+    if (inString) {
+      output += character;
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      index += 1;
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      output += character;
+      index += 1;
+      continue;
+    }
+
+    if (character === "-" || (character >= "0" && character <= "9")) {
+      let end = index + 1;
+      while (end < text.length && !/[\s,\]}]/.test(text[end])) end += 1;
+      const token = text.slice(index, end);
+      if (/^-?\d+$/.test(token)) {
+        const integer = BigInt(token);
+        if (integer > MAX_SAFE_BIGINT || integer < -MAX_SAFE_BIGINT) {
+          output += JSON.stringify(token);
+          index = end;
+          continue;
+        }
+      }
+      output += token;
+      index = end;
+      continue;
+    }
+
+    output += character;
+    index += 1;
+  }
+
+  return JSON.parse(output);
 }
 
 export function validateBundle(bundle) {
@@ -50,6 +100,7 @@ export function validateBundle(bundle) {
     "initial population disagrees with manifest");
   assert(checkpoint.completedYears * 365 === checkpoint.time,
     "checkpoint is not at the declared completed annual boundary");
+  assert(checkpoint.time === manifest.endTime, "final checkpoint time disagrees with manifest end time");
 
   const counts = countEvents(events.events);
   assert(counts.birth === manifest.population.birthsSinceStart,
@@ -110,7 +161,7 @@ export function countEvents(records) {
 }
 
 export function reconstructState(bundle, day) {
-  const targetDay = Math.max(0, Math.min(asNumber(day, "day"), bundle.manifest.endTime));
+  const targetDay = Math.max(0, Math.min(asNumber(day, "day"), asNumber(bundle.manifest.endTime, "end time")));
   const population = bundle.initialPopulation;
   const people = new Map();
   const householdMembers = new Map();
@@ -131,6 +182,7 @@ export function reconstructState(bundle, day) {
       femaleParent: asNumber(population.femaleParents[index] ?? 0, `female parent for person ${id}`),
       maleParent: asNumber(population.maleParents[index] ?? 0, `male parent for person ${id}`),
       conditionPermille: asNumber(population.conditionPermille[index] ?? 1000, `condition for person ${id}`),
+      conditionSource: "initial_population",
       alive: true,
       founder: true,
     };
@@ -154,6 +206,7 @@ export function reconstructState(bundle, day) {
         femaleParent: asNumber(event.female_parent ?? event.femaleParent ?? 0, "female parent"),
         maleParent: asNumber(event.male_parent ?? event.maleParent ?? 0, "male parent"),
         conditionPermille: 1000,
+        conditionSource: "birth_default",
         alive: true,
         founder: false,
       };
@@ -167,6 +220,7 @@ export function reconstructState(bundle, day) {
         person.deathDay = record.day;
         person.conditionPermille = asNumber(event.condition_permille ?? event.conditionPermille ?? person.conditionPermille,
           "death condition");
+        person.conditionSource = "death_event";
       }
     } else if (event.type === "householdMigration") {
       const household = asNumber(event.household, "migration household");
@@ -175,6 +229,17 @@ export function reconstructState(bundle, day) {
       for (const personId of householdMembers.get(household) ?? []) {
         const person = people.get(personId);
         if (person?.alive) person.location = destination;
+      }
+    }
+  }
+
+  if (targetDay === asNumber(bundle.manifest.endTime, "end time")) {
+    const finalConditions = bundle.checkpoint.population?.conditionPermille ?? [];
+    for (let index = 0; index < finalConditions.length; index += 1) {
+      const person = people.get(index + 1);
+      if (person) {
+        person.conditionPermille = asNumber(finalConditions[index], `final condition for person ${index + 1}`);
+        person.conditionSource = "final_checkpoint";
       }
     }
   }
