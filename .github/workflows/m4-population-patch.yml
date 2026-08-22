@@ -1,0 +1,83 @@
+name: M4 population patch bootstrap
+
+on:
+  push:
+    branches: [feat/m4-migration]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout M4 branch
+        uses: actions/checkout@v6.1.0
+        with:
+          ref: feat/m4-migration
+          persist-credentials: true
+
+      - name: Patch packed relocation support
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          population = Path('crates/anthrosim-core/src/population.rs')
+          text = population.read_text()
+          if 'HouseholdRelocationOutcome' not in text:
+              marker = '''/// Authoritative persistent person/household state.\n'''
+              insertion = '''#[derive(Debug, Clone, Copy, PartialEq, Eq)]\npub(crate) struct HouseholdRelocationOutcome {\n    pub people_moved: u64,\n    pub condition_loss_total: u64,\n}\n\n'''
+              if text.count(marker) != 1:
+                  raise SystemExit('population struct insertion marker mismatch')
+              text = text.replace(marker, insertion + marker, 1)
+
+              marker = '''    #[must_use]\n    pub(crate) fn household_at_index(&self, index: usize) -> Option<HouseholdId> {\n        self.households.get(index).copied()\n    }\n'''
+              insertion = marker + '''\n    #[must_use]\n    pub(crate) fn female_parent_at_index(&self, index: usize) -> Option<PersonId> {\n        self.female_parents.get(index).copied()\n    }\n\n    #[must_use]\n    pub(crate) fn male_parent_at_index(&self, index: usize) -> Option<PersonId> {\n        self.male_parents.get(index).copied()\n    }\n'''
+              if text.count(marker) != 1:
+                  raise SystemExit('parent accessor marker mismatch')
+              text = text.replace(marker, insertion, 1)
+
+              marker = '''    pub(crate) fn rebuild_occupancy(&mut self, world: &World) -> Result<(), PopulationError> {\n        self.occupancy = CellOccupancy::build(&self.locations, world.cell_count())?;\n        Ok(())\n    }\n'''
+              insertion = '''    pub(crate) fn apply_household_relocations(\n        &mut self,\n        destinations: &[CellId],\n        condition_costs: &[u16],\n        world: &World,\n    ) -> Result<HouseholdRelocationOutcome, PopulationError> {\n        if destinations.len() != self.household_count()\n            || condition_costs.len() != self.household_count()\n        {\n            return Err(PopulationError::RelocationShapeMismatch);\n        }\n        for (household_index, &destination) in destinations.iter().enumerate() {\n            if destination == CellId::INVALID {\n                continue;\n            }\n            if world.cell(destination).is_none() {\n                return Err(PopulationError::InvalidRelocationDestination { destination });\n            }\n            self.household_locations[household_index] = destination;\n        }\n\n        let mut people_moved = 0_u64;\n        let mut condition_loss_total = 0_u64;\n        for index in 0..self.person_count() {\n            if !self.is_alive_index(index) {\n                continue;\n            }\n            let household = self.households[index];\n            let household_index = usize::try_from(\n                household\n                    .0\n                    .checked_sub(1)\n                    .ok_or(PopulationError::RelocationShapeMismatch)?,\n            )\n            .map_err(|_| PopulationError::RelocationShapeMismatch)?;\n            let destination = destinations\n                .get(household_index)\n                .copied()\n                .ok_or(PopulationError::RelocationShapeMismatch)?;\n            if destination == CellId::INVALID {\n                continue;\n            }\n            self.locations[index] = destination;\n            let before = self.condition_permille[index];\n            let after = before.saturating_sub(condition_costs[household_index]);\n            self.condition_permille[index] = after;\n            people_moved = people_moved.saturating_add(1);\n            condition_loss_total = condition_loss_total\n                .saturating_add(u64::from(before.saturating_sub(after)));\n        }\n        self.rebuild_occupancy(world)?;\n        Ok(HouseholdRelocationOutcome {\n            people_moved,\n            condition_loss_total,\n        })\n    }\n\n''' + marker
+              if text.count(marker) != 1:
+                  raise SystemExit('relocation method marker mismatch')
+              text = text.replace(marker, insertion, 1)
+
+              old = '''            if household_location != location {\n                return Err(PopulationValidationError::HouseholdLocationMismatch {\n                    person,\n                    household,\n                    person_location: location,\n                    household_location,\n                });\n            }\n'''
+              new = '''            if self.is_alive_index(index) && household_location != location {\n                return Err(PopulationValidationError::HouseholdLocationMismatch {\n                    person,\n                    household,\n                    person_location: location,\n                    household_location,\n                });\n            }\n'''
+              if text.count(old) != 1:
+                  raise SystemExit('living household invariant marker mismatch')
+              text = text.replace(old, new, 1)
+
+              marker = '''    #[error("persistent person record limit {limit} has been reached")]\n    PersonRecordLimitReached { limit: u64 },\n'''
+              insertion = marker + '''    #[error("household relocation arrays do not match the population household layout")]\n    RelocationShapeMismatch,\n    #[error("household relocation destination {destination:?} is outside the world")]\n    InvalidRelocationDestination { destination: CellId },\n'''
+              if text.count(marker) != 1:
+                  raise SystemExit('population error marker mismatch')
+              text = text.replace(marker, insertion, 1)
+              population.write_text(text)
+
+          resources = Path('crates/anthrosim-core/src/resources.rs')
+          text = resources.read_text()
+          if 'pub fn cell_food_stock' not in text:
+              marker = '''    #[must_use]\n    pub fn total_food_stock(&self) -> u64 {\n        self.cell_food_stock.iter().copied().sum()\n    }\n'''
+              insertion = marker + '''\n    #[must_use]\n    pub fn cell_food_stock(&self, cell: crate::ids::CellId) -> Option<u64> {\n        let index = usize::try_from(cell.0.checked_sub(1)?).ok()?;\n        self.cell_food_stock.get(index).copied()\n    }\n'''
+              if text.count(marker) != 1:
+                  raise SystemExit('resource stock accessor marker mismatch')
+              text = text.replace(marker, insertion, 1)
+              resources.write_text(text)
+          PY
+          cargo fmt --all
+
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "Patch already present"
+            exit 0
+          fi
+          git config user.name "AnthroSim CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add crates/anthrosim-core/src/population.rs crates/anthrosim-core/src/resources.rs
+          git diff --cached --check
+          git commit -m "M4: support packed household relocation"
+          git push origin HEAD:feat/m4-migration
