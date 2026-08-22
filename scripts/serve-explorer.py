@@ -12,14 +12,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-REQUIRED_RUN_FILES = {
-    "manifest.json",
+BASE_RUN_FILES = {
     "world.json",
     "initial-population.json",
     "events.json",
     "metrics.json",
     "checkpoint.json",
 }
+OPTIONAL_RUN_FILES = {"manifest.json"}
+ALLOWED_RUN_FILES = BASE_RUN_FILES | OPTIONAL_RUN_FILES
 EXPLORER_FILES = {"index.html", "app.mjs", "model.mjs", "style.css"}
 
 
@@ -33,7 +34,7 @@ class ExplorerHandler(BaseHTTPRequestHandler):
             return self.explorer_dir / "index.html"
         if path.startswith("/run/"):
             name = path.removeprefix("/run/")
-            if name not in REQUIRED_RUN_FILES:
+            if name not in ALLOWED_RUN_FILES:
                 return None
             return self.run_dir / name
         name = path.removeprefix("/")
@@ -57,7 +58,11 @@ class ExplorerHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self'; "
+            "connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'",
+        )
         self.end_headers()
         if not head_only:
             self.wfile.write(payload)
@@ -82,8 +87,14 @@ class ExplorerHandler(BaseHTTPRequestHandler):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Serve the read-only AnthroSim local explorer for one run bundle.")
-    parser.add_argument("run_dir", type=Path, help="M5 run directory containing the six versioned JSON artifacts")
+    parser = argparse.ArgumentParser(
+        description="Serve the read-only AnthroSim local explorer for one completed or paused run bundle."
+    )
+    parser.add_argument(
+        "run_dir",
+        type=Path,
+        help="M5 run directory containing world, founder population, events, metrics and checkpoint; manifest is optional for paused runs",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="bind address; defaults to loopback only")
     parser.add_argument("--port", type=int, default=8765, help="local port; defaults to 8765")
     parser.add_argument("--no-browser", action="store_true", help="do not open the default browser automatically")
@@ -96,13 +107,14 @@ def main() -> None:
     explorer_dir = repository_root / "explorer"
     run_dir = args.run_dir.resolve()
 
-    missing = sorted(name for name in REQUIRED_RUN_FILES if not (run_dir / name).is_file())
+    missing = sorted(name for name in BASE_RUN_FILES if not (run_dir / name).is_file())
     if missing:
         raise SystemExit(f"run bundle is incomplete; missing: {', '.join(missing)}")
     missing_ui = sorted(name for name in EXPLORER_FILES if not (explorer_dir / name).is_file())
     if missing_ui:
         raise SystemExit(f"explorer installation is incomplete; missing: {', '.join(missing_ui)}")
 
+    bundle_kind = "completed" if (run_dir / "manifest.json").is_file() else "paused checkpoint"
     handler = type(
         "BoundExplorerHandler",
         (ExplorerHandler,),
@@ -111,7 +123,7 @@ def main() -> None:
     server = ThreadingHTTPServer((args.host, args.port), handler)
     url = f"http://{args.host}:{args.port}/"
     print(f"AnthroSim explorer: {url}")
-    print(f"Read-only run bundle: {run_dir}")
+    print(f"Read-only {bundle_kind} bundle: {run_dir}")
     print("Press Ctrl+C to stop.")
 
     if not args.no_browser:
