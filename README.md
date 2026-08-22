@@ -25,7 +25,7 @@ The first version focuses on:
 - resumable deterministic annual-boundary checkpoints;
 - self-contained offline run bundles;
 - a read-only local explorer for maps, timelines, entities, events and genealogy;
-- deterministic multi-seed batch/ensemble execution;
+- deterministic multi-seed batch/ensemble execution with immutable provenance and retry state;
 - performance benchmarks and invariant validation.
 
 Culture, language, trade, states, religion, warfare, AI-controlled agents, and real-Earth palaeoenvironmental data are intentionally deferred.
@@ -38,7 +38,8 @@ Culture, language, trade, states, religion, warfare, AI-controlled agents, and r
 - **M4 — Interpretable local migration:** complete; migration utility weights, information radius and response thresholds remain explicit synthetic validation assumptions.
 - **M5 — Events, metrics, checkpoints and causal inspection:** complete; it adds observability/persistence rather than a new anthropological mechanism.
 - **M6 — Local simulation explorer:** complete as a read-only consumer of completed and paused M5 run bundles; it does not participate in authoritative simulation state or the Rust hot loop.
-- **M7.1 — Batch / ensemble execution:** implemented; one command can launch deterministic explicit seed sets or seed ranges into isolated ordinary M5 run bundles. M7.2 will add immutable experiment manifests and robust retry/failure lifecycle semantics.
+- **M7.1 — Batch / ensemble execution:** complete; one command launches deterministic explicit seed sets or seed ranges into isolated ordinary M5 run bundles.
+- **M7.2 — Immutable experiment provenance and retry semantics:** implemented; each planned run has an exact serialized configuration, explicit lifecycle state and deterministic reconciliation/retry behaviour. M7.3 will add parameter sweeps and aggregate analysis outputs.
 
 M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
 
@@ -46,7 +47,7 @@ M5 makes that loop inspectable. Births, deaths and completed household moves are
 
 M6 makes those artifacts navigable without changing them. It provides timeline, map, cell, household, person, genealogy and event views while visibly distinguishing serialized authoritative facts, recorded derived metrics and UI reconstructions. Historical state that M5 did not record is not silently invented.
 
-M7.1 adds orchestration around that same run path rather than a second simulator. Each ensemble child is created through the existing `Simulation` lifecycle and written with the existing completed M5 bundle format. Seed variation therefore changes only the ordinary experiment seed unless another shared CLI control is explicitly changed.
+M7.1–M7.2 add experiment orchestration around that same run path rather than a second simulator. Every ensemble child is created through the existing `Simulation` lifecycle and written with the existing completed M5 bundle format. The experiment layer records exactly which configurations were requested and whether each child is genuinely complete; it does not change the underlying model.
 
 No historical destination, route, settlement, tribe or migration outcome is scripted into that loop.
 
@@ -91,7 +92,7 @@ The CLI also exposes synthetic experiment controls such as `--resource-productiv
 
 ## Running deterministic ensembles
 
-M7.1 can launch an explicit deterministic seed set unattended:
+Launch an explicit deterministic seed set unattended:
 
 ```text
 cargo run --release -p anthrosim-cli -- ensemble \
@@ -112,9 +113,25 @@ cargo run --release -p anthrosim-cli -- ensemble \
   --run-dir runs/example-range
 ```
 
-The ensemble root receives `ensemble-plan.json` before execution. Each planned seed then receives its own stable directory such as `runs/seed-00000000000000000100/`, containing the ordinary six completed M5 artifacts plus `completion.json`. The completion marker is written only after the child bundle completes. AnthroSim refuses to execute an ensemble into a non-empty root so an existing result set cannot be overwritten or ambiguously mixed with a new one.
+A fresh ensemble writes `experiment-manifest.json` before child execution. That immutable, versioned manifest records the model identity and complete exact `ExperimentConfig` for every planned seed. `ensemble-plan.json` remains as the concise M7.1 planning view. Mutable per-run lifecycle records are written separately under `status/`.
 
-M7.1 deliberately does not provide retry/reconciliation semantics: if execution is interrupted, completed child directories remain visibly completed while later planned runs have no completion marker. M7.2 is responsible for immutable experiment identity, explicit failed/incomplete lifecycle states and deterministic retries. See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md).
+Each seed receives its own stable directory such as `runs/seed-00000000000000000100/`, containing the ordinary six completed M5 artifacts plus `completion.json`. The positive completion marker is written only after the child bundle succeeds. A run status becomes `completed` only when that bundle reconciles with the exact immutable experiment definition.
+
+If execution is interrupted or one run fails, rerun the **same command and exact configuration** with `--retry`:
+
+```text
+cargo run --release -p anthrosim-cli -- ensemble \
+  --years 25 \
+  --population 10000 \
+  --seed-start 100 \
+  --seed-count 20 \
+  --run-dir runs/example-range \
+  --retry
+```
+
+Retry first requires exact equality with the stored immutable experiment manifest. It keeps provenance-valid completed runs without executing them again, reconciles interrupted/missing bundles as incomplete, and reruns only planned, failed or incomplete children. Partial child directories are removed before a retry attempt so old and new artifacts cannot be mixed. A completed bundle with conflicting provenance is treated as an integrity error instead of being silently overwritten.
+
+The batch continues to later seeds after an individual child fails, but the overall command still exits unsuccessfully while any child is unsuccessful. Downstream analysis should treat only `completed` status records with provenance-valid bundles as successful results. See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the full M7.1–M7.2 provenance and lifecycle contract.
 
 For a completed run the manifest records configuration, artifact schema versions, world/population/resource/migration summaries, state digest, runtime counters and stop reason. For a paused run the checkpoint carries the current authoritative experiment/state boundary. See [`docs/research/observability-v0.1.md`](docs/research/observability-v0.1.md) for the authoritative-event/derived-metric distinction and checkpoint compatibility rules, and [`docs/research/explorer-v0.1.md`](docs/research/explorer-v0.1.md) for M6 display provenance and reconstruction limits.
 
