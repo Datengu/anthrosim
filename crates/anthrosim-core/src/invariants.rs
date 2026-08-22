@@ -11,13 +11,11 @@ use crate::{
         ResourceMetrics,
     },
     migration::{
-        MigrationCheckpointState, MigrationConfigError, MigrationError, MigrationSystem,
-        MigrationSummary, validate_migration_config,
+        MigrationCheckpointState, MigrationConfigError, MigrationError, MigrationSummary,
+        MigrationSystem, validate_migration_config,
     },
     population::{Population, PopulationSummary, PopulationValidationError},
-    resources::{
-        ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config,
-    },
+    resources::{ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config},
     rng::RngFactory,
     simulation::RecordedRun,
     time::{DAYS_PER_YEAR, SimTime},
@@ -172,7 +170,8 @@ fn validate_checkpoint_identity(checkpoint: &SimulationCheckpoint) -> Result<(),
     if checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR {
         return violation("completedYears does not match the checkpoint day");
     }
-    let duration_days = u128::from(checkpoint.experiment.duration_years) * u128::from(DAYS_PER_YEAR);
+    let duration_days =
+        u128::from(checkpoint.experiment.duration_years) * u128::from(DAYS_PER_YEAR);
     if u128::from(checkpoint.time.days()) > duration_days {
         return violation("checkpoint time exceeds configured duration");
     }
@@ -235,7 +234,9 @@ fn validate_manifest_against_checkpoint(
             }
         }
         StopReason::PersonRecordLimitReached => {
-            if manifest.population.person_records != manifest.experiment.population.max_person_records {
+            if manifest.population.person_records
+                != manifest.experiment.population.max_person_records
+            {
                 return violation("record-limit run did not end exactly at its record ceiling");
             }
         }
@@ -248,7 +249,8 @@ fn validate_resource_accounting(
     day: u64,
     periods_per_year: u16,
 ) -> Result<(), InvariantError> {
-    let available = u128::from(resources.initial_food_stock) + u128::from(resources.regenerated_food);
+    let available =
+        u128::from(resources.initial_food_stock) + u128::from(resources.regenerated_food);
     let accounted = u128::from(resources.harvested_food) + u128::from(resources.final_food_stock);
     if available != accounted {
         return violation(format!(
@@ -290,8 +292,7 @@ fn validate_migration_accounting(
     if state.households_under_pressure > state.households_evaluated
         || state.moves_completed > state.households_under_pressure
         || state.decision_boundaries > resource_periods
-        || state.households_evaluated
-            > state.decision_boundaries.saturating_mul(household_count)
+        || state.households_evaluated > state.decision_boundaries.saturating_mul(household_count)
     {
         return violation("migration counters have an impossible ordering");
     }
@@ -364,8 +365,9 @@ fn validate_migration_trace(
     {
         return violation("migration trace references a cell outside the world");
     }
-    let distance = manhattan_distance(world, trace.origin, trace.destination)
-        .ok_or_else(|| InvariantError::Violation("migration trace coordinates are invalid".into()))?;
+    let distance = manhattan_distance(world, trace.origin, trace.destination).ok_or_else(|| {
+        InvariantError::Violation("migration trace coordinates are invalid".into())
+    })?;
     if distance == 0 || distance != trace.distance_cells || distance > radius {
         return violation("migration trace violates bounded local movement");
     }
@@ -439,7 +441,9 @@ fn validate_events(
                     || snapshot.reproductive_sex != *reproductive_sex
                     || world.cell(*cell).is_none()
                 {
-                    return violation("birth event does not reconcile with persistent person state");
+                    return violation(
+                        "birth event does not reconcile with persistent person state",
+                    );
                 }
             }
             EventKind::Death {
@@ -464,7 +468,9 @@ fn validate_events(
                     || *probability_per_million > PROBABILITY_PER_MILLION
                     || world.cell(*cell).is_none()
                 {
-                    return violation("death event does not reconcile with persistent person state");
+                    return violation(
+                        "death event does not reconcile with persistent person state",
+                    );
                 }
             }
             EventKind::HouseholdMigration {
@@ -485,9 +491,10 @@ fn validate_events(
                 counts.migration_distance = counts
                     .migration_distance
                     .saturating_add(u64::from(*distance_cells));
-                let distance = manhattan_distance(world, *origin, *destination).ok_or_else(|| {
-                    InvariantError::Violation("migration event references invalid cells".into())
-                })?;
+                let distance =
+                    manhattan_distance(world, *origin, *destination).ok_or_else(|| {
+                        InvariantError::Violation("migration event references invalid cells".into())
+                    })?;
                 if household.0 == 0
                     || household.0 > population.household_count
                     || distance == 0
@@ -524,7 +531,9 @@ fn validate_metrics(
     resources: &ResourceSummary,
     migration: &MigrationSummary,
 ) -> Result<(), InvariantError> {
-    if metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION || metrics.snapshots.is_empty() {
+    if metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION
+        || metrics.snapshots.is_empty()
+    {
         return violation("metric series schema is invalid or terminal snapshot is missing");
     }
     let mut previous_day = None;
