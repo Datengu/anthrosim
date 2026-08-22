@@ -67,7 +67,14 @@ impl RecordedRun {
 pub fn validate_checkpoint_invariants(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<InvariantReport, InvariantError> {
-    validate_checkpoint_identity(checkpoint)?;
+    validate_checkpoint_invariants_for_context(checkpoint, None)
+}
+
+fn validate_checkpoint_invariants_for_context(
+    checkpoint: &SimulationCheckpoint,
+    recorded_stop_reason: Option<StopReason>,
+) -> Result<InvariantReport, InvariantError> {
+    validate_checkpoint_identity(checkpoint, recorded_stop_reason)?;
 
     let rng_factory = RngFactory::new(checkpoint.experiment.seed);
     let world = World::generate(checkpoint.experiment.world, rng_factory)?;
@@ -148,12 +155,18 @@ pub fn validate_checkpoint_invariants(
 pub fn validate_recorded_run_invariants(
     run: &RecordedRun,
 ) -> Result<InvariantReport, InvariantError> {
-    let report = validate_checkpoint_invariants(&run.checkpoint)?;
+    let report = validate_checkpoint_invariants_for_context(
+        &run.checkpoint,
+        Some(run.manifest.stop_reason),
+    )?;
     validate_manifest_against_checkpoint(&run.manifest, &run.checkpoint)?;
     Ok(report)
 }
 
-fn validate_checkpoint_identity(checkpoint: &SimulationCheckpoint) -> Result<(), InvariantError> {
+fn validate_checkpoint_identity(
+    checkpoint: &SimulationCheckpoint,
+    recorded_stop_reason: Option<StopReason>,
+) -> Result<(), InvariantError> {
     if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
         return violation("checkpoint schema is not current");
     }
@@ -167,7 +180,9 @@ fn validate_checkpoint_identity(checkpoint: &SimulationCheckpoint) -> Result<(),
     validate_resource_config(&checkpoint.experiment.resources)?;
     validate_migration_config(&checkpoint.experiment.migration)?;
 
-    if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR) {
+    if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
+        && !matches!(recorded_stop_reason, Some(StopReason::PopulationExtinct))
+    {
         return violation("checkpoint day is not a completed annual boundary");
     }
     if checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR {
