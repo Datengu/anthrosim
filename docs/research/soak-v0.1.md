@@ -96,6 +96,8 @@ These larger commands inherit M7.2 immutable experiment identity, lifecycle/retr
 
 The resumable checkpoint contract remains an **annual completed boundary**. M7.4 explicitly compares a long supported annual checkpoint/resume path against uninterrupted execution. Final completed-run checkpoints may also describe an early terminal state reached between annual boundaries (for example resource-driven extinction); such final artifacts remain valid evidence of the completed run but are not automatically a supported resume point.
 
+M7.4 also identified a narrower schema ambiguity: if `checkpoint_at_year(...)` reaches `PersonRecordLimitReached` exactly on the requested annual boundary, the current checkpoint schema does not serialize that terminal stop reason, so the artifact can look like an ordinary resumable annual checkpoint. This is tracked explicitly in [#31](https://github.com/Datengu/anthrosim/issues/31). Until that contract is hardened, the supported M7.4 resume claim is limited to non-terminal annual checkpoints; terminal record-limit artifacts are valid final run evidence but should not be treated as resumable merely because they happen to lie on an annual boundary.
+
 ## Remaining limits after M7.4
 
 Passing M7.4 means the covered configurations survived the stated correctness checks. It does not prove that every possible configuration is safe, that there are no undiscovered overflows at much larger scales, or that long runs are fast enough for research workloads.
@@ -104,6 +106,7 @@ In particular:
 
 - the full combinatorial parameter space is not exhaustively enumerated;
 - CI soaks are deliberately bounded so they remain practical on every pull request;
+- terminal record-limit checkpoint resume semantics remain an explicit follow-up in #31;
 - M7.5 owns explicit performance and memory acceptance benchmarking;
 - M7.6 owns the first named resource-variability experiment and v0.1 closure;
 - anthropological plausibility, calibration and empirical validation remain separate scientific work.
