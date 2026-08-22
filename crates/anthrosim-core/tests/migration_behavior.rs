@@ -1,6 +1,6 @@
 use anthrosim_core::{
-    DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation,
-    WorldConfig, candidate_count_upper_bound,
+    DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
+    Simulation, WorldConfig, candidate_count_upper_bound,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -79,7 +79,10 @@ fn enabling_migration_changes_spatial_history_under_otherwise_equal_inputs() {
 
     assert!(enabled.migration.moves_completed > 0);
     assert_eq!(disabled.migration.moves_completed, 0);
-    assert_eq!(enabled.population.living_population, disabled.population.living_population);
+    assert_eq!(
+        enabled.population.living_population,
+        disabled.population.living_population
+    );
     assert_ne!(enabled.population.digest64, disabled.population.digest64);
     assert_ne!(enabled.resources.digest64, disabled.resources.digest64);
 }
