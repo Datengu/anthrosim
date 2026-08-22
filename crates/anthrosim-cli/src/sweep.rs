@@ -1,11 +1,4 @@
-use std::{
-    collections::HashSet,
-    fmt::Display,
-    fs,
-    hash::Hash,
-    io,
-    path::Path,
-};
+use std::{collections::HashSet, fmt::Display, fs, hash::Hash, io, path::Path};
 
 use anthrosim_core::RunManifest;
 use serde::{Deserialize, Serialize};
@@ -827,10 +820,7 @@ mod tests {
             seed,
             state: state.to_owned(),
             attempt: 1,
-            status_relative_path: format!(
-                "{}/status/{run_id}.json",
-                point.relative_experiment_dir
-            ),
+            status_relative_path: format!("{}/status/{run_id}.json", point.relative_experiment_dir),
             manifest_relative_path: (state == "completed").then(|| {
                 format!(
                     "{}/runs/{run_id}/manifest.json",
@@ -925,7 +915,10 @@ mod tests {
         assert_eq!(summary.failed_runs, 1);
         assert_eq!(summary.incomplete_runs, 1);
         assert_eq!(summary.other_non_completed_runs, 0);
-        assert_eq!(summary.mean_final_living_population_completed_only, Some(10.0));
+        assert_eq!(
+            summary.mean_final_living_population_completed_only,
+            Some(10.0)
+        );
         assert_eq!(summary.mean_births_since_start_completed_only, Some(4.0));
         assert_eq!(summary.mean_deaths_since_start_completed_only, Some(2.0));
         assert_eq!(summary.source_completed_run_ids.len(), 1);
