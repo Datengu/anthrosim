@@ -23,3 +23,7 @@ harness = false
 [[bench]]
 name = "world_generation"
 harness = false
+
+[[bench]]
+name = "population_initialization"
+harness = false

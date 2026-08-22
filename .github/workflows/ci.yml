@@ -45,5 +45,21 @@ jobs:
       - name: Benchmark synthetic world generation
         run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
 
+      - name: Benchmark population initialization
+        run: cargo bench --locked -p anthrosim-core --bench population_initialization -- --noplot
+
+      - name: Benchmark demographic lifecycle
+        run: cargo bench --locked -p anthrosim-core --bench empty_run -- --noplot
+
       - name: Build release binaries
         run: cargo build --locked --workspace --release
+
+      - name: Measure one-million-founder process memory
+        run: |
+          /usr/bin/time -v target/release/anthrosim run \
+            --years 0 \
+            --world-width 64 \
+            --world-height 64 \
+            --population 1000000 \
+            --max-person-records 1000000 \
+            --output /tmp/anthrosim-m2-memory.json
