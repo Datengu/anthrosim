@@ -13,6 +13,7 @@ pub mod manifest;
 pub mod metrics;
 pub mod migration;
 pub mod population;
+pub mod provenance;
 pub mod resources;
 pub mod rng;
 pub mod simulation;
@@ -46,6 +47,7 @@ pub use population::{
     CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
     PopulationValidationError, ReproductiveSex,
 };
+pub use provenance::MODEL_SEMANTICS_ID;
 pub use resources::{
     ResourceConfigError, ResourceError, ResourceSummary, ResourceSystem, validate_resource_config,
 };
