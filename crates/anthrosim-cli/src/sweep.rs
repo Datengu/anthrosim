@@ -4,7 +4,7 @@ use std::{
     fs,
     hash::Hash,
     io,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use anthrosim_core::RunManifest;
@@ -82,7 +82,7 @@ struct SweepIdentity<'a> {
 #[serde(rename_all = "camelCase")]
 struct DerivedRunRow {
     schema_version: u32,
-    provenance: &'static str,
+    provenance: String,
     sweep_id: String,
     point_id: String,
     experiment_id: Option<String>,
@@ -115,7 +115,7 @@ struct DerivedRunRow {
 #[serde(rename_all = "camelCase")]
 struct DerivedPointRow {
     schema_version: u32,
-    provenance: &'static str,
+    provenance: String,
     sweep_id: String,
     point_id: String,
     experiment_id: Option<String>,
@@ -466,7 +466,7 @@ fn build_run_rows(
             let run_manifest_path = directory.join(&manifest_relative_path);
             let mut row = DerivedRunRow {
                 schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
-                provenance: "derived",
+                provenance: "derived".to_owned(),
                 sweep_id: sweep.sweep_id.clone(),
                 point_id: point.point_id.clone(),
                 experiment_id: experiment_id.clone(),
@@ -542,7 +542,7 @@ fn build_run_rows(
                     .into());
                 }
                 row.manifest_relative_path = Some(manifest_relative_path);
-                row.stop_reason = serde_json::to_value(&run_manifest.stop_reason)?
+                row.stop_reason = serde_json::to_value(run_manifest.stop_reason)?
                     .as_str()
                     .map(str::to_owned);
                 row.state_digest64 = Some(run_manifest.state_digest64);
@@ -602,7 +602,7 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 point_runs.len() as u64 - completed_runs - failed_runs - incomplete_runs;
             DerivedPointRow {
                 schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
-                provenance: "derived",
+                provenance: "derived".to_owned(),
                 sweep_id: sweep.sweep_id.clone(),
                 point_id: point.point_id.clone(),
                 experiment_id: point_runs.first().and_then(|row| row.experiment_id.clone()),
@@ -766,7 +766,10 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     use super::*;
 
@@ -802,6 +805,58 @@ mod tests {
             .expect("system time after Unix epoch")
             .as_nanos();
         std::env::temp_dir().join(format!("anthrosim-{label}-{}-{nanos}", std::process::id()))
+    }
+
+    fn derived_row(
+        sweep: &SweepManifest,
+        point: &SweepPoint,
+        seed: u64,
+        state: &str,
+        final_population: Option<u64>,
+        births: Option<u64>,
+        deaths: Option<u64>,
+    ) -> DerivedRunRow {
+        let run_id = format!("seed-{seed:020}");
+        DerivedRunRow {
+            schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
+            provenance: "derived".to_owned(),
+            sweep_id: sweep.sweep_id.clone(),
+            point_id: point.point_id.clone(),
+            experiment_id: Some("test-experiment".to_owned()),
+            run_id: run_id.clone(),
+            seed,
+            state: state.to_owned(),
+            attempt: 1,
+            status_relative_path: format!(
+                "{}/status/{run_id}.json",
+                point.relative_experiment_dir
+            ),
+            manifest_relative_path: (state == "completed").then(|| {
+                format!(
+                    "{}/runs/{run_id}/manifest.json",
+                    point.relative_experiment_dir
+                )
+            }),
+            world_width: point.settings.world_width,
+            world_height: point.settings.world_height,
+            initial_population: point.settings.population,
+            household_size: point.settings.household_size,
+            max_person_records: point.settings.max_person_records,
+            resource_productivity_scale_permille: point
+                .settings
+                .resource_productivity_scale_permille,
+            annual_food_need: point.settings.annual_food_need,
+            disable_migration: point.settings.disable_migration,
+            migration_radius: point.settings.migration_radius,
+            stop_reason: (state == "completed").then(|| "durationReached".to_owned()),
+            state_digest64: (state == "completed").then_some(seed),
+            final_living_population: final_population,
+            births_since_start: births,
+            deaths_since_start: deaths,
+            household_count: None,
+            mean_living_condition_permille: None,
+            authoritative_event_count: None,
+        }
     }
 
     #[test]
@@ -841,6 +896,40 @@ mod tests {
         changed.annual_food_need = vec![80, 120];
         let changed = build_sweep_manifest(small_settings(), vec![3, 7], changed).expect("sweep");
         assert_ne!(first.sweep_id, changed.sweep_id);
+    }
+
+    #[test]
+    fn point_aggregation_counts_non_completed_runs_and_excludes_them_from_means() {
+        let dimensions = SweepDimensions {
+            population: vec![12],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        let sweep =
+            build_sweep_manifest(small_settings(), vec![1, 2, 3], dimensions).expect("sweep");
+        let point = &sweep.points[0];
+        let rows = vec![
+            derived_row(&sweep, point, 1, "completed", Some(10), Some(4), Some(2)),
+            derived_row(&sweep, point, 2, "failed", None, None, None),
+            derived_row(&sweep, point, 3, "incomplete", None, None, None),
+        ];
+
+        let points = build_point_rows(&sweep, &rows);
+        assert_eq!(points.len(), 1);
+        let summary = &points[0];
+        assert_eq!(summary.planned_runs, 3);
+        assert_eq!(summary.completed_runs, 1);
+        assert_eq!(summary.failed_runs, 1);
+        assert_eq!(summary.incomplete_runs, 1);
+        assert_eq!(summary.other_non_completed_runs, 0);
+        assert_eq!(summary.mean_final_living_population_completed_only, Some(10.0));
+        assert_eq!(summary.mean_births_since_start_completed_only, Some(4.0));
+        assert_eq!(summary.mean_deaths_since_start_completed_only, Some(2.0));
+        assert_eq!(summary.source_completed_run_ids.len(), 1);
+        assert!(summary.source_completed_run_ids[0].ends_with("seed-00000000000000000001"));
     }
 
     #[test]
