@@ -72,6 +72,8 @@ jobs:
         run: cargo bench --locked -p anthrosim-core --bench checkpoint_persistence -- --noplot
 
       - name: Build release binaries
+        env:
+          ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
         run: cargo build --locked --workspace --release
 
       - name: Run M7.5 10k-person 2000-year performance acceptance
@@ -116,6 +118,9 @@ jobs:
           assert summary['completedRuns'] == 144
           assert summary['nonCompletedRuns'] == 0
           assert record['sweepId'] == manifest['sweepId']
+          assert record['modelVersion'] == manifest['modelVersion']
+          assert record['gitCommit'] == manifest['gitCommit']
+          assert record['gitCommit']
           PY
 
       - name: Archive M7.6 derived experiment results
