@@ -14,14 +14,14 @@ import {
 function fixture() {
   const events = [
     { sequence: 1, day: 365, provenance: "authoritative", event: {
-      type: "birth", person: 3, femaleParent: 1, maleParent: 2, household: 1, cell: 1, reproductiveSex: "female",
+      type: "birth", person: 3, female_parent: 1, male_parent: 2, household: 1, cell: 1, reproductive_sex: "female",
     } },
     { sequence: 2, day: 730, provenance: "authoritative", event: {
-      type: "householdMigration", household: 1, peopleMoved: 3, origin: 1, destination: 4, distanceCells: 2,
+      type: "householdMigration", household: 1, people_moved: 3, origin: 1, destination: 4, distance_cells: 2,
     } },
     { sequence: 3, day: 1095, provenance: "authoritative", event: {
-      type: "death", person: 2, household: 1, cell: 4, cause: "demographic_mortality", conditionPermille: 900,
-      probabilityPerMillion: 10000,
+      type: "death", person: 2, household: 1, cell: 4, cause: "demographic_mortality", condition_permille: 900,
+      probability_per_million: 10000,
     } },
   ];
   const snapshots = [
@@ -84,10 +84,11 @@ test("schema mismatch is rejected instead of silently interpreted", () => {
   assert.throws(() => validateBundle(bundle), /events schema 2/);
 });
 
-test("timeline reconstruction applies birth, household migration and death in sequence", () => {
+test("timeline reconstruction applies serialized birth, household migration and death payloads in sequence", () => {
   const bundle = fixture();
   const year1 = reconstructState(bundle, 365);
   assert.equal(year1.people.get(3).location, 1);
+  assert.equal(year1.people.get(3).reproductiveSex, "female");
   assert.equal(year1.cellResidents.get(1).length, 3);
 
   const year2 = reconstructState(bundle, 730);
@@ -98,6 +99,7 @@ test("timeline reconstruction applies birth, household migration and death in se
 
   const year3 = reconstructState(bundle, 1095);
   assert.equal(year3.people.get(2).alive, false);
+  assert.equal(year3.people.get(2).conditionPermille, 900);
   assert.deepEqual(year3.cellResidents.get(4), [1, 3]);
 });
 
@@ -117,6 +119,13 @@ test("map overlays keep reconstructed population separate from authoritative ter
   assert.deepEqual(mapValues(bundle, state, "population"), [0, 0, 0, 2]);
   assert.deepEqual(mapValues(bundle, state, "productivity"), [100, 200, 300, 400]);
   assert.deepEqual(mapValues(bundle, state, "finalFood"), [10, 20, 30, 40]);
+});
+
+test("numeric map overlays reject integers that cannot be represented exactly", () => {
+  const bundle = fixture();
+  bundle.checkpoint.resources.cellFoodStock[0] = "18446744073709551615";
+  const state = reconstructState(bundle, 1095);
+  assert.throws(() => mapValues(bundle, state, "finalFood"), /exact integer range/);
 });
 
 test("snapshot lookup returns the latest recorded derived observation at or before a day", () => {
