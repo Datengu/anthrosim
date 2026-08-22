@@ -35,7 +35,7 @@ Culture, language, trade, states, religion, warfare, AI-controlled agents, and r
 - **M2 — Persistent people, households, demography and genealogy:** complete.
 - **M3 — Renewable resources, household sharing, condition and scarcity survival:** complete; parameters remain an explicit synthetic validation baseline until empirically grounded.
 - **M4 — Interpretable local migration:** complete; migration utility weights, information radius and response thresholds remain explicit synthetic validation assumptions.
-- **M5 — Events, metrics, checkpoints and causal inspection:** implemented in the current milestone branch; it adds observability/persistence rather than a new anthropological mechanism.
+- **M5 — Events, metrics, checkpoints and causal inspection:** complete; it adds observability/persistence rather than a new anthropological mechanism.
 
 M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
 
