@@ -18,6 +18,7 @@ use crate::{
         MigrationSystem, validate_migration_config,
     },
     population::{Population, PopulationError},
+    provenance::MODEL_SEMANTICS_ID,
     resources::{
         ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
         ResourceStepOutcome, ResourceSystem, validate_resource_config,
@@ -99,6 +100,12 @@ impl Simulation {
             return Err(SimulationError::CheckpointModelVersionMismatch {
                 found: checkpoint.model_version,
                 expected: env!("CARGO_PKG_VERSION").to_owned(),
+            });
+        }
+        if checkpoint.model_semantics_id != MODEL_SEMANTICS_ID {
+            return Err(SimulationError::CheckpointModelSemanticsMismatch {
+                found: checkpoint.model_semantics_id,
+                expected: MODEL_SEMANTICS_ID.to_owned(),
             });
         }
         validate_experiment(&checkpoint.experiment)?;
@@ -438,6 +445,7 @@ impl Simulation {
         RunManifest {
             schema_version: RunManifest::CURRENT_SCHEMA_VERSION,
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
+            model_semantics_id: MODEL_SEMANTICS_ID.to_owned(),
             git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
             experiment: self.config.clone(),
             artifact_schemas: ArtifactSchemas::current(),
@@ -466,6 +474,7 @@ impl Simulation {
         SimulationCheckpoint {
             schema_version: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
+            model_semantics_id: MODEL_SEMANTICS_ID.to_owned(),
             git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
             experiment: self.config,
             time: self.time,
@@ -527,6 +536,10 @@ pub enum SimulationError {
     UnsupportedCheckpointSchema { found: u32, supported: u32 },
     #[error("checkpoint model version {found} does not match current model version {expected}")]
     CheckpointModelVersionMismatch { found: String, expected: String },
+    #[error(
+        "checkpoint model semantics identity {found} does not match current model semantics identity {expected}"
+    )]
+    CheckpointModelSemanticsMismatch { found: String, expected: String },
     #[error("checkpoint {artifact} artifact schema is incompatible with this build")]
     CheckpointArtifactSchemaMismatch { artifact: &'static str },
     #[error("checkpoint day {day} is not a completed annual boundary")]
@@ -632,6 +645,7 @@ mod tests {
             .with_demography(no_event_demography())
             .with_resources(no_pressure_resources());
         let manifest = Simulation::new(config).unwrap().run().unwrap();
+        assert_eq!(manifest.model_semantics_id, MODEL_SEMANTICS_ID);
         assert_eq!(manifest.end_time, SimTime::from_years(10));
         assert_eq!(manifest.stop_reason, StopReason::DurationReached);
         assert_eq!(manifest.world.cell_count, 128 * 128);
@@ -684,6 +698,7 @@ mod tests {
             .unwrap()
             .checkpoint_at_year(5)
             .unwrap();
+        assert_eq!(checkpoint.model_semantics_id, MODEL_SEMANTICS_ID);
         assert_eq!(checkpoint.terminal_stop_reason, None);
         let resumed = Simulation::from_checkpoint(checkpoint)
             .unwrap()
@@ -713,6 +728,39 @@ mod tests {
             resumed.checkpoint.terminal_stop_reason,
             uninterrupted.checkpoint.terminal_stop_reason
         );
+    }
+
+    #[test]
+    fn checkpoint_rejects_incompatible_model_semantics() {
+        let config = ExperimentConfig::new(2034, 4)
+            .with_world(WorldConfig::new(4, 4))
+            .with_population(PopulationConfig::new(32));
+        let mut checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        checkpoint.model_semantics_id = "anthrosim-model-semantics-incompatible-test".to_owned();
+
+        assert!(matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::CheckpointModelSemanticsMismatch { found, expected })
+                if found == "anthrosim-model-semantics-incompatible-test"
+                    && expected == MODEL_SEMANTICS_ID
+        ));
+    }
+
+    #[test]
+    fn checkpoint_source_revision_is_provenance_not_resume_compatibility() {
+        let config = ExperimentConfig::new(2035, 4)
+            .with_world(WorldConfig::new(4, 4))
+            .with_population(PopulationConfig::new(32));
+        let mut checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        checkpoint.git_commit = Some("source-neutral-revision-test".to_owned());
+
+        assert!(Simulation::from_checkpoint(checkpoint).is_ok());
     }
 
     #[test]
