@@ -37,7 +37,7 @@ Culture, language, trade, states, religion, warfare, AI-controlled agents, and r
 - **M3 — Renewable resources, household sharing, condition and scarcity survival:** complete; parameters remain an explicit synthetic validation baseline until empirically grounded.
 - **M4 — Interpretable local migration:** complete; migration utility weights, information radius and response thresholds remain explicit synthetic validation assumptions.
 - **M5 — Events, metrics, checkpoints and causal inspection:** complete; it adds observability/persistence rather than a new anthropological mechanism.
-- **M6 — Local simulation explorer:** implemented as a read-only consumer of M5 run bundles; it does not participate in authoritative simulation state or the Rust hot loop.
+- **M6 — Local simulation explorer:** implemented as a read-only consumer of completed and paused M5 run bundles; it does not participate in authoritative simulation state or the Rust hot loop.
 
 M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
 
@@ -55,13 +55,13 @@ AnthroSim uses the Rust toolchain pinned in `rust-toolchain.toml`. From the repo
 cargo run --release -p anthrosim-cli -- run --years 25 --population 10000 --world-width 64 --world-height 64 --seed 1 --output runs/first-run.json
 ```
 
-For M5/M6 causal inspection, write a controlled run bundle instead:
+For M5/M6 causal inspection, write a controlled completed run bundle instead:
 
 ```text
 cargo run --release -p anthrosim-cli -- run --years 25 --population 10000 --seed 1 --run-dir runs/m6-example
 ```
 
-The directory contains `manifest.json`, `world.json`, `initial-population.json`, `events.json`, `metrics.json` and a final `checkpoint.json`, so analysis does not require a live database.
+A completed directory contains `manifest.json`, `world.json`, `initial-population.json`, `events.json`, `metrics.json` and a final `checkpoint.json`, so analysis does not require a live database.
 
 Open that run in the M6 explorer with:
 
@@ -69,18 +69,24 @@ Open that run in the M6 explorer with:
 python scripts/serve-explorer.py runs/m6-example
 ```
 
-The server binds to `127.0.0.1:8765` by default and opens the local browser. It serves only the fixed explorer assets and six run files, exposes no directory listing or write API, and rejects POST/PUT/DELETE. Use `--no-browser` if you do not want it to open a browser automatically.
+The server binds to `127.0.0.1:8765` by default and opens the local browser. It serves only fixed explorer assets and expected run artifacts, exposes no directory listing or write API, and rejects POST/PUT/DELETE. Use `--no-browser` if you do not want it to open a browser automatically.
 
-To deliberately pause at a resumable annual boundary:
+A deliberately paused run can be explored **before** resuming it:
 
 ```text
 cargo run --release -p anthrosim-cli -- run --years 25 --population 10000 --seed 1 --run-dir runs/m5-resume --checkpoint-year 10
+python scripts/serve-explorer.py runs/m5-resume
+```
+
+Paused checkpoint bundles do not yet have `manifest.json`; M6 recognises that form and treats `checkpoint.json` as the authoritative current boundary rather than fabricating a completed manifest. Resume later with:
+
+```text
 cargo run --release -p anthrosim-cli -- resume --checkpoint runs/m5-resume/checkpoint.json --run-dir runs/m5-resume
 ```
 
 The CLI also exposes synthetic experiment controls such as `--resource-productivity-scale-permille`, `--annual-food-need`, `--migration-radius` and `--disable-migration`. These are model-validation controls, not empirical caloric, palaeoecological or mobility measurements.
 
-The manifest records configuration, artifact schema versions, world/population/resource/migration summaries, state digest, runtime counters and stop reason. See [`docs/research/observability-v0.1.md`](docs/research/observability-v0.1.md) for the authoritative-event/derived-metric distinction and checkpoint compatibility rules, and [`docs/research/explorer-v0.1.md`](docs/research/explorer-v0.1.md) for M6 display provenance and reconstruction limits.
+For a completed run the manifest records configuration, artifact schema versions, world/population/resource/migration summaries, state digest, runtime counters and stop reason. For a paused run the checkpoint carries the current authoritative experiment/state boundary. See [`docs/research/observability-v0.1.md`](docs/research/observability-v0.1.md) for the authoritative-event/derived-metric distinction and checkpoint compatibility rules, and [`docs/research/explorer-v0.1.md`](docs/research/explorer-v0.1.md) for M6 display provenance and reconstruction limits.
 
 ## Scientific status
 
