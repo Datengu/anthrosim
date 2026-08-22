@@ -19,6 +19,8 @@ anthrosim/
 ├── crates/
 │   ├── anthrosim-core/     # deterministic engine primitives and simulation lifecycle
 │   └── anthrosim-cli/      # headless command-line runner
+├── explorer/               # M6 read-only browser UI; outside the Rust workspace
+├── scripts/                # local serving / validation helpers
 ├── docs/                   # design, research model, ADRs
 ├── examples/               # versioned example experiment definitions
 ├── experiments/            # research experiment definitions as models mature
@@ -26,7 +28,7 @@ anthrosim/
 └── .github/workflows/      # reproducibility and quality gates
 ```
 
-More crates should be created only when a real boundary exists. v0.1 should not begin as a large framework of empty modules.
+More crates should be created only when a real boundary exists. M6 deliberately does **not** add an explorer crate to the Rust workspace because the explorer is a downstream artifact consumer, not a simulation dependency.
 
 ## Direction of dependencies
 
@@ -46,7 +48,7 @@ anthrosim-core
         ↓
 versioned output artifacts
         ↓
-analysis / explorer / research tooling
+analysis / M6 explorer / research tooling
 ```
 
 The arrow must never reverse from an explorer into authoritative simulation state during a research run.
@@ -89,6 +91,8 @@ Where practical, authoritative state uses integer/fixed-point representations. M
 This improves compactness and exact cross-run comparison and reduces the risk that tiny platform-specific floating-point differences branch long deterministic histories.
 
 Floating-point analysis remains appropriate downstream; avoiding it in authoritative state is not an ideological restriction where a later model genuinely requires it.
+
+M6 has an additional display-boundary concern: JavaScript `Number` cannot exactly represent every Rust `u64`. The explorer therefore preserves integers outside JavaScript's safe integer range as exact decimal strings during JSON parsing instead of silently rounding authoritative artifact values.
 
 ## Deterministic randomness
 
@@ -153,6 +157,24 @@ M5 v1 deliberately supports resumable checkpoints only at completed annual bound
 
 Migration still retains a bounded summary sample of detailed decision traces for ordinary manifests, while the authoritative event log records every completed move. Future analytical columnar formats may be added downstream without changing the in-memory simulation ownership boundary.
 
+## M6 explorer boundary
+
+M6 is intentionally **artifact-first and read-only**.
+
+`scripts/serve-explorer.py` binds to loopback by default and exposes only the fixed explorer assets plus the six expected files from one explicitly selected run directory. It implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.
+
+The explorer distinguishes three data classes:
+
+- **authoritative** serialized engine values/events;
+- **derived** M5 metric snapshots;
+- **reconstructed display state**, such as historical living-cell occupancy replayed from founder locations plus authoritative birth/death/migration events.
+
+M6 does not manufacture historical resource surfaces or historical individual condition where M5 did not serialize them. Final resource stock and final living condition are read from the checkpoint; earlier unavailable values are labelled unavailable rather than interpolated.
+
+The terminal reconstruction is verified against the final checkpoint in CI: person count, living count, occupied cells, every person location/household and total final food stock must agree. The server smoke test hashes the run bundle before and after access to verify no file changed.
+
+The explorer has no Cargo dependency and no place in the authoritative dependency graph. Removing the entire `explorer/` and its serving scripts leaves the Rust simulation build and headless execution unchanged.
+
 ## Performance policy
 
 Performance is part of correctness. Core metrics include:
@@ -167,6 +189,6 @@ Performance is part of correctness. Core metrics include:
 
 M3 resource processing remains O(people + households + cells) per resource period. M4 adds bounded local migration work proportional to pressured households × local candidate count, plus one population/cell pass to apply simultaneous moves. It deliberately avoids global candidate scans and global pairwise searches.
 
-CI benchmarks the 10,000-person full resource-migration-demographic lifecycle, population initialization, world generation, and bounded radius-three candidate lookup as regression baselines.
+CI benchmarks the 10,000-person full resource-migration-demographic lifecycle, population initialization, world generation, bounded radius-three candidate lookup and checkpoint persistence as regression baselines. Those Rust benchmark commands are unchanged by M6; explorer validation runs as downstream CI steps after the headless artifacts exist.
 
 Optimisation follows measurement. Unsafe code, SIMD, GPU kernels, custom allocators, or distributed execution require benchmark evidence and an explicit architectural decision.
