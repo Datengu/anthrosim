@@ -7,6 +7,10 @@ use crate::{
         validate_demography_config,
     },
     manifest::{RunManifest, StopReason},
+    migration::{
+        MigrationConfigError, MigrationError, MigrationRngs, MigrationSystem,
+        validate_migration_config,
+    },
     population::{Population, PopulationError},
     resources::{
         ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,
@@ -26,6 +30,7 @@ pub struct Simulation {
     world: World,
     population: Population,
     resources: ResourceSystem,
+    migration: MigrationSystem,
 }
 
 impl Simulation {
@@ -38,11 +43,13 @@ impl Simulation {
         }
         validate_demography_config(&config.demography)?;
         validate_resource_config(&config.resources)?;
+        validate_migration_config(&config.migration)?;
 
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
         let population = Population::initialize(config.population, &world, rng_factory)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
+        let migration = MigrationSystem::initialize(&population, &world, &config.migration)?;
 
         Ok(Self {
             rng_factory,
@@ -51,6 +58,7 @@ impl Simulation {
             world,
             population,
             resources,
+            migration,
         })
     }
 
@@ -79,15 +87,23 @@ impl Simulation {
         &self.resources
     }
 
-    /// Run the configured M3 resource-demographic lifecycle.
+    #[must_use]
+    pub const fn migration(&self) -> &MigrationSystem {
+        &self.migration
+    }
+
+    /// Run the configured M4 resource-migration-demographic lifecycle.
     ///
-    /// Within each simulated year, renewable resources are regenerated and
-    /// shared at explicit subannual boundaries. Condition and scarcity
-    /// mortality are updated after each resource period. The annual M2
-    /// demographic boundary then evaluates baseline mortality and fertility.
+    /// Each resource period first regenerates and shares local resources, then
+    /// updates condition and scarcity mortality. Surviving households evaluate
+    /// bounded local migration alternatives against that experienced state and
+    /// selected moves complete atomically at the same decision boundary with an
+    /// explicit travel condition cost. The annual demographic boundary then
+    /// evaluates baseline mortality and fertility.
     pub fn run(mut self) -> Result<RunManifest, SimulationError> {
         let mut demography_rngs = DemographyRngs::new(self.rng_factory);
         let mut resource_rngs = ResourceRngs::new(self.rng_factory);
+        let mut migration_rngs = MigrationRngs::new(self.rng_factory);
 
         let mut stop_reason = StopReason::DurationReached;
         if self.population.living_count() == 0 {
@@ -114,6 +130,16 @@ impl Simulation {
                         stop_reason = StopReason::PopulationExtinct;
                         break 'years;
                     }
+                    self.migration.process_boundary(
+                        &mut self.population,
+                        &self.world,
+                        &self.resources,
+                        &self.config.migration,
+                        self.config.resources.annual_need_units_per_person,
+                        self.config.resources.periods_per_year,
+                        day,
+                        &mut migration_rngs,
+                    )?;
                 }
 
                 self.time = SimTime::from_years(year);
@@ -151,6 +177,7 @@ impl Simulation {
             world: self.world.summary(),
             population: self.population.summary(),
             resources: self.resources.summary(&self.population),
+            migration: self.migration.summary(),
             start_time: SimTime::ZERO,
             end_time: self.time,
             stop_reason,
@@ -167,7 +194,11 @@ pub enum SimulationError {
     #[error(transparent)]
     ResourceConfig(#[from] ResourceConfigError),
     #[error(transparent)]
+    MigrationConfig(#[from] MigrationConfigError),
+    #[error(transparent)]
     Resources(#[from] ResourceError),
+    #[error(transparent)]
+    Migration(#[from] MigrationError),
     #[error(transparent)]
     World(#[from] WorldError),
     #[error(transparent)]
@@ -178,7 +209,8 @@ pub enum SimulationError {
 mod tests {
     use super::*;
     use crate::config::{
-        DemographyConfig, PROBABILITY_PER_MILLION, PopulationConfig, ResourceConfig, WorldConfig,
+        DemographyConfig, MigrationConfig, PROBABILITY_PER_MILLION, PopulationConfig,
+        ResourceConfig, WorldConfig,
     };
 
     fn no_event_demography() -> DemographyConfig {
@@ -199,6 +231,10 @@ mod tests {
         config
     }
 
+    fn disabled_migration() -> MigrationConfig {
+        MigrationConfig::synthetic_validation_v1().with_enabled(false)
+    }
+
     #[test]
     fn run_reaches_configured_duration_when_no_stop_condition_occurs() {
         let config = ExperimentConfig::new(7, 10)
@@ -214,18 +250,20 @@ mod tests {
         assert_eq!(manifest.population.deaths_since_start, 0);
         assert_eq!(manifest.resources.periods_processed, 40);
         assert_eq!(manifest.resources.unmet_need, 0);
+        assert_eq!(manifest.migration.moves_completed, 0);
     }
 
     #[test]
-    fn default_schedule_produces_resource_and_demographic_change() {
+    fn default_schedule_produces_resource_demographic_and_migration_state() {
         let config = ExperimentConfig::new(81, 5)
-            .with_world(WorldConfig::new(1, 1))
+            .with_world(WorldConfig::new(4, 4))
             .with_population(PopulationConfig::new(2_000).with_max_person_records(100_000));
         let manifest = Simulation::new(config).unwrap().run().unwrap();
 
         assert!(manifest.population.deaths_since_start > 0);
         assert!(manifest.resources.periods_processed > 0);
         assert!(manifest.resources.harvested_food > 0 || manifest.resources.unmet_need > 0);
+        assert!(manifest.migration.decision_boundaries > 0);
         assert_eq!(
             u64::from(manifest.population.initial_population)
                 + manifest.population.births_since_start
@@ -244,7 +282,8 @@ mod tests {
             .with_world(WorldConfig::new(1, 1))
             .with_population(PopulationConfig::new(100))
             .with_demography(demography)
-            .with_resources(no_pressure_resources());
+            .with_resources(no_pressure_resources())
+            .with_migration(disabled_migration());
 
         let manifest = Simulation::new(config).unwrap().run().unwrap();
         assert_eq!(manifest.stop_reason, StopReason::PopulationExtinct);
@@ -267,7 +306,8 @@ mod tests {
             .with_world(WorldConfig::new(1, 1))
             .with_population(PopulationConfig::new(100).with_max_person_records(101))
             .with_demography(demography)
-            .with_resources(no_pressure_resources());
+            .with_resources(no_pressure_resources())
+            .with_migration(disabled_migration());
         let manifest = Simulation::new(config).unwrap().run().unwrap();
 
         assert_eq!(manifest.stop_reason, StopReason::PersonRecordLimitReached);
@@ -277,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn severe_resource_scarcity_can_extinguish_before_annual_demography() {
+    fn severe_resource_scarcity_can_extinguish_before_migration_and_annual_demography() {
         let mut resources = ResourceConfig::synthetic_validation_v1()
             .with_productivity_scale_permille(0)
             .with_annual_need_units_per_person(100);
@@ -295,6 +335,7 @@ mod tests {
         assert_eq!(manifest.end_time, SimTime::from_years(1));
         assert_eq!(manifest.resources.scarcity_deaths, 100);
         assert!(manifest.resources.unmet_need > 0);
+        assert_eq!(manifest.migration.moves_completed, 0);
     }
 
     #[test]
@@ -304,6 +345,7 @@ mod tests {
         assert_eq!(manifest.stop_reason, StopReason::PopulationExtinct);
         assert_eq!(manifest.end_time, SimTime::ZERO);
         assert_eq!(manifest.resources.periods_processed, 0);
+        assert_eq!(manifest.migration.decision_boundaries, 0);
     }
 
     #[test]
