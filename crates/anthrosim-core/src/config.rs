@@ -13,10 +13,11 @@ pub struct ExperimentConfig {
     pub population: PopulationConfig,
     pub demography: DemographyConfig,
     pub resources: ResourceConfig,
+    pub migration: MigrationConfig,
 }
 
 impl ExperimentConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 6;
 
     #[must_use]
     pub fn new(seed: u64, duration_years: u64) -> Self {
@@ -28,6 +29,7 @@ impl ExperimentConfig {
             population: PopulationConfig::default_config(),
             demography: DemographyConfig::synthetic_validation_v1(),
             resources: ResourceConfig::synthetic_validation_v1(),
+            migration: MigrationConfig::synthetic_validation_v1(),
         }
     }
 
@@ -52,6 +54,12 @@ impl ExperimentConfig {
     #[must_use]
     pub fn with_resources(mut self, resources: ResourceConfig) -> Self {
         self.resources = resources;
+        self
+    }
+
+    #[must_use]
+    pub fn with_migration(mut self, migration: MigrationConfig) -> Self {
+        self.migration = migration;
         self
     }
 }
@@ -324,6 +332,79 @@ impl ResourceConfig {
 }
 
 impl Default for ResourceConfig {
+    fn default() -> Self {
+        Self::synthetic_validation_v1()
+    }
+}
+
+/// Transparent M4 migration assumptions.
+///
+/// Households have bounded local knowledge and compare a small Manhattan
+/// neighbourhood using explicit synthetic utility factors. The default weights
+/// are an engine-validation parameterization, not an empirical reconstruction
+/// of hunter-gatherer mobility preferences.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationConfig {
+    pub schema_version: u32,
+    pub model_id: String,
+    pub provenance: ParameterProvenance,
+    pub enabled: bool,
+    pub candidate_radius_cells: u16,
+    pub condition_pressure_threshold_permille: u16,
+    pub resource_pressure_threshold_permille: u16,
+    pub minimum_utility_improvement: u32,
+    pub resource_weight: u16,
+    pub water_security_weight: u16,
+    pub kin_weight: u16,
+    pub travel_cost_weight: u16,
+    pub max_uncertainty_penalty_permille: u16,
+    pub relocation_risk_base_penalty_permille: u16,
+    pub relocation_risk_per_cell_permille: u16,
+    pub travel_condition_cost_per_cell: u16,
+    pub max_recorded_decision_traces: u32,
+}
+
+impl MigrationConfig {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    #[must_use]
+    pub fn synthetic_validation_v1() -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            model_id: "synthetic_validation_v1".to_owned(),
+            provenance: ParameterProvenance::SyntheticValidation,
+            enabled: true,
+            candidate_radius_cells: 3,
+            condition_pressure_threshold_permille: 900,
+            resource_pressure_threshold_permille: 850,
+            minimum_utility_improvement: 150,
+            resource_weight: 5,
+            water_security_weight: 2,
+            kin_weight: 1,
+            travel_cost_weight: 2,
+            max_uncertainty_penalty_permille: 100,
+            relocation_risk_base_penalty_permille: 50,
+            relocation_risk_per_cell_permille: 25,
+            travel_condition_cost_per_cell: 10,
+            max_recorded_decision_traces: 256,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_candidate_radius_cells(mut self, radius: u16) -> Self {
+        self.candidate_radius_cells = radius;
+        self
+    }
+}
+
+impl Default for MigrationConfig {
     fn default() -> Self {
         Self::synthetic_validation_v1()
     }

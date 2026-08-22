@@ -1,0 +1,1066 @@
+use rand::Rng;
+use rand_chacha::ChaCha8Rng;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use crate::{
+    config::MigrationConfig,
+    ids::{CellId, HouseholdId, PersonId},
+    population::{Population, PopulationError},
+    resources::ResourceSystem,
+    rng::RngFactory,
+    world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
+};
+
+const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+const MAX_KIN_LOCATIONS_PER_HOUSEHOLD: usize = 4;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationUtilityBreakdown {
+    pub resource_score_permille: u16,
+    pub water_security_score_permille: u16,
+    pub kin_score_permille: u16,
+    pub travel_penalty_permille: u16,
+    pub uncertainty_penalty_permille: u16,
+    pub relocation_risk_penalty_permille: u16,
+    pub total_utility: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationDecisionTrace {
+    pub decision_day: u64,
+    pub completed_day: u64,
+    pub household: HouseholdId,
+    pub people_moved: u32,
+    pub origin: CellId,
+    pub destination: CellId,
+    pub distance_cells: u16,
+    pub pressure_permille: u16,
+    pub candidate_count: u16,
+    pub origin_utility: MigrationUtilityBreakdown,
+    pub destination_utility: MigrationUtilityBreakdown,
+    pub best_candidate: CellId,
+    pub best_candidate_utility: i32,
+    pub selected_weight: u64,
+    pub total_move_weight: u64,
+    pub choice_draw: u64,
+    pub travel_condition_cost_per_person: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationSummary {
+    pub schema_version: u32,
+    pub model_id: String,
+    pub decision_boundaries: u64,
+    pub households_evaluated: u64,
+    pub households_under_pressure: u64,
+    pub moves_completed: u64,
+    pub people_moved: u64,
+    pub total_distance_cells: u64,
+    pub northward_steps: u64,
+    pub eastward_steps: u64,
+    pub southward_steps: u64,
+    pub westward_steps: u64,
+    pub travel_condition_cost_total: u64,
+    pub mean_origin_resource_score_permille: u16,
+    pub mean_destination_resource_score_permille: u16,
+    pub mean_origin_water_security_score_permille: u16,
+    pub mean_destination_water_security_score_permille: u16,
+    pub occupied_cell_delta_from_migration: i64,
+    pub recorded_decision_traces: Vec<MigrationDecisionTrace>,
+    pub digest64: u64,
+}
+
+impl MigrationSummary {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CandidateEvaluation {
+    cell: CellId,
+    distance: u16,
+    utility: MigrationUtilityBreakdown,
+    weight: u64,
+}
+
+pub(crate) struct MigrationBoundaryContext<'a> {
+    pub world: &'a World,
+    pub resources: &'a ResourceSystem,
+    pub migration: &'a MigrationConfig,
+    pub annual_food_need: u32,
+    pub resource_periods_per_year: u16,
+    pub day: u64,
+}
+
+#[derive(Debug)]
+pub struct MigrationRngs {
+    choice: ChaCha8Rng,
+    uncertainty: ChaCha8Rng,
+}
+
+impl MigrationRngs {
+    #[must_use]
+    pub(crate) fn new(factory: RngFactory) -> Self {
+        Self {
+            choice: factory.stream("migration/choice"),
+            uncertainty: factory.stream("migration/uncertainty"),
+        }
+    }
+}
+
+/// M4 local migration state and compact explanatory metrics.
+///
+/// Decisions are evaluated in stable household-ID order against one shared
+/// pre-move snapshot. Selected household moves are then applied simultaneously
+/// in a packed population pass. This prevents earlier households in a boundary
+/// from changing the information seen by later households.
+#[derive(Debug)]
+pub struct MigrationSystem {
+    model_id: String,
+    decision_boundaries: u64,
+    households_evaluated: u64,
+    households_under_pressure: u64,
+    moves_completed: u64,
+    people_moved: u64,
+    total_distance_cells: u64,
+    northward_steps: u64,
+    eastward_steps: u64,
+    southward_steps: u64,
+    westward_steps: u64,
+    travel_condition_cost_total: u64,
+    origin_resource_score_total: u64,
+    destination_resource_score_total: u64,
+    origin_water_security_score_total: u64,
+    destination_water_security_score_total: u64,
+    occupied_cell_delta_from_migration: i64,
+    recorded_decision_traces: Vec<MigrationDecisionTrace>,
+    living_members: Vec<u32>,
+    condition_sums: Vec<u64>,
+    cell_living: Vec<u32>,
+    post_move_cell_living: Vec<u32>,
+    kin_locations: Vec<[CellId; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]>,
+    kin_location_counts: Vec<u8>,
+    planned_destinations: Vec<CellId>,
+    planned_condition_costs: Vec<u16>,
+    candidates: Vec<CellId>,
+    evaluations: Vec<CandidateEvaluation>,
+}
+
+impl MigrationSystem {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    pub fn initialize(
+        population: &Population,
+        world: &World,
+        config: &MigrationConfig,
+    ) -> Result<Self, MigrationConfigError> {
+        validate_migration_config(config)?;
+        let households = population.household_count();
+        let cells = world.cell_count();
+        let candidate_capacity = candidate_count_upper_bound(config.candidate_radius_cells);
+        Ok(Self {
+            model_id: config.model_id.clone(),
+            decision_boundaries: 0,
+            households_evaluated: 0,
+            households_under_pressure: 0,
+            moves_completed: 0,
+            people_moved: 0,
+            total_distance_cells: 0,
+            northward_steps: 0,
+            eastward_steps: 0,
+            southward_steps: 0,
+            westward_steps: 0,
+            travel_condition_cost_total: 0,
+            origin_resource_score_total: 0,
+            destination_resource_score_total: 0,
+            origin_water_security_score_total: 0,
+            destination_water_security_score_total: 0,
+            occupied_cell_delta_from_migration: 0,
+            recorded_decision_traces: Vec::with_capacity(
+                usize::try_from(config.max_recorded_decision_traces).unwrap_or(0),
+            ),
+            living_members: vec![0; households],
+            condition_sums: vec![0; households],
+            cell_living: vec![0; cells],
+            post_move_cell_living: vec![0; cells],
+            kin_locations: vec![[CellId::INVALID; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]; households],
+            kin_location_counts: vec![0; households],
+            planned_destinations: vec![CellId::INVALID; households],
+            planned_condition_costs: vec![0; households],
+            candidates: Vec::with_capacity(candidate_capacity),
+            evaluations: Vec::with_capacity(candidate_capacity),
+        })
+    }
+
+    pub(crate) fn process_boundary(
+        &mut self,
+        population: &mut Population,
+        context: &MigrationBoundaryContext<'_>,
+        rngs: &mut MigrationRngs,
+    ) -> Result<(), MigrationError> {
+        let MigrationBoundaryContext {
+            world,
+            resources,
+            migration: config,
+            annual_food_need,
+            resource_periods_per_year,
+            day,
+        } = *context;
+        validate_migration_config(config)?;
+        if !config.enabled || population.living_count() == 0 {
+            return Ok(());
+        }
+        self.prepare_snapshot(population, world)?;
+        self.decision_boundaries = self
+            .decision_boundaries
+            .checked_add(1)
+            .ok_or(MigrationError::AccountingOverflow)?;
+
+        let period_need_per_person = if resource_periods_per_year == 0 {
+            0
+        } else {
+            u64::from(annual_food_need).div_ceil(u64::from(resource_periods_per_year))
+        };
+
+        for household_index in 0..population.household_count() {
+            let members = self.living_members[household_index];
+            if members == 0 {
+                continue;
+            }
+            self.households_evaluated = self
+                .households_evaluated
+                .checked_add(1)
+                .ok_or(MigrationError::AccountingOverflow)?;
+            let household = HouseholdId::new(household_index as u64 + 1);
+            let origin = population.household_location(household).ok_or(
+                MigrationError::InternalInvariant("household has no location"),
+            )?;
+            let mean_condition =
+                u16::try_from(self.condition_sums[household_index] / u64::from(members))
+                    .unwrap_or(PERMILLE_MAX);
+            let origin_population = self.cell_population(origin)?;
+            let origin_utility = self.evaluate_cell(
+                household_index,
+                origin,
+                0,
+                origin_population,
+                members,
+                resources,
+                world,
+                config,
+                period_need_per_person,
+                0,
+            )?;
+            let pressure = migration_pressure_permille(
+                mean_condition,
+                origin_utility.resource_score_permille,
+                config,
+            );
+            if pressure == 0 {
+                continue;
+            }
+            self.households_under_pressure = self
+                .households_under_pressure
+                .checked_add(1)
+                .ok_or(MigrationError::AccountingOverflow)?;
+
+            fill_candidate_cells(
+                &mut self.candidates,
+                world,
+                origin,
+                config.candidate_radius_cells,
+            );
+            self.evaluations.clear();
+            let mut total_weight = 0_u64;
+            let mut best_candidate = CellId::INVALID;
+            let mut best_candidate_utility = i32::MIN;
+
+            for &candidate in &self.candidates {
+                let distance = manhattan_distance(world, origin, candidate).ok_or(
+                    MigrationError::InternalInvariant("candidate coordinates invalid"),
+                )?;
+                let destination_population =
+                    self.cell_population(candidate)?.saturating_add(members);
+                let uncertainty = if config.max_uncertainty_penalty_permille == 0 {
+                    0
+                } else {
+                    u16::try_from(draw_bounded(
+                        &mut rngs.uncertainty,
+                        u64::from(config.max_uncertainty_penalty_permille) + 1,
+                    ))
+                    .unwrap_or(config.max_uncertainty_penalty_permille)
+                };
+                let utility = self.evaluate_cell(
+                    household_index,
+                    candidate,
+                    distance,
+                    destination_population,
+                    members,
+                    resources,
+                    world,
+                    config,
+                    period_need_per_person,
+                    uncertainty,
+                )?;
+                if utility.total_utility > best_candidate_utility
+                    || (utility.total_utility == best_candidate_utility
+                        && (best_candidate == CellId::INVALID || candidate < best_candidate))
+                {
+                    best_candidate = candidate;
+                    best_candidate_utility = utility.total_utility;
+                }
+                let required = origin_utility.total_utility.saturating_add(
+                    i32::try_from(config.minimum_utility_improvement).unwrap_or(i32::MAX),
+                );
+                if utility.total_utility <= required {
+                    continue;
+                }
+                let improvement = i64::from(utility.total_utility) - i64::from(required);
+                let weight = u64::try_from(improvement)
+                    .unwrap_or(u64::MAX)
+                    .saturating_add(1);
+                total_weight = total_weight
+                    .checked_add(weight)
+                    .ok_or(MigrationError::AccountingOverflow)?;
+                self.evaluations.push(CandidateEvaluation {
+                    cell: candidate,
+                    distance,
+                    utility,
+                    weight,
+                });
+            }
+
+            if total_weight == 0 {
+                continue;
+            }
+            let choice_draw = draw_bounded(&mut rngs.choice, total_weight);
+            let mut cursor = choice_draw;
+            let mut selected =
+                *self
+                    .evaluations
+                    .last()
+                    .ok_or(MigrationError::InternalInvariant(
+                        "positive weight has no candidates",
+                    ))?;
+            for evaluation in &self.evaluations {
+                if cursor < evaluation.weight {
+                    selected = *evaluation;
+                    break;
+                }
+                cursor -= evaluation.weight;
+            }
+
+            let condition_cost = u16::try_from(
+                u32::from(config.travel_condition_cost_per_cell)
+                    .saturating_mul(u32::from(selected.distance))
+                    .min(u32::from(PERMILLE_MAX)),
+            )
+            .unwrap_or(PERMILLE_MAX);
+            self.planned_destinations[household_index] = selected.cell;
+            self.planned_condition_costs[household_index] = condition_cost;
+            self.record_selected_move(
+                population,
+                world,
+                config,
+                day,
+                household_index,
+                household,
+                members,
+                origin,
+                pressure,
+                origin_utility,
+                selected,
+                best_candidate,
+                best_candidate_utility,
+                total_weight,
+                choice_draw,
+                condition_cost,
+            )?;
+        }
+
+        self.apply_planned_moves(population, world)?;
+        Ok(())
+    }
+
+    fn prepare_snapshot(
+        &mut self,
+        population: &Population,
+        world: &World,
+    ) -> Result<(), MigrationError> {
+        if self.living_members.len() != population.household_count()
+            || self.cell_living.len() != world.cell_count()
+        {
+            return Err(MigrationError::StateShapeMismatch);
+        }
+        self.living_members.fill(0);
+        self.condition_sums.fill(0);
+        self.cell_living.fill(0);
+        self.post_move_cell_living.fill(0);
+        self.kin_locations
+            .fill([CellId::INVALID; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]);
+        self.kin_location_counts.fill(0);
+        self.planned_destinations.fill(CellId::INVALID);
+        self.planned_condition_costs.fill(0);
+
+        for person_index in 0..population.person_count() {
+            if !population.is_alive_index(person_index) {
+                continue;
+            }
+            let household = population.household_at_index(person_index).ok_or(
+                MigrationError::InternalInvariant("living person has no household"),
+            )?;
+            let household_index = household_index(household, population.household_count())?;
+            let location = population.location_at_index(person_index).ok_or(
+                MigrationError::InternalInvariant("living person has no location"),
+            )?;
+            let cell_index = cell_index(location, world.cell_count())?;
+            let condition = population.condition_at_index(person_index).ok_or(
+                MigrationError::InternalInvariant("living person has no condition"),
+            )?;
+            self.living_members[household_index] = self.living_members[household_index]
+                .checked_add(1)
+                .ok_or(MigrationError::AccountingOverflow)?;
+            self.condition_sums[household_index] = self.condition_sums[household_index]
+                .checked_add(u64::from(condition))
+                .ok_or(MigrationError::AccountingOverflow)?;
+            self.cell_living[cell_index] = self.cell_living[cell_index]
+                .checked_add(1)
+                .ok_or(MigrationError::AccountingOverflow)?;
+
+            for parent in [
+                population.female_parent_at_index(person_index),
+                population.male_parent_at_index(person_index),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                self.note_external_kin_location(population, household_index, household, parent)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn note_external_kin_location(
+        &mut self,
+        population: &Population,
+        household_index: usize,
+        household: HouseholdId,
+        parent: PersonId,
+    ) -> Result<(), MigrationError> {
+        if parent == PersonId::INVALID {
+            return Ok(());
+        }
+        let Some(parent_snapshot) = population.person(parent) else {
+            return Ok(());
+        };
+        if !parent_snapshot.is_alive() || parent_snapshot.household == household {
+            return Ok(());
+        }
+        let count = usize::from(self.kin_location_counts[household_index]);
+        let locations = &mut self.kin_locations[household_index];
+        if locations[..count].contains(&parent_snapshot.location) {
+            return Ok(());
+        }
+        if count < MAX_KIN_LOCATIONS_PER_HOUSEHOLD {
+            locations[count] = parent_snapshot.location;
+            self.kin_location_counts[household_index] =
+                self.kin_location_counts[household_index].saturating_add(1);
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn evaluate_cell(
+        &self,
+        household_index: usize,
+        cell: CellId,
+        distance: u16,
+        destination_population: u32,
+        _moving_members: u32,
+        resources: &ResourceSystem,
+        world: &World,
+        config: &MigrationConfig,
+        period_need_per_person: u64,
+        uncertainty_penalty: u16,
+    ) -> Result<MigrationUtilityBreakdown, MigrationError> {
+        let world_cell = world
+            .cell(cell)
+            .ok_or(MigrationError::InternalInvariant("candidate outside world"))?;
+        let stock = resources
+            .cell_food_stock(cell)
+            .ok_or(MigrationError::InternalInvariant(
+                "resource cell outside world",
+            ))?;
+        let demand = period_need_per_person.saturating_mul(u64::from(destination_population));
+        let resource_score = u16::try_from(
+            stock
+                .saturating_mul(u64::from(PERMILLE_MAX))
+                .checked_div(demand)
+                .unwrap_or(u64::from(PERMILLE_MAX)),
+        )
+        .unwrap_or(PERMILLE_MAX)
+        .min(PERMILLE_MAX);
+        let water_security_score = u16::try_from(
+            (u32::from(world_cell.water_access) * 3
+                + u32::from(PERMILLE_MAX - world_cell.environmental_stress))
+                / 4,
+        )
+        .unwrap_or(PERMILLE_MAX);
+        let kin_count = usize::from(self.kin_location_counts[household_index]);
+        let kin_matches = self.kin_locations[household_index][..kin_count]
+            .iter()
+            .filter(|&&kin_cell| kin_cell == cell)
+            .count();
+        let kin_score = u16::try_from(kin_matches.saturating_mul(250))
+            .unwrap_or(PERMILLE_MAX)
+            .min(PERMILLE_MAX);
+        let terrain_excess = world_cell.movement_cost.saturating_sub(BASE_MOVEMENT_COST);
+        let travel_penalty = u16::try_from(
+            (u32::from(distance).saturating_mul(120) + u32::from(terrain_excess) / 3)
+                .min(u32::from(PERMILLE_MAX)),
+        )
+        .unwrap_or(PERMILLE_MAX);
+        let relocation_risk = u16::try_from(
+            (u32::from(config.relocation_risk_base_penalty_permille)
+                + u32::from(config.relocation_risk_per_cell_permille)
+                    .saturating_mul(u32::from(distance)))
+            .min(u32::from(PERMILLE_MAX)),
+        )
+        .unwrap_or(PERMILLE_MAX);
+
+        let positive = i64::from(resource_score) * i64::from(config.resource_weight)
+            + i64::from(water_security_score) * i64::from(config.water_security_weight)
+            + i64::from(kin_score) * i64::from(config.kin_weight);
+        let negative = i64::from(travel_penalty) * i64::from(config.travel_cost_weight)
+            + i64::from(uncertainty_penalty)
+            + i64::from(relocation_risk);
+        let total_utility = i32::try_from(positive.saturating_sub(negative)).unwrap_or({
+            if positive >= negative {
+                i32::MAX
+            } else {
+                i32::MIN
+            }
+        });
+
+        Ok(MigrationUtilityBreakdown {
+            resource_score_permille: resource_score,
+            water_security_score_permille: water_security_score,
+            kin_score_permille: kin_score,
+            travel_penalty_permille: travel_penalty,
+            uncertainty_penalty_permille: uncertainty_penalty,
+            relocation_risk_penalty_permille: relocation_risk,
+            total_utility,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn record_selected_move(
+        &mut self,
+        population: &Population,
+        world: &World,
+        config: &MigrationConfig,
+        day: u64,
+        household_index: usize,
+        household: HouseholdId,
+        members: u32,
+        origin: CellId,
+        pressure: u16,
+        origin_utility: MigrationUtilityBreakdown,
+        selected: CandidateEvaluation,
+        best_candidate: CellId,
+        best_candidate_utility: i32,
+        total_weight: u64,
+        choice_draw: u64,
+        condition_cost: u16,
+    ) -> Result<(), MigrationError> {
+        self.moves_completed = self
+            .moves_completed
+            .checked_add(1)
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.people_moved = self
+            .people_moved
+            .checked_add(u64::from(members))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.total_distance_cells = self
+            .total_distance_cells
+            .checked_add(u64::from(selected.distance))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.origin_resource_score_total = self
+            .origin_resource_score_total
+            .checked_add(u64::from(origin_utility.resource_score_permille))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.destination_resource_score_total = self
+            .destination_resource_score_total
+            .checked_add(u64::from(selected.utility.resource_score_permille))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.origin_water_security_score_total = self
+            .origin_water_security_score_total
+            .checked_add(u64::from(origin_utility.water_security_score_permille))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.destination_water_security_score_total = self
+            .destination_water_security_score_total
+            .checked_add(u64::from(selected.utility.water_security_score_permille))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        let (origin_x, origin_y) =
+            world
+                .coordinates(origin)
+                .ok_or(MigrationError::InternalInvariant(
+                    "origin coordinates invalid",
+                ))?;
+        let (destination_x, destination_y) =
+            world
+                .coordinates(selected.cell)
+                .ok_or(MigrationError::InternalInvariant(
+                    "destination coordinates invalid",
+                ))?;
+        self.eastward_steps = self
+            .eastward_steps
+            .checked_add(u64::from(destination_x.saturating_sub(origin_x)))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.westward_steps = self
+            .westward_steps
+            .checked_add(u64::from(origin_x.saturating_sub(destination_x)))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.southward_steps = self
+            .southward_steps
+            .checked_add(u64::from(destination_y.saturating_sub(origin_y)))
+            .ok_or(MigrationError::AccountingOverflow)?;
+        self.northward_steps = self
+            .northward_steps
+            .checked_add(u64::from(origin_y.saturating_sub(destination_y)))
+            .ok_or(MigrationError::AccountingOverflow)?;
+
+        if self.recorded_decision_traces.len()
+            < usize::try_from(config.max_recorded_decision_traces).unwrap_or(usize::MAX)
+        {
+            self.recorded_decision_traces.push(MigrationDecisionTrace {
+                decision_day: day,
+                completed_day: day,
+                household,
+                people_moved: members,
+                origin,
+                destination: selected.cell,
+                distance_cells: selected.distance,
+                pressure_permille: pressure,
+                candidate_count: u16::try_from(self.candidates.len()).unwrap_or(u16::MAX),
+                origin_utility,
+                destination_utility: selected.utility,
+                best_candidate,
+                best_candidate_utility,
+                selected_weight: selected.weight,
+                total_move_weight: total_weight,
+                choice_draw,
+                travel_condition_cost_per_person: condition_cost,
+            });
+        }
+        let _ = household_index;
+        let _ = population;
+        Ok(())
+    }
+
+    fn apply_planned_moves(
+        &mut self,
+        population: &mut Population,
+        world: &World,
+    ) -> Result<(), MigrationError> {
+        self.post_move_cell_living
+            .copy_from_slice(&self.cell_living);
+        for household_index in 0..population.household_count() {
+            let destination = self.planned_destinations[household_index];
+            if destination == CellId::INVALID {
+                continue;
+            }
+            let household = HouseholdId::new(household_index as u64 + 1);
+            let origin = population.household_location(household).ok_or(
+                MigrationError::InternalInvariant("household has no location"),
+            )?;
+            let members = self.living_members[household_index];
+            let origin_index = cell_index(origin, world.cell_count())?;
+            let destination_index = cell_index(destination, world.cell_count())?;
+            self.post_move_cell_living[origin_index] = self.post_move_cell_living[origin_index]
+                .checked_sub(members)
+                .ok_or(MigrationError::InternalInvariant(
+                    "planned move exceeds origin population",
+                ))?;
+            self.post_move_cell_living[destination_index] = self.post_move_cell_living
+                [destination_index]
+                .checked_add(members)
+                .ok_or(MigrationError::AccountingOverflow)?;
+        }
+        let before = self.cell_living.iter().filter(|&&count| count > 0).count() as i64;
+        let after = self
+            .post_move_cell_living
+            .iter()
+            .filter(|&&count| count > 0)
+            .count() as i64;
+        self.occupied_cell_delta_from_migration = self
+            .occupied_cell_delta_from_migration
+            .checked_add(after - before)
+            .ok_or(MigrationError::AccountingOverflow)?;
+
+        let relocation = population.apply_household_relocations(
+            &self.planned_destinations,
+            &self.planned_condition_costs,
+            world,
+        )?;
+        self.travel_condition_cost_total = self
+            .travel_condition_cost_total
+            .checked_add(relocation.condition_loss_total)
+            .ok_or(MigrationError::AccountingOverflow)?;
+        if relocation.people_moved
+            != self
+                .planned_destinations
+                .iter()
+                .enumerate()
+                .filter(|(_, destination)| **destination != CellId::INVALID)
+                .map(|(index, _)| u64::from(self.living_members[index]))
+                .sum::<u64>()
+        {
+            return Err(MigrationError::InternalInvariant(
+                "relocation people count did not reconcile",
+            ));
+        }
+        Ok(())
+    }
+
+    fn cell_population(&self, cell: CellId) -> Result<u32, MigrationError> {
+        let index = cell_index(cell, self.cell_living.len())?;
+        Ok(self.cell_living[index])
+    }
+
+    #[must_use]
+    pub fn summary(&self) -> MigrationSummary {
+        let moves = self.moves_completed;
+        MigrationSummary {
+            schema_version: MigrationSummary::CURRENT_SCHEMA_VERSION,
+            model_id: self.model_id.clone(),
+            decision_boundaries: self.decision_boundaries,
+            households_evaluated: self.households_evaluated,
+            households_under_pressure: self.households_under_pressure,
+            moves_completed: moves,
+            people_moved: self.people_moved,
+            total_distance_cells: self.total_distance_cells,
+            northward_steps: self.northward_steps,
+            eastward_steps: self.eastward_steps,
+            southward_steps: self.southward_steps,
+            westward_steps: self.westward_steps,
+            travel_condition_cost_total: self.travel_condition_cost_total,
+            mean_origin_resource_score_permille: mean_score(
+                self.origin_resource_score_total,
+                moves,
+            ),
+            mean_destination_resource_score_permille: mean_score(
+                self.destination_resource_score_total,
+                moves,
+            ),
+            mean_origin_water_security_score_permille: mean_score(
+                self.origin_water_security_score_total,
+                moves,
+            ),
+            mean_destination_water_security_score_permille: mean_score(
+                self.destination_water_security_score_total,
+                moves,
+            ),
+            occupied_cell_delta_from_migration: self.occupied_cell_delta_from_migration,
+            recorded_decision_traces: self.recorded_decision_traces.clone(),
+            digest64: self.digest64(),
+        }
+    }
+
+    #[must_use]
+    pub fn digest64(&self) -> u64 {
+        let mut hash = FNV_OFFSET_BASIS;
+        digest_u64(&mut hash, self.decision_boundaries);
+        digest_u64(&mut hash, self.households_evaluated);
+        digest_u64(&mut hash, self.households_under_pressure);
+        digest_u64(&mut hash, self.moves_completed);
+        digest_u64(&mut hash, self.people_moved);
+        digest_u64(&mut hash, self.total_distance_cells);
+        digest_u64(&mut hash, self.travel_condition_cost_total);
+        digest_u64(&mut hash, self.occupied_cell_delta_from_migration as u64);
+        for trace in &self.recorded_decision_traces {
+            digest_u64(&mut hash, trace.decision_day);
+            digest_u64(&mut hash, trace.household.0);
+            digest_u64(&mut hash, trace.origin.0);
+            digest_u64(&mut hash, trace.destination.0);
+            digest_u64(&mut hash, u64::from(trace.distance_cells));
+            digest_u64(&mut hash, trace.choice_draw);
+        }
+        hash
+    }
+}
+
+#[must_use]
+pub fn migration_pressure_permille(
+    mean_condition_permille: u16,
+    local_resource_score_permille: u16,
+    config: &MigrationConfig,
+) -> u16 {
+    let condition_pressure = config
+        .condition_pressure_threshold_permille
+        .saturating_sub(mean_condition_permille);
+    let resource_pressure = config
+        .resource_pressure_threshold_permille
+        .saturating_sub(local_resource_score_permille);
+    condition_pressure
+        .saturating_add(resource_pressure)
+        .min(PERMILLE_MAX)
+}
+
+#[must_use]
+pub fn bounded_candidate_cells(world: &World, origin: CellId, radius: u16) -> Vec<CellId> {
+    let mut cells = Vec::with_capacity(candidate_count_upper_bound(radius));
+    fill_candidate_cells(&mut cells, world, origin, radius);
+    cells
+}
+
+#[must_use]
+pub const fn candidate_count_upper_bound(radius: u16) -> usize {
+    let radius = radius as usize;
+    2 * radius * (radius + 1)
+}
+
+fn fill_candidate_cells(cells: &mut Vec<CellId>, world: &World, origin: CellId, radius: u16) {
+    cells.clear();
+    let Some((origin_x, origin_y)) = world.coordinates(origin) else {
+        return;
+    };
+    let radius = i64::from(radius);
+    for dy in -radius..=radius {
+        let remaining = radius - dy.abs();
+        for dx in -remaining..=remaining {
+            if dx == 0 && dy == 0 {
+                continue;
+            }
+            let x = i64::from(origin_x) + dx;
+            let y = i64::from(origin_y) + dy;
+            let Ok(x) = u32::try_from(x) else {
+                continue;
+            };
+            let Ok(y) = u32::try_from(y) else {
+                continue;
+            };
+            if let Some(cell) = world.cell_id(x, y) {
+                cells.push(cell);
+            }
+        }
+    }
+}
+
+fn manhattan_distance(world: &World, a: CellId, b: CellId) -> Option<u16> {
+    let (ax, ay) = world.coordinates(a)?;
+    let (bx, by) = world.coordinates(b)?;
+    u16::try_from(ax.abs_diff(bx).saturating_add(ay.abs_diff(by))).ok()
+}
+
+fn cell_index(cell: CellId, cell_count: usize) -> Result<usize, MigrationError> {
+    let index = usize::try_from(
+        cell.0
+            .checked_sub(1)
+            .ok_or(MigrationError::InternalInvariant("invalid cell ID"))?,
+    )
+    .map_err(|_| MigrationError::InternalInvariant("cell index does not fit usize"))?;
+    if index >= cell_count {
+        return Err(MigrationError::InternalInvariant("cell is outside world"));
+    }
+    Ok(index)
+}
+
+fn household_index(
+    household: HouseholdId,
+    household_count: usize,
+) -> Result<usize, MigrationError> {
+    let index = usize::try_from(
+        household
+            .0
+            .checked_sub(1)
+            .ok_or(MigrationError::InternalInvariant("invalid household ID"))?,
+    )
+    .map_err(|_| MigrationError::InternalInvariant("household index does not fit usize"))?;
+    if index >= household_count {
+        return Err(MigrationError::InternalInvariant(
+            "household is outside population",
+        ));
+    }
+    Ok(index)
+}
+
+fn draw_bounded<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u64) -> u64 {
+    debug_assert!(upper_exclusive > 0);
+    let acceptance_limit = u64::MAX - (u64::MAX % upper_exclusive);
+    loop {
+        let draw = rng.next_u64();
+        if draw < acceptance_limit {
+            return draw % upper_exclusive;
+        }
+    }
+}
+
+fn mean_score(total: u64, count: u64) -> u16 {
+    u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX)
+}
+
+fn digest_u64(hash: &mut u64, value: u64) {
+    for byte in value.to_le_bytes() {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
+}
+
+pub fn validate_migration_config(config: &MigrationConfig) -> Result<(), MigrationConfigError> {
+    if config.schema_version != MigrationConfig::CURRENT_SCHEMA_VERSION {
+        return Err(MigrationConfigError::UnsupportedSchema {
+            found: config.schema_version,
+            supported: MigrationConfig::CURRENT_SCHEMA_VERSION,
+        });
+    }
+    if config.model_id.trim().is_empty() {
+        return Err(MigrationConfigError::EmptyModelId);
+    }
+    if config.candidate_radius_cells == 0 || config.candidate_radius_cells > 32 {
+        return Err(MigrationConfigError::InvalidCandidateRadius {
+            value: config.candidate_radius_cells,
+        });
+    }
+    for (field, value) in [
+        (
+            "condition_pressure_threshold_permille",
+            config.condition_pressure_threshold_permille,
+        ),
+        (
+            "resource_pressure_threshold_permille",
+            config.resource_pressure_threshold_permille,
+        ),
+        (
+            "max_uncertainty_penalty_permille",
+            config.max_uncertainty_penalty_permille,
+        ),
+        (
+            "relocation_risk_base_penalty_permille",
+            config.relocation_risk_base_penalty_permille,
+        ),
+        (
+            "relocation_risk_per_cell_permille",
+            config.relocation_risk_per_cell_permille,
+        ),
+        (
+            "travel_condition_cost_per_cell",
+            config.travel_condition_cost_per_cell,
+        ),
+    ] {
+        if value > PERMILLE_MAX {
+            return Err(MigrationConfigError::PermilleOutOfRange { field, value });
+        }
+    }
+    if config.resource_weight == 0 && config.water_security_weight == 0 && config.kin_weight == 0 {
+        return Err(MigrationConfigError::NoPositiveUtilityWeights);
+    }
+    Ok(())
+}
+
+#[derive(Debug, Error)]
+pub enum MigrationConfigError {
+    #[error("migration schema {found} is unsupported; supported schema is {supported}")]
+    UnsupportedSchema { found: u32, supported: u32 },
+    #[error("migration model ID must not be empty")]
+    EmptyModelId,
+    #[error("candidate radius must be in 1..=32 cells, found {value}")]
+    InvalidCandidateRadius { value: u16 },
+    #[error("migration permille field {field} is out of range: {value}")]
+    PermilleOutOfRange { field: &'static str, value: u16 },
+    #[error("migration utility must have at least one positive attraction weight")]
+    NoPositiveUtilityWeights,
+}
+
+#[derive(Debug, Error)]
+pub enum MigrationError {
+    #[error(transparent)]
+    Config(#[from] MigrationConfigError),
+    #[error(transparent)]
+    Population(#[from] PopulationError),
+    #[error("migration accounting overflow")]
+    AccountingOverflow,
+    #[error("migration state shape does not match population/world")]
+    StateShapeMismatch,
+    #[error("migration internal invariant failed: {0}")]
+    InternalInvariant(&'static str),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{ExperimentConfig, PopulationConfig, ResourceConfig, WorldConfig},
+        population::Population,
+        resources::ResourceSystem,
+        rng::RngFactory,
+    };
+
+    #[test]
+    fn candidate_lookup_is_bounded_and_local() {
+        let factory = RngFactory::new(1);
+        let world = World::generate(WorldConfig::new(9, 9), factory).unwrap();
+        let origin = world.cell_id(4, 4).unwrap();
+        let candidates = bounded_candidate_cells(&world, origin, 3);
+        assert_eq!(candidates.len(), candidate_count_upper_bound(3));
+        assert!(candidates.iter().all(|&cell| {
+            manhattan_distance(&world, origin, cell).is_some_and(|distance| distance <= 3)
+        }));
+        let corner = world.cell_id(0, 0).unwrap();
+        assert!(bounded_candidate_cells(&world, corner, 3).len() < candidates.len());
+    }
+
+    #[test]
+    fn local_deterioration_increases_pressure() {
+        let config = MigrationConfig::synthetic_validation_v1();
+        let healthy = migration_pressure_permille(1_000, 1_000, &config);
+        let deteriorated = migration_pressure_permille(600, 300, &config);
+        assert_eq!(healthy, 0);
+        assert!(deteriorated > healthy);
+    }
+
+    #[test]
+    fn same_seed_and_state_produce_identical_moves() {
+        let experiment = ExperimentConfig::new(44, 3)
+            .with_world(WorldConfig::new(16, 16))
+            .with_population(PopulationConfig::new(500))
+            .with_resources(
+                ResourceConfig::synthetic_validation_v1().with_productivity_scale_permille(250),
+            );
+        let run = || {
+            let factory = RngFactory::new(experiment.seed);
+            let world = World::generate(experiment.world, factory).unwrap();
+            let mut population =
+                Population::initialize(experiment.population, &world, factory).unwrap();
+            for index in 0..population.person_count() {
+                if population.is_alive_index(index) {
+                    assert!(population.set_condition_at_index(index, 500));
+                }
+            }
+            let resources = ResourceSystem::initialize(&world, &experiment.resources).unwrap();
+            let mut migration =
+                MigrationSystem::initialize(&population, &world, &experiment.migration).unwrap();
+            let mut rngs = MigrationRngs::new(factory);
+            migration
+                .process_boundary(
+                    &mut population,
+                    &MigrationBoundaryContext {
+                        world: &world,
+                        resources: &resources,
+                        migration: &experiment.migration,
+                        annual_food_need: experiment.resources.annual_need_units_per_person,
+                        resource_periods_per_year: experiment.resources.periods_per_year,
+                        day: 91,
+                    },
+                    &mut rngs,
+                )
+                .unwrap();
+            (population.digest64(), migration.summary())
+        };
+        assert_eq!(run(), run());
+    }
+}

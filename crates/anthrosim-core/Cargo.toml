@@ -27,3 +27,7 @@ harness = false
 [[bench]]
 name = "population_initialization"
 harness = false
+
+[[bench]]
+name = "migration_candidates"
+harness = false

@@ -48,7 +48,10 @@ jobs:
       - name: Benchmark population initialization
         run: cargo bench --locked -p anthrosim-core --bench population_initialization -- --noplot
 
-      - name: Benchmark M3 resource-demographic lifecycle
+      - name: Benchmark M4 bounded candidate lookup
+        run: cargo bench --locked -p anthrosim-core --bench migration_candidates -- --noplot
+
+      - name: Benchmark M4 resource-migration-demographic lifecycle
         run: cargo bench --locked -p anthrosim-core --bench empty_run -- --noplot
 
       - name: Build release binaries
@@ -62,4 +65,4 @@ jobs:
             --world-height 64 \
             --population 1000000 \
             --max-person-records 1000000 \
-            --output /tmp/anthrosim-m3-memory.json
+            --output /tmp/anthrosim-m4-memory.json
