@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AnthroSim Local Explorer</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">ANTHROSIM / READ-ONLY</p>
+      <h1>Local Simulation Explorer</h1>
+      <p id="run-subtitle" class="muted">Loading versioned run artifacts…</p>
+    </div>
+    <div id="bundle-status" class="status">Loading</div>
+  </header>
+
+  <main id="app" class="layout" hidden>
+    <section class="panel timeline-panel" aria-labelledby="timeline-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">TEMPORAL VIEW</p>
+          <h2 id="timeline-heading">Timeline</h2>
+        </div>
+        <span class="badge derived">Derived metrics</span>
+      </div>
+      <div class="timeline-controls">
+        <button id="timeline-prev" type="button" aria-label="Previous recorded boundary">←</button>
+        <input id="timeline" type="range" min="0" value="0" step="1" aria-label="Recorded simulation boundary">
+        <button id="timeline-next" type="button" aria-label="Next recorded boundary">→</button>
+        <strong id="timeline-label"></strong>
+      </div>
+      <div id="summary-cards" class="summary-grid"></div>
+      <details class="raw-details">
+        <summary>Trace this observation to raw derived snapshot</summary>
+        <p id="snapshot-source" class="source-ref"></p>
+        <pre id="snapshot-raw"></pre>
+      </details>
+    </section>
+
+    <section class="panel map-panel" aria-labelledby="map-heading">
+      <div class="panel-heading map-heading-row">
+        <div>
+          <p class="eyebrow">SPATIAL VIEW</p>
+          <h2 id="map-heading">World map</h2>
+        </div>
+        <div class="map-controls">
+          <label for="overlay">Overlay</label>
+          <select id="overlay">
+            <option value="population">Living population</option>
+            <option value="productivity">Baseline productivity</option>
+            <option value="water">Water access</option>
+            <option value="movement">Movement cost</option>
+            <option value="finalFood">Final food stock</option>
+          </select>
+        </div>
+      </div>
+      <p id="map-provenance" class="provenance-note"></p>
+      <canvas id="world-map" width="900" height="600" tabindex="0" aria-label="AnthroSim world grid"></canvas>
+      <div class="legend"><span id="legend-min"></span><div id="legend-gradient"></div><span id="legend-max"></span></div>
+    </section>
+
+    <section class="panel inspector-panel" aria-labelledby="inspector-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">ENTITY INSPECTION</p>
+          <h2 id="inspector-heading">Inspector</h2>
+        </div>
+        <span id="inspector-badge" class="badge reconstructed">Reconstructed view</span>
+      </div>
+      <form id="entity-form" class="entity-form">
+        <select id="entity-kind" aria-label="Entity type">
+          <option value="cell">Cell</option>
+          <option value="household">Household</option>
+          <option value="person">Person</option>
+        </select>
+        <input id="entity-id" type="number" min="1" value="1" required aria-label="Entity ID">
+        <button type="submit">Inspect</button>
+      </form>
+      <div id="inspector-content" class="inspector-content"></div>
+    </section>
+
+    <section class="panel events-panel" aria-labelledby="events-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">AUTHORITATIVE HISTORY</p>
+          <h2 id="events-heading">Event browser</h2>
+        </div>
+        <span class="badge authoritative">Authoritative events</span>
+      </div>
+      <div class="event-controls">
+        <select id="event-type" aria-label="Event type">
+          <option value="">All event types</option>
+          <option value="birth">Births</option>
+          <option value="death">Deaths</option>
+          <option value="householdMigration">Household migrations</option>
+        </select>
+        <input id="event-filter" type="search" placeholder="person:123, household:59, cell:643" aria-label="Filter events by entity">
+        <label class="checkbox-label"><input id="event-through-time" type="checkbox" checked> Up to selected time</label>
+      </div>
+      <p id="event-count" class="muted"></p>
+      <div id="event-list" class="event-list"></div>
+    </section>
+  </main>
+
+  <section id="fatal-error" class="fatal" hidden>
+    <h2>Explorer could not open this run</h2>
+    <pre id="fatal-message"></pre>
+  </section>
+
+  <footer>
+    Read-only explorer. Displayed interpretations are never written back into authoritative AnthroSim state.
+  </footer>
+
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>
