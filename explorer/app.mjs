@@ -9,8 +9,7 @@ import {
   validateBundle,
 } from "./model.mjs";
 
-const FILES = {
-  manifest: "manifest.json",
+const REQUIRED_FILES = {
   world: "world.json",
   initialPopulation: "initial-population.json",
   events: "events.json",
@@ -19,6 +18,7 @@ const FILES = {
 };
 
 let bundle;
+let runInfo;
 let timelineDays = [];
 let selectedDay = 0;
 let selectedCell = 1;
@@ -26,13 +26,19 @@ let reconstructed;
 
 const byId = (id) => document.getElementById(id);
 
+async function fetchArtifact(file, { optional = false } = {}) {
+  const response = await fetch(`/run/${file}`, { cache: "no-store" });
+  if (optional && response.status === 404) return null;
+  if (!response.ok) throw new Error(`could not read ${file}: HTTP ${response.status}`);
+  return parseLosslessJson(await response.text());
+}
+
 async function loadBundle() {
-  const entries = await Promise.all(Object.entries(FILES).map(async ([key, file]) => {
-    const response = await fetch(`/run/${file}`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`could not read ${file}: HTTP ${response.status}`);
-    return [key, parseLosslessJson(await response.text())];
-  }));
-  return Object.fromEntries(entries);
+  const entries = await Promise.all(Object.entries(REQUIRED_FILES).map(async ([key, file]) => [key, await fetchArtifact(file)]));
+  return {
+    ...Object.fromEntries(entries),
+    manifest: await fetchArtifact("manifest.json", { optional: true }),
+  };
 }
 
 function create(tag, text = null, className = null) {
@@ -98,7 +104,7 @@ function renderTimeline() {
     byId("snapshot-source").textContent = `metrics.json → snapshots[${snapshotPosition}] · provenance=${snapshot.provenance}`;
     byId("snapshot-raw").textContent = JSON.stringify(snapshot, null, 2);
   } else {
-    byId("snapshot-source").textContent = "initial-population.json + world.json · pre-event boundary";
+    byId("snapshot-source").textContent = "initial-population.json + authoritative event replay · reconstructed initial boundary";
     byId("snapshot-raw").textContent = JSON.stringify({
       day: 0,
       livingPopulation: bundle.initialPopulation.initialPopulation,
@@ -109,10 +115,10 @@ function renderTimeline() {
 
 function overlayProvenance(overlay) {
   if (overlay === "population") {
-    return `Derived display reconstructed from initial-population.json plus authoritative events through day ${selectedDay}.`;
+    return `Reconstructed display from founder locations plus authoritative events through day ${selectedDay}.`;
   }
   if (overlay === "finalFood") {
-    return `Authoritative final checkpoint cell food stock at day ${bundle.manifest.endTime}; it does not represent the selected historical boundary.`;
+    return `Authoritative checkpoint cell food stock at day ${runInfo.endTime}; it does not represent earlier selected boundaries.`;
   }
   const labels = { productivity: "baseProductivity", water: "waterAccess", movement: "movementCost" };
   return `Exported world ground-truth field world.json → cells[].${labels[overlay]}; terrain is immutable in v0.1.`;
@@ -189,7 +195,7 @@ function renderCell(cellId) {
   addDefinition(dl, "Movement cost", summary.world.movementCost);
   addDefinition(dl, "Elevation", summary.world.elevation);
   addDefinition(dl, "Environmental stress", summary.world.environmentalStress);
-  addDefinition(dl, "Final food stock", `${formatNumber(summary.finalFoodStock)}${summary.finalOnly ? " (final checkpoint only)" : ""}`);
+  addDefinition(dl, "Checkpoint food stock", `${formatNumber(summary.finalFoodStock)}${summary.finalOnly ? " (checkpoint boundary only)" : ""}`);
   container.append(dl);
   const links = create("div", null, "entity-links");
   for (const personId of summary.residents.slice(0, 80)) links.append(entityButton("person", personId));
@@ -220,7 +226,7 @@ function renderHousehold(householdId) {
 }
 
 function conditionText(person) {
-  if (person.conditionSource === "final_checkpoint") return `${person.conditionPermille}/1000 · authoritative final checkpoint`;
+  if (person.conditionSource === "final_checkpoint") return `${person.conditionPermille}/1000 · authoritative checkpoint boundary`;
   if (person.conditionSource === "death_event") return `${person.conditionPermille}/1000 · authoritative death event`;
   return "not serialized at this historical boundary";
 }
@@ -278,12 +284,8 @@ function inspect(kind, id) {
 
 function eventSummary(record) {
   const event = record.event;
-  if (event.type === "birth") {
-    return `birth · person ${event.person} · household ${event.household} · cell ${event.cell}`;
-  }
-  if (event.type === "death") {
-    return `death · person ${event.person} · ${event.cause} · cell ${event.cell}`;
-  }
+  if (event.type === "birth") return `birth · person ${event.person} · household ${event.household} · cell ${event.cell}`;
+  if (event.type === "death") return `death · person ${event.person} · ${event.cause} · cell ${event.cell}`;
   if (event.type === "householdMigration") {
     const peopleMoved = event.people_moved ?? event.peopleMoved;
     return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${peopleMoved} people`;
@@ -380,12 +382,16 @@ function bindInteractions() {
 async function start() {
   try {
     bundle = await loadBundle();
-    const validation = validateBundle(bundle);
-    timelineDays = [...new Set([0, ...bundle.metrics.snapshots.map((snapshot) => snapshot.day)])];
-    selectedDay = timelineDays.at(-1) ?? bundle.manifest.endTime;
+    runInfo = validateBundle(bundle);
+    timelineDays = [...new Set([0, ...bundle.metrics.snapshots.map((snapshot) => snapshot.day), runInfo.endTime])].sort((a, b) => a - b);
+    selectedDay = timelineDays.at(-1) ?? runInfo.endTime;
     reconstructed = reconstructState(bundle, selectedDay);
-    byId("run-subtitle").textContent = `seed ${bundle.manifest.experiment.seed} · ${bundle.world.width}×${bundle.world.height} cells · ${formatNumber(bundle.manifest.population.personRecords)} person records · ${validation.durationYears} simulated years`;
-    byId("bundle-status").textContent = `Schemas valid · state ${bundle.manifest.stateDigest64}`;
+
+    const boundaryText = runInfo.kind === "paused"
+      ? `paused at year ${runInfo.durationYears} of configured ${runInfo.configuredDurationYears}`
+      : `${runInfo.durationYears} simulated years · completed run`;
+    byId("run-subtitle").textContent = `seed ${runInfo.seed} · ${bundle.world.width}×${bundle.world.height} cells · ${formatNumber(runInfo.personRecords)} person records · ${boundaryText}`;
+    byId("bundle-status").textContent = `${runInfo.kind === "paused" ? "Paused checkpoint" : "Completed bundle"} · state ${runInfo.stateDigest64}`;
     byId("bundle-status").classList.add("good");
     byId("app").hidden = false;
     bindInteractions();
