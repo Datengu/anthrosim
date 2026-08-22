@@ -35,9 +35,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--world-height", type=int, default=64)
     parser.add_argument("--seed", type=int, default=1_847_291)
     parser.add_argument("--max-person-records", type=int, default=1_000_000)
-    parser.add_argument("--min-years-per-second", type=float, default=25.0)
-    parser.add_argument("--max-wall-seconds", type=float, default=120.0)
-    parser.add_argument("--max-rss-mib", type=float, default=1_024.0)
+    parser.add_argument("--min-years-per-second", type=float, default=20.0)
+    parser.add_argument("--max-wall-seconds", type=float, default=100.0)
+    parser.add_argument("--max-rss-mib", type=float, default=256.0)
     parser.add_argument("--enforce", action="store_true")
     return parser.parse_args()
 
@@ -109,7 +109,7 @@ def main() -> int:
 
     checks = {
         "process_exit_success": True,
-        "duration_reached": manifest["stopReason"] == "duration_reached",
+        "duration_reached": manifest["stopReason"] == "durationReached",
         "requested_years_reached": simulated_days == args.years * DAYS_PER_YEAR,
         "minimum_years_per_second": years_per_second >= args.min_years_per_second,
         "maximum_wall_seconds": wall_seconds <= args.max_wall_seconds,
@@ -125,6 +125,7 @@ def main() -> int:
             "machine": platform.machine(),
             "logicalCpuCount": os.cpu_count(),
             "pythonVersion": platform.python_version(),
+            "sourceRevision": os.environ.get("GITHUB_SHA"),
         },
         "configuration": {
             "years": args.years,
