@@ -34,10 +34,19 @@ fn json_round_trip_checkpoint_resumes_to_identical_final_run() {
 
 #[test]
 fn authoritative_events_and_derived_metrics_are_explicit_and_reconcile() {
-    let run = Simulation::new(experiment()).unwrap().run_recorded().unwrap();
+    let run = Simulation::new(experiment())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
 
-    assert_eq!(run.events().schema_version, EventLog::CURRENT_SCHEMA_VERSION);
-    assert_eq!(run.metrics().schema_version, MetricSeries::CURRENT_SCHEMA_VERSION);
+    assert_eq!(
+        run.events().schema_version,
+        EventLog::CURRENT_SCHEMA_VERSION
+    );
+    assert_eq!(
+        run.metrics().schema_version,
+        MetricSeries::CURRENT_SCHEMA_VERSION
+    );
     assert!(
         run.events()
             .events
