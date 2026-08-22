@@ -31,3 +31,7 @@ harness = false
 [[bench]]
 name = "migration_candidates"
 harness = false
+
+[[bench]]
+name = "checkpoint_persistence"
+harness = false
