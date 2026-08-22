@@ -1,7 +1,8 @@
 use std::{fs, path::Path, path::PathBuf, process::ExitCode};
 
 use anthrosim_core::{
-    ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig,
+    ExperimentConfig, MigrationConfig, Population, PopulationConfig, RecordedRun, ResourceConfig,
+    Simulation, SimulationCheckpoint, World, WorldConfig,
 };
 use clap::{Parser, Subcommand};
 
@@ -64,9 +65,17 @@ enum Command {
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
 
-        /// Optional path to write the JSON run manifest.
+        /// Optional path to write the JSON run manifest (legacy single-file mode).
         #[arg(long)]
         output: Option<PathBuf>,
+
+        /// Optional M5 controlled run directory containing offline analysis artifacts.
+        #[arg(long)]
+        run_dir: Option<PathBuf>,
+
+        /// Pause at this completed annual boundary and write a resumable checkpoint.
+        #[arg(long, requires = "run_dir")]
+        checkpoint_year: Option<u64>,
 
         /// Optional path to write the full versioned synthetic world as JSON.
         #[arg(long)]
@@ -75,6 +84,21 @@ enum Command {
         /// Optional path to write full initialized population state as JSON.
         #[arg(long)]
         population_output: Option<PathBuf>,
+    },
+
+    /// Resume a deterministic M5 annual-boundary checkpoint to its configured duration.
+    Resume {
+        /// Checkpoint JSON previously written by AnthroSim M5.
+        #[arg(long)]
+        checkpoint: PathBuf,
+
+        /// Controlled output directory for the completed resumed run.
+        #[arg(long)]
+        run_dir: PathBuf,
+
+        /// Optional additional path to write the final manifest.
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -103,6 +127,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             disable_migration,
             migration_radius,
             output,
+            run_dir,
+            checkpoint_year,
             world_output,
             population_output,
         } => {
@@ -132,17 +158,114 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 println!("wrote population {}", path.display());
             }
 
-            let manifest = simulation.run()?;
-            if let Some(path) = output {
-                write_json(&path, &manifest)?;
-                println!("wrote manifest {}", path.display());
-            } else {
-                println!("{}", serde_json::to_string_pretty(&manifest)?);
+            if let Some(target_year) = checkpoint_year {
+                let directory = run_dir.expect("clap requires run-dir with checkpoint-year");
+                write_json(&directory.join("world.json"), simulation.world())?;
+                write_json(
+                    &directory.join("initial-population.json"),
+                    simulation.population(),
+                )?;
+                let checkpoint = simulation.checkpoint_at_year(target_year)?;
+                write_checkpoint_bundle(&directory, &checkpoint)?;
+                println!(
+                    "wrote checkpoint at year {target_year} to {}",
+                    directory.display()
+                );
+                return Ok(());
             }
+
+            if let Some(directory) = run_dir {
+                let world = simulation.world().clone();
+                let initial_population = simulation.population().clone();
+                let recorded = simulation.run_recorded()?;
+                write_completed_bundle(&directory, &world, &initial_population, &recorded)?;
+                if let Some(path) = output {
+                    write_json(&path, &recorded.manifest)?;
+                    println!("wrote manifest {}", path.display());
+                }
+                println!("wrote run bundle {}", directory.display());
+            } else {
+                let manifest = simulation.run()?;
+                if let Some(path) = output {
+                    write_json(&path, &manifest)?;
+                    println!("wrote manifest {}", path.display());
+                } else {
+                    println!("{}", serde_json::to_string_pretty(&manifest)?);
+                }
+            }
+        }
+        Command::Resume {
+            checkpoint,
+            run_dir,
+            output,
+        } => {
+            let checkpoint: SimulationCheckpoint = read_json(&checkpoint)?;
+            let simulation = Simulation::from_checkpoint(checkpoint)?;
+            let world = simulation.world().clone();
+            let resume_population = simulation.population().clone();
+            let recorded = simulation.run_recorded()?;
+
+            fs::create_dir_all(&run_dir)?;
+            write_json(&run_dir.join("world.json"), &world)?;
+            let initial_path = run_dir.join("initial-population.json");
+            if !initial_path.exists() {
+                write_json(
+                    &run_dir.join("resume-start-population.json"),
+                    &resume_population,
+                )?;
+            }
+            write_recorded_outputs(&run_dir, &recorded)?;
+            if let Some(path) = output {
+                write_json(&path, &recorded.manifest)?;
+                println!("wrote manifest {}", path.display());
+            }
+            println!("wrote resumed run bundle {}", run_dir.display());
         }
     }
 
     Ok(())
+}
+
+fn write_completed_bundle(
+    directory: &Path,
+    world: &World,
+    initial_population: &Population,
+    recorded: &RecordedRun,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(directory)?;
+    write_json(&directory.join("world.json"), world)?;
+    write_json(
+        &directory.join("initial-population.json"),
+        initial_population,
+    )?;
+    write_recorded_outputs(directory, recorded)
+}
+
+fn write_recorded_outputs(
+    directory: &Path,
+    recorded: &RecordedRun,
+) -> Result<(), Box<dyn std::error::Error>> {
+    write_json(&directory.join("manifest.json"), &recorded.manifest)?;
+    write_json(&directory.join("events.json"), recorded.events())?;
+    write_json(&directory.join("metrics.json"), recorded.metrics())?;
+    write_json(&directory.join("checkpoint.json"), &recorded.checkpoint)?;
+    Ok(())
+}
+
+fn write_checkpoint_bundle(
+    directory: &Path,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(directory)?;
+    write_json(&directory.join("events.json"), &checkpoint.events)?;
+    write_json(&directory.join("metrics.json"), &checkpoint.metrics)?;
+    write_json(&directory.join("checkpoint.json"), checkpoint)?;
+    Ok(())
+}
+
+fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
+    let content = fs::read_to_string(path)?;
+    Ok(serde_json::from_str(&content)?)
 }
 
 fn write_json<T: serde::Serialize>(

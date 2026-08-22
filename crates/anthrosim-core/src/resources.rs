@@ -5,9 +5,10 @@ use thiserror::Error;
 use crate::{
     config::{PROBABILITY_PER_MILLION, ResourceConfig},
     demography::draw_per_million,
+    events::{DeathCause, EventKind, EventLog},
     ids::HouseholdId,
     population::{Population, PopulationError},
-    rng::RngFactory,
+    rng::{RngFactory, RngStreamPosition},
     world::{PERMILLE_MAX, World},
 };
 
@@ -58,6 +59,13 @@ pub struct ResourceSystem {
     periods_processed: u64,
     household_periods_with_unmet_need: u64,
     scarcity_deaths: u64,
+}
+
+pub(crate) struct ResourcePeriodContext<'a> {
+    pub world: &'a World,
+    pub config: &'a ResourceConfig,
+    pub period_index_in_year: u16,
+    pub day: u64,
 }
 
 impl ResourceSystem {
@@ -148,6 +156,10 @@ impl ResourceSystem {
         hash
     }
 
+    #[cfg(test)]
+    #[cfg(test)]
+    #[cfg(test)]
+    #[cfg(test)]
     pub(crate) fn process_period(
         &mut self,
         population: &mut Population,
@@ -157,6 +169,33 @@ impl ResourceSystem {
         day: u64,
         scarcity_rng: &mut ChaCha8Rng,
     ) -> Result<ResourceStepOutcome, ResourceError> {
+        let mut events = EventLog::new();
+        self.process_period_recorded(
+            population,
+            &ResourcePeriodContext {
+                world,
+                config,
+                period_index_in_year,
+                day,
+            },
+            scarcity_rng,
+            &mut events,
+        )
+    }
+
+    pub(crate) fn process_period_recorded(
+        &mut self,
+        population: &mut Population,
+        context: &ResourcePeriodContext<'_>,
+        scarcity_rng: &mut ChaCha8Rng,
+        events: &mut EventLog,
+    ) -> Result<ResourceStepOutcome, ResourceError> {
+        let ResourcePeriodContext {
+            world,
+            config,
+            period_index_in_year,
+            day,
+        } = *context;
         if self.cell_food_stock.len() != world.cell_count() {
             return Err(ResourceError::StateShapeMismatch);
         }
@@ -389,13 +428,33 @@ impl ResourceSystem {
                     / u64::from(PERMILLE_MAX),
             )
             .map_err(|_| ResourceError::AccountingOverflow)?;
-            if draw_per_million(scarcity_rng, probability)
-                && population.mark_death(person_index, day)
-            {
-                self.scarcity_deaths = self
-                    .scarcity_deaths
-                    .checked_add(1)
-                    .ok_or(ResourceError::AccountingOverflow)?;
+            if draw_per_million(scarcity_rng, probability) {
+                let person = population.person_id_at_index(person_index).ok_or(
+                    ResourceError::InternalInvariant("living person has no stable ID"),
+                )?;
+                let household = population.household_at_index(person_index).ok_or(
+                    ResourceError::InternalInvariant("living person has no household"),
+                )?;
+                let cell = population.location_at_index(person_index).ok_or(
+                    ResourceError::InternalInvariant("living person has no location"),
+                )?;
+                if population.mark_death(person_index, day) {
+                    self.scarcity_deaths = self
+                        .scarcity_deaths
+                        .checked_add(1)
+                        .ok_or(ResourceError::AccountingOverflow)?;
+                    events.push_authoritative(
+                        day,
+                        EventKind::Death {
+                            person,
+                            household,
+                            cell,
+                            cause: DeathCause::ResourceScarcity,
+                            condition_permille: condition,
+                            probability_per_million: probability,
+                        },
+                    );
+                }
             }
         }
 
@@ -455,6 +514,21 @@ impl ResourceSystem {
         Ok(regenerated)
     }
 
+    pub(crate) fn validate_checkpoint_state(
+        &self,
+        world: &World,
+        config: &ResourceConfig,
+    ) -> Result<(), ResourceError> {
+        if self.schema_version != Self::CURRENT_SCHEMA_VERSION
+            || self.model_id != config.model_id
+            || self.cell_food_stock.len() != world.cell_count()
+            || self.initial_world_digest64 != format!("{:016x}", world.digest64())
+        {
+            return Err(ResourceError::StateShapeMismatch);
+        }
+        self.validate_accounting()
+    }
+
     fn validate_accounting(&self) -> Result<(), ResourceError> {
         let expected = self
             .initial_food_stock
@@ -475,6 +549,7 @@ pub(crate) enum ResourceStepOutcome {
     PopulationExtinct,
 }
 
+#[derive(Debug)]
 pub(crate) struct ResourceRngs {
     pub scarcity_mortality: ChaCha8Rng,
 }
@@ -485,6 +560,14 @@ impl ResourceRngs {
         Self {
             scarcity_mortality: factory.stream("resources/scarcity_mortality"),
         }
+    }
+
+    pub(crate) fn position(&self) -> RngStreamPosition {
+        RngStreamPosition::capture(&self.scarcity_mortality)
+    }
+
+    pub(crate) fn restore_position(&mut self, position: RngStreamPosition) {
+        position.restore(&mut self.scarcity_mortality);
     }
 }
 

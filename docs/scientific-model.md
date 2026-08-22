@@ -213,29 +213,17 @@ Resource regeneration, household demand/allocation, condition updates, candidate
 
 ### Observation
 
-The run manifest records aggregate world, population, resource and migration measurements while preserving authoritative persistent state.
+M5 separates authoritative engine facts from recalculable summaries. This distinction is part of the scientific model rather than merely an output format.
 
-Resource summaries include initial/final stock, cumulative regeneration, harvest/consumption, unmet need, household-periods with unmet need, scarcity deaths, final mean living condition, count below half condition and a deterministic resource-state digest.
+**Authoritative events** are versioned, ordered state-transition records. M5 v1 emits births, demographic deaths, resource-scarcity deaths and completed household migrations. Migration events retain the implemented pressure, factor-by-factor origin/destination utility, best locally visible candidate and deterministic stochastic-choice information. These records describe what the implemented model did; they are not inferred historical motives or archaeological interpretations.
 
-M4 migration summaries include:
+**Derived metric snapshots** are explicitly labelled `derived` and are emitted at completed annual boundaries plus the terminal boundary when necessary. They summarize population, resources and migration and carry the same composite state digest used for deterministic regression checks. Their final values are tested to reconcile with authoritative population/resource/migration summaries.
 
-- decision boundaries;
-- households evaluated and households under pressure;
-- completed household moves and people moved;
-- total Manhattan distance;
-- north/east/south/west step totals;
-- realized travel-condition cost;
-- mean origin/destination resource scores;
-- mean origin/destination water/security scores;
-- migration-attributable occupied-cell delta;
-- deterministic migration digest;
-- a bounded sample of detailed completed-move traces.
+The run manifest records experiment configuration, artifact schema versions, world/population/resource/migration summaries, stop reason, deterministic state digest and compact runtime counters. Controlled run directories also contain the generated world, founder population, event log, metric series and checkpoint so later analysis does not require a live simulation process or database.
 
-Each retained trace contains the household, origin/destination, distance, pressure, local candidate count, factor-by-factor origin and selected-destination utility, best visible candidate, stochastic choice weights/draw and travel condition cost. The default trace cap is 256 so ordinary manifests remain bounded even if many moves occur.
+M4's bounded retained migration-trace sample remains useful in the aggregate migration summary, while M5's event stream records every completed move. A trace or event explains the implemented mechanism; it is not evidence that a real person held the encoded motive.
 
-A trace explains why the implemented model selected a move. It is not evidence of a real person's motive.
-
-Full chronological event streams remain deferred to M5.
+Interpretation remains downstream. Labels such as "collapse", "migration wave", "recovery" or future archaeological classifications must not be silently promoted into authoritative simulated ground truth.
 
 ## 5. Initialization
 

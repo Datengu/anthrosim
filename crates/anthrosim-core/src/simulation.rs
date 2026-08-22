@@ -1,49 +1,69 @@
 use thiserror::Error;
 
 use crate::{
+    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64},
     config::ExperimentConfig,
     demography::{
-        DemographyConfigError, DemographyRngs, DemographyStepOutcome, process_demographic_year,
-        validate_demography_config,
+        DemographyConfigError, DemographyRngs, DemographyStepOutcome,
+        process_demographic_year_recorded, validate_demography_config,
     },
-    manifest::{RunManifest, StopReason},
+    events::EventLog,
+    manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
+    metrics::{
+        MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics,
+        ResourceMetrics,
+    },
     migration::{
         MigrationBoundaryContext, MigrationConfigError, MigrationError, MigrationRngs,
         MigrationSystem, validate_migration_config,
     },
     population::{Population, PopulationError},
     resources::{
-        ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,
-        validate_resource_config,
+        ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
+        ResourceStepOutcome, ResourceSystem, validate_resource_config,
     },
     rng::RngFactory,
     time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordedRun {
+    pub manifest: RunManifest,
+    pub checkpoint: SimulationCheckpoint,
+}
+
+impl RecordedRun {
+    #[must_use]
+    pub const fn events(&self) -> &EventLog {
+        &self.checkpoint.events
+    }
+
+    #[must_use]
+    pub const fn metrics(&self) -> &MetricSeries {
+        &self.checkpoint.metrics
+    }
+}
+
 /// Authoritative headless simulation host.
 #[derive(Debug)]
 pub struct Simulation {
     config: ExperimentConfig,
     time: SimTime,
-    rng_factory: RngFactory,
     world: World,
     population: Population,
     resources: ResourceSystem,
     migration: MigrationSystem,
+    demography_rngs: DemographyRngs,
+    resource_rngs: ResourceRngs,
+    migration_rngs: MigrationRngs,
+    events: EventLog,
+    metrics: MetricSeries,
 }
 
 impl Simulation {
     pub fn new(config: ExperimentConfig) -> Result<Self, SimulationError> {
-        if config.schema_version != ExperimentConfig::CURRENT_SCHEMA_VERSION {
-            return Err(SimulationError::UnsupportedExperimentSchema {
-                found: config.schema_version,
-                supported: ExperimentConfig::CURRENT_SCHEMA_VERSION,
-            });
-        }
-        validate_demography_config(&config.demography)?;
-        validate_resource_config(&config.resources)?;
-        validate_migration_config(&config.migration)?;
+        validate_experiment(&config)?;
 
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
@@ -52,14 +72,115 @@ impl Simulation {
         let migration = MigrationSystem::initialize(&population, &world, &config.migration)?;
 
         Ok(Self {
-            rng_factory,
+            demography_rngs: DemographyRngs::new(rng_factory),
+            resource_rngs: ResourceRngs::new(rng_factory),
+            migration_rngs: MigrationRngs::new(rng_factory),
             config,
             time: SimTime::ZERO,
             world,
             population,
             resources,
             migration,
+            events: EventLog::new(),
+            metrics: MetricSeries::annual(),
         })
+    }
+
+    pub fn from_checkpoint(checkpoint: SimulationCheckpoint) -> Result<Self, SimulationError> {
+        if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
+            return Err(SimulationError::UnsupportedCheckpointSchema {
+                found: checkpoint.schema_version,
+                supported: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
+            });
+        }
+        if checkpoint.model_version != env!("CARGO_PKG_VERSION") {
+            return Err(SimulationError::CheckpointModelVersionMismatch {
+                found: checkpoint.model_version,
+                expected: env!("CARGO_PKG_VERSION").to_owned(),
+            });
+        }
+        validate_experiment(&checkpoint.experiment)?;
+        if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
+            return Err(SimulationError::CheckpointArtifactSchemaMismatch { artifact: "events" });
+        }
+        if checkpoint.metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION {
+            return Err(SimulationError::CheckpointArtifactSchemaMismatch {
+                artifact: "metrics",
+            });
+        }
+        if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
+            || checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR
+        {
+            return Err(SimulationError::UnsupportedCheckpointBoundary {
+                day: checkpoint.time.days(),
+            });
+        }
+        if checkpoint.completed_years > checkpoint.experiment.duration_years {
+            return Err(SimulationError::CheckpointBeyondDuration {
+                completed_years: checkpoint.completed_years,
+                duration_years: checkpoint.experiment.duration_years,
+            });
+        }
+
+        let rng_factory = RngFactory::new(checkpoint.experiment.seed);
+        let world = World::generate(checkpoint.experiment.world, rng_factory)?;
+        if world.digest64() != checkpoint.world_digest64 {
+            return Err(SimulationError::CheckpointWorldDigestMismatch {
+                expected: checkpoint.world_digest64,
+                actual: world.digest64(),
+            });
+        }
+
+        checkpoint
+            .population
+            .validate(&world)
+            .map_err(PopulationError::from)?;
+        checkpoint
+            .resources
+            .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
+        let migration = MigrationSystem::from_checkpoint_state(
+            &checkpoint.population,
+            &world,
+            &checkpoint.experiment.migration,
+            checkpoint.migration,
+        )?;
+
+        let mut demography_rngs = DemographyRngs::new(rng_factory);
+        demography_rngs.restore_positions([
+            checkpoint.rng.demography_mortality,
+            checkpoint.rng.demography_fertility,
+            checkpoint.rng.demography_parentage,
+            checkpoint.rng.demography_newborn_sex,
+        ]);
+        let mut resource_rngs = ResourceRngs::new(rng_factory);
+        resource_rngs.restore_position(checkpoint.rng.resource_scarcity_mortality);
+        let mut migration_rngs = MigrationRngs::new(rng_factory);
+        migration_rngs.restore_positions([
+            checkpoint.rng.migration_choice,
+            checkpoint.rng.migration_uncertainty,
+        ]);
+
+        let simulation = Self {
+            config: checkpoint.experiment,
+            time: checkpoint.time,
+            world,
+            population: checkpoint.population,
+            resources: checkpoint.resources,
+            migration,
+            demography_rngs,
+            resource_rngs,
+            migration_rngs,
+            events: checkpoint.events,
+            metrics: checkpoint.metrics,
+        };
+        let actual_digest = simulation.state_digest64();
+        if actual_digest != checkpoint.state_digest64 {
+            return Err(SimulationError::CheckpointStateDigestMismatch {
+                expected: checkpoint.state_digest64,
+                actual: actual_digest,
+            });
+        }
+        Ok(simulation)
     }
 
     #[must_use]
@@ -92,105 +213,314 @@ impl Simulation {
         &self.migration
     }
 
-    /// Run the configured M4 resource-migration-demographic lifecycle.
-    ///
-    /// Each resource period first regenerates and shares local resources, then
-    /// updates condition and scarcity mortality. Surviving households evaluate
-    /// bounded local migration alternatives against that experienced state and
-    /// selected moves complete atomically at the same decision boundary with an
-    /// explicit travel condition cost. The annual demographic boundary then
-    /// evaluates baseline mortality and fertility.
-    pub fn run(mut self) -> Result<RunManifest, SimulationError> {
-        let mut demography_rngs = DemographyRngs::new(self.rng_factory);
-        let mut resource_rngs = ResourceRngs::new(self.rng_factory);
-        let mut migration_rngs = MigrationRngs::new(self.rng_factory);
+    #[must_use]
+    pub const fn events(&self) -> &EventLog {
+        &self.events
+    }
 
-        let mut stop_reason = StopReason::DurationReached;
+    #[must_use]
+    pub const fn metrics(&self) -> &MetricSeries {
+        &self.metrics
+    }
+
+    /// Run the configured lifecycle while preserving the legacy manifest-only API.
+    pub fn run(self) -> Result<RunManifest, SimulationError> {
+        Ok(self.run_recorded()?.manifest)
+    }
+
+    /// Run to the configured duration or an earlier model stop and retain all M5 artifacts.
+    pub fn run_recorded(mut self) -> Result<RecordedRun, SimulationError> {
+        let target_year = self.config.duration_years;
+        let stop_reason = self
+            .advance_to_year(target_year)?
+            .unwrap_or(StopReason::DurationReached);
+        self.ensure_terminal_metric_snapshot();
+        self.validate_state()?;
+        let manifest = self.build_manifest(stop_reason);
+        let checkpoint = self.into_checkpoint();
+        Ok(RecordedRun {
+            manifest,
+            checkpoint,
+        })
+    }
+
+    /// Advance to a completed annual boundary and return a resumable deterministic checkpoint.
+    pub fn checkpoint_at_year(
+        mut self,
+        target_year: u64,
+    ) -> Result<SimulationCheckpoint, SimulationError> {
+        let current_year = self.completed_years()?;
+        if target_year < current_year || target_year > self.config.duration_years {
+            return Err(SimulationError::InvalidCheckpointTarget {
+                current_year,
+                target_year,
+                duration_years: self.config.duration_years,
+            });
+        }
+        if let Some(stop_reason) = self.advance_to_year(target_year)? {
+            let expected_day = target_year.saturating_mul(DAYS_PER_YEAR);
+            if self.time.days() != expected_day {
+                return Err(SimulationError::CheckpointTargetUnreachable {
+                    target_year,
+                    stop_reason,
+                    stopped_day: self.time.days(),
+                });
+            }
+        }
+        self.ensure_terminal_metric_snapshot();
+        self.validate_state()?;
+        Ok(self.into_checkpoint())
+    }
+
+    fn advance_to_year(&mut self, target_year: u64) -> Result<Option<StopReason>, SimulationError> {
+        let current_year = self.completed_years()?;
         if self.population.living_count() == 0 {
-            stop_reason = StopReason::PopulationExtinct;
-        } else {
-            'years: for year in 1..=self.config.duration_years {
-                let periods = u64::from(self.config.resources.periods_per_year);
-                let year_start_day = (year - 1).saturating_mul(DAYS_PER_YEAR);
+            self.record_metric_snapshot();
+            return Ok(Some(StopReason::PopulationExtinct));
+        }
 
-                for period_index in 0..self.config.resources.periods_per_year {
-                    let period_number = u64::from(period_index) + 1;
-                    let day = year_start_day
-                        .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
-                    self.time = SimTime::from_days(day);
-                    let outcome = self.resources.process_period(
-                        &mut self.population,
-                        &self.world,
-                        &self.config.resources,
-                        period_index,
-                        day,
-                        &mut resource_rngs.scarcity_mortality,
-                    )?;
-                    if outcome == ResourceStepOutcome::PopulationExtinct {
-                        stop_reason = StopReason::PopulationExtinct;
-                        break 'years;
-                    }
-                    self.migration.process_boundary(
-                        &mut self.population,
-                        &MigrationBoundaryContext {
-                            world: &self.world,
-                            resources: &self.resources,
-                            migration: &self.config.migration,
-                            annual_food_need: self.config.resources.annual_need_units_per_person,
-                            resource_periods_per_year: self.config.resources.periods_per_year,
-                            day,
-                        },
-                        &mut migration_rngs,
-                    )?;
-                }
+        for year in current_year.saturating_add(1)..=target_year {
+            let periods = u64::from(self.config.resources.periods_per_year);
+            let year_start_day = (year - 1).saturating_mul(DAYS_PER_YEAR);
 
-                self.time = SimTime::from_years(year);
-                let outcome = process_demographic_year(
+            for period_index in 0..self.config.resources.periods_per_year {
+                let period_number = u64::from(period_index) + 1;
+                let day = year_start_day
+                    .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
+                self.time = SimTime::from_days(day);
+                let outcome = self.resources.process_period_recorded(
                     &mut self.population,
-                    &self.world,
-                    &self.config.demography,
-                    self.time.days(),
-                    &mut demography_rngs,
+                    &ResourcePeriodContext {
+                        world: &self.world,
+                        config: &self.config.resources,
+                        period_index_in_year: period_index,
+                        day,
+                    },
+                    &mut self.resource_rngs.scarcity_mortality,
+                    &mut self.events,
                 )?;
+                if outcome == ResourceStepOutcome::PopulationExtinct {
+                    self.record_metric_snapshot();
+                    return Ok(Some(StopReason::PopulationExtinct));
+                }
+                self.migration.process_boundary_recorded(
+                    &mut self.population,
+                    &MigrationBoundaryContext {
+                        world: &self.world,
+                        resources: &self.resources,
+                        migration: &self.config.migration,
+                        annual_food_need: self.config.resources.annual_need_units_per_person,
+                        resource_periods_per_year: self.config.resources.periods_per_year,
+                        day,
+                    },
+                    &mut self.migration_rngs,
+                    &mut self.events,
+                )?;
+            }
 
-                match outcome {
-                    DemographyStepOutcome::Continue => {}
-                    DemographyStepOutcome::PopulationExtinct => {
-                        stop_reason = StopReason::PopulationExtinct;
-                        break;
-                    }
-                    DemographyStepOutcome::PersonRecordLimitReached => {
-                        stop_reason = StopReason::PersonRecordLimitReached;
-                        break;
-                    }
+            self.time = SimTime::from_years(year);
+            let outcome = process_demographic_year_recorded(
+                &mut self.population,
+                &self.world,
+                &self.config.demography,
+                self.time.days(),
+                &mut self.demography_rngs,
+                &mut self.events,
+            )?;
+            self.record_metric_snapshot();
+
+            match outcome {
+                DemographyStepOutcome::Continue => {}
+                DemographyStepOutcome::PopulationExtinct => {
+                    return Ok(Some(StopReason::PopulationExtinct));
+                }
+                DemographyStepOutcome::PersonRecordLimitReached => {
+                    return Ok(Some(StopReason::PersonRecordLimitReached));
                 }
             }
         }
+        Ok(None)
+    }
 
+    fn completed_years(&self) -> Result<u64, SimulationError> {
+        if !self.time.days().is_multiple_of(DAYS_PER_YEAR) {
+            return Err(SimulationError::UnsupportedCheckpointBoundary {
+                day: self.time.days(),
+            });
+        }
+        Ok(self.time.days() / DAYS_PER_YEAR)
+    }
+
+    fn record_metric_snapshot(&mut self) {
+        let population = self.population.summary();
+        let resources = self.resources.summary(&self.population);
+        let migration = self.migration.summary();
+        let snapshot = MetricSnapshot {
+            schema_version: MetricSnapshot::CURRENT_SCHEMA_VERSION,
+            day: self.time.days(),
+            provenance: MetricProvenance::Derived,
+            population: PopulationMetrics::from(&population),
+            resources: ResourceMetrics::from(&resources),
+            migration: MigrationMetrics::from(&migration),
+            state_digest64: self.state_digest64(),
+        };
+        if self
+            .metrics
+            .snapshots
+            .last()
+            .is_some_and(|last| last.day == snapshot.day)
+        {
+            let _ = self.metrics.snapshots.pop();
+        }
+        self.metrics.snapshots.push(snapshot);
+    }
+
+    fn ensure_terminal_metric_snapshot(&mut self) {
+        if self
+            .metrics
+            .snapshots
+            .last()
+            .is_none_or(|snapshot| snapshot.day != self.time.days())
+        {
+            self.record_metric_snapshot();
+        }
+    }
+
+    fn state_digest64(&self) -> u64 {
+        state_digest64(
+            self.time.days(),
+            self.world.digest64(),
+            self.population.digest64(),
+            self.resources.digest64(),
+            self.migration.digest64(),
+        )
+    }
+
+    fn validate_state(&self) -> Result<(), SimulationError> {
         self.population
             .validate(&self.world)
             .map_err(PopulationError::from)?;
+        self.resources
+            .validate_checkpoint_state(&self.world, &self.config.resources)?;
+        Ok(())
+    }
 
-        Ok(RunManifest {
+    fn rng_checkpoint(&self) -> RngCheckpoint {
+        let demography = self.demography_rngs.positions();
+        let migration = self.migration_rngs.positions();
+        RngCheckpoint {
+            demography_mortality: demography[0],
+            demography_fertility: demography[1],
+            demography_parentage: demography[2],
+            demography_newborn_sex: demography[3],
+            resource_scarcity_mortality: self.resource_rngs.position(),
+            migration_choice: migration[0],
+            migration_uncertainty: migration[1],
+        }
+    }
+
+    fn build_manifest(&self, stop_reason: StopReason) -> RunManifest {
+        let resources = self.resources.summary(&self.population);
+        let migration = self.migration.summary();
+        RunManifest {
             schema_version: RunManifest::CURRENT_SCHEMA_VERSION,
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
             git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
-            experiment: self.config,
+            experiment: self.config.clone(),
+            artifact_schemas: ArtifactSchemas::current(),
             world: self.world.summary(),
             population: self.population.summary(),
-            resources: self.resources.summary(&self.population),
-            migration: self.migration.summary(),
+            resources: resources.clone(),
+            migration: migration.clone(),
+            state_digest64: self.state_digest64(),
+            statistics: RunStatistics {
+                simulated_days: self.time.days(),
+                authoritative_event_count: u64::try_from(self.events.len()).unwrap_or(u64::MAX),
+                metric_snapshot_count: u64::try_from(self.metrics.len()).unwrap_or(u64::MAX),
+                resource_periods_processed: resources.periods_processed,
+                migration_decision_boundaries: migration.decision_boundaries,
+            },
             start_time: SimTime::ZERO,
             end_time: self.time,
             stop_reason,
-        })
+        }
     }
+
+    fn into_checkpoint(self) -> SimulationCheckpoint {
+        let state_digest = self.state_digest64();
+        let rng = self.rng_checkpoint();
+        let completed_years = self.time.days() / DAYS_PER_YEAR;
+        SimulationCheckpoint {
+            schema_version: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
+            model_version: env!("CARGO_PKG_VERSION").to_owned(),
+            git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
+            experiment: self.config,
+            time: self.time,
+            completed_years,
+            world_digest64: self.world.digest64(),
+            population: self.population,
+            resources: self.resources,
+            migration: self.migration.checkpoint_state(),
+            rng,
+            events: self.events,
+            metrics: self.metrics,
+            state_digest64: state_digest,
+        }
+    }
+}
+
+fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError> {
+    if config.schema_version != ExperimentConfig::CURRENT_SCHEMA_VERSION {
+        return Err(SimulationError::UnsupportedExperimentSchema {
+            found: config.schema_version,
+            supported: ExperimentConfig::CURRENT_SCHEMA_VERSION,
+        });
+    }
+    validate_demography_config(&config.demography)?;
+    validate_resource_config(&config.resources)?;
+    validate_migration_config(&config.migration)?;
+    Ok(())
 }
 
 #[derive(Debug, Error)]
 pub enum SimulationError {
     #[error("experiment schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedExperimentSchema { found: u32, supported: u32 },
+    #[error("checkpoint schema {found} is unsupported; supported schema is {supported}")]
+    UnsupportedCheckpointSchema { found: u32, supported: u32 },
+    #[error("checkpoint model version {found} does not match current model version {expected}")]
+    CheckpointModelVersionMismatch { found: String, expected: String },
+    #[error("checkpoint {artifact} artifact schema is incompatible with this build")]
+    CheckpointArtifactSchemaMismatch { artifact: &'static str },
+    #[error("checkpoint day {day} is not a completed annual boundary")]
+    UnsupportedCheckpointBoundary { day: u64 },
+    #[error(
+        "checkpoint completed year {completed_years} exceeds experiment duration {duration_years}"
+    )]
+    CheckpointBeyondDuration {
+        completed_years: u64,
+        duration_years: u64,
+    },
+    #[error("checkpoint world digest mismatch: expected {expected}, reconstructed {actual}")]
+    CheckpointWorldDigestMismatch { expected: u64, actual: u64 },
+    #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]
+    CheckpointStateDigestMismatch { expected: u64, actual: u64 },
+    #[error(
+        "checkpoint target year {target_year} is outside current year {current_year}..={duration_years}"
+    )]
+    InvalidCheckpointTarget {
+        current_year: u64,
+        target_year: u64,
+        duration_years: u64,
+    },
+    #[error(
+        "checkpoint target year {target_year} was not reached: stopped at day {stopped_day} because {stop_reason:?}"
+    )]
+    CheckpointTargetUnreachable {
+        target_year: u64,
+        stop_reason: StopReason,
+        stopped_day: u64,
+    },
     #[error(transparent)]
     Demography(#[from] DemographyConfigError),
     #[error(transparent)]
@@ -210,9 +540,12 @@ pub enum SimulationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{
-        DemographyConfig, MigrationConfig, PROBABILITY_PER_MILLION, PopulationConfig,
-        ResourceConfig, WorldConfig,
+    use crate::{
+        config::{
+            DemographyConfig, MigrationConfig, PROBABILITY_PER_MILLION, PopulationConfig,
+            ResourceConfig, WorldConfig,
+        },
+        events::EventProvenance,
     };
 
     fn no_event_demography() -> DemographyConfig {
@@ -260,7 +593,8 @@ mod tests {
         let config = ExperimentConfig::new(81, 5)
             .with_world(WorldConfig::new(4, 4))
             .with_population(PopulationConfig::new(2_000).with_max_person_records(100_000));
-        let manifest = Simulation::new(config).unwrap().run().unwrap();
+        let run = Simulation::new(config).unwrap().run_recorded().unwrap();
+        let manifest = &run.manifest;
 
         assert!(manifest.population.deaths_since_start > 0);
         assert!(manifest.resources.periods_processed > 0);
@@ -272,6 +606,98 @@ mod tests {
                 - manifest.population.deaths_since_start,
             manifest.population.living_population
         );
+        assert!(
+            run.events()
+                .events
+                .iter()
+                .all(|event| { event.provenance == EventProvenance::Authoritative })
+        );
+    }
+
+    #[test]
+    fn checkpoint_resume_matches_uninterrupted_execution() {
+        let config = ExperimentConfig::new(2026, 12)
+            .with_world(WorldConfig::new(32, 32))
+            .with_population(PopulationConfig::new(2_000).with_max_person_records(100_000));
+
+        let uninterrupted = Simulation::new(config.clone())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
+        let checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(5)
+            .unwrap();
+        let resumed = Simulation::from_checkpoint(checkpoint)
+            .unwrap()
+            .run_recorded()
+            .unwrap();
+
+        assert_eq!(resumed.manifest, uninterrupted.manifest);
+        assert_eq!(
+            resumed.checkpoint.population,
+            uninterrupted.checkpoint.population
+        );
+        assert_eq!(
+            resumed.checkpoint.resources,
+            uninterrupted.checkpoint.resources
+        );
+        assert_eq!(
+            resumed.checkpoint.migration,
+            uninterrupted.checkpoint.migration
+        );
+        assert_eq!(resumed.checkpoint.events, uninterrupted.checkpoint.events);
+        assert_eq!(resumed.checkpoint.metrics, uninterrupted.checkpoint.metrics);
+        assert_eq!(
+            resumed.checkpoint.state_digest64,
+            uninterrupted.checkpoint.state_digest64
+        );
+    }
+
+    #[test]
+    fn final_derived_metrics_reconcile_with_authoritative_state() {
+        let run = Simulation::new(ExperimentConfig::new(404, 4))
+            .unwrap()
+            .run_recorded()
+            .unwrap();
+        let final_metrics = run.metrics().snapshots.last().unwrap();
+        assert_eq!(
+            final_metrics.population.living_population,
+            run.manifest.population.living_population
+        );
+        assert_eq!(
+            final_metrics.population.person_records,
+            run.manifest.population.person_records
+        );
+        assert_eq!(
+            final_metrics.resources.final_food_stock,
+            run.manifest.resources.final_food_stock
+        );
+        assert_eq!(
+            final_metrics.resources.unmet_need,
+            run.manifest.resources.unmet_need
+        );
+        assert_eq!(
+            final_metrics.migration.moves_completed,
+            run.manifest.migration.moves_completed
+        );
+        assert_eq!(final_metrics.state_digest64, run.manifest.state_digest64);
+    }
+
+    #[test]
+    fn checkpoint_state_digest_detects_tampering() {
+        let config = ExperimentConfig::new(505, 6)
+            .with_world(WorldConfig::new(16, 16))
+            .with_population(PopulationConfig::new(500));
+        let mut checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(3)
+            .unwrap();
+        checkpoint.state_digest64 ^= 1;
+        assert!(matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::CheckpointStateDigestMismatch { .. })
+        ));
     }
 
     #[test]
@@ -348,6 +774,7 @@ mod tests {
         assert_eq!(manifest.end_time, SimTime::ZERO);
         assert_eq!(manifest.resources.periods_processed, 0);
         assert_eq!(manifest.migration.decision_boundaries, 0);
+        assert_eq!(manifest.statistics.metric_snapshot_count, 1);
     }
 
     #[test]

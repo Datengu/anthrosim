@@ -51,11 +51,35 @@ jobs:
       - name: Benchmark M4 bounded candidate lookup
         run: cargo bench --locked -p anthrosim-core --bench migration_candidates -- --noplot
 
-      - name: Benchmark M4 resource-migration-demographic lifecycle
+      - name: Benchmark full resource-migration-demographic lifecycle
         run: cargo bench --locked -p anthrosim-core --bench empty_run -- --noplot
+
+      - name: Benchmark M5 checkpoint persistence
+        run: cargo bench --locked -p anthrosim-core --bench checkpoint_persistence -- --noplot
 
       - name: Build release binaries
         run: cargo build --locked --workspace --release
+
+      - name: Smoke-test M5 checkpoint resume bundle
+        run: |
+          rm -rf /tmp/anthrosim-m5-resume
+          target/release/anthrosim run \
+            --years 6 \
+            --world-width 32 \
+            --world-height 32 \
+            --population 1000 \
+            --seed 4242 \
+            --run-dir /tmp/anthrosim-m5-resume \
+            --checkpoint-year 3
+          target/release/anthrosim resume \
+            --checkpoint /tmp/anthrosim-m5-resume/checkpoint.json \
+            --run-dir /tmp/anthrosim-m5-resume
+          test -f /tmp/anthrosim-m5-resume/manifest.json
+          test -f /tmp/anthrosim-m5-resume/world.json
+          test -f /tmp/anthrosim-m5-resume/initial-population.json
+          test -f /tmp/anthrosim-m5-resume/events.json
+          test -f /tmp/anthrosim-m5-resume/metrics.json
+          test -f /tmp/anthrosim-m5-resume/checkpoint.json
 
       - name: Measure one-million-founder process memory
         run: |
@@ -65,4 +89,4 @@ jobs:
             --world-height 64 \
             --population 1000000 \
             --max-person-records 1000000 \
-            --output /tmp/anthrosim-m4-memory.json
+            --output /tmp/anthrosim-m5-memory.json
