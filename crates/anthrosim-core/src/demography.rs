@@ -401,7 +401,7 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     use super::*;
-    use crate::{config::PopulationConfig, world::WorldConfig};
+    use crate::config::{PopulationConfig, WorldConfig};
 
     #[test]
     fn default_synthetic_schedule_is_structurally_valid() {
