@@ -237,10 +237,12 @@ pub(crate) fn process_demographic_year(
             return Ok(DemographyStepOutcome::PersonRecordLimitReached);
         }
 
-        let male_parent = select_male_parent(population, location, day, config, &mut rngs.parentage)
-            .ok_or(PopulationError::InternalInvariant {
-                reason: "eligible local male disappeared during a demographic boundary",
-            })?;
+        let male_parent =
+            select_male_parent(population, location, day, config, &mut rngs.parentage).ok_or(
+                PopulationError::InternalInvariant {
+                    reason: "eligible local male disappeared during a demographic boundary",
+                },
+            )?;
         let female_parent = population.person_id_at_index(female_index).ok_or(
             PopulationError::InternalInvariant {
                 reason: "living female is missing a stable person ID",
@@ -444,14 +446,9 @@ mod tests {
         }
 
         let mut rngs = DemographyRngs::new(RngFactory::new(9));
-        let outcome = process_demographic_year(
-            &mut population,
-            &world,
-            &config,
-            DAYS_PER_YEAR,
-            &mut rngs,
-        )
-        .unwrap();
+        let outcome =
+            process_demographic_year(&mut population, &world, &config, DAYS_PER_YEAR, &mut rngs)
+                .unwrap();
 
         assert_eq!(outcome, DemographyStepOutcome::PopulationExtinct);
         assert_eq!(population.living_count(), 0);
