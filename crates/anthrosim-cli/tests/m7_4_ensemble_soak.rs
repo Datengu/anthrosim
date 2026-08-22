@@ -12,10 +12,7 @@ fn temp_path(label: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time after Unix epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!(
-        "anthrosim-{label}-{}-{nanos}",
-        std::process::id()
-    ))
+    std::env::temp_dir().join(format!("anthrosim-{label}-{}-{nanos}", std::process::id()))
 }
 
 #[test]
