@@ -1,6 +1,6 @@
 use std::{fs, path::Path, path::PathBuf, process::ExitCode};
 
-use anthrosim_core::{ExperimentConfig, Simulation, WorldConfig};
+use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -22,7 +22,7 @@ enum Command {
         #[arg(long, default_value_t = 1)]
         seed: u64,
 
-        /// Number of simulated years to execute.
+        /// Number of simulated years to execute unless a stop condition occurs.
         #[arg(long, default_value_t = 1_000)]
         years: u64,
 
@@ -34,6 +34,18 @@ enum Command {
         #[arg(long, default_value_t = 128)]
         world_height: u32,
 
+        /// Number of persistent synthetic founder records to initialize.
+        #[arg(long, default_value_t = 10_000)]
+        population: u32,
+
+        /// Target number of co-resident founders per synthetic household.
+        #[arg(long, default_value_t = 5)]
+        household_size: u16,
+
+        /// Operational ceiling for persistent person records; this is not a carrying capacity.
+        #[arg(long, default_value_t = 1_000_000)]
+        max_person_records: u64,
+
         /// Optional path to write the JSON run manifest.
         #[arg(long)]
         output: Option<PathBuf>,
@@ -41,6 +53,10 @@ enum Command {
         /// Optional path to write the full versioned synthetic world as JSON.
         #[arg(long)]
         world_output: Option<PathBuf>,
+
+        /// Optional path to write full initialized population state as JSON.
+        #[arg(long)]
+        population_output: Option<PathBuf>,
     },
 }
 
@@ -61,19 +77,32 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             years,
             world_width,
             world_height,
+            population,
+            household_size,
+            max_person_records,
             output,
             world_output,
+            population_output,
         } => {
             let config = ExperimentConfig::new(seed, years)
-                .with_world(WorldConfig::new(world_width, world_height));
+                .with_world(WorldConfig::new(world_width, world_height))
+                .with_population(
+                    PopulationConfig::new(population)
+                        .with_target_household_size(household_size)
+                        .with_max_person_records(max_person_records),
+                );
             let simulation = Simulation::new(config)?;
 
             if let Some(path) = world_output {
                 write_json(&path, simulation.world())?;
                 println!("wrote world {}", path.display());
             }
+            if let Some(path) = population_output {
+                write_json(&path, simulation.population())?;
+                println!("wrote population {}", path.display());
+            }
 
-            let manifest = simulation.run();
+            let manifest = simulation.run()?;
             if let Some(path) = output {
                 write_json(&path, &manifest)?;
                 println!("wrote manifest {}", path.display());
