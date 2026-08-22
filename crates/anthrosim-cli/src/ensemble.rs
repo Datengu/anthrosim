@@ -125,10 +125,7 @@ enum BundleInspection {
     Valid(RunResultRef),
 }
 
-pub(crate) fn experiment_config(
-    seed: u64,
-    settings: &EnsembleRunSettings,
-) -> ExperimentConfig {
+pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> ExperimentConfig {
     let resources = ResourceConfig::synthetic_validation_v1()
         .with_productivity_scale_permille(settings.resource_productivity_scale_permille)
         .with_annual_need_units_per_person(settings.annual_food_need);
@@ -567,12 +564,7 @@ fn execute_run_attempt(
         let world = simulation.world().clone();
         let initial_population = simulation.population().clone();
         let recorded = simulation.run_recorded()?;
-        write_completed_bundle(
-            &run_directory,
-            &world,
-            &initial_population,
-            &recorded,
-        )?;
+        write_completed_bundle(&run_directory, &world, &initial_population, &recorded)?;
         write_json(
             &run_directory.join("completion.json"),
             &EnsembleRunCompletion {
@@ -768,11 +760,8 @@ mod tests {
         interrupted.state = RunLifecycle::Running;
         interrupted.result = None;
         write_status(&root, &interrupted).expect("write interrupted status");
-        fs::remove_file(
-            root.join(run_relative_dir(31))
-                .join("completion.json"),
-        )
-        .expect("remove completion marker");
+        fs::remove_file(root.join(run_relative_dir(31)).join("completion.json"))
+            .expect("remove completion marker");
 
         execute_ensemble(&root, small_settings(), vec![31, 32], true).expect("retry experiment");
 
@@ -796,7 +785,11 @@ mod tests {
         let status = read_status(&root, 41);
         assert_eq!(status.state, RunLifecycle::Completed);
         assert_eq!(status.attempt, 2);
-        assert!(root.join(run_relative_dir(41)).join("metrics.json").is_file());
+        assert!(
+            root.join(run_relative_dir(41))
+                .join("metrics.json")
+                .is_file()
+        );
         fs::remove_dir_all(root).expect("cleanup");
     }
 
