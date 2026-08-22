@@ -237,6 +237,7 @@ impl MigrationSystem {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn process_boundary(
         &mut self,
         population: &mut Population,

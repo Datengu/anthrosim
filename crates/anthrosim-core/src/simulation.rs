@@ -19,8 +19,8 @@ use crate::{
     },
     population::{Population, PopulationError},
     resources::{
-        ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,
-        validate_resource_config,
+        ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
+        ResourceStepOutcome, ResourceSystem, validate_resource_config,
     },
     rng::RngFactory,
     time::{DAYS_PER_YEAR, SimTime},
@@ -108,7 +108,7 @@ impl Simulation {
                 artifact: "metrics",
             });
         }
-        if checkpoint.time.days() % DAYS_PER_YEAR != 0
+        if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
             || checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR
         {
             return Err(SimulationError::UnsupportedCheckpointBoundary {
@@ -290,10 +290,12 @@ impl Simulation {
                 self.time = SimTime::from_days(day);
                 let outcome = self.resources.process_period_recorded(
                     &mut self.population,
-                    &self.world,
-                    &self.config.resources,
-                    period_index,
-                    day,
+                    &ResourcePeriodContext {
+                        world: &self.world,
+                        config: &self.config.resources,
+                        period_index_in_year: period_index,
+                        day,
+                    },
                     &mut self.resource_rngs.scarcity_mortality,
                     &mut self.events,
                 )?;
@@ -341,7 +343,7 @@ impl Simulation {
     }
 
     fn completed_years(&self) -> Result<u64, SimulationError> {
-        if self.time.days() % DAYS_PER_YEAR != 0 {
+        if !self.time.days().is_multiple_of(DAYS_PER_YEAR) {
             return Err(SimulationError::UnsupportedCheckpointBoundary {
                 day: self.time.days(),
             });

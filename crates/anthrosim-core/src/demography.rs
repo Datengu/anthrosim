@@ -182,6 +182,7 @@ pub(crate) enum DemographyStepOutcome {
 /// mortality draw until a later annual boundary. M2 father selection is local
 /// to the mother's current cell and uniform among eligible living male records;
 /// it does not model marriage, pair bonds, kin avoidance, or social paternity.
+#[cfg(test)]
 pub(crate) fn process_demographic_year(
     population: &mut Population,
     world: &World,

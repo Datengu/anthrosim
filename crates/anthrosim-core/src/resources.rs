@@ -61,6 +61,13 @@ pub struct ResourceSystem {
     scarcity_deaths: u64,
 }
 
+pub(crate) struct ResourcePeriodContext<'a> {
+    pub world: &'a World,
+    pub config: &'a ResourceConfig,
+    pub period_index_in_year: u16,
+    pub day: u64,
+}
+
 impl ResourceSystem {
     pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
@@ -149,6 +156,7 @@ impl ResourceSystem {
         hash
     }
 
+    #[cfg(test)]
     pub(crate) fn process_period(
         &mut self,
         population: &mut Population,
@@ -161,10 +169,12 @@ impl ResourceSystem {
         let mut events = EventLog::new();
         self.process_period_recorded(
             population,
-            world,
-            config,
-            period_index_in_year,
-            day,
+            &ResourcePeriodContext {
+                world,
+                config,
+                period_index_in_year,
+                day,
+            },
             scarcity_rng,
             &mut events,
         )
@@ -173,13 +183,16 @@ impl ResourceSystem {
     pub(crate) fn process_period_recorded(
         &mut self,
         population: &mut Population,
-        world: &World,
-        config: &ResourceConfig,
-        period_index_in_year: u16,
-        day: u64,
+        context: &ResourcePeriodContext<'_>,
         scarcity_rng: &mut ChaCha8Rng,
         events: &mut EventLog,
     ) -> Result<ResourceStepOutcome, ResourceError> {
+        let ResourcePeriodContext {
+            world,
+            config,
+            period_index_in_year,
+            day,
+        } = *context;
         if self.cell_food_stock.len() != world.cell_count() {
             return Err(ResourceError::StateShapeMismatch);
         }
