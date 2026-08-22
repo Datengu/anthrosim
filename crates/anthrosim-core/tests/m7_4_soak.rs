@@ -1,7 +1,6 @@
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, InvariantError, MigrationConfig, PopulationConfig,
-    ResourceConfig, SimTime, Simulation, StopReason, WorldConfig,
-    config::PROBABILITY_PER_MILLION,
+    ResourceConfig, SimTime, Simulation, StopReason, WorldConfig, config::PROBABILITY_PER_MILLION,
 };
 
 fn no_event_demography() -> DemographyConfig {
