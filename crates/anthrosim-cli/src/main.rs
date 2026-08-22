@@ -1,8 +1,6 @@
 use std::{fs, path::Path, path::PathBuf, process::ExitCode};
 
-use anthrosim_core::{
-    ExperimentConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig,
-};
+use anthrosim_core::{ExperimentConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
