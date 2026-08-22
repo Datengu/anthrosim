@@ -3,8 +3,8 @@ use std::hint::black_box;
 use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
 use criterion::{Criterion, criterion_group, criterion_main};
 
-fn demographic_run(c: &mut Criterion) {
-    c.bench_function("m2_10k_people_25_year_demography_run", |b| {
+fn resource_demographic_run(c: &mut Criterion) {
+    c.bench_function("m3_10k_people_25_year_resource_demography_run", |b| {
         b.iter(|| {
             let config = ExperimentConfig::new(black_box(1_847_291), black_box(25))
                 .with_world(WorldConfig::new(64, 64))
@@ -14,5 +14,5 @@ fn demographic_run(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, demographic_run);
+criterion_group!(benches, resource_demographic_run);
 criterion_main!(benches);

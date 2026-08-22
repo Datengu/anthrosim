@@ -12,10 +12,11 @@ pub struct ExperimentConfig {
     pub world: WorldConfig,
     pub population: PopulationConfig,
     pub demography: DemographyConfig,
+    pub resources: ResourceConfig,
 }
 
 impl ExperimentConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 
     #[must_use]
     pub fn new(seed: u64, duration_years: u64) -> Self {
@@ -26,6 +27,7 @@ impl ExperimentConfig {
             world: WorldConfig::default_config(),
             population: PopulationConfig::default_config(),
             demography: DemographyConfig::synthetic_validation_v1(),
+            resources: ResourceConfig::synthetic_validation_v1(),
         }
     }
 
@@ -44,6 +46,12 @@ impl ExperimentConfig {
     #[must_use]
     pub fn with_demography(mut self, demography: DemographyConfig) -> Self {
         self.demography = demography;
+        self
+    }
+
+    #[must_use]
+    pub fn with_resources(mut self, resources: ResourceConfig) -> Self {
+        self.resources = resources;
         self
     }
 }
@@ -249,6 +257,73 @@ impl DemographyConfig {
 }
 
 impl Default for DemographyConfig {
+    fn default() -> Self {
+        Self::synthetic_validation_v1()
+    }
+}
+
+/// Transparent M3 energetic/resource assumptions.
+///
+/// All resource quantities are abstract integer units. This configuration is
+/// an engine-validation mechanism, not a calibrated caloric or palaeoecological
+/// reconstruction. The explicit productivity scale exists for controlled
+/// sensitivity experiments such as otherwise-equal poor versus rich worlds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceConfig {
+    pub schema_version: u32,
+    pub model_id: String,
+    pub provenance: ParameterProvenance,
+    pub periods_per_year: u16,
+    pub annual_need_units_per_person: u32,
+    pub annual_regeneration_units_per_productivity: u32,
+    pub productivity_scale_permille: u16,
+    pub cell_stock_capacity_years: u16,
+    pub condition_recovery_per_period: u16,
+    pub max_condition_loss_per_period: u16,
+    pub max_scarcity_mortality_probability_per_million: u32,
+}
+
+impl ResourceConfig {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    #[must_use]
+    pub fn synthetic_validation_v1() -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            model_id: "synthetic_validation_v1".to_owned(),
+            provenance: ParameterProvenance::SyntheticValidation,
+            periods_per_year: 4,
+            annual_need_units_per_person: 100,
+            annual_regeneration_units_per_productivity: 1,
+            productivity_scale_permille: 1_000,
+            cell_stock_capacity_years: 10,
+            condition_recovery_per_period: 25,
+            max_condition_loss_per_period: 200,
+            max_scarcity_mortality_probability_per_million: 200_000,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_productivity_scale_permille(mut self, value: u16) -> Self {
+        self.productivity_scale_permille = value;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_annual_need_units_per_person(mut self, value: u32) -> Self {
+        self.annual_need_units_per_person = value;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_annual_regeneration_units_per_productivity(mut self, value: u32) -> Self {
+        self.annual_regeneration_units_per_productivity = value;
+        self
+    }
+}
+
+impl Default for ResourceConfig {
     fn default() -> Self {
         Self::synthetic_validation_v1()
     }

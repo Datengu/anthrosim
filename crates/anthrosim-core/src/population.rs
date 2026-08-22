@@ -66,6 +66,8 @@ pub struct PopulationSummary {
     pub deaths_since_start: u64,
     pub household_count: u64,
     pub living_occupied_cell_count: u64,
+    pub mean_living_condition_permille: u16,
+    pub living_below_half_condition: u64,
     pub digest64: u64,
 }
 
@@ -134,7 +136,7 @@ impl CellOccupancy {
     }
 }
 
-/// Authoritative M2 person/household state.
+/// Authoritative persistent person/household state.
 ///
 /// Hot per-person fields are stored as parallel contiguous arrays rather than
 /// allocation-heavy person objects. Stable IDs are one-based indices into these
@@ -161,7 +163,7 @@ pub struct Population {
 }
 
 impl Population {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 
     pub fn initialize(
         config: PopulationConfig,
@@ -327,6 +329,8 @@ impl Population {
             deaths_since_start: self.deaths_since_start,
             household_count: self.household_count() as u64,
             living_occupied_cell_count: self.living_occupied_cell_count(),
+            mean_living_condition_permille: self.mean_living_condition_permille(),
+            living_below_half_condition: self.living_below_condition(500),
             digest64: self.digest64(),
         }
     }
@@ -359,6 +363,22 @@ impl Population {
     #[must_use]
     pub(crate) fn household_at_index(&self, index: usize) -> Option<HouseholdId> {
         self.households.get(index).copied()
+    }
+
+    #[must_use]
+    pub(crate) fn condition_at_index(&self, index: usize) -> Option<u16> {
+        self.condition_permille.get(index).copied()
+    }
+
+    pub(crate) fn set_condition_at_index(&mut self, index: usize, condition: u16) -> bool {
+        if condition > PERMILLE_MAX {
+            return false;
+        }
+        let Some(slot) = self.condition_permille.get_mut(index) else {
+            return false;
+        };
+        *slot = condition;
+        true
     }
 
     #[must_use]
@@ -648,6 +668,30 @@ impl Population {
             }
         }
         count
+    }
+
+    #[must_use]
+    pub fn mean_living_condition_permille(&self) -> u16 {
+        let mut total = 0_u64;
+        let mut count = 0_u64;
+        for index in 0..self.person_count() {
+            if self.is_alive_index(index) {
+                total = total.saturating_add(u64::from(self.condition_permille[index]));
+                count = count.saturating_add(1);
+            }
+        }
+        u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX)
+    }
+
+    #[must_use]
+    pub fn living_below_condition(&self, threshold_permille: u16) -> u64 {
+        self.condition_permille
+            .iter()
+            .enumerate()
+            .filter(|(index, condition)| {
+                self.is_alive_index(*index) && **condition < threshold_permille
+            })
+            .count() as u64
     }
 
     #[must_use]
@@ -960,6 +1004,19 @@ mod tests {
         assert_eq!(population.living_count(), 10);
         assert_eq!(population.births_since_start, 1);
         assert_eq!(population.deaths_since_start, 1);
+    }
+
+    #[test]
+    fn condition_updates_are_reflected_in_summary_and_digest() {
+        let world = test_world(41);
+        let mut population =
+            Population::initialize(PopulationConfig::new(10), &world, RngFactory::new(41)).unwrap();
+        let before = population.digest64();
+        assert!(population.set_condition_at_index(0, 250));
+        assert_eq!(population.condition_at_index(0), Some(250));
+        assert!(population.mean_living_condition_permille() < 1_000);
+        assert_eq!(population.living_below_condition(500), 1);
+        assert_ne!(before, population.digest64());
     }
 
     #[test]
