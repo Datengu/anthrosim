@@ -1,10 +1,10 @@
 # Experiment execution in v0.1
 
-This document records the M7.1–M7.3 batch, ensemble, sweep and downstream-analysis contract. It describes experiment orchestration and provenance only: it does not add an anthropological mechanism and does not create a second simulation implementation.
+This document records the M7.1–M7.6 batch, ensemble, sweep, downstream-analysis and versioned-reproduction contract. It describes experiment orchestration and provenance only: it does not add an anthropological mechanism and does not create a second simulation implementation.
 
 ## Purpose
 
-A useful research simulator must support repeated stochastic runs without requiring a person to relaunch each seed by hand, while making it impossible to confuse a retry with a different experiment. M7.1 added deterministic seed ensembles around the existing AnthroSim run lifecycle. M7.2 added immutable experiment identity, explicit per-run lifecycle state, reconciliation after interruption and deterministic retry behaviour. M7.3 adds deterministic parameter-grid expansion and explicitly derived analysis tables.
+A useful research simulator must support repeated stochastic runs without requiring a person to relaunch each seed by hand, while making it impossible to confuse a retry with a different experiment. M7.1 added deterministic seed ensembles around the existing AnthroSim run lifecycle. M7.2 added immutable experiment identity, explicit per-run lifecycle state, reconciliation after interruption and deterministic retry behaviour. M7.3 added deterministic parameter-grid expansion and explicitly derived analysis tables. M7.4 and M7.5 harden that same path with long-run invariants and performance/memory acceptance. M7.6 adds a reviewable versioned experiment-definition layer for the first documented synthetic resource-variability exercise and records enough provenance for third-party reproduction.
 
 The scientific unit remains an ordinary AnthroSim run. Every child run has its own exact `ExperimentConfig`, authoritative M5 artifacts and final run manifest. The orchestration layer decides which runs were requested, records their immutable identities, tracks execution state and decides whether an exact retry is permitted. Sweep-level analysis consumes those run results; it never becomes authoritative simulation state.
 
@@ -126,13 +126,14 @@ M7.2 uses three layers to avoid accidental duplicate or ambiguous execution:
 
 These rules mean a retry can repair an interrupted experiment without silently changing what experiment was requested or overwriting a valid completed result.
 
-## M7.3 parameter sweeps
+## Parameter sweeps
 
 A sweep is an explicit deterministic Cartesian product over supported experiment controls. In v0.1 the sweepable controls are:
 
 - founder population;
 - target household size;
 - M3 resource productivity scale;
+- M3 resource seasonal-amplitude scale;
 - annual food need;
 - M4 migration enabled/disabled state;
 - M4 local migration radius.
@@ -147,13 +148,13 @@ cargo run --release -p anthrosim-cli -- sweep \
   --population 10000 \
   --seeds 1,2,3,4 \
   --sweep-resource-productivity-scale-permille 700,1000 \
-  --sweep-annual-food-need 80,120 \
+  --sweep-resource-seasonality-scale-permille 0,1000 \
   --run-dir runs/resource-sweep
 ```
 
 This expands to four parameter points. Each point is then executed over seeds 1–4, for 16 planned ordinary AnthroSim runs.
 
-M7.3 deliberately limits planning to 100,000 parameter points so an accidental combinatorial explosion is rejected before expensive execution begins. This is a planning safeguard, not a performance claim.
+AnthroSim deliberately limits planning to 100,000 parameter points so an accidental combinatorial explosion is rejected before expensive execution begins. This is a planning safeguard, not a performance claim.
 
 ## Immutable sweep manifest
 
@@ -173,7 +174,7 @@ A sweep retry uses the identical command plus `--retry`. Changing a seed, base c
 
 ## Sweep point layout and relationship to M7.2
 
-M7.3 does not invent a new child-run format. Each expanded point is an ordinary M7.2 experiment:
+The sweep layer does not invent a new child-run format. Each expanded point is an ordinary M7.2 experiment:
 
 ```text
 experiments/point-000000/
@@ -208,15 +209,15 @@ These files are explicitly labelled `derived`. They are not checkpoints, run man
 - current lifecycle state and attempt count;
 - relative source status path;
 - for completed runs, the source run-manifest path;
-- selected terminal descriptive values copied from the provenance-valid completed run manifest.
+- selected terminal descriptive values copied from the provenance-valid completed run manifest, including population, occupied-cell, resource-stress and migration outcomes.
 
-If a run is failed, incomplete, planned, running or otherwise not completed, that row remains present and terminal result fields remain empty. M7.3 therefore never hides a missing run by simply omitting it from the dataset.
+If a run is failed, incomplete, planned, running or otherwise not completed, that row remains present and terminal result fields remain empty. The sweep layer therefore never hides a missing run by simply omitting it from the dataset.
 
-`points.json` and `points.csv` contain one row per parameter point. They report planned, completed, failed, incomplete and other non-completed counts. The small descriptive means currently emitted—final living population, births and deaths—are calculated **only from completed runs**. Each point row also lists the exact completed run IDs that contributed to those means.
+`points.json` and `points.csv` contain one row per parameter point. They report planned, completed, failed, incomplete and other non-completed counts, plus explicit counts for duration reached, population extinction and the operational person-record limit. Completed-only descriptive outputs include final living population, final occupied-cell count, births, deaths, living condition, scarcity deaths, unmet resource need, migration moves and migration distance. A pooled completed-only migration-distance-per-move value is also emitted where moves occurred. Each point row lists the exact completed run IDs that contributed to those summaries.
 
 This completed-only rule is intentionally visible in field names such as `meanFinalLivingPopulationCompletedOnly`. A point with two successful and two failed seeds therefore reports `completedRuns = 2`, `failedRuns = 2`, and its mean is explicitly a mean of those two completed source runs—not a four-run result.
 
-`analysis/summary.json` records how many run and point rows were emitted and how many planned runs were completed versus non-completed.
+`analysis/summary.json` records the number of run rows and point rows plus completed and non-completed run counts.
 
 ## Python and R consumption
 
@@ -237,7 +238,41 @@ points <- read.csv("runs/resource-sweep/analysis/points.csv")
 
 The JSON equivalents preserve null values and nested source-run ID lists for consumers that prefer structured records.
 
-M7.3 intentionally does **not** add statistical inference, plotting, notebook machinery, sensitivity-analysis algorithms or a general-purpose statistics dependency to AnthroSim core. More sophisticated inference belongs in downstream scientific workflows where assumptions and methods can be chosen explicitly.
+AnthroSim intentionally does **not** add statistical inference, plotting, notebook machinery, sensitivity-analysis algorithms or a general-purpose statistics dependency to the simulation core. More sophisticated inference belongs in downstream scientific workflows where assumptions and methods can be chosen explicitly.
+
+## Versioned experiment definitions and M7.6 reproduction
+
+M7.6 adds a small adapter for reviewable versioned sweep definitions. The canonical v0.1 exercise is stored at:
+
+```text
+experiments/v0.1-resource-variability.json
+```
+
+The definition records the synthetic-validation status, research-style question, base controls, exact ordered seed set, factorial dimensions and plain-language interpretation of the varied controls. `scripts/run-versioned-sweep.py` translates that file into the ordinary `anthrosim sweep` CLI and then verifies that the generated immutable `sweep-manifest.json` contains the same seeds, base settings and dimensions. The adapter does not simulate agents and does not aggregate results independently.
+
+For strongest source provenance, build the release binary with the checked-out revision embedded before launching the experiment. On a POSIX shell:
+
+```text
+ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)" cargo build --locked --workspace --release
+python3 scripts/run-versioned-sweep.py \
+  experiments/v0.1-resource-variability.json \
+  --binary target/release/anthrosim \
+  --run-dir runs/v0.1-resource-variability
+```
+
+On PowerShell, set the equivalent environment variable before the build:
+
+```text
+$env:ANTHROSIM_GIT_COMMIT = (git rev-parse HEAD)
+cargo build --locked --workspace --release
+python scripts/run-versioned-sweep.py experiments/v0.1-resource-variability.json --binary target/release/anthrosim.exe --run-dir runs/v0.1-resource-variability
+```
+
+A successful versioned run copies the exact input to `source-definition.json` and writes `reproduction-record.json`. That record contains the SHA-256 of the source definition, model/package version, embedded git revision when present, immutable sweep ID and paths to the authoritative sweep manifest and derived analysis directory. The immutable sweep manifest remains authoritative for the fully expanded point/run identity.
+
+To retry an interrupted reproduction, use the exact same checked-out model revision, definition file, binary identity and output directory plus `--retry`. M7.2/M7.3 reconciliation then preserves valid completed children and retries only unfinished/failed runs; a changed immutable definition is rejected.
+
+The canonical experiment's observed results and interpretation are documented separately in `docs/research/resource-variability-v0.1.md`. That document is explicitly a synthetic-model exercise, not an empirical validation report.
 
 ## Relationship to single-run execution
 
@@ -251,7 +286,7 @@ Existing `anthrosim run` and `anthrosim resume` behaviour remains unchanged.
 
 Only runs in `completed` state with provenance-valid child bundles are successful experiment results. `failed`, `incomplete`, `planned` and `running` states are explicit non-results and must not be silently mixed into successful result sets.
 
-M7.3 consumes that boundary rather than weakening it. Run-level derived tables preserve non-completed rows; point-level descriptive means use completed runs only and publish both completion counts and source run IDs. A researcher can therefore filter differently downstream if a study design requires it, but AnthroSim never silently pretends missing runs were successful.
+The sweep analysis layer consumes that boundary rather than weakening it. Run-level derived tables preserve non-completed rows; point-level descriptive means use completed runs only and publish both completion counts and source run IDs. A researcher can therefore filter differently downstream if a study design requires it, but AnthroSim never silently pretends missing runs were successful.
 
 ## Example fresh ensemble
 
@@ -271,4 +306,4 @@ All non-seed controls are shared across these child runs. Each exact per-run con
 
 Running many seeds or parameter points does not validate the model and does not turn synthetic assumptions into empirical parameters. An ensemble or sweep measures behaviour under declared executable models and configurations. Interpretation still has to respect the provenance and synthetic-validation boundaries documented for demography, resources and migration.
 
-M7.3 provides reproducible experiment design and clean descriptive outputs; it does not establish that the parameter ranges themselves are archaeologically or anthropologically justified.
+M7 provides reproducible experiment design, explicit failure accounting, clean descriptive outputs, long-run invariant checks, an engineering performance envelope and a versioned reproduction path. It does not establish that the parameter ranges themselves are archaeologically or anthropologically justified.
