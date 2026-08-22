@@ -17,7 +17,7 @@ pub struct ExperimentConfig {
 }
 
 impl ExperimentConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 6;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 7;
 
     #[must_use]
     pub fn new(seed: u64, duration_years: u64) -> Self {
@@ -286,6 +286,9 @@ pub struct ResourceConfig {
     pub annual_need_units_per_person: u32,
     pub annual_regeneration_units_per_productivity: u32,
     pub productivity_scale_permille: u16,
+    /// Scales the generated cell seasonal amplitude, 0..=1000.
+    /// 0 removes the seasonal swing; 1000 preserves the synthetic v0.1 baseline.
+    pub seasonality_scale_permille: u16,
     pub cell_stock_capacity_years: u16,
     pub condition_recovery_per_period: u16,
     pub max_condition_loss_per_period: u16,
@@ -293,7 +296,7 @@ pub struct ResourceConfig {
 }
 
 impl ResourceConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub fn synthetic_validation_v1() -> Self {
@@ -305,6 +308,7 @@ impl ResourceConfig {
             annual_need_units_per_person: 100,
             annual_regeneration_units_per_productivity: 1,
             productivity_scale_permille: 1_000,
+            seasonality_scale_permille: 1_000,
             cell_stock_capacity_years: 10,
             condition_recovery_per_period: 25,
             max_condition_loss_per_period: 200,
@@ -315,6 +319,12 @@ impl ResourceConfig {
     #[must_use]
     pub const fn with_productivity_scale_permille(mut self, value: u16) -> Self {
         self.productivity_scale_permille = value;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_seasonality_scale_permille(mut self, value: u16) -> Self {
+        self.seasonality_scale_permille = value;
         self
     }
 

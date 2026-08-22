@@ -60,6 +60,10 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         resource_productivity_scale_permille: u16,
 
+        /// Synthetic seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
+        #[arg(long, default_value_t = 1_000)]
+        resource_seasonality_scale_permille: u16,
+
         /// Synthetic annual resource need per living person, in abstract units.
         #[arg(long, default_value_t = 100)]
         annual_food_need: u32,
@@ -140,6 +144,10 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         resource_productivity_scale_permille: u16,
 
+        /// Synthetic seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
+        #[arg(long, default_value_t = 1_000)]
+        resource_seasonality_scale_permille: u16,
+
         /// Synthetic annual resource need per living person, in abstract units.
         #[arg(long, default_value_t = 100)]
         annual_food_need: u32,
@@ -208,6 +216,10 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         resource_productivity_scale_permille: u16,
 
+        /// Synthetic seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
+        #[arg(long, default_value_t = 1_000)]
+        resource_seasonality_scale_permille: u16,
+
         /// Base annual resource need when its sweep dimension is not supplied.
         #[arg(long, default_value_t = 100)]
         annual_food_need: u32,
@@ -231,6 +243,10 @@ enum Command {
         /// Explicit M3 productivity-scale values for the Cartesian parameter grid.
         #[arg(long, value_delimiter = ',', num_args = 1..)]
         sweep_resource_productivity_scale_permille: Vec<u16>,
+
+        /// Explicit seasonal-amplitude scales for the Cartesian parameter grid.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_resource_seasonality_scale_permille: Vec<u16>,
 
         /// Explicit annual-resource-need values for the Cartesian parameter grid.
         #[arg(long, value_delimiter = ',', num_args = 1..)]
@@ -290,6 +306,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             household_size,
             max_person_records,
             resource_productivity_scale_permille,
+            resource_seasonality_scale_permille,
             annual_food_need,
             disable_migration,
             migration_radius,
@@ -307,6 +324,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 household_size,
                 max_person_records,
                 resource_productivity_scale_permille,
+                resource_seasonality_scale_permille,
                 annual_food_need,
                 disable_migration,
                 migration_radius,
@@ -370,6 +388,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             household_size,
             max_person_records,
             resource_productivity_scale_permille,
+            resource_seasonality_scale_permille,
             annual_food_need,
             disable_migration,
             migration_radius,
@@ -385,6 +404,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 household_size,
                 max_person_records,
                 resource_productivity_scale_permille,
+                resource_seasonality_scale_permille,
                 annual_food_need,
                 disable_migration,
                 migration_radius,
@@ -402,12 +422,14 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             household_size,
             max_person_records,
             resource_productivity_scale_permille,
+            resource_seasonality_scale_permille,
             annual_food_need,
             disable_migration,
             migration_radius,
             sweep_population,
             sweep_household_size,
             sweep_resource_productivity_scale_permille,
+            sweep_resource_seasonality_scale_permille,
             sweep_annual_food_need,
             sweep_disable_migration,
             sweep_migration_radius,
@@ -423,6 +445,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 household_size,
                 max_person_records,
                 resource_productivity_scale_permille,
+                resource_seasonality_scale_permille,
                 annual_food_need,
                 disable_migration,
                 migration_radius,
@@ -431,6 +454,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 population: sweep_population,
                 household_size: sweep_household_size,
                 resource_productivity_scale_permille: sweep_resource_productivity_scale_permille,
+                resource_seasonality_scale_permille: sweep_resource_seasonality_scale_permille,
                 annual_food_need: sweep_annual_food_need,
                 disable_migration: sweep_disable_migration,
                 migration_radius: sweep_migration_radius,
