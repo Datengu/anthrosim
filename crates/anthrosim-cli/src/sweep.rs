@@ -8,8 +8,8 @@ use crate::{
     read_json, write_json,
 };
 
-const SWEEP_MANIFEST_SCHEMA_VERSION: u32 = 1;
-const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 1;
+const SWEEP_MANIFEST_SCHEMA_VERSION: u32 = 2;
+const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 2;
 const MAX_SWEEP_POINTS: usize = 100_000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -18,6 +18,7 @@ pub(crate) struct SweepDimensions {
     pub(crate) population: Vec<u32>,
     pub(crate) household_size: Vec<u16>,
     pub(crate) resource_productivity_scale_permille: Vec<u16>,
+    pub(crate) resource_seasonality_scale_permille: Vec<u16>,
     pub(crate) annual_food_need: Vec<u32>,
     pub(crate) disable_migration: Vec<bool>,
     pub(crate) migration_radius: Vec<u16>,
@@ -28,6 +29,7 @@ impl SweepDimensions {
         !self.population.is_empty()
             || !self.household_size.is_empty()
             || !self.resource_productivity_scale_permille.is_empty()
+            || !self.resource_seasonality_scale_permille.is_empty()
             || !self.annual_food_need.is_empty()
             || !self.disable_migration.is_empty()
             || !self.migration_radius.is_empty()
@@ -91,6 +93,7 @@ struct DerivedRunRow {
     household_size: u16,
     max_person_records: u64,
     resource_productivity_scale_permille: u16,
+    resource_seasonality_scale_permille: u16,
     annual_food_need: u32,
     disable_migration: bool,
     migration_radius: u16,
@@ -102,6 +105,11 @@ struct DerivedRunRow {
     household_count: Option<u64>,
     mean_living_condition_permille: Option<u16>,
     authoritative_event_count: Option<u64>,
+    final_living_occupied_cell_count: Option<u64>,
+    resource_scarcity_deaths: Option<u64>,
+    resource_unmet_need: Option<u64>,
+    migration_moves_completed: Option<u64>,
+    migration_total_distance_cells: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,14 +120,29 @@ struct DerivedPointRow {
     sweep_id: String,
     point_id: String,
     experiment_id: Option<String>,
+    initial_population: u32,
+    resource_productivity_scale_permille: u16,
+    resource_seasonality_scale_permille: u16,
+    disable_migration: bool,
+    migration_radius: u16,
     planned_runs: u64,
     completed_runs: u64,
     failed_runs: u64,
     incomplete_runs: u64,
     other_non_completed_runs: u64,
+    duration_reached_runs: u64,
+    population_extinct_runs: u64,
+    person_record_limit_reached_runs: u64,
     mean_final_living_population_completed_only: Option<f64>,
+    mean_final_living_occupied_cell_count_completed_only: Option<f64>,
     mean_births_since_start_completed_only: Option<f64>,
     mean_deaths_since_start_completed_only: Option<f64>,
+    mean_living_condition_permille_completed_only: Option<f64>,
+    mean_resource_scarcity_deaths_completed_only: Option<f64>,
+    mean_resource_unmet_need_completed_only: Option<f64>,
+    mean_migration_moves_completed_only: Option<f64>,
+    mean_migration_total_distance_cells_completed_only: Option<f64>,
+    pooled_mean_migration_distance_cells_per_move_completed_only: Option<f64>,
     source_completed_run_ids: Vec<String>,
 }
 
@@ -248,6 +271,10 @@ fn validate_dimensions(dimensions: &SweepDimensions) -> Result<(), io::Error> {
         "resource-productivity-scale-permille",
         &dimensions.resource_productivity_scale_permille,
     )?;
+    validate_unique(
+        "resource-seasonality-scale-permille",
+        &dimensions.resource_seasonality_scale_permille,
+    )?;
     validate_unique("annual-food-need", &dimensions.annual_food_need)?;
     validate_unique("disable-migration", &dimensions.disable_migration)?;
     validate_unique("migration-radius", &dimensions.migration_radius)?;
@@ -280,6 +307,10 @@ fn expand_sweep_points(
         &dimensions.resource_productivity_scale_permille,
         base.resource_productivity_scale_permille,
     );
+    let seasonalities = values_or_base(
+        &dimensions.resource_seasonality_scale_permille,
+        base.resource_seasonality_scale_permille,
+    );
     let annual_food_needs = values_or_base(&dimensions.annual_food_need, base.annual_food_need);
     let migration_switches = values_or_base(&dimensions.disable_migration, base.disable_migration);
     let migration_radii = values_or_base(&dimensions.migration_radius, base.migration_radius);
@@ -288,6 +319,7 @@ fn expand_sweep_points(
         populations.len(),
         household_sizes.len(),
         productivities.len(),
+        seasonalities.len(),
         annual_food_needs.len(),
         migration_switches.len(),
         migration_radii.len(),
@@ -308,24 +340,28 @@ fn expand_sweep_points(
     for &population in &populations {
         for &household_size in &household_sizes {
             for &resource_productivity_scale_permille in &productivities {
-                for &annual_food_need in &annual_food_needs {
-                    for &disable_migration in &migration_switches {
-                        for &migration_radius in &migration_radii {
-                            let index = points.len();
-                            let point_id = format!("point-{index:06}");
-                            let mut settings = base.clone();
-                            settings.population = population;
-                            settings.household_size = household_size;
-                            settings.resource_productivity_scale_permille =
-                                resource_productivity_scale_permille;
-                            settings.annual_food_need = annual_food_need;
-                            settings.disable_migration = disable_migration;
-                            settings.migration_radius = migration_radius;
-                            points.push(SweepPoint {
-                                relative_experiment_dir: format!("experiments/{point_id}"),
-                                point_id,
-                                settings,
-                            });
+                for &resource_seasonality_scale_permille in &seasonalities {
+                    for &annual_food_need in &annual_food_needs {
+                        for &disable_migration in &migration_switches {
+                            for &migration_radius in &migration_radii {
+                                let index = points.len();
+                                let point_id = format!("point-{index:06}");
+                                let mut settings = base.clone();
+                                settings.population = population;
+                                settings.household_size = household_size;
+                                settings.resource_productivity_scale_permille =
+                                    resource_productivity_scale_permille;
+                                settings.resource_seasonality_scale_permille =
+                                    resource_seasonality_scale_permille;
+                                settings.annual_food_need = annual_food_need;
+                                settings.disable_migration = disable_migration;
+                                settings.migration_radius = migration_radius;
+                                points.push(SweepPoint {
+                                    relative_experiment_dir: format!("experiments/{point_id}"),
+                                    point_id,
+                                    settings,
+                                });
+                            }
                         }
                     }
                 }
@@ -477,6 +513,9 @@ fn build_run_rows(
                 resource_productivity_scale_permille: point
                     .settings
                     .resource_productivity_scale_permille,
+                resource_seasonality_scale_permille: point
+                    .settings
+                    .resource_seasonality_scale_permille,
                 annual_food_need: point.settings.annual_food_need,
                 disable_migration: point.settings.disable_migration,
                 migration_radius: point.settings.migration_radius,
@@ -488,6 +527,11 @@ fn build_run_rows(
                 household_count: None,
                 mean_living_condition_permille: None,
                 authoritative_event_count: None,
+                final_living_occupied_cell_count: None,
+                resource_scarcity_deaths: None,
+                resource_unmet_need: None,
+                migration_moves_completed: None,
+                migration_total_distance_cells: None,
             };
 
             if state == "completed" {
@@ -516,6 +560,8 @@ fn build_run_rows(
                         .resources
                         .productivity_scale_permille
                         != point.settings.resource_productivity_scale_permille
+                    || run_manifest.experiment.resources.seasonality_scale_permille
+                        != point.settings.resource_seasonality_scale_permille
                     || run_manifest
                         .experiment
                         .resources
@@ -547,6 +593,13 @@ fn build_run_rows(
                     Some(run_manifest.population.mean_living_condition_permille);
                 row.authoritative_event_count =
                     Some(run_manifest.statistics.authoritative_event_count);
+                row.final_living_occupied_cell_count =
+                    Some(run_manifest.population.living_occupied_cell_count);
+                row.resource_scarcity_deaths = Some(run_manifest.resources.scarcity_deaths);
+                row.resource_unmet_need = Some(run_manifest.resources.unmet_need);
+                row.migration_moves_completed = Some(run_manifest.migration.moves_completed);
+                row.migration_total_distance_cells =
+                    Some(run_manifest.migration.total_distance_cells);
             }
             rows.push(row);
         }
@@ -593,21 +646,59 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 .count() as u64;
             let other_non_completed_runs =
                 point_runs.len() as u64 - completed_runs - failed_runs - incomplete_runs;
+            let duration_reached_runs = completed
+                .iter()
+                .filter(|row| row.stop_reason.as_deref() == Some("durationReached"))
+                .count() as u64;
+            let population_extinct_runs = completed
+                .iter()
+                .filter(|row| row.stop_reason.as_deref() == Some("populationExtinct"))
+                .count() as u64;
+            let person_record_limit_reached_runs = completed
+                .iter()
+                .filter(|row| row.stop_reason.as_deref() == Some("personRecordLimitReached"))
+                .count() as u64;
+            let migration_moves = completed
+                .iter()
+                .filter_map(|row| row.migration_moves_completed)
+                .fold(0_u128, |sum, value| sum + u128::from(value));
+            let migration_distance = completed
+                .iter()
+                .filter_map(|row| row.migration_total_distance_cells)
+                .fold(0_u128, |sum, value| sum + u128::from(value));
+
             DerivedPointRow {
                 schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
                 provenance: "derived".to_owned(),
                 sweep_id: sweep.sweep_id.clone(),
                 point_id: point.point_id.clone(),
                 experiment_id: point_runs.first().and_then(|row| row.experiment_id.clone()),
+                initial_population: point.settings.population,
+                resource_productivity_scale_permille: point
+                    .settings
+                    .resource_productivity_scale_permille,
+                resource_seasonality_scale_permille: point
+                    .settings
+                    .resource_seasonality_scale_permille,
+                disable_migration: point.settings.disable_migration,
+                migration_radius: point.settings.migration_radius,
                 planned_runs: point_runs.len() as u64,
                 completed_runs,
                 failed_runs,
                 incomplete_runs,
                 other_non_completed_runs,
+                duration_reached_runs,
+                population_extinct_runs,
+                person_record_limit_reached_runs,
                 mean_final_living_population_completed_only: mean_u64(
                     completed
                         .iter()
                         .filter_map(|row| row.final_living_population),
+                ),
+                mean_final_living_occupied_cell_count_completed_only: mean_u64(
+                    completed
+                        .iter()
+                        .filter_map(|row| row.final_living_occupied_cell_count),
                 ),
                 mean_births_since_start_completed_only: mean_u64(
                     completed.iter().filter_map(|row| row.births_since_start),
@@ -615,6 +706,36 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 mean_deaths_since_start_completed_only: mean_u64(
                     completed.iter().filter_map(|row| row.deaths_since_start),
                 ),
+                mean_living_condition_permille_completed_only: mean_u64(
+                    completed
+                        .iter()
+                        .filter_map(|row| row.mean_living_condition_permille.map(u64::from)),
+                ),
+                mean_resource_scarcity_deaths_completed_only: mean_u64(
+                    completed
+                        .iter()
+                        .filter_map(|row| row.resource_scarcity_deaths),
+                ),
+                mean_resource_unmet_need_completed_only: mean_u64(
+                    completed.iter().filter_map(|row| row.resource_unmet_need),
+                ),
+                mean_migration_moves_completed_only: mean_u64(
+                    completed
+                        .iter()
+                        .filter_map(|row| row.migration_moves_completed),
+                ),
+                mean_migration_total_distance_cells_completed_only: mean_u64(
+                    completed
+                        .iter()
+                        .filter_map(|row| row.migration_total_distance_cells),
+                ),
+                pooled_mean_migration_distance_cells_per_move_completed_only: if migration_moves
+                    == 0
+                {
+                    None
+                } else {
+                    Some(migration_distance as f64 / migration_moves as f64)
+                },
                 source_completed_run_ids: completed
                     .iter()
                     .map(|row| format!("{}/{}", row.point_id, row.run_id))
@@ -637,7 +758,8 @@ fn mean_u64(values: impl Iterator<Item = u64>) -> Option<f64> {
 
 fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count\n",
+        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,resource_scarcity_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells
+",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -656,6 +778,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
             row.household_size.to_string(),
             row.max_person_records.to_string(),
             row.resource_productivity_scale_permille.to_string(),
+            row.resource_seasonality_scale_permille.to_string(),
             row.annual_food_need.to_string(),
             row.disable_migration.to_string(),
             row.migration_radius.to_string(),
@@ -667,6 +790,11 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
             optional_to_string(row.household_count),
             optional_to_string(row.mean_living_condition_permille),
             optional_to_string(row.authoritative_event_count),
+            optional_to_string(row.final_living_occupied_cell_count),
+            optional_to_string(row.resource_scarcity_deaths),
+            optional_to_string(row.resource_unmet_need),
+            optional_to_string(row.migration_moves_completed),
+            optional_to_string(row.migration_total_distance_cells),
         ]));
     }
     fs::write(path, csv)
@@ -674,25 +802,55 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,mean_final_living_population_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,source_completed_run_ids\n",
+        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,mean_final_living_population_completed_only,mean_final_living_occupied_cell_count_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,mean_living_condition_permille_completed_only,mean_resource_scarcity_deaths_completed_only,mean_resource_unmet_need_completed_only,mean_migration_moves_completed_only,mean_migration_total_distance_cells_completed_only,pooled_mean_migration_distance_cells_per_move_completed_only,source_completed_run_ids
+",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
             row.sweep_id.clone(),
             row.point_id.clone(),
             row.experiment_id.clone().unwrap_or_default(),
+            row.initial_population.to_string(),
+            row.resource_productivity_scale_permille.to_string(),
+            row.resource_seasonality_scale_permille.to_string(),
+            row.disable_migration.to_string(),
+            row.migration_radius.to_string(),
             row.planned_runs.to_string(),
             row.completed_runs.to_string(),
             row.failed_runs.to_string(),
             row.incomplete_runs.to_string(),
             row.other_non_completed_runs.to_string(),
+            row.duration_reached_runs.to_string(),
+            row.population_extinct_runs.to_string(),
+            row.person_record_limit_reached_runs.to_string(),
             row.mean_final_living_population_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_final_living_occupied_cell_count_completed_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
             row.mean_births_since_start_completed_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
             row.mean_deaths_since_start_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_living_condition_permille_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_resource_scarcity_deaths_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_resource_unmet_need_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_migration_moves_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_migration_total_distance_cells_completed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.pooled_mean_migration_distance_cells_per_move_completed_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
             row.source_completed_run_ids.join("|"),
@@ -775,6 +933,7 @@ mod tests {
             household_size: 4,
             max_person_records: 100,
             resource_productivity_scale_permille: 1_000,
+            resource_seasonality_scale_permille: 1_000,
             annual_food_need: 100,
             disable_migration: false,
             migration_radius: 3,
@@ -786,6 +945,7 @@ mod tests {
             population: vec![],
             household_size: vec![],
             resource_productivity_scale_permille: vec![800, 1_000],
+            resource_seasonality_scale_permille: vec![],
             annual_food_need: vec![80, 100],
             disable_migration: vec![],
             migration_radius: vec![],
@@ -835,6 +995,7 @@ mod tests {
             resource_productivity_scale_permille: point
                 .settings
                 .resource_productivity_scale_permille,
+            resource_seasonality_scale_permille: point.settings.resource_seasonality_scale_permille,
             annual_food_need: point.settings.annual_food_need,
             disable_migration: point.settings.disable_migration,
             migration_radius: point.settings.migration_radius,
@@ -846,6 +1007,11 @@ mod tests {
             household_count: None,
             mean_living_condition_permille: None,
             authoritative_event_count: None,
+            final_living_occupied_cell_count: None,
+            resource_scarcity_deaths: None,
+            resource_unmet_need: None,
+            migration_moves_completed: None,
+            migration_total_distance_cells: None,
         }
     }
 
@@ -865,6 +1031,27 @@ mod tests {
         );
         assert_eq!(first[2].settings.annual_food_need, 80);
         assert_eq!(first[3].point_id, "point-000003");
+    }
+
+    #[test]
+    fn seasonality_dimension_is_part_of_deterministic_sweep_identity() {
+        let mut seasonal = dimensions();
+        seasonal.resource_productivity_scale_permille = vec![1_000];
+        seasonal.annual_food_need.clear();
+        seasonal.resource_seasonality_scale_permille = vec![0, 500, 1_000];
+        let points = expand_sweep_points(&small_settings(), &seasonal).expect("points");
+        assert_eq!(points.len(), 3);
+        assert_eq!(points[0].settings.resource_seasonality_scale_permille, 0);
+        assert_eq!(points[1].settings.resource_seasonality_scale_permille, 500);
+        assert_eq!(
+            points[2].settings.resource_seasonality_scale_permille,
+            1_000
+        );
+        let first =
+            build_sweep_manifest(small_settings(), vec![3, 7], seasonal.clone()).expect("sweep");
+        seasonal.resource_seasonality_scale_permille = vec![0, 1_000];
+        let changed = build_sweep_manifest(small_settings(), vec![3, 7], seasonal).expect("sweep");
+        assert_ne!(first.sweep_id, changed.sweep_id);
     }
 
     #[test]
@@ -894,6 +1081,7 @@ mod tests {
             population: vec![12],
             household_size: vec![],
             resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
             annual_food_need: vec![],
             disable_migration: vec![],
             migration_radius: vec![],
@@ -932,6 +1120,7 @@ mod tests {
             population: vec![],
             household_size: vec![],
             resource_productivity_scale_permille: vec![900, 1_000],
+            resource_seasonality_scale_permille: vec![],
             annual_food_need: vec![],
             disable_migration: vec![],
             migration_radius: vec![],
@@ -964,6 +1153,7 @@ mod tests {
             population: vec![12, 16],
             household_size: vec![],
             resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
             annual_food_need: vec![],
             disable_migration: vec![],
             migration_radius: vec![],
@@ -974,6 +1164,7 @@ mod tests {
             population: vec![12, 20],
             household_size: vec![],
             resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
             annual_food_need: vec![],
             disable_migration: vec![],
             migration_radius: vec![],
