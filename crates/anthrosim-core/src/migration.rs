@@ -5,10 +5,11 @@ use thiserror::Error;
 
 use crate::{
     config::MigrationConfig,
+    events::{EventKind, EventLog},
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, PopulationError},
     resources::ResourceSystem,
-    rng::RngFactory,
+    rng::{RngFactory, RngStreamPosition},
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
 };
 
@@ -79,6 +80,34 @@ impl MigrationSummary {
     pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationCheckpointState {
+    pub schema_version: u32,
+    pub model_id: String,
+    pub decision_boundaries: u64,
+    pub households_evaluated: u64,
+    pub households_under_pressure: u64,
+    pub moves_completed: u64,
+    pub people_moved: u64,
+    pub total_distance_cells: u64,
+    pub northward_steps: u64,
+    pub eastward_steps: u64,
+    pub southward_steps: u64,
+    pub westward_steps: u64,
+    pub travel_condition_cost_total: u64,
+    pub origin_resource_score_total: u64,
+    pub destination_resource_score_total: u64,
+    pub origin_water_security_score_total: u64,
+    pub destination_water_security_score_total: u64,
+    pub occupied_cell_delta_from_migration: i64,
+    pub recorded_decision_traces: Vec<MigrationDecisionTrace>,
+}
+
+impl MigrationCheckpointState {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+}
+
 #[derive(Debug, Clone, Copy)]
 struct CandidateEvaluation {
     cell: CellId,
@@ -109,6 +138,18 @@ impl MigrationRngs {
             choice: factory.stream("migration/choice"),
             uncertainty: factory.stream("migration/uncertainty"),
         }
+    }
+
+    pub(crate) fn positions(&self) -> [RngStreamPosition; 2] {
+        [
+            RngStreamPosition::capture(&self.choice),
+            RngStreamPosition::capture(&self.uncertainty),
+        ]
+    }
+
+    pub(crate) fn restore_positions(&mut self, positions: [RngStreamPosition; 2]) {
+        positions[0].restore(&mut self.choice);
+        positions[1].restore(&mut self.uncertainty);
     }
 }
 
@@ -201,6 +242,17 @@ impl MigrationSystem {
         population: &mut Population,
         context: &MigrationBoundaryContext<'_>,
         rngs: &mut MigrationRngs,
+    ) -> Result<(), MigrationError> {
+        let mut events = EventLog::new();
+        self.process_boundary_recorded(population, context, rngs, &mut events)
+    }
+
+    pub(crate) fn process_boundary_recorded(
+        &mut self,
+        population: &mut Population,
+        context: &MigrationBoundaryContext<'_>,
+        rngs: &mut MigrationRngs,
+        events: &mut EventLog,
     ) -> Result<(), MigrationError> {
         let MigrationBoundaryContext {
             world,
@@ -379,6 +431,7 @@ impl MigrationSystem {
                 total_weight,
                 choice_draw,
                 condition_cost,
+                events,
             )?;
         }
 
@@ -576,6 +629,7 @@ impl MigrationSystem {
         total_weight: u64,
         choice_draw: u64,
         condition_cost: u16,
+        events: &mut EventLog,
     ) -> Result<(), MigrationError> {
         self.moves_completed = self
             .moves_completed
@@ -657,6 +711,25 @@ impl MigrationSystem {
                 travel_condition_cost_per_person: condition_cost,
             });
         }
+        events.push_authoritative(
+            day,
+            EventKind::HouseholdMigration {
+                household,
+                people_moved: members,
+                origin,
+                destination: selected.cell,
+                distance_cells: selected.distance,
+                pressure_permille: pressure,
+                origin_utility,
+                destination_utility: selected.utility,
+                best_candidate,
+                best_candidate_utility,
+                selected_weight: selected.weight,
+                total_move_weight: total_weight,
+                choice_draw,
+                travel_condition_cost_per_person: condition_cost,
+            },
+        );
         let _ = household_index;
         let _ = population;
         Ok(())
@@ -769,6 +842,63 @@ impl MigrationSystem {
             recorded_decision_traces: self.recorded_decision_traces.clone(),
             digest64: self.digest64(),
         }
+    }
+
+    pub(crate) fn checkpoint_state(&self) -> MigrationCheckpointState {
+        MigrationCheckpointState {
+            schema_version: MigrationCheckpointState::CURRENT_SCHEMA_VERSION,
+            model_id: self.model_id.clone(),
+            decision_boundaries: self.decision_boundaries,
+            households_evaluated: self.households_evaluated,
+            households_under_pressure: self.households_under_pressure,
+            moves_completed: self.moves_completed,
+            people_moved: self.people_moved,
+            total_distance_cells: self.total_distance_cells,
+            northward_steps: self.northward_steps,
+            eastward_steps: self.eastward_steps,
+            southward_steps: self.southward_steps,
+            westward_steps: self.westward_steps,
+            travel_condition_cost_total: self.travel_condition_cost_total,
+            origin_resource_score_total: self.origin_resource_score_total,
+            destination_resource_score_total: self.destination_resource_score_total,
+            origin_water_security_score_total: self.origin_water_security_score_total,
+            destination_water_security_score_total: self.destination_water_security_score_total,
+            occupied_cell_delta_from_migration: self.occupied_cell_delta_from_migration,
+            recorded_decision_traces: self.recorded_decision_traces.clone(),
+        }
+    }
+
+    pub(crate) fn from_checkpoint_state(
+        population: &Population,
+        world: &World,
+        config: &MigrationConfig,
+        state: MigrationCheckpointState,
+    ) -> Result<Self, MigrationError> {
+        if state.schema_version != MigrationCheckpointState::CURRENT_SCHEMA_VERSION
+            || state.model_id != config.model_id
+        {
+            return Err(MigrationError::CheckpointStateMismatch);
+        }
+        let mut system = Self::initialize(population, world, config)?;
+        system.decision_boundaries = state.decision_boundaries;
+        system.households_evaluated = state.households_evaluated;
+        system.households_under_pressure = state.households_under_pressure;
+        system.moves_completed = state.moves_completed;
+        system.people_moved = state.people_moved;
+        system.total_distance_cells = state.total_distance_cells;
+        system.northward_steps = state.northward_steps;
+        system.eastward_steps = state.eastward_steps;
+        system.southward_steps = state.southward_steps;
+        system.westward_steps = state.westward_steps;
+        system.travel_condition_cost_total = state.travel_condition_cost_total;
+        system.origin_resource_score_total = state.origin_resource_score_total;
+        system.destination_resource_score_total = state.destination_resource_score_total;
+        system.origin_water_security_score_total = state.origin_water_security_score_total;
+        system.destination_water_security_score_total =
+            state.destination_water_security_score_total;
+        system.occupied_cell_delta_from_migration = state.occupied_cell_delta_from_migration;
+        system.recorded_decision_traces = state.recorded_decision_traces;
+        Ok(system)
     }
 
     #[must_use]
@@ -986,6 +1116,8 @@ pub enum MigrationError {
     AccountingOverflow,
     #[error("migration state shape does not match population/world")]
     StateShapeMismatch,
+    #[error("migration checkpoint state is incompatible with this model/config")]
+    CheckpointStateMismatch,
     #[error("migration internal invariant failed: {0}")]
     InternalInvariant(&'static str),
 }

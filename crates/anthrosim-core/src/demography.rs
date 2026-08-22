@@ -4,9 +4,10 @@ use thiserror::Error;
 
 use crate::{
     config::{AgeProbabilityBand, DemographyConfig, PROBABILITY_PER_MILLION},
+    events::{DeathCause, EventKind, EventLog},
     ids::{CellId, PersonId},
     population::{Population, PopulationError, ReproductiveSex},
-    rng::RngFactory,
+    rng::{RngFactory, RngStreamPosition},
     time::{DAYS_PER_YEAR, SimTime},
     world::{PERMILLE_MAX, World},
 };
@@ -148,6 +149,22 @@ impl DemographyRngs {
             newborn_sex: factory.stream("demography/newborn_sex"),
         }
     }
+
+    pub(crate) fn positions(&self) -> [RngStreamPosition; 4] {
+        [
+            RngStreamPosition::capture(&self.mortality),
+            RngStreamPosition::capture(&self.fertility),
+            RngStreamPosition::capture(&self.parentage),
+            RngStreamPosition::capture(&self.newborn_sex),
+        ]
+    }
+
+    pub(crate) fn restore_positions(&mut self, positions: [RngStreamPosition; 4]) {
+        positions[0].restore(&mut self.mortality);
+        positions[1].restore(&mut self.fertility);
+        positions[2].restore(&mut self.parentage);
+        positions[3].restore(&mut self.newborn_sex);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,6 +189,18 @@ pub(crate) fn process_demographic_year(
     day: u64,
     rngs: &mut DemographyRngs,
 ) -> Result<DemographyStepOutcome, PopulationError> {
+    let mut events = EventLog::new();
+    process_demographic_year_recorded(population, world, config, day, rngs, &mut events)
+}
+
+pub(crate) fn process_demographic_year_recorded(
+    population: &mut Population,
+    world: &World,
+    config: &DemographyConfig,
+    day: u64,
+    rngs: &mut DemographyRngs,
+    events: &mut EventLog,
+) -> Result<DemographyStepOutcome, PopulationError> {
     let records_at_boundary_start = population.person_count();
 
     for index in 0..records_at_boundary_start {
@@ -186,7 +215,43 @@ pub(crate) fn process_demographic_year(
                 })?;
         let probability = annual_probability_for_age(&config.mortality_bands, age_days);
         if draw_per_million(&mut rngs.mortality, probability) {
-            population.mark_death(index, day);
+            let person =
+                population
+                    .person_id_at_index(index)
+                    .ok_or(PopulationError::InternalInvariant {
+                        reason: "living person is missing a stable ID at mortality boundary",
+                    })?;
+            let household =
+                population
+                    .household_at_index(index)
+                    .ok_or(PopulationError::InternalInvariant {
+                        reason: "living person is missing a household at mortality boundary",
+                    })?;
+            let cell =
+                population
+                    .location_at_index(index)
+                    .ok_or(PopulationError::InternalInvariant {
+                        reason: "living person is missing a location at mortality boundary",
+                    })?;
+            let condition =
+                population
+                    .condition_at_index(index)
+                    .ok_or(PopulationError::InternalInvariant {
+                        reason: "living person is missing condition at mortality boundary",
+                    })?;
+            if population.mark_death(index, day) {
+                events.push_authoritative(
+                    day,
+                    EventKind::Death {
+                        person,
+                        household,
+                        cell,
+                        cause: DeathCause::DemographicMortality,
+                        condition_permille: condition,
+                        probability_per_million: probability,
+                    },
+                );
+            }
         }
     }
 
@@ -270,6 +335,23 @@ pub(crate) fn process_demographic_year(
             male_parent,
         )?;
         population.note_successful_birth(female_index, day);
+        let newborn_index = population.person_count().saturating_sub(1);
+        let newborn = population.person_id_at_index(newborn_index).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "newborn is missing a stable person ID",
+            },
+        )?;
+        events.push_authoritative(
+            day,
+            EventKind::Birth {
+                person: newborn,
+                female_parent,
+                male_parent,
+                household,
+                cell: location,
+                reproductive_sex: newborn_sex,
+            },
+        );
         births_added = true;
 
         if population.record_limit_reached() {
