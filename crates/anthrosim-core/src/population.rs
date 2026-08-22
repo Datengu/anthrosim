@@ -408,9 +408,8 @@ impl Population {
                 limit: self.max_person_records,
             });
         }
-        let birth_day = i64::try_from(day).map_err(|_| PopulationError::SimulationDayTooLarge {
-            day,
-        })?;
+        let birth_day =
+            i64::try_from(day).map_err(|_| PopulationError::SimulationDayTooLarge { day })?;
         let id = person_id_from_index(self.person_count());
         self.birth_days.push(birth_day);
         self.death_days.push(NO_EVENT_DAY);
@@ -461,10 +460,12 @@ impl Population {
             .ok_or(PopulationValidationError::PopulationAccountingOverflow)?;
         let living = self.living_count();
         if living != expected_living {
-            return Err(PopulationValidationError::LivingPopulationAccountingMismatch {
-                living,
-                expected: expected_living,
-            });
+            return Err(
+                PopulationValidationError::LivingPopulationAccountingMismatch {
+                    living,
+                    expected: expected_living,
+                },
+            );
         }
         if records > self.max_person_records {
             return Err(PopulationValidationError::PersonRecordLimitExceeded {
@@ -637,16 +638,12 @@ impl Population {
         let mut count = 0_u64;
         for cell_index in 0..self.occupancy.offsets.len().saturating_sub(1) {
             let cell = CellId::new(cell_index as u64 + 1);
-            if self
-                .occupancy
-                .people_in_cell(cell)
-                .is_some_and(|people| {
-                    people.iter().any(|&person| {
-                        person_index(person, self.person_count())
-                            .is_some_and(|index| self.is_alive_index(index))
-                    })
+            if self.occupancy.people_in_cell(cell).is_some_and(|people| {
+                people.iter().any(|&person| {
+                    person_index(person, self.person_count())
+                        .is_some_and(|index| self.is_alive_index(index))
                 })
-            {
+            }) {
                 count = count.saturating_add(1);
             }
         }
@@ -753,14 +750,13 @@ pub enum PopulationError {
     #[error("synthetic male share {value} permille is outside 0..=1000")]
     InvalidMalePermille { value: u16 },
     #[error("initial population {initial_population} exceeds persistent record limit {limit}")]
-    InitialPopulationExceedsRecordLimit {
-        initial_population: u32,
-        limit: u64,
-    },
+    InitialPopulationExceedsRecordLimit { initial_population: u32, limit: u64 },
     #[error("persistent person record limit {limit} has been reached")]
     PersonRecordLimitReached { limit: u64 },
     #[error("simulation day {day} cannot be represented as an epoch-relative signed birth day")]
     SimulationDayTooLarge { day: u64 },
+    #[error("internal population invariant failed: {reason}")]
+    InternalInvariant { reason: &'static str },
     #[error("cannot initialize a population into a world with no cells")]
     WorldHasNoCells,
     #[error(transparent)]
@@ -814,7 +810,9 @@ pub enum PopulationValidationError {
     },
     #[error("person {person:?} parent {parent:?} is not older than the child")]
     ParentNotOlder { person: PersonId, parent: PersonId },
-    #[error("person {person:?} parent {parent:?} died on day {parent_death_day} before child birth day {child_birth_day}")]
+    #[error(
+        "person {person:?} parent {parent:?} died on day {parent_death_day} before child birth day {child_birth_day}"
+    )]
     ParentDeadBeforeBirth {
         person: PersonId,
         parent: PersonId,
