@@ -94,8 +94,8 @@ function renderTimeline() {
   }
 
   if (snapshot) {
-    const index = snapshotIndex(snapshot);
-    byId("snapshot-source").textContent = `metrics.json → snapshots[${index}] · provenance=${snapshot.provenance}`;
+    const snapshotPosition = snapshotIndex(snapshot);
+    byId("snapshot-source").textContent = `metrics.json → snapshots[${snapshotPosition}] · provenance=${snapshot.provenance}`;
     byId("snapshot-raw").textContent = JSON.stringify(snapshot, null, 2);
   } else {
     byId("snapshot-source").textContent = "initial-population.json + world.json · pre-event boundary";
@@ -237,7 +237,7 @@ function renderPerson(personId) {
   addDefinition(dl, "Status", person.alive ? "living" : `dead since day ${person.deathDay}`);
   addDefinition(dl, "Born", `${person.birthDay} (${person.founder ? "founder" : "simulated birth"})`);
   addDefinition(dl, "Age at selected boundary", `${Math.max(0, Math.floor((selectedDay - person.birthDay) / 365))} years`);
-  addDefinition(dl, "Reproductive sex", person.reproductiveSex);
+  addDefinition(dl, "Reproductive sex", person.reproductiveSex ?? "not recorded");
   addDefinition(dl, "Household", person.household);
   addDefinition(dl, "Reconstructed cell", person.location);
   addDefinition(dl, "Condition", conditionText(person));
@@ -285,7 +285,8 @@ function eventSummary(record) {
     return `death · person ${event.person} · ${event.cause} · cell ${event.cell}`;
   }
   if (event.type === "householdMigration") {
-    return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${event.peopleMoved} people`;
+    const peopleMoved = event.people_moved ?? event.peopleMoved;
+    return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${peopleMoved} people`;
   }
   return event.type;
 }
