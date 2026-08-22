@@ -57,7 +57,7 @@ M6 makes those artifacts navigable without changing them. It provides timeline, 
 
 M7.1–M7.3 add experiment orchestration around that same run path rather than a second simulator. Every ensemble or sweep child is created through the existing `Simulation` lifecycle and written with the existing completed M5 bundle format. The experiment layer records exactly which configurations were requested, whether each child is genuinely complete, and which derived summary rows were calculated from completed results; it does not change the underlying model.
 
-M7.4 hardens that path rather than adding another model mechanism. Completed runs and checkpoints can be subjected to a cross-artifact invariant validator, and ordinary CI includes long-duration stable, dynamic checkpoint/resume, adversarial scarcity, explicit terminal-state and multi-seed ensemble soaks. A checkpoint-schema ambiguity found around terminal record-limit boundaries is deliberately tracked as follow-up issue #31 rather than silently broadening the supported resume contract.
+M7.4 hardens that path rather than adding another model mechanism. Completed runs and checkpoints can be subjected to a cross-artifact invariant validator, and ordinary CI includes long-duration stable, dynamic checkpoint/resume, adversarial scarcity, explicit terminal-state and multi-seed ensemble soaks. The terminal record-limit checkpoint ambiguity discovered during M7.4 has since been resolved: terminal annual checkpoints now serialize their stop reason, validation reconciles it against authoritative state, and resuming such a checkpoint preserves the terminal boundary without advancing the simulation.
 
 M7.5 establishes an explicit v0.1 engineering performance envelope. The ordinary event/metric-observable 10,000-founder, 2,000-year workload is continuously checked against hosted-CI wall-time, throughput and process-memory limits. These are engineering gates, not scientific-validation metrics.
 
@@ -190,3 +190,11 @@ For a completed run the manifest records configuration, artifact schema versions
 AnthroSim v0.1 is a **completed research-oriented software and synthetic-validation baseline, not a validated anthropological model**. The executable demographic, resource and migration presets are deliberately named `synthetic_validation_v1`. Their role is to verify mechanisms, invariants, deterministic replay, controlled comparisons and directional causal behaviour before empirical calibration/validation claims are attempted.
 
 v0.1 can support reproducible questions of the form “what does this declared model do when assumption X changes?” It cannot yet turn those results into claims about a real prehistoric population, site, environment or migration system. See [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md) and [`docs/scientific-model.md`](docs/scientific-model.md) for the explicit interpretation limits.
+
+## Contributing and security
+
+Contribution expectations are documented in [`CONTRIBUTING.md`](CONTRIBUTING.md). Please report security-sensitive issues according to [`SECURITY.md`](SECURITY.md) rather than publishing exploit details in a normal issue.
+
+## License
+
+AnthroSim is licensed under the [Apache License 2.0](LICENSE).
