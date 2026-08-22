@@ -20,12 +20,12 @@ jobs:
           ref: feat/m7-6-resource-variability-v0-1
           fetch-depth: 1
 
-      - name: Apply staged patch and commit
+      - name: Apply source transformations and commit
         run: |
-          git apply --recount --check tools/m7-6.patch
-          git apply --recount tools/m7-6.patch
+          python3 tools/apply-m7-6.py
+          cargo fmt --all
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/anthrosim-core/src/config.rs crates/anthrosim-core/src/world.rs crates/anthrosim-cli/src/ensemble.rs crates/anthrosim-cli/src/main.rs crates/anthrosim-cli/src/sweep.rs
+          git add crates/anthrosim-core/src/config.rs crates/anthrosim-core/src/resources.rs crates/anthrosim-core/src/manifest.rs crates/anthrosim-core/src/checkpoint.rs crates/anthrosim-cli/src/ensemble.rs crates/anthrosim-cli/src/main.rs crates/anthrosim-cli/src/sweep.rs
           git commit -m "Implement M7.6 resource variability controls [m7.6-patch-applied]"
           git push origin HEAD:feat/m7-6-resource-variability-v0-1
