@@ -23,6 +23,9 @@ function asNumber(value, label) {
   if (!Number.isFinite(number)) {
     throw new Error(`${label} is not numeric`);
   }
+  if (Number.isInteger(number) && !Number.isSafeInteger(number)) {
+    throw new Error(`${label} exceeds JavaScript's exact integer range`);
+  }
   return number;
 }
 
@@ -311,10 +314,12 @@ export function mapValues(bundle, state, overlay) {
   if (overlay === "population") {
     return Array.from({ length: cellCount }, (_, index) => state.cellResidents.get(index + 1)?.length ?? 0);
   }
-  if (overlay === "productivity") return bundle.world.cells.map((cell) => Number(cell.baseProductivity));
-  if (overlay === "water") return bundle.world.cells.map((cell) => Number(cell.waterAccess));
-  if (overlay === "movement") return bundle.world.cells.map((cell) => Number(cell.movementCost));
-  if (overlay === "finalFood") return bundle.checkpoint.resources.cellFoodStock.map(Number);
+  if (overlay === "productivity") return bundle.world.cells.map((cell) => asNumber(cell.baseProductivity, "baseline productivity"));
+  if (overlay === "water") return bundle.world.cells.map((cell) => asNumber(cell.waterAccess, "water access"));
+  if (overlay === "movement") return bundle.world.cells.map((cell) => asNumber(cell.movementCost, "movement cost"));
+  if (overlay === "finalFood") {
+    return bundle.checkpoint.resources.cellFoodStock.map((value, index) => asNumber(value, `final food stock for cell ${index + 1}`));
+  }
   throw new Error(`unknown map overlay ${overlay}`);
 }
 
@@ -328,7 +333,7 @@ export function summarizeCell(bundle, state, cellId) {
     world: cell,
     livingPopulation: residents.length,
     residents,
-    finalFoodStock: Number(bundle.checkpoint.resources.cellFoodStock[id - 1] ?? 0),
+    finalFoodStock: bundle.checkpoint.resources.cellFoodStock[id - 1] ?? 0,
     finalOnly: state.day !== bundle.manifest.endTime,
   };
 }
