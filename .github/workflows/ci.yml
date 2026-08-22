@@ -21,51 +21,12 @@ jobs:
       - name: Install pinned Rust toolchain
         run: |
           rustup set profile minimal
-          rustup toolchain install 1.97.1 --component rustfmt
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
-      - name: Apply compiler-suggested fixes
+      - name: Apply machine-safe Clippy fixes
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          population = Path('crates/anthrosim-core/src/population.rs')
-          text = population.read_text()
-          old = '''        if count == 0 {
-              0
-          } else {
-              u16::try_from(total / count).unwrap_or(PERMILLE_MAX)
-          }'''
-          new = '''        count
-              .checked_div(count)
-              .map(|_| u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX))
-              .unwrap_or(0)'''
-          if old not in text:
-              raise SystemExit('population mean pattern not found')
-          population.write_text(text.replace(old, new))
-
-          resources = Path('crates/anthrosim-core/src/resources.rs')
-          text = resources.read_text()
-          old = '''            let supplied_permille = if need == 0 {
-                  u64::from(PERMILLE_MAX)
-              } else {
-                  (harvest.saturating_mul(u64::from(PERMILLE_MAX)) / need)
-                      .min(u64::from(PERMILLE_MAX))
-              };'''
-          new = '''            let supplied_permille = harvest
-                  .saturating_mul(u64::from(PERMILLE_MAX))
-                  .checked_div(need)
-                  .unwrap_or(u64::from(PERMILLE_MAX))
-                  .min(u64::from(PERMILLE_MAX));'''
-          if old not in text:
-              raise SystemExit('resource supply pattern not found')
-          text = text.replace(old, new)
-          old = '''                    (loss_numerator + u64::from(PERMILLE_MAX) - 1) / u64::from(PERMILLE_MAX)'''
-          new = '''                    loss_numerator.div_ceil(u64::from(PERMILLE_MAX))'''
-          if old not in text:
-              raise SystemExit('resource div_ceil pattern not found')
-          resources.write_text(text.replace(old, new))
-          PY
+          cargo clippy --fix --locked --workspace --all-targets --all-features --allow-dirty --allow-staged -- -D warnings
           cargo fmt --all
 
       - name: Commit fixes
