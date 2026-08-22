@@ -34,15 +34,26 @@ jobs:
       - name: Verify locked dependency graph
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
 
-      - name: Apply formatting once
+      - name: Apply M5 compiler bootstrap fixes once
         if: github.actor != 'github-actions[bot]'
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('crates/anthrosim-core/src/resources.rs')
+          text = path.read_text()
+          old = 'pub(crate) struct ResourceRngs {'
+          new = '#[derive(Debug)]\npub(crate) struct ResourceRngs {'
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('ResourceRngs pattern not found')
+              path.write_text(text.replace(old, new, 1))
+          PY
           cargo fmt --all
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add crates
           if ! git diff --cached --quiet; then
-            git commit -m "M5: apply rustfmt"
+            git commit -m "M5: satisfy compiler requirements"
             git push origin HEAD:feat/m5-observability
           fi
 
