@@ -142,9 +142,7 @@ pub enum SimulationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{
-        DemographyConfig, PROBABILITY_PER_MILLION, PopulationConfig, WorldConfig,
-    };
+    use crate::config::{DemographyConfig, PROBABILITY_PER_MILLION, PopulationConfig, WorldConfig};
 
     fn no_event_demography() -> DemographyConfig {
         let mut config = DemographyConfig::synthetic_validation_v1();
