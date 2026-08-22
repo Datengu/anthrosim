@@ -26,6 +26,7 @@ The first version focuses on:
 - self-contained offline run bundles;
 - a read-only local explorer for maps, timelines, entities, events and genealogy;
 - deterministic multi-seed batch/ensemble execution with immutable provenance and retry state;
+- deterministic parameter sweeps with derived machine-readable analysis tables;
 - performance benchmarks and invariant validation.
 
 Culture, language, trade, states, religion, warfare, AI-controlled agents, and real-Earth palaeoenvironmental data are intentionally deferred.
@@ -39,7 +40,8 @@ Culture, language, trade, states, religion, warfare, AI-controlled agents, and r
 - **M5 — Events, metrics, checkpoints and causal inspection:** complete; it adds observability/persistence rather than a new anthropological mechanism.
 - **M6 — Local simulation explorer:** complete as a read-only consumer of completed and paused M5 run bundles; it does not participate in authoritative simulation state or the Rust hot loop.
 - **M7.1 — Batch / ensemble execution:** complete; one command launches deterministic explicit seed sets or seed ranges into isolated ordinary M5 run bundles.
-- **M7.2 — Immutable experiment provenance and retry semantics:** implemented; each planned run has an exact serialized configuration, explicit lifecycle state and deterministic reconciliation/retry behaviour. M7.3 will add parameter sweeps and aggregate analysis outputs.
+- **M7.2 — Immutable experiment provenance and retry semantics:** complete; each planned run has an exact serialized configuration, explicit lifecycle state and deterministic reconciliation/retry behaviour.
+- **M7.3 — Parameter sweeps and aggregate analysis outputs:** implemented; explicit parameter grids expand deterministically into M7.2 experiments and produce separate derived CSV/JSON tables for downstream Python/R analysis.
 
 M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
 
@@ -47,7 +49,7 @@ M5 makes that loop inspectable. Births, deaths and completed household moves are
 
 M6 makes those artifacts navigable without changing them. It provides timeline, map, cell, household, person, genealogy and event views while visibly distinguishing serialized authoritative facts, recorded derived metrics and UI reconstructions. Historical state that M5 did not record is not silently invented.
 
-M7.1–M7.2 add experiment orchestration around that same run path rather than a second simulator. Every ensemble child is created through the existing `Simulation` lifecycle and written with the existing completed M5 bundle format. The experiment layer records exactly which configurations were requested and whether each child is genuinely complete; it does not change the underlying model.
+M7.1–M7.3 add experiment orchestration around that same run path rather than a second simulator. Every ensemble or sweep child is created through the existing `Simulation` lifecycle and written with the existing completed M5 bundle format. The experiment layer records exactly which configurations were requested, whether each child is genuinely complete, and which derived summary rows were calculated from completed results; it does not change the underlying model.
 
 No historical destination, route, settlement, tribe or migration outcome is scripted into that loop.
 
@@ -131,7 +133,41 @@ cargo run --release -p anthrosim-cli -- ensemble \
 
 Retry first requires exact equality with the stored immutable experiment manifest. It keeps provenance-valid completed runs without executing them again, reconciles interrupted/missing bundles as incomplete, and reruns only planned, failed or incomplete children. Partial child directories are removed before a retry attempt so old and new artifacts cannot be mixed. A completed bundle with conflicting provenance is treated as an integrity error instead of being silently overwritten.
 
-The batch continues to later seeds after an individual child fails, but the overall command still exits unsuccessfully while any child is unsuccessful. Downstream analysis should treat only `completed` status records with provenance-valid bundles as successful results. See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the full M7.1–M7.2 provenance and lifecycle contract.
+The batch continues to later seeds after an individual child fails, but the overall command still exits unsuccessfully while any child is unsuccessful. Downstream analysis should treat only `completed` status records with provenance-valid bundles as successful results.
+
+## Running deterministic parameter sweeps
+
+M7.3 adds an explicit Cartesian parameter-grid layer. For example, this compares two M3 productivity settings and two annual food-need settings over the same four seeds:
+
+```text
+cargo run --release -p anthrosim-cli -- sweep \
+  --years 100 \
+  --population 10000 \
+  --seeds 1,2,3,4 \
+  --sweep-resource-productivity-scale-permille 700,1000 \
+  --sweep-annual-food-need 80,120 \
+  --run-dir runs/resource-sweep
+```
+
+Supported sweep dimensions are founder population, target household size, M3 productivity scale, annual food need, migration enabled/disabled, and migration radius. A control that is not explicitly swept uses its ordinary base command value. The dimension order and value order are preserved deterministically when the Cartesian grid is expanded.
+
+A fresh sweep writes immutable `sweep-manifest.json` before point execution. It records the exact base settings, declared dimension values, seed definition, model identity and every expanded parameter point. Each point then lives under `experiments/point-XXXXXX/` as a normal M7.2 experiment, with its own immutable `experiment-manifest.json`, status files, retries and completed M5 bundles. Retrying a sweep requires the exact same definition plus `--retry`; a changed grid, seed set or base control is rejected before child execution.
+
+The sweep root also contains a deliberately separate `analysis/` directory:
+
+```text
+analysis/runs.json
+analysis/runs.csv
+analysis/points.json
+analysis/points.csv
+analysis/summary.json
+```
+
+These are **derived analysis artifacts**, not authoritative simulation state. `runs.*` contains one row for every planned run, including non-completed lifecycle states, exact point controls and source artifact paths. `points.*` contains per-parameter-point completion counts and simple completed-only descriptive means. Failed, incomplete, planned or otherwise non-completed runs remain explicit in the run table and point status counts; they are never silently folded into means. Each point summary lists the completed run IDs that contributed to its derived values.
+
+The CSV files are intentionally ordinary rectangular tables with no special Rust tooling required. Python `pandas.read_csv(...)`, base R `read.csv(...)`, or equivalent tools can consume them directly. M7.3 does not add statistical inference, plotting or a general-purpose analysis framework to AnthroSim core.
+
+See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the full M7.1–M7.3 provenance, retry, sweep and downstream-analysis contract.
 
 For a completed run the manifest records configuration, artifact schema versions, world/population/resource/migration summaries, state digest, runtime counters and stop reason. For a paused run the checkpoint carries the current authoritative experiment/state boundary. See [`docs/research/observability-v0.1.md`](docs/research/observability-v0.1.md) for the authoritative-event/derived-metric distinction and checkpoint compatibility rules, and [`docs/research/explorer-v0.1.md`](docs/research/explorer-v0.1.md) for M6 display provenance and reconstruction limits.
 

@@ -8,8 +8,10 @@ use anthrosim_core::{Population, RecordedRun, Simulation, SimulationCheckpoint, 
 use clap::{Parser, Subcommand};
 
 mod ensemble;
+mod sweep;
 
 use ensemble::{EnsembleRunSettings, execute_ensemble, experiment_config, resolve_ensemble_seeds};
+use sweep::{SweepDimensions, execute_sweep};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -159,6 +161,98 @@ enum Command {
         retry: bool,
     },
 
+    /// Expand an explicit parameter grid into M7.2 experiments and derived analysis tables.
+    Sweep {
+        /// Explicit deterministic seeds. Comma-separated values are accepted.
+        #[arg(
+            long,
+            value_delimiter = ',',
+            num_args = 1..,
+            conflicts_with_all = ["seed_start", "seed_count"]
+        )]
+        seeds: Vec<u64>,
+
+        /// First seed in an inclusive deterministic range.
+        #[arg(long, requires = "seed_count", conflicts_with = "seeds")]
+        seed_start: Option<u64>,
+
+        /// Number of consecutive seeds beginning at --seed-start.
+        #[arg(long, requires = "seed_start", conflicts_with = "seeds")]
+        seed_count: Option<u32>,
+
+        /// Base duration in simulated years for every sweep point.
+        #[arg(long, default_value_t = 1_000)]
+        years: u64,
+
+        /// Base synthetic world width in cells.
+        #[arg(long, default_value_t = 128)]
+        world_width: u32,
+
+        /// Base synthetic world height in cells.
+        #[arg(long, default_value_t = 128)]
+        world_height: u32,
+
+        /// Base founder population when --sweep-population is not supplied.
+        #[arg(long, default_value_t = 10_000)]
+        population: u32,
+
+        /// Base target household size when --sweep-household-size is not supplied.
+        #[arg(long, default_value_t = 5)]
+        household_size: u16,
+
+        /// Operational ceiling for persistent person records across the sweep.
+        #[arg(long, default_value_t = 1_000_000)]
+        max_person_records: u64,
+
+        /// Base M3 productivity scale when its sweep dimension is not supplied.
+        #[arg(long, default_value_t = 1_000)]
+        resource_productivity_scale_permille: u16,
+
+        /// Base annual resource need when its sweep dimension is not supplied.
+        #[arg(long, default_value_t = 100)]
+        annual_food_need: u32,
+
+        /// Base migration enable/disable setting when its sweep dimension is not supplied.
+        #[arg(long, default_value_t = false)]
+        disable_migration: bool,
+
+        /// Base migration radius when its sweep dimension is not supplied.
+        #[arg(long, default_value_t = 3)]
+        migration_radius: u16,
+
+        /// Explicit founder-population values for the Cartesian parameter grid.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_population: Vec<u32>,
+
+        /// Explicit target-household-size values for the Cartesian parameter grid.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_household_size: Vec<u16>,
+
+        /// Explicit M3 productivity-scale values for the Cartesian parameter grid.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_resource_productivity_scale_permille: Vec<u16>,
+
+        /// Explicit annual-resource-need values for the Cartesian parameter grid.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_annual_food_need: Vec<u32>,
+
+        /// Explicit migration enabled/disabled values, e.g. false,true.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_disable_migration: Vec<bool>,
+
+        /// Explicit local migration-radius values for the Cartesian parameter grid.
+        #[arg(long, value_delimiter = ',', num_args = 1..)]
+        sweep_migration_radius: Vec<u16>,
+
+        /// Sweep root containing immutable provenance, point experiments and derived analysis.
+        #[arg(long)]
+        run_dir: PathBuf,
+
+        /// Reconcile and retry this exact immutable sweep without changing its definition.
+        #[arg(long, default_value_t = false)]
+        retry: bool,
+    },
+
     /// Resume a deterministic M5 annual-boundary checkpoint to its configured duration.
     Resume {
         /// Checkpoint JSON previously written by AnthroSim M5.
@@ -296,6 +390,52 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 migration_radius,
             };
             execute_ensemble(&run_dir, settings, seeds, retry)?;
+        }
+        Command::Sweep {
+            seeds,
+            seed_start,
+            seed_count,
+            years,
+            world_width,
+            world_height,
+            population,
+            household_size,
+            max_person_records,
+            resource_productivity_scale_permille,
+            annual_food_need,
+            disable_migration,
+            migration_radius,
+            sweep_population,
+            sweep_household_size,
+            sweep_resource_productivity_scale_permille,
+            sweep_annual_food_need,
+            sweep_disable_migration,
+            sweep_migration_radius,
+            run_dir,
+            retry,
+        } => {
+            let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
+            let settings = EnsembleRunSettings {
+                years,
+                world_width,
+                world_height,
+                population,
+                household_size,
+                max_person_records,
+                resource_productivity_scale_permille,
+                annual_food_need,
+                disable_migration,
+                migration_radius,
+            };
+            let dimensions = SweepDimensions {
+                population: sweep_population,
+                household_size: sweep_household_size,
+                resource_productivity_scale_permille: sweep_resource_productivity_scale_permille,
+                annual_food_need: sweep_annual_food_need,
+                disable_migration: sweep_disable_migration,
+                migration_radius: sweep_migration_radius,
+            };
+            execute_sweep(&run_dir, settings, seeds, dimensions, retry)?;
         }
         Command::Resume {
             checkpoint,
