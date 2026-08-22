@@ -1,7 +1,6 @@
 use anthrosim_core::{
-    DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation,
-    StopReason, WorldConfig,
-    config::PROBABILITY_PER_MILLION,
+    DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
+    Simulation, StopReason, WorldConfig, config::PROBABILITY_PER_MILLION,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -63,7 +62,10 @@ fn long_dynamic_checkpoint_resume_matches_uninterrupted_execution() {
         .run_recorded()
         .unwrap();
     uninterrupted.validate_invariants().unwrap();
-    assert_eq!(uninterrupted.manifest.stop_reason, StopReason::DurationReached);
+    assert_eq!(
+        uninterrupted.manifest.stop_reason,
+        StopReason::DurationReached
+    );
     assert!(uninterrupted.manifest.population.births_since_start > 0);
     assert!(uninterrupted.manifest.population.deaths_since_start > 0);
 
@@ -182,6 +184,7 @@ fn invariant_validator_rejects_cross_artifact_accounting_tampering() {
     run.validate_invariants().unwrap();
 
     let mut tampered = run.checkpoint.clone();
-    tampered.migration.total_distance_cells = tampered.migration.total_distance_cells.saturating_add(1);
+    tampered.migration.total_distance_cells =
+        tampered.migration.total_distance_cells.saturating_add(1);
     assert!(tampered.validate_invariants().is_err());
 }
