@@ -1,6 +1,6 @@
 use std::{fs, path::Path, path::PathBuf, process::ExitCode};
 
-use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
+use anthrosim_core::{ExperimentConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -46,6 +46,14 @@ enum Command {
         #[arg(long, default_value_t = 1_000_000)]
         max_person_records: u64,
 
+        /// Synthetic M3 environmental productivity scale, in permille (0..=1000).
+        #[arg(long, default_value_t = 1_000)]
+        resource_productivity_scale_permille: u16,
+
+        /// Synthetic annual resource need per living person, in abstract units.
+        #[arg(long, default_value_t = 100)]
+        annual_food_need: u32,
+
         /// Optional path to write the JSON run manifest.
         #[arg(long)]
         output: Option<PathBuf>,
@@ -80,17 +88,23 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             population,
             household_size,
             max_person_records,
+            resource_productivity_scale_permille,
+            annual_food_need,
             output,
             world_output,
             population_output,
         } => {
+            let resources = ResourceConfig::synthetic_validation_v1()
+                .with_productivity_scale_permille(resource_productivity_scale_permille)
+                .with_annual_need_units_per_person(annual_food_need);
             let config = ExperimentConfig::new(seed, years)
                 .with_world(WorldConfig::new(world_width, world_height))
                 .with_population(
                     PopulationConfig::new(population)
                         .with_target_household_size(household_size)
                         .with_max_person_records(max_person_records),
-                );
+                )
+                .with_resources(resources);
             let simulation = Simulation::new(config)?;
 
             if let Some(path) = world_output {
