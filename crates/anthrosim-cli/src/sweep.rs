@@ -1,8 +1,9 @@
 use std::{
     collections::HashSet,
     fmt::Display,
-    fs, io,
+    fs,
     hash::Hash,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -367,7 +368,10 @@ fn load_matching_sweep_manifest(
     if !path.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("cannot retry {}: sweep-manifest.json is missing", directory.display()),
+            format!(
+                "cannot retry {}: sweep-manifest.json is missing",
+                directory.display()
+            ),
         )
         .into());
     }
@@ -385,7 +389,10 @@ fn load_matching_sweep_manifest(
     if actual != *expected {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("retry definition does not match immutable sweep {}", actual.sweep_id),
+            format!(
+                "retry definition does not match immutable sweep {}",
+                actual.sweep_id
+            ),
         )
         .into());
     }
@@ -404,7 +411,10 @@ fn write_analysis_outputs(
     write_json(&analysis_directory.join("points.json"), &point_rows)?;
     write_runs_csv(&analysis_directory.join("runs.csv"), &run_rows)?;
     write_points_csv(&analysis_directory.join("points.csv"), &point_rows)?;
-    let completed_runs = run_rows.iter().filter(|row| row.state == "completed").count();
+    let completed_runs = run_rows
+        .iter()
+        .filter(|row| row.state == "completed")
+        .count();
     let summary = AnalysisSummary {
         schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
         provenance: "derived",
@@ -429,10 +439,8 @@ fn build_run_rows(
         let experiment_id = read_experiment_id(&point_directory)?;
         for &seed in &sweep.definition.seeds {
             let run_id = format!("seed-{seed:020}");
-            let status_relative_path = format!(
-                "{}/status/{run_id}.json",
-                point.relative_experiment_dir
-            );
+            let status_relative_path =
+                format!("{}/status/{run_id}.json", point.relative_experiment_dir);
             let status_path = directory.join(&status_relative_path);
             let (state, attempt) = if status_path.is_file() {
                 let value: serde_json::Value = read_json(&status_path)?;
@@ -510,12 +518,17 @@ fn build_run_rows(
                         != point.settings.household_size
                     || run_manifest.experiment.population.max_person_records
                         != point.settings.max_person_records
-                    || run_manifest.experiment.resources.productivity_scale_permille
+                    || run_manifest
+                        .experiment
+                        .resources
+                        .productivity_scale_permille
                         != point.settings.resource_productivity_scale_permille
-                    || run_manifest.experiment.resources.annual_need_units_per_person
+                    || run_manifest
+                        .experiment
+                        .resources
+                        .annual_need_units_per_person
                         != point.settings.annual_food_need
-                    || run_manifest.experiment.migration.enabled
-                        == point.settings.disable_migration
+                    || run_manifest.experiment.migration.enabled == point.settings.disable_migration
                     || run_manifest.experiment.migration.candidate_radius_cells
                         != point.settings.migration_radius
                 {
@@ -577,15 +590,16 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 .filter(|row| row.state == "completed")
                 .collect::<Vec<_>>();
             let completed_runs = completed.len() as u64;
-            let failed_runs = point_runs.iter().filter(|row| row.state == "failed").count() as u64;
+            let failed_runs = point_runs
+                .iter()
+                .filter(|row| row.state == "failed")
+                .count() as u64;
             let incomplete_runs = point_runs
                 .iter()
                 .filter(|row| row.state == "incomplete")
                 .count() as u64;
-            let other_non_completed_runs = point_runs.len() as u64
-                - completed_runs
-                - failed_runs
-                - incomplete_runs;
+            let other_non_completed_runs =
+                point_runs.len() as u64 - completed_runs - failed_runs - incomplete_runs;
             DerivedPointRow {
                 schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
                 provenance: "derived",
@@ -723,7 +737,10 @@ fn require_empty_directory(directory: &Path) -> Result<(), io::Error> {
     if !directory.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
-            format!("sweep output path {} exists and is not a directory", directory.display()),
+            format!(
+                "sweep output path {} exists and is not a directory",
+                directory.display()
+            ),
         ));
     }
     if fs::read_dir(directory)?.next().transpose()?.is_some() {
@@ -797,7 +814,10 @@ mod tests {
         assert_eq!(first[0].settings.annual_food_need, 80);
         assert_eq!(first[1].settings.resource_productivity_scale_permille, 800);
         assert_eq!(first[1].settings.annual_food_need, 100);
-        assert_eq!(first[2].settings.resource_productivity_scale_permille, 1_000);
+        assert_eq!(
+            first[2].settings.resource_productivity_scale_permille,
+            1_000
+        );
         assert_eq!(first[2].settings.annual_food_need, 80);
         assert_eq!(first[3].point_id, "point-000003");
     }
@@ -811,8 +831,10 @@ mod tests {
 
     #[test]
     fn immutable_sweep_manifest_is_stable_and_exact() {
-        let first = build_sweep_manifest(small_settings(), vec![3, 7], dimensions()).expect("sweep");
-        let second = build_sweep_manifest(small_settings(), vec![3, 7], dimensions()).expect("sweep");
+        let first =
+            build_sweep_manifest(small_settings(), vec![3, 7], dimensions()).expect("sweep");
+        let second =
+            build_sweep_manifest(small_settings(), vec![3, 7], dimensions()).expect("sweep");
         assert_eq!(first, second);
         assert_eq!(first.points.len(), 4);
         let mut changed = dimensions();
@@ -843,9 +865,11 @@ mod tests {
         assert!(runs.iter().all(|row| row.manifest_relative_path.is_some()));
         assert_eq!(points.len(), 2);
         assert!(points.iter().all(|row| row.completed_runs == 2));
-        assert!(points
-            .iter()
-            .all(|row| row.source_completed_run_ids.len() == 2));
+        assert!(
+            points
+                .iter()
+                .all(|row| row.source_completed_run_ids.len() == 2)
+        );
         assert!(root.join("analysis/runs.csv").is_file());
         assert!(root.join("analysis/points.csv").is_file());
         fs::remove_dir_all(root).expect("cleanup");
