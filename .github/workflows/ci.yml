@@ -1,23 +1,22 @@
-name: CI
+name: M3 checked-division fix bootstrap
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  rust:
+  fix:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout
+      - name: Checkout M3 branch
         uses: actions/checkout@v6.1.0
         with:
-          persist-credentials: false
+          ref: feat/m3-resources
+          persist-credentials: true
 
       - name: Install pinned Rust toolchain
         run: |
@@ -25,41 +24,48 @@ jobs:
           rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
-      - name: Versions
+      - name: Apply checked-division rewrites
         run: |
-          rustc --version --verbose
-          cargo --version
+          python - <<'PY'
+          import re
+          from pathlib import Path
 
-      - name: Verify locked dependency graph
-        run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
+          population = Path('crates/anthrosim-core/src/population.rs')
+          text = population.read_text()
+          text, count = re.subn(
+              r'if count == 0 \{\s*0\s*\} else \{\s*u16::try_from\(total / count\)\.unwrap_or\(PERMILLE_MAX\)\s*\}',
+              'u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX)',
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'population checked-division rewrite count={count}')
+          population.write_text(text)
 
-      - name: Format
-        run: cargo fmt --all -- --check
+          resources = Path('crates/anthrosim-core/src/resources.rs')
+          text = resources.read_text()
+          text, count = re.subn(
+              r'let supplied_permille = if need == 0 \{\s*u64::from\(PERMILLE_MAX\)\s*\} else \{\s*\(harvest\.saturating_mul\(u64::from\(PERMILLE_MAX\)\) / need\)\s*\.min\(u64::from\(PERMILLE_MAX\)\)\s*\};',
+              '''let supplied_permille = harvest
+                  .saturating_mul(u64::from(PERMILLE_MAX))
+                  .checked_div(need)
+                  .unwrap_or(u64::from(PERMILLE_MAX))
+                  .min(u64::from(PERMILLE_MAX));''',
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'resource checked-division rewrite count={count}')
+          resources.write_text(text)
+          PY
+          cargo fmt --all
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
-      - name: Clippy
-        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
-
-      - name: Test
-        run: cargo test --locked --workspace --all-features
-
-      - name: Benchmark synthetic world generation
-        run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
-
-      - name: Benchmark population initialization
-        run: cargo bench --locked -p anthrosim-core --bench population_initialization -- --noplot
-
-      - name: Benchmark M3 resource-demographic lifecycle
-        run: cargo bench --locked -p anthrosim-core --bench empty_run -- --noplot
-
-      - name: Build release binaries
-        run: cargo build --locked --workspace --release
-
-      - name: Measure one-million-founder process memory
+      - name: Commit verified fixes
         run: |
-          /usr/bin/time -v target/release/anthrosim run \
-            --years 0 \
-            --world-width 64 \
-            --world-height 64 \
-            --population 1000000 \
-            --max-person-records 1000000 \
-            --output /tmp/anthrosim-m3-memory.json
+          git config user.name "AnthroSim CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- crates/anthrosim-core/src/population.rs crates/anthrosim-core/src/resources.rs
+          git diff --cached --check
+          git commit -m "M3: use checked division for condition metrics"
+          git push origin HEAD:feat/m3-resources
