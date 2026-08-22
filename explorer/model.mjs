@@ -1,5 +1,4 @@
 const REQUIRED_ARTIFACTS = [
-  "manifest",
   "world",
   "initialPopulation",
   "events",
@@ -7,7 +6,7 @@ const REQUIRED_ARTIFACTS = [
   "checkpoint",
 ];
 
-const ARTIFACT_SCHEMA_KEYS = {
+const COMPLETED_ARTIFACT_SCHEMA_KEYS = {
   manifest: "manifest",
   world: "world",
   initialPopulation: "population",
@@ -20,9 +19,7 @@ const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 
 function asNumber(value, label) {
   const number = Number(value);
-  if (!Number.isFinite(number)) {
-    throw new Error(`${label} is not numeric`);
-  }
+  if (!Number.isFinite(number)) throw new Error(`${label} is not numeric`);
   if (Number.isInteger(number) && !Number.isSafeInteger(number)) {
     throw new Error(`${label} exceeds JavaScript's exact integer range`);
   }
@@ -31,6 +28,20 @@ function asNumber(value, label) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function exactJsonEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function terminalSnapshot(metrics, endTime) {
+  const terminal = metrics.snapshots?.at(-1) ?? null;
+  if (terminal) assert(terminal.day === endTime, "terminal metric day disagrees with run boundary");
+  return terminal;
+}
+
+function runEndTime(bundle) {
+  return asNumber(bundle.manifest?.endTime ?? bundle.checkpoint.time, "run boundary time");
 }
 
 export function parseLosslessJson(text) {
@@ -87,35 +98,54 @@ export function validateBundle(bundle) {
   }
 
   const { manifest, world, initialPopulation, events, metrics, checkpoint } = bundle;
-  assert(manifest.schemaVersion >= 7, `manifest schema ${manifest.schemaVersion} predates M5/M6 observability`);
-  assert(manifest.artifactSchemas, "manifest does not declare artifact schemas");
-
-  for (const [artifact, schemaKey] of Object.entries(ARTIFACT_SCHEMA_KEYS)) {
-    const expected = manifest.artifactSchemas[schemaKey];
-    const actual = bundle[artifact].schemaVersion;
-    assert(expected === actual, `${artifact} schema ${actual} does not match manifest declaration ${expected}`);
-  }
-
-  assert(world.width === manifest.world.width && world.height === manifest.world.height,
-    "world dimensions disagree with manifest");
-  assert(world.cells.length === world.width * world.height, "world cell count does not match dimensions");
-  assert(initialPopulation.initialPopulation === manifest.population.initialPopulation,
-    "initial population disagrees with manifest");
+  const kind = manifest ? "completed" : "paused";
+  const endTime = runEndTime(bundle);
   assert(checkpoint.completedYears * 365 === checkpoint.time,
     "checkpoint is not at the declared completed annual boundary");
-  assert(checkpoint.time === manifest.endTime, "final checkpoint time disagrees with manifest end time");
+  assert(checkpoint.time === endTime, "checkpoint time disagrees with run boundary");
+  assert(world.cells.length === world.width * world.height, "world cell count does not match dimensions");
+
+  if (manifest) {
+    assert(manifest.schemaVersion >= 7, `manifest schema ${manifest.schemaVersion} predates M5/M6 observability`);
+    assert(manifest.artifactSchemas, "manifest does not declare artifact schemas");
+    for (const [artifact, schemaKey] of Object.entries(COMPLETED_ARTIFACT_SCHEMA_KEYS)) {
+      const expected = manifest.artifactSchemas[schemaKey];
+      const actual = bundle[artifact].schemaVersion;
+      assert(expected === actual, `${artifact} schema ${actual} does not match manifest declaration ${expected}`);
+    }
+    assert(world.width === manifest.world.width && world.height === manifest.world.height,
+      "world dimensions disagree with manifest");
+    assert(initialPopulation.initialPopulation === manifest.population.initialPopulation,
+      "initial population disagrees with manifest");
+  } else {
+    assert(checkpoint.schemaVersion >= 1, "paused checkpoint has no supported version");
+    assert(checkpoint.experiment, "paused checkpoint is missing experiment configuration");
+    assert(world.schemaVersion === checkpoint.experiment.world.schemaVersion,
+      "world schema disagrees with paused checkpoint experiment");
+    assert(initialPopulation.schemaVersion === checkpoint.population.schemaVersion,
+      "initial population schema disagrees with paused checkpoint population");
+    assert(world.width === checkpoint.experiment.world.width && world.height === checkpoint.experiment.world.height,
+      "world dimensions disagree with paused checkpoint experiment");
+    assert(initialPopulation.initialPopulation === checkpoint.experiment.population.initialPopulation,
+      "initial population disagrees with paused checkpoint experiment");
+    assert(events.schemaVersion === checkpoint.events.schemaVersion,
+      "events schema disagrees with paused checkpoint");
+    assert(metrics.schemaVersion === checkpoint.metrics.schemaVersion,
+      "metrics schema disagrees with paused checkpoint");
+    assert(exactJsonEqual(events, checkpoint.events), "events artifact disagrees with paused checkpoint history");
+    assert(exactJsonEqual(metrics, checkpoint.metrics), "metrics artifact disagrees with paused checkpoint history");
+  }
 
   const counts = countEvents(events.events);
-  assert(counts.birth === manifest.population.birthsSinceStart,
-    `birth events ${counts.birth} disagree with manifest ${manifest.population.birthsSinceStart}`);
-  assert(counts.death === manifest.population.deathsSinceStart,
-    `death events ${counts.death} disagree with manifest ${manifest.population.deathsSinceStart}`);
-  assert(counts.householdMigration === manifest.migration.movesCompleted,
-    `migration events ${counts.householdMigration} disagree with manifest ${manifest.migration.movesCompleted}`);
-  assert(events.events.length === manifest.statistics.authoritativeEventCount,
-    "event log length disagrees with manifest authoritative event count");
-  assert(metrics.snapshots.length === manifest.statistics.metricSnapshotCount,
-    "metric snapshot count disagrees with manifest");
+  const expectedBirths = manifest?.population.birthsSinceStart ?? checkpoint.population.birthsSinceStart;
+  const expectedDeaths = manifest?.population.deathsSinceStart ?? checkpoint.population.deathsSinceStart;
+  const expectedMoves = manifest?.migration.movesCompleted ?? checkpoint.migration.movesCompleted;
+  assert(counts.birth === expectedBirths,
+    `birth events ${counts.birth} disagree with authoritative total ${expectedBirths}`);
+  assert(counts.death === expectedDeaths,
+    `death events ${counts.death} disagree with authoritative total ${expectedDeaths}`);
+  assert(counts.householdMigration === expectedMoves,
+    `migration events ${counts.householdMigration} disagree with authoritative total ${expectedMoves}`);
 
   let previousSequence = 0;
   let previousDay = 0;
@@ -131,26 +161,56 @@ export function validateBundle(bundle) {
     assert(snapshot.provenance === "derived", `metric snapshot at day ${snapshot.day} is not marked derived`);
   }
 
-  const terminal = metrics.snapshots.at(-1);
+  const personRecords = manifest?.population.personRecords ?? checkpoint.population.birthDays.length;
+  const livingPopulation = manifest?.population.livingPopulation ??
+    initialPopulation.initialPopulation + expectedBirths - expectedDeaths;
+  const terminal = terminalSnapshot(metrics, endTime);
+  const occupiedCells = manifest?.population.livingOccupiedCellCount ?? terminal?.population.livingOccupiedCellCount ?? null;
+  const finalFoodStock = manifest?.resources.finalFoodStock ?? terminal?.resources.finalFoodStock ?? null;
+
+  if (manifest) {
+    assert(events.events.length === manifest.statistics.authoritativeEventCount,
+      "event log length disagrees with manifest authoritative event count");
+    assert(metrics.snapshots.length === manifest.statistics.metricSnapshotCount,
+      "metric snapshot count disagrees with manifest");
+  }
+
   if (terminal) {
-    assert(terminal.day === manifest.endTime, "terminal metric day disagrees with manifest end time");
-    assert(terminal.population.livingPopulation === manifest.population.livingPopulation,
-      "terminal living population disagrees with manifest");
-    assert(terminal.population.birthsSinceStart === manifest.population.birthsSinceStart,
-      "terminal birth total disagrees with manifest");
-    assert(terminal.population.deathsSinceStart === manifest.population.deathsSinceStart,
-      "terminal death total disagrees with manifest");
-    assert(terminal.resources.unmetNeed === manifest.resources.unmetNeed,
-      "terminal unmet need disagrees with manifest");
-    assert(terminal.migration.movesCompleted === manifest.migration.movesCompleted,
-      "terminal migration total disagrees with manifest");
+    assert(terminal.population.livingPopulation === livingPopulation,
+      "terminal living population disagrees with authoritative state");
+    assert(terminal.population.birthsSinceStart === expectedBirths,
+      "terminal birth total disagrees with authoritative state");
+    assert(terminal.population.deathsSinceStart === expectedDeaths,
+      "terminal death total disagrees with authoritative state");
+    assert(terminal.migration.movesCompleted === expectedMoves,
+      "terminal migration total disagrees with authoritative state");
+    if (manifest) {
+      assert(terminal.resources.unmetNeed === manifest.resources.unmetNeed,
+        "terminal unmet need disagrees with manifest");
+    } else {
+      assert(terminal.resources.unmetNeed === checkpoint.resources.unmetNeed,
+        "terminal unmet need disagrees with paused checkpoint");
+      assert(terminal.resources.periodsProcessed === checkpoint.resources.periodsProcessed,
+        "terminal resource period count disagrees with paused checkpoint");
+      assert(terminal.migration.decisionBoundaries === checkpoint.migration.decisionBoundaries,
+        "terminal migration boundary count disagrees with paused checkpoint");
+    }
   }
 
   return {
-    eventCounts: counts,
-    durationDays: manifest.endTime,
-    durationYears: manifest.endTime / 365,
+    kind,
+    endTime,
+    durationDays: endTime,
+    durationYears: endTime / 365,
+    configuredDurationYears: checkpoint.experiment.durationYears,
+    seed: checkpoint.experiment.seed,
     cellCount: world.cells.length,
+    personRecords,
+    livingPopulation,
+    occupiedCells,
+    finalFoodStock,
+    stateDigest64: manifest?.stateDigest64 ?? checkpoint.stateDigest64,
+    eventCounts: counts,
   };
 }
 
@@ -164,7 +224,8 @@ export function countEvents(records) {
 }
 
 export function reconstructState(bundle, day) {
-  const targetDay = Math.max(0, Math.min(asNumber(day, "day"), asNumber(bundle.manifest.endTime, "end time")));
+  const endTime = runEndTime(bundle);
+  const targetDay = Math.max(0, Math.min(asNumber(day, "day"), endTime));
   const population = bundle.initialPopulation;
   const people = new Map();
   const householdMembers = new Map();
@@ -236,7 +297,7 @@ export function reconstructState(bundle, day) {
     }
   }
 
-  if (targetDay === asNumber(bundle.manifest.endTime, "end time")) {
+  if (targetDay === endTime) {
     const finalConditions = bundle.checkpoint.population?.conditionPermille ?? [];
     for (let index = 0; index < finalConditions.length; index += 1) {
       const person = people.get(index + 1);
@@ -334,6 +395,6 @@ export function summarizeCell(bundle, state, cellId) {
     livingPopulation: residents.length,
     residents,
     finalFoodStock: bundle.checkpoint.resources.cellFoodStock[id - 1] ?? 0,
-    finalOnly: state.day !== bundle.manifest.endTime,
+    finalOnly: state.day !== runEndTime(bundle),
   };
 }
