@@ -174,8 +174,9 @@ impl ResourceSystem {
             let household = population.household_at_index(person_index).ok_or(
                 ResourceError::InternalInvariant("living person has no household"),
             )?;
-            let household_index = household_index(household, household_count)
-                .ok_or(ResourceError::InternalInvariant("person has invalid household"))?;
+            let household_index = household_index(household, household_count).ok_or(
+                ResourceError::InternalInvariant("person has invalid household"),
+            )?;
             living_members[household_index] = living_members[household_index]
                 .checked_add(1)
                 .ok_or(ResourceError::AccountingOverflow)?;
@@ -184,8 +185,8 @@ impl ResourceSystem {
         let annual_need = u64::from(config.annual_need_units_per_person);
         let base_period_need = annual_need / periods;
         let remainder = annual_need % periods;
-        let per_person_need = base_period_need
-            + u64::from(u64::from(period_index_in_year) < remainder);
+        let per_person_need =
+            base_period_need + u64::from(u64::from(period_index_in_year) < remainder);
 
         let mut household_need = vec![0_u64; household_count];
         let mut cell_need = vec![0_u64; world.cell_count()];
@@ -205,11 +206,18 @@ impl ResourceSystem {
             let location = population.household_location(household).ok_or(
                 ResourceError::InternalInvariant("household has no location"),
             )?;
-            let cell_index = usize::try_from(location.0 - 1)
-                .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
+            let cell_index = usize::try_from(
+                location
+                    .0
+                    .checked_sub(1)
+                    .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
+            )
+            .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
             let slot = cell_need
                 .get_mut(cell_index)
-                .ok_or(ResourceError::InternalInvariant("household location is outside world"))?;
+                .ok_or(ResourceError::InternalInvariant(
+                    "household location is outside world",
+                ))?;
             *slot = slot
                 .checked_add(need)
                 .ok_or(ResourceError::AccountingOverflow)?;
@@ -231,8 +239,13 @@ impl ResourceSystem {
             let location = population.household_location(household).ok_or(
                 ResourceError::InternalInvariant("household has no location"),
             )?;
-            let cell_index = usize::try_from(location.0 - 1)
-                .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
+            let cell_index = usize::try_from(
+                location
+                    .0
+                    .checked_sub(1)
+                    .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
+            )
+            .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
             let demand = cell_need[cell_index];
             let target = cell_target[cell_index];
             let allocation = if demand == 0 {
@@ -258,8 +271,13 @@ impl ResourceSystem {
             let location = population.household_location(household).ok_or(
                 ResourceError::InternalInvariant("household has no location"),
             )?;
-            let cell_index = usize::try_from(location.0 - 1)
-                .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
+            let cell_index = usize::try_from(
+                location
+                    .0
+                    .checked_sub(1)
+                    .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
+            )
+            .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
             if cell_allocated[cell_index] < cell_target[cell_index] {
                 household_harvest[household_index_value] += 1;
                 cell_allocated[cell_index] += 1;
@@ -317,8 +335,9 @@ impl ResourceSystem {
             let household = population.household_at_index(person_index).ok_or(
                 ResourceError::InternalInvariant("living person has no household"),
             )?;
-            let household_index_value = household_index(household, household_count)
-                .ok_or(ResourceError::InternalInvariant("person has invalid household"))?;
+            let household_index_value = household_index(household, household_count).ok_or(
+                ResourceError::InternalInvariant("person has invalid household"),
+            )?;
             let need = household_need[household_index_value];
             let harvest = household_harvest[household_index_value];
             let supplied_permille = if need == 0 {
@@ -365,7 +384,8 @@ impl ResourceSystem {
                     / u64::from(PERMILLE_MAX),
             )
             .map_err(|_| ResourceError::AccountingOverflow)?;
-            if draw_per_million(scarcity_rng, probability) && population.mark_death(person_index, day)
+            if draw_per_million(scarcity_rng, probability)
+                && population.mark_death(person_index, day)
             {
                 self.scarcity_deaths = self
                     .scarcity_deaths
@@ -394,7 +414,12 @@ impl ResourceSystem {
         }
     }
 
-    fn regenerate(&mut self, world: &World, config: &ResourceConfig, day: u64) -> Result<u64, ResourceError> {
+    fn regenerate(
+        &mut self,
+        world: &World,
+        config: &ResourceConfig,
+        day: u64,
+    ) -> Result<u64, ResourceError> {
         let mut regenerated = 0_u64;
         let periods = u64::from(config.periods_per_year);
         let day_of_year = u16::try_from(day % DAYS_PER_YEAR).unwrap_or(0);
@@ -549,10 +574,7 @@ pub enum ResourceError {
     #[error("resource state does not match world cell count")]
     StateShapeMismatch,
     #[error("resource period {index} is invalid for {periods_per_year} periods per year")]
-    InvalidPeriodIndex {
-        index: u16,
-        periods_per_year: u16,
-    },
+    InvalidPeriodIndex { index: u16, periods_per_year: u16 },
     #[error("resource accounting mismatch: expected stock {expected}, found {actual}")]
     ResourceAccountingMismatch { expected: u64, actual: u64 },
     #[error("internal resource invariant failed: {0}")]
@@ -580,7 +602,7 @@ pub enum ResourceConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::PopulationConfig, rng::RngFactory, world::World, WorldConfig};
+    use crate::{WorldConfig, config::PopulationConfig, rng::RngFactory, world::World};
 
     #[test]
     fn synthetic_resource_config_is_valid() {
@@ -619,7 +641,8 @@ mod tests {
     fn sustained_zero_resources_reduce_condition_and_survival() {
         let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(19)).unwrap();
         let mut population =
-            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(19)).unwrap();
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(19))
+                .unwrap();
         let mut config = ResourceConfig::synthetic_validation_v1()
             .with_productivity_scale_permille(0)
             .with_annual_need_units_per_person(100);
@@ -659,7 +682,7 @@ mod tests {
 
         let mut poor = ResourceConfig::synthetic_validation_v1()
             .with_productivity_scale_permille(0)
-            .with_annual_need_units_per_person(10);
+            .with_annual_need_units_per_person(1);
         poor.periods_per_year = 1;
         poor.max_condition_loss_per_period = 1_000;
         poor.max_scarcity_mortality_probability_per_million = PROBABILITY_PER_MILLION;
@@ -693,7 +716,10 @@ mod tests {
             .unwrap();
 
         assert!(rich_population.living_count() > poor_population.living_count());
-        assert!(rich_population.mean_living_condition_permille() >= poor_population.mean_living_condition_permille());
+        assert!(
+            rich_population.mean_living_condition_permille()
+                >= poor_population.mean_living_condition_permille()
+        );
     }
 
     #[test]
