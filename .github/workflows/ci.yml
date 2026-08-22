@@ -34,26 +34,168 @@ jobs:
       - name: Verify locked dependency graph
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
 
-      - name: Apply M5 compiler bootstrap fixes once
+      - name: Apply M5 interface cleanup once
         if: github.actor != 'github-actions[bot]'
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('crates/anthrosim-core/src/resources.rs')
-          text = path.read_text()
-          old = 'pub(crate) struct ResourceRngs {'
-          new = '#[derive(Debug)]\npub(crate) struct ResourceRngs {'
-          if new not in text:
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if new in text:
+                  return
               if old not in text:
-                  raise SystemExit('ResourceRngs pattern not found')
-              path.write_text(text.replace(old, new, 1))
+                  raise SystemExit(f'pattern not found in {path}: {old[:100]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace(
+              'crates/anthrosim-core/src/demography.rs',
+              'pub(crate) fn process_demographic_year(\n',
+              '#[cfg(test)]\npub(crate) fn process_demographic_year(\n',
+          )
+          replace(
+              'crates/anthrosim-core/src/migration.rs',
+              '    pub(crate) fn process_boundary(\n',
+              '    #[cfg(test)]\n    pub(crate) fn process_boundary(\n',
+          )
+          replace(
+              'crates/anthrosim-core/src/resources.rs',
+              'impl ResourceSystem {\n',
+              '''pub(crate) struct ResourcePeriodContext<'a> {
+              pub world: &'a World,
+              pub config: &'a ResourceConfig,
+              pub period_index_in_year: u16,
+              pub day: u64,
+          }
+
+          impl ResourceSystem {
+          ''',
+          )
+          replace(
+              'crates/anthrosim-core/src/resources.rs',
+              '''    pub(crate) fn process_period(
+                  &mut self,
+                  population: &mut Population,
+                  world: &World,
+                  config: &ResourceConfig,
+                  period_index_in_year: u16,
+                  day: u64,
+                  scarcity_rng: &mut ChaCha8Rng,
+              ) -> Result<ResourceStepOutcome, ResourceError> {
+                  let mut events = EventLog::new();
+                  self.process_period_recorded(
+                      population,
+                      world,
+                      config,
+                      period_index_in_year,
+                      day,
+                      scarcity_rng,
+                      &mut events,
+                  )
+              }
+
+              pub(crate) fn process_period_recorded(
+                  &mut self,
+                  population: &mut Population,
+                  world: &World,
+                  config: &ResourceConfig,
+                  period_index_in_year: u16,
+                  day: u64,
+                  scarcity_rng: &mut ChaCha8Rng,
+                  events: &mut EventLog,
+              ) -> Result<ResourceStepOutcome, ResourceError> {
+          ''',
+              '''    #[cfg(test)]
+              pub(crate) fn process_period(
+                  &mut self,
+                  population: &mut Population,
+                  world: &World,
+                  config: &ResourceConfig,
+                  period_index_in_year: u16,
+                  day: u64,
+                  scarcity_rng: &mut ChaCha8Rng,
+              ) -> Result<ResourceStepOutcome, ResourceError> {
+                  let mut events = EventLog::new();
+                  self.process_period_recorded(
+                      population,
+                      &ResourcePeriodContext {
+                          world,
+                          config,
+                          period_index_in_year,
+                          day,
+                      },
+                      scarcity_rng,
+                      &mut events,
+                  )
+              }
+
+              pub(crate) fn process_period_recorded(
+                  &mut self,
+                  population: &mut Population,
+                  context: &ResourcePeriodContext<'_>,
+                  scarcity_rng: &mut ChaCha8Rng,
+                  events: &mut EventLog,
+              ) -> Result<ResourceStepOutcome, ResourceError> {
+                  let ResourcePeriodContext {
+                      world,
+                      config,
+                      period_index_in_year,
+                      day,
+                  } = *context;
+          ''',
+          )
+          replace(
+              'crates/anthrosim-core/src/simulation.rs',
+              '''        ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,
+                  validate_resource_config,
+          ''',
+              '''        ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
+                  ResourceStepOutcome, ResourceSystem, validate_resource_config,
+          ''',
+          )
+          replace(
+              'crates/anthrosim-core/src/simulation.rs',
+              '''                let outcome = self.resources.process_period_recorded(
+                          &mut self.population,
+                          &self.world,
+                          &self.config.resources,
+                          period_index,
+                          day,
+                          &mut self.resource_rngs.scarcity_mortality,
+                          &mut self.events,
+                      )?;
+          ''',
+              '''                let outcome = self.resources.process_period_recorded(
+                          &mut self.population,
+                          &ResourcePeriodContext {
+                              world: &self.world,
+                              config: &self.config.resources,
+                              period_index_in_year: period_index,
+                              day,
+                          },
+                          &mut self.resource_rngs.scarcity_mortality,
+                          &mut self.events,
+                      )?;
+          ''',
+          )
+          replace(
+              'crates/anthrosim-core/src/simulation.rs',
+              'checkpoint.time.days() % DAYS_PER_YEAR != 0',
+              '!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)',
+          )
+          replace(
+              'crates/anthrosim-core/src/simulation.rs',
+              'self.time.days() % DAYS_PER_YEAR != 0',
+              '!self.time.days().is_multiple_of(DAYS_PER_YEAR)',
+          )
           PY
           cargo fmt --all
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add crates
           if ! git diff --cached --quiet; then
-            git commit -m "M5: satisfy compiler requirements"
+            git commit -m "M5: clean lifecycle observability interfaces"
             git push origin HEAD:feat/m5-observability
           fi
 
