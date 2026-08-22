@@ -8,8 +8,12 @@ use crate::{
     },
     manifest::{RunManifest, StopReason},
     population::{Population, PopulationError},
+    resources::{
+        ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,
+        validate_resource_config,
+    },
     rng::RngFactory,
-    time::SimTime,
+    time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
 };
 
@@ -21,6 +25,7 @@ pub struct Simulation {
     rng_factory: RngFactory,
     world: World,
     population: Population,
+    resources: ResourceSystem,
 }
 
 impl Simulation {
@@ -32,10 +37,12 @@ impl Simulation {
             });
         }
         validate_demography_config(&config.demography)?;
+        validate_resource_config(&config.resources)?;
 
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
         let population = Population::initialize(config.population, &world, rng_factory)?;
+        let resources = ResourceSystem::initialize(&world, &config.resources)?;
 
         Ok(Self {
             rng_factory,
@@ -43,6 +50,7 @@ impl Simulation {
             time: SimTime::ZERO,
             world,
             population,
+            resources,
         })
     }
 
@@ -66,20 +74,48 @@ impl Simulation {
         &self.population
     }
 
-    /// Run the configured M2 demographic lifecycle.
+    #[must_use]
+    pub const fn resources(&self) -> &ResourceSystem {
+        &self.resources
+    }
+
+    /// Run the configured M3 resource-demographic lifecycle.
     ///
-    /// v0.1 demographic events are evaluated at explicit annual boundaries.
-    /// Population extinction and the persistent-record safety ceiling are
-    /// operational stop conditions and are recorded distinctly from the
-    /// requested-duration stop.
+    /// Within each simulated year, renewable resources are regenerated and
+    /// shared at explicit subannual boundaries. Condition and scarcity
+    /// mortality are updated after each resource period. The annual M2
+    /// demographic boundary then evaluates baseline mortality and fertility.
     pub fn run(mut self) -> Result<RunManifest, SimulationError> {
         let mut demography_rngs = DemographyRngs::new(self.rng_factory);
+        let mut resource_rngs = ResourceRngs::new(self.rng_factory);
 
         let mut stop_reason = StopReason::DurationReached;
         if self.population.living_count() == 0 {
             stop_reason = StopReason::PopulationExtinct;
         } else {
-            for year in 1..=self.config.duration_years {
+            'years: for year in 1..=self.config.duration_years {
+                let periods = u64::from(self.config.resources.periods_per_year);
+                let year_start_day = (year - 1).saturating_mul(DAYS_PER_YEAR);
+
+                for period_index in 0..self.config.resources.periods_per_year {
+                    let period_number = u64::from(period_index) + 1;
+                    let day = year_start_day
+                        .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
+                    self.time = SimTime::from_days(day);
+                    let outcome = self.resources.process_period(
+                        &mut self.population,
+                        &self.world,
+                        &self.config.resources,
+                        period_index,
+                        day,
+                        &mut resource_rngs.scarcity_mortality,
+                    )?;
+                    if outcome == ResourceStepOutcome::PopulationExtinct {
+                        stop_reason = StopReason::PopulationExtinct;
+                        break 'years;
+                    }
+                }
+
                 self.time = SimTime::from_years(year);
                 let outcome = process_demographic_year(
                     &mut self.population,
@@ -114,6 +150,7 @@ impl Simulation {
             experiment: self.config,
             world: self.world.summary(),
             population: self.population.summary(),
+            resources: self.resources.summary(&self.population),
             start_time: SimTime::ZERO,
             end_time: self.time,
             stop_reason,
@@ -128,6 +165,10 @@ pub enum SimulationError {
     #[error(transparent)]
     Demography(#[from] DemographyConfigError),
     #[error(transparent)]
+    ResourceConfig(#[from] ResourceConfigError),
+    #[error(transparent)]
+    Resources(#[from] ResourceError),
+    #[error(transparent)]
     World(#[from] WorldError),
     #[error(transparent)]
     Population(#[from] PopulationError),
@@ -136,7 +177,9 @@ pub enum SimulationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{DemographyConfig, PROBABILITY_PER_MILLION, PopulationConfig, WorldConfig};
+    use crate::config::{
+        DemographyConfig, PROBABILITY_PER_MILLION, PopulationConfig, ResourceConfig, WorldConfig,
+    };
 
     fn no_event_demography() -> DemographyConfig {
         let mut config = DemographyConfig::synthetic_validation_v1();
@@ -149,9 +192,18 @@ mod tests {
         config
     }
 
+    fn no_pressure_resources() -> ResourceConfig {
+        let mut config = ResourceConfig::synthetic_validation_v1();
+        config.annual_need_units_per_person = 0;
+        config.max_scarcity_mortality_probability_per_million = 0;
+        config
+    }
+
     #[test]
     fn run_reaches_configured_duration_when_no_stop_condition_occurs() {
-        let config = ExperimentConfig::new(7, 10).with_demography(no_event_demography());
+        let config = ExperimentConfig::new(7, 10)
+            .with_demography(no_event_demography())
+            .with_resources(no_pressure_resources());
         let manifest = Simulation::new(config).unwrap().run().unwrap();
         assert_eq!(manifest.end_time, SimTime::from_years(10));
         assert_eq!(manifest.stop_reason, StopReason::DurationReached);
@@ -160,17 +212,20 @@ mod tests {
         assert_eq!(manifest.population.living_population, 10_000);
         assert_eq!(manifest.population.births_since_start, 0);
         assert_eq!(manifest.population.deaths_since_start, 0);
+        assert_eq!(manifest.resources.periods_processed, 40);
+        assert_eq!(manifest.resources.unmet_need, 0);
     }
 
     #[test]
-    fn default_schedule_produces_births_and_deaths() {
+    fn default_schedule_produces_resource_and_demographic_change() {
         let config = ExperimentConfig::new(81, 5)
             .with_world(WorldConfig::new(1, 1))
             .with_population(PopulationConfig::new(2_000).with_max_person_records(100_000));
         let manifest = Simulation::new(config).unwrap().run().unwrap();
 
-        assert!(manifest.population.births_since_start > 0);
         assert!(manifest.population.deaths_since_start > 0);
+        assert!(manifest.resources.periods_processed > 0);
+        assert!(manifest.resources.harvested_food > 0 || manifest.resources.unmet_need > 0);
         assert_eq!(
             u64::from(manifest.population.initial_population)
                 + manifest.population.births_since_start
@@ -180,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn certain_mortality_records_population_extinction() {
+    fn certain_demographic_mortality_records_population_extinction() {
         let mut demography = no_event_demography();
         for band in &mut demography.mortality_bands {
             band.annual_probability_per_million = PROBABILITY_PER_MILLION;
@@ -188,7 +243,8 @@ mod tests {
         let config = ExperimentConfig::new(91, 10)
             .with_world(WorldConfig::new(1, 1))
             .with_population(PopulationConfig::new(100))
-            .with_demography(demography);
+            .with_demography(demography)
+            .with_resources(no_pressure_resources());
 
         let manifest = Simulation::new(config).unwrap().run().unwrap();
         assert_eq!(manifest.stop_reason, StopReason::PopulationExtinct);
@@ -210,7 +266,8 @@ mod tests {
         let config = ExperimentConfig::new(101, 10)
             .with_world(WorldConfig::new(1, 1))
             .with_population(PopulationConfig::new(100).with_max_person_records(101))
-            .with_demography(demography);
+            .with_demography(demography)
+            .with_resources(no_pressure_resources());
         let manifest = Simulation::new(config).unwrap().run().unwrap();
 
         assert_eq!(manifest.stop_reason, StopReason::PersonRecordLimitReached);
@@ -220,11 +277,33 @@ mod tests {
     }
 
     #[test]
+    fn severe_resource_scarcity_can_extinguish_before_annual_demography() {
+        let mut resources = ResourceConfig::synthetic_validation_v1()
+            .with_productivity_scale_permille(0)
+            .with_annual_need_units_per_person(100);
+        resources.periods_per_year = 1;
+        resources.max_condition_loss_per_period = 1_000;
+        resources.max_scarcity_mortality_probability_per_million = PROBABILITY_PER_MILLION;
+        let config = ExperimentConfig::new(111, 10)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(PopulationConfig::new(100))
+            .with_demography(no_event_demography())
+            .with_resources(resources);
+
+        let manifest = Simulation::new(config).unwrap().run().unwrap();
+        assert_eq!(manifest.stop_reason, StopReason::PopulationExtinct);
+        assert_eq!(manifest.end_time, SimTime::from_years(1));
+        assert_eq!(manifest.resources.scarcity_deaths, 100);
+        assert!(manifest.resources.unmet_need > 0);
+    }
+
+    #[test]
     fn empty_initial_population_is_extinct_at_epoch() {
-        let config = ExperimentConfig::new(111, 10).with_population(PopulationConfig::new(0));
+        let config = ExperimentConfig::new(121, 10).with_population(PopulationConfig::new(0));
         let manifest = Simulation::new(config).unwrap().run().unwrap();
         assert_eq!(manifest.stop_reason, StopReason::PopulationExtinct);
         assert_eq!(manifest.end_time, SimTime::ZERO);
+        assert_eq!(manifest.resources.periods_processed, 0);
     }
 
     #[test]
