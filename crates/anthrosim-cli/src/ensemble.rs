@@ -420,7 +420,16 @@ fn reconcile_status(
         missing
     };
 
-    let bundle = inspect_completed_bundle(directory, manifest, spec)?;
+    let bundle = match inspect_completed_bundle(directory, manifest, spec) {
+        Ok(bundle) => bundle,
+        Err(error) => {
+            status.state = RunLifecycle::Incomplete;
+            status.message = Some(format!("bundle integrity error: {error}"));
+            status.result = None;
+            write_status(directory, &status)?;
+            return Err(error);
+        }
+    };
     match bundle {
         BundleInspection::Valid(result) => {
             status.state = RunLifecycle::Completed;
@@ -524,6 +533,7 @@ fn inspect_completed_bundle(
     let checkpoint: SimulationCheckpoint = read_json(&run_directory.join("checkpoint.json"))?;
     if checkpoint.experiment != spec.experiment
         || checkpoint.model_version != experiment_manifest.model_version
+        || checkpoint.git_commit != experiment_manifest.git_commit
         || checkpoint.state_digest64 != run_manifest.state_digest64
     {
         return Err(io::Error::new(
@@ -789,6 +799,34 @@ mod tests {
             root.join(run_relative_dir(41))
                 .join("metrics.json")
                 .is_file()
+        );
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn conflicting_completed_provenance_is_marked_incomplete_and_not_overwritten() {
+        let root = temp_path("retry-conflicting-provenance");
+        execute_ensemble(&root, small_settings(), vec![45], false).expect("fresh experiment");
+        let checkpoint_path = root.join(run_relative_dir(45)).join("checkpoint.json");
+        let mut checkpoint: SimulationCheckpoint = read_json(&checkpoint_path).expect("checkpoint");
+        checkpoint.git_commit = Some("not-the-recorded-git-commit".to_owned());
+        write_json(&checkpoint_path, &checkpoint).expect("tamper checkpoint provenance");
+
+        assert!(execute_ensemble(&root, small_settings(), vec![45], true).is_err());
+
+        let status = read_status(&root, 45);
+        assert_eq!(status.state, RunLifecycle::Incomplete);
+        assert_eq!(status.attempt, 1);
+        assert!(
+            status
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("bundle integrity error"))
+        );
+        let still_tampered: SimulationCheckpoint = read_json(&checkpoint_path).expect("checkpoint");
+        assert_eq!(
+            still_tampered.git_commit.as_deref(),
+            Some("not-the-recorded-git-commit")
         );
         fs::remove_dir_all(root).expect("cleanup");
     }
