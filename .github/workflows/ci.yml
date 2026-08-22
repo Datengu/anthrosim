@@ -39,30 +39,40 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
-          def replace(path, old, new):
+          def transform(path, fn):
               p = Path(path)
-              text = p.read_text()
-              if new in text:
-                  return
-              if old not in text:
-                  raise SystemExit(f'pattern not found in {path}: {old[:100]!r}')
-              p.write_text(text.replace(old, new, 1))
+              before = p.read_text()
+              after = fn(before)
+              if after == before:
+                  print(f'no change needed: {path}')
+              else:
+                  p.write_text(after)
 
-          replace(
-              'crates/anthrosim-core/src/demography.rs',
-              'pub(crate) fn process_demographic_year(\n',
-              '#[cfg(test)]\npub(crate) fn process_demographic_year(\n',
-          )
-          replace(
-              'crates/anthrosim-core/src/migration.rs',
-              '    pub(crate) fn process_boundary(\n',
-              '    #[cfg(test)]\n    pub(crate) fn process_boundary(\n',
-          )
-          replace(
-              'crates/anthrosim-core/src/resources.rs',
-              'impl ResourceSystem {\n',
-              '''pub(crate) struct ResourcePeriodContext<'a> {
+          def demography(text):
+              if '#[cfg(test)]\npub(crate) fn process_demographic_year(' not in text:
+                  text = text.replace(
+                      'pub(crate) fn process_demographic_year(\n',
+                      '#[cfg(test)]\npub(crate) fn process_demographic_year(\n',
+                      1,
+                  )
+              return text
+
+          def migration(text):
+              if '    #[cfg(test)]\n    pub(crate) fn process_boundary(' not in text:
+                  text = text.replace(
+                      '    pub(crate) fn process_boundary(\n',
+                      '    #[cfg(test)]\n    pub(crate) fn process_boundary(\n',
+                      1,
+                  )
+              return text
+
+          def resources(text):
+              if "pub(crate) struct ResourcePeriodContext<'a>" not in text:
+                  text = text.replace(
+                      'impl ResourceSystem {\n',
+                      """pub(crate) struct ResourcePeriodContext<'a> {
               pub world: &'a World,
               pub config: &'a ResourceConfig,
               pub period_index_in_year: u16,
@@ -70,43 +80,12 @@ jobs:
           }
 
           impl ResourceSystem {
-          ''',
-          )
-          replace(
-              'crates/anthrosim-core/src/resources.rs',
-              '''    pub(crate) fn process_period(
-                  &mut self,
-                  population: &mut Population,
-                  world: &World,
-                  config: &ResourceConfig,
-                  period_index_in_year: u16,
-                  day: u64,
-                  scarcity_rng: &mut ChaCha8Rng,
-              ) -> Result<ResourceStepOutcome, ResourceError> {
-                  let mut events = EventLog::new();
-                  self.process_period_recorded(
-                      population,
-                      world,
-                      config,
-                      period_index_in_year,
-                      day,
-                      scarcity_rng,
-                      &mut events,
+          """,
+                      1,
                   )
-              }
-
-              pub(crate) fn process_period_recorded(
-                  &mut self,
-                  population: &mut Population,
-                  world: &World,
-                  config: &ResourceConfig,
-                  period_index_in_year: u16,
-                  day: u64,
-                  scarcity_rng: &mut ChaCha8Rng,
-                  events: &mut EventLog,
-              ) -> Result<ResourceStepOutcome, ResourceError> {
-          ''',
-              '''    #[cfg(test)]
+              start = text.index('    pub(crate) fn process_period(\n')
+              end = text.index('        if self.cell_food_stock.len() != world.cell_count() {', start)
+              replacement = """    #[cfg(test)]
               pub(crate) fn process_period(
                   &mut self,
                   population: &mut Population,
@@ -143,30 +122,22 @@ jobs:
                       period_index_in_year,
                       day,
                   } = *context;
-          ''',
-          )
-          replace(
-              'crates/anthrosim-core/src/simulation.rs',
-              '''        ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,
-                  validate_resource_config,
-          ''',
-              '''        ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
-                  ResourceStepOutcome, ResourceSystem, validate_resource_config,
-          ''',
-          )
-          replace(
-              'crates/anthrosim-core/src/simulation.rs',
-              '''                let outcome = self.resources.process_period_recorded(
-                          &mut self.population,
-                          &self.world,
-                          &self.config.resources,
-                          period_index,
-                          day,
-                          &mut self.resource_rngs.scarcity_mortality,
-                          &mut self.events,
-                      )?;
-          ''',
-              '''                let outcome = self.resources.process_period_recorded(
+          """
+              text = text[:start] + replacement + text[end:]
+              return text
+
+          def simulation(text):
+              text = text.replace(
+                  'ResourceConfigError, ResourceError, ResourceRngs, ResourceStepOutcome, ResourceSystem,\n        validate_resource_config,',
+                  'ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,\n        ResourceStepOutcome, ResourceSystem, validate_resource_config,',
+                  1,
+              )
+              pattern = re.compile(
+                  r'let outcome = self\.resources\.process_period_recorded\(\s*&mut self\.population,\s*&self\.world,\s*&self\.config\.resources,\s*period_index,\s*day,\s*&mut self\.resource_rngs\.scarcity_mortality,\s*&mut self\.events,\s*\)\?;',
+                  re.MULTILINE,
+              )
+              text, count = pattern.subn(
+                  """let outcome = self.resources.process_period_recorded(
                           &mut self.population,
                           &ResourcePeriodContext {
                               world: &self.world,
@@ -176,19 +147,26 @@ jobs:
                           },
                           &mut self.resource_rngs.scarcity_mortality,
                           &mut self.events,
-                      )?;
-          ''',
-          )
-          replace(
-              'crates/anthrosim-core/src/simulation.rs',
-              'checkpoint.time.days() % DAYS_PER_YEAR != 0',
-              '!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)',
-          )
-          replace(
-              'crates/anthrosim-core/src/simulation.rs',
-              'self.time.days() % DAYS_PER_YEAR != 0',
-              '!self.time.days().is_multiple_of(DAYS_PER_YEAR)',
-          )
+                      )?;""",
+                  text,
+                  count=1,
+              )
+              if count == 0 and 'ResourcePeriodContext {' not in text:
+                  raise SystemExit('resource process call pattern not found')
+              text = text.replace(
+                  'checkpoint.time.days() % DAYS_PER_YEAR != 0',
+                  '!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)',
+              )
+              text = text.replace(
+                  'self.time.days() % DAYS_PER_YEAR != 0',
+                  '!self.time.days().is_multiple_of(DAYS_PER_YEAR)',
+              )
+              return text
+
+          transform('crates/anthrosim-core/src/demography.rs', demography)
+          transform('crates/anthrosim-core/src/migration.rs', migration)
+          transform('crates/anthrosim-core/src/resources.rs', resources)
+          transform('crates/anthrosim-core/src/simulation.rs', simulation)
           PY
           cargo fmt --all
           git config user.name github-actions[bot]
