@@ -1,10 +1,12 @@
 use rand::Rng;
+use rand_chacha::ChaCha8Rng;
 use thiserror::Error;
 
 use crate::{
     config::{AgeProbabilityBand, DemographyConfig, PROBABILITY_PER_MILLION},
     ids::{CellId, PersonId},
     population::{Population, PopulationError, ReproductiveSex},
+    rng::RngFactory,
     time::{DAYS_PER_YEAR, SimTime},
     world::{PERMILLE_MAX, World},
 };
@@ -123,6 +125,31 @@ fn draw_bounded<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u64) -> u64 {
     }
 }
 
+/// Independently seeded deterministic streams owned by the M2 demographic system.
+///
+/// Keeping the streams together avoids a broad lifecycle function signature
+/// without coupling mortality, fertility, parent selection, or newborn sex to
+/// each other's draw counts.
+#[derive(Debug)]
+pub(crate) struct DemographyRngs {
+    mortality: ChaCha8Rng,
+    fertility: ChaCha8Rng,
+    parentage: ChaCha8Rng,
+    newborn_sex: ChaCha8Rng,
+}
+
+impl DemographyRngs {
+    #[must_use]
+    pub(crate) fn new(factory: RngFactory) -> Self {
+        Self {
+            mortality: factory.stream("demography/mortality"),
+            fertility: factory.stream("demography/fertility"),
+            parentage: factory.stream("demography/parentage"),
+            newborn_sex: factory.stream("demography/newborn_sex"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DemographyStepOutcome {
     Continue,
@@ -138,22 +165,13 @@ pub(crate) enum DemographyStepOutcome {
 /// mortality draw until a later annual boundary. M2 father selection is local
 /// to the mother's current cell and uniform among eligible living male records;
 /// it does not model marriage, pair bonds, kin avoidance, or social paternity.
-pub(crate) fn process_demographic_year<M, F, P, S>(
+pub(crate) fn process_demographic_year(
     population: &mut Population,
     world: &World,
     config: &DemographyConfig,
     day: u64,
-    mortality_rng: &mut M,
-    fertility_rng: &mut F,
-    parentage_rng: &mut P,
-    newborn_sex_rng: &mut S,
-) -> Result<DemographyStepOutcome, PopulationError>
-where
-    M: Rng + ?Sized,
-    F: Rng + ?Sized,
-    P: Rng + ?Sized,
-    S: Rng + ?Sized,
-{
+    rngs: &mut DemographyRngs,
+) -> Result<DemographyStepOutcome, PopulationError> {
     let records_at_boundary_start = population.person_count();
 
     for index in 0..records_at_boundary_start {
@@ -167,7 +185,7 @@ where
                     reason: "living person has no representable age at demographic boundary",
                 })?;
         let probability = annual_probability_for_age(&config.mortality_bands, age_days);
-        if draw_per_million(mortality_rng, probability) {
+        if draw_per_million(&mut rngs.mortality, probability) {
             population.mark_death(index, day);
         }
     }
@@ -208,7 +226,7 @@ where
         if !has_eligible_male_in_cell(population, location, day, config) {
             continue;
         }
-        if !draw_per_million(fertility_rng, fertility_probability) {
+        if !draw_per_million(&mut rngs.fertility, fertility_probability) {
             continue;
         }
 
@@ -219,7 +237,7 @@ where
             return Ok(DemographyStepOutcome::PersonRecordLimitReached);
         }
 
-        let male_parent = select_male_parent(population, location, day, config, parentage_rng)
+        let male_parent = select_male_parent(population, location, day, config, &mut rngs.parentage)
             .ok_or(PopulationError::InternalInvariant {
                 reason: "eligible local male disappeared during a demographic boundary",
             })?;
@@ -235,7 +253,7 @@ where
         )?;
 
         let male_probability = u32::from(config.male_birth_permille) * 1_000;
-        let newborn_sex = if draw_per_million(newborn_sex_rng, male_probability) {
+        let newborn_sex = if draw_per_million(&mut rngs.newborn_sex, male_probability) {
             ReproductiveSex::Male
         } else {
             ReproductiveSex::Female
@@ -381,7 +399,7 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     use super::*;
-    use crate::{config::PopulationConfig, rng::RngFactory, world::WorldConfig};
+    use crate::{config::PopulationConfig, world::WorldConfig};
 
     #[test]
     fn default_synthetic_schedule_is_structurally_valid() {
@@ -425,19 +443,13 @@ mod tests {
             band.annual_probability_per_million = 0;
         }
 
-        let mut mortality = RngFactory::new(9).stream("test/mortality");
-        let mut fertility = RngFactory::new(9).stream("test/fertility");
-        let mut parentage = RngFactory::new(9).stream("test/parentage");
-        let mut sex = RngFactory::new(9).stream("test/sex");
+        let mut rngs = DemographyRngs::new(RngFactory::new(9));
         let outcome = process_demographic_year(
             &mut population,
             &world,
             &config,
             DAYS_PER_YEAR,
-            &mut mortality,
-            &mut fertility,
-            &mut parentage,
-            &mut sex,
+            &mut rngs,
         )
         .unwrap();
 
