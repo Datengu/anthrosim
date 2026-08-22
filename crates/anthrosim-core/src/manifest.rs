@@ -8,6 +8,8 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 pub enum StopReason {
     DurationReached,
+    PopulationExtinct,
+    PersonRecordLimitReached,
 }
 
 /// Immutable summary identifying how a run was produced.
@@ -26,5 +28,5 @@ pub struct RunManifest {
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 }
