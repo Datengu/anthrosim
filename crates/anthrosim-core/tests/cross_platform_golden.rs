@@ -45,7 +45,10 @@ fn deterministic_fixture_is_byte_stable_and_exportable() {
         return;
     };
     let path = PathBuf::from(path);
-    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         fs::create_dir_all(parent).unwrap();
     }
     fs::write(path, first).unwrap();
