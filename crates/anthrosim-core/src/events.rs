@@ -1,0 +1,114 @@
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    ids::{CellId, HouseholdId, PersonId},
+    migration::MigrationUtilityBreakdown,
+    population::ReproductiveSex,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventProvenance {
+    Authoritative,
+    Derived,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeathCause {
+    DemographicMortality,
+    ResourceScarcity,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum EventKind {
+    Birth {
+        person: PersonId,
+        female_parent: PersonId,
+        male_parent: PersonId,
+        household: HouseholdId,
+        cell: CellId,
+        reproductive_sex: ReproductiveSex,
+    },
+    Death {
+        person: PersonId,
+        household: HouseholdId,
+        cell: CellId,
+        cause: DeathCause,
+        condition_permille: u16,
+        probability_per_million: u32,
+    },
+    HouseholdMigration {
+        household: HouseholdId,
+        people_moved: u32,
+        origin: CellId,
+        destination: CellId,
+        distance_cells: u16,
+        pressure_permille: u16,
+        origin_utility: MigrationUtilityBreakdown,
+        destination_utility: MigrationUtilityBreakdown,
+        best_candidate: CellId,
+        best_candidate_utility: i32,
+        selected_weight: u64,
+        total_move_weight: u64,
+        choice_draw: u64,
+        travel_condition_cost_per_person: u16,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventRecord {
+    pub sequence: u64,
+    pub day: u64,
+    pub provenance: EventProvenance,
+    pub event: EventKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventLog {
+    pub schema_version: u32,
+    pub events: Vec<EventRecord>,
+}
+
+impl EventLog {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            events: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+
+    pub(crate) fn push_authoritative(&mut self, day: u64, event: EventKind) {
+        let sequence = u64::try_from(self.events.len())
+            .unwrap_or(u64::MAX)
+            .saturating_add(1);
+        self.events.push(EventRecord {
+            sequence,
+            day,
+            provenance: EventProvenance::Authoritative,
+            event,
+        });
+    }
+}
+
+impl Default for EventLog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
