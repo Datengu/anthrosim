@@ -17,7 +17,9 @@ pub use config::{
     AgeProbabilityBand, DemographyConfig, ExperimentConfig, ParameterProvenance, PopulationConfig,
     PopulationInitialization, WorldConfig,
 };
-pub use demography::{DemographyConfigError, annual_probability_for_age, validate_demography_config};
+pub use demography::{
+    DemographyConfigError, annual_probability_for_age, validate_demography_config,
+};
 pub use manifest::{RunManifest, StopReason};
 pub use population::{
     CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
