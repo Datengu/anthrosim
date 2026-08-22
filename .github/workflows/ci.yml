@@ -84,6 +84,33 @@ jobs:
             --enforce
           cat /tmp/anthrosim-m7-5-performance.json
 
+      - name: Exercise unattended 1000-run M7 ensemble scale
+        run: |
+          rm -rf /tmp/anthrosim-m7-thousand-runs
+          target/release/anthrosim ensemble \
+            --years 0 \
+            --world-width 1 \
+            --world-height 1 \
+            --population 1 \
+            --household-size 1 \
+            --max-person-records 1 \
+            --seed-start 900000 \
+            --seed-count 1000 \
+            --run-dir /tmp/anthrosim-m7-thousand-runs \
+            >/tmp/anthrosim-m7-thousand-runs.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/anthrosim-m7-thousand-runs')
+          manifest = json.loads((root / 'experiment-manifest.json').read_text())
+          statuses = [json.loads(path.read_text()) for path in sorted((root / 'status').glob('*.json'))]
+          assert len(manifest['runs']) == 1000
+          assert len(statuses) == 1000
+          assert all(status['state'] == 'completed' for status in statuses)
+          assert all(status['attempt'] == 1 for status in statuses)
+          PY
+
       - name: Run M7.6 canonical resource variability experiment
         run: |
           rm -rf /tmp/anthrosim-m7-6-resource-variability
@@ -104,6 +131,7 @@ jobs:
           summary = json.loads((root / 'analysis/summary.json').read_text())
           manifest = json.loads((root / 'sweep-manifest.json').read_text())
           record = json.loads((root / 'reproduction-record.json').read_text())
+          reference = json.loads(Path('experiments/v0.1-resource-variability-reference.json').read_text())
 
           assert len(manifest['points']) == 18
           assert len(runs) == 144
@@ -121,6 +149,27 @@ jobs:
           assert record['modelVersion'] == manifest['modelVersion']
           assert record['gitCommit'] == manifest['gitCommit']
           assert record['gitCommit']
+          assert record['definitionSha256'] == reference['definitionSha256']
+
+          observed = []
+          for row in points:
+              observed.append({
+                  'pointId': row['pointId'],
+                  'resourceProductivityScalePermille': row['resourceProductivityScalePermille'],
+                  'resourceSeasonalityScalePermille': row['resourceSeasonalityScalePermille'],
+                  'migrationEnabled': not row['disableMigration'],
+                  'durationReachedRuns': row['durationReachedRuns'],
+                  'populationExtinctRuns': row['populationExtinctRuns'],
+                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationCompletedOnly'],
+                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountCompletedOnly'],
+                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleCompletedOnly'],
+                  'meanResourceScarcityDeathsCompletedOnly': row['meanResourceScarcityDeathsCompletedOnly'],
+                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedCompletedOnly'],
+                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesCompletedOnly'],
+                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsCompletedOnly'],
+                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveCompletedOnly'],
+              })
+          assert observed == reference['pointResults']
           PY
 
       - name: Archive M7.6 derived experiment results
