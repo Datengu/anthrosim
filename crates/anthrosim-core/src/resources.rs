@@ -359,7 +359,7 @@ impl ResourceSystem {
                 let loss = if loss_numerator == 0 {
                     0
                 } else {
-                    (loss_numerator + u64::from(PERMILLE_MAX) - 1) / u64::from(PERMILLE_MAX)
+                    loss_numerator.div_ceil(u64::from(PERMILLE_MAX))
                 };
                 current.saturating_sub(u16::try_from(loss).unwrap_or(u16::MAX))
             };
