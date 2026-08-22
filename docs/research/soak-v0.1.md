@@ -96,7 +96,9 @@ These larger commands inherit M7.2 immutable experiment identity, lifecycle/retr
 
 The resumable checkpoint contract remains an **annual completed boundary**. M7.4 explicitly compares a long supported annual checkpoint/resume path against uninterrupted execution. Final completed-run checkpoints may also describe an early terminal state reached between annual boundaries (for example resource-driven extinction); such final artifacts remain valid evidence of the completed run but are not automatically a supported resume point.
 
-M7.4 also identified a narrower schema ambiguity: if `checkpoint_at_year(...)` reaches `PersonRecordLimitReached` exactly on the requested annual boundary, the current checkpoint schema does not serialize that terminal stop reason, so the artifact can look like an ordinary resumable annual checkpoint. This is tracked explicitly in [#31](https://github.com/Datengu/anthrosim/issues/31). Until that contract is hardened, the supported M7.4 resume claim is limited to non-terminal annual checkpoints; terminal record-limit artifacts are valid final run evidence but should not be treated as resumable merely because they happen to lie on an annual boundary.
+Checkpoint schema v3 serializes an optional `terminalStopReason`. Ordinary annual checkpoints carry no terminal reason and remain resumable exactly as before. If `checkpoint_at_year(...)` reaches `PersonRecordLimitReached` exactly on the requested annual boundary, the returned checkpoint is explicitly marked `PersonRecordLimitReached` instead of looking like an ordinary resumable checkpoint. `Simulation::from_checkpoint(...)` validates that marker against the authoritative state, and subsequent execution honors it without advancing the model: `run_recorded()` reproduces the same terminal boundary and a request for a later checkpoint target fails because the terminal state cannot progress to that target.
+
+Completed-run checkpoints also carry the manifest's terminal reason. This makes record-limit termination self-describing without trying to infer it from `personRecords == maxPersonRecords`, which is not by itself proof that the model terminated there. Non-annual terminal completed-run checkpoints remain final evidence rather than supported resume points because the loader still enforces the annual checkpoint boundary.
 
 ## Remaining limits after M7.4
 
@@ -106,7 +108,6 @@ In particular:
 
 - the full combinatorial parameter space is not exhaustively enumerated;
 - CI soaks are deliberately bounded so they remain practical on every pull request;
-- terminal record-limit checkpoint resume semantics remain an explicit follow-up in #31;
 - M7.5 owns explicit performance and memory acceptance benchmarking;
 - M7.6 owns the first named resource-variability experiment and v0.1 closure;
 - anthropological plausibility, calibration and empirical validation remain separate scientific work.
