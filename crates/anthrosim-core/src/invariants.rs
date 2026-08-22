@@ -193,6 +193,19 @@ fn validate_checkpoint_identity(
     if u128::from(checkpoint.time.days()) > duration_days {
         return violation("checkpoint time exceeds configured duration");
     }
+
+    let population = checkpoint.population.summary();
+    let terminal_state_matches = match checkpoint.terminal_stop_reason {
+        None => true,
+        Some(StopReason::DurationReached) => u128::from(checkpoint.time.days()) == duration_days,
+        Some(StopReason::PopulationExtinct) => population.living_population == 0,
+        Some(StopReason::PersonRecordLimitReached) => {
+            population.person_records == checkpoint.experiment.population.max_person_records
+        }
+    };
+    if !terminal_state_matches {
+        return violation("checkpoint terminal stop reason does not reconcile with state");
+    }
     Ok(())
 }
 
@@ -219,6 +232,7 @@ fn validate_manifest_against_checkpoint(
         || manifest.experiment != checkpoint.experiment
         || manifest.start_time != SimTime::ZERO
         || manifest.end_time != checkpoint.time
+        || checkpoint.terminal_stop_reason != Some(manifest.stop_reason)
         || manifest.world != world.summary()
         || manifest.population != population
         || manifest.resources != resources

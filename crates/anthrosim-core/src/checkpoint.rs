@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::ExperimentConfig, events::EventLog, metrics::MetricSeries,
+    config::ExperimentConfig, events::EventLog, manifest::StopReason, metrics::MetricSeries,
     migration::MigrationCheckpointState, population::Population, resources::ResourceSystem,
     rng::RngStreamPosition, time::SimTime,
 };
@@ -30,6 +30,7 @@ pub struct SimulationCheckpoint {
     pub experiment: ExperimentConfig,
     pub time: SimTime,
     pub completed_years: u64,
+    pub terminal_stop_reason: Option<StopReason>,
     pub world_digest64: u64,
     pub population: Population,
     pub resources: ResourceSystem,
@@ -41,7 +42,7 @@ pub struct SimulationCheckpoint {
 }
 
 impl SimulationCheckpoint {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 #[must_use]
