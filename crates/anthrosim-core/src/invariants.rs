@@ -167,6 +167,9 @@ fn validate_checkpoint_identity(checkpoint: &SimulationCheckpoint) -> Result<(),
     validate_resource_config(&checkpoint.experiment.resources)?;
     validate_migration_config(&checkpoint.experiment.migration)?;
 
+    if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR) {
+        return violation("checkpoint day is not a completed annual boundary");
+    }
     if checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR {
         return violation("completedYears does not match the checkpoint day");
     }
