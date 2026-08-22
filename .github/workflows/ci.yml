@@ -44,13 +44,14 @@ jobs:
       - name: Test
         run: cargo test --locked --workspace --all-features
 
-      - name: Validate M6 source syntax
+      - name: Validate M6/M7 source syntax
         run: |
           node --check explorer/model.mjs
           node --check explorer/app.mjs
           node --check scripts/validate-explorer-bundle.mjs
           python3 -m py_compile scripts/serve-explorer.py
           python3 -m py_compile scripts/benchmark-performance-acceptance.py
+          python3 -m py_compile scripts/run-versioned-sweep.py
 
       - name: Test M6 explorer artifact model
         run: node --test explorer/model.test.mjs
@@ -80,6 +81,40 @@ jobs:
             --report /tmp/anthrosim-m7-5-performance.json \
             --enforce
           cat /tmp/anthrosim-m7-5-performance.json
+
+      - name: Run M7.6 canonical resource variability experiment
+        run: |
+          rm -rf /tmp/anthrosim-m7-6-resource-variability
+          python3 scripts/run-versioned-sweep.py \
+            experiments/v0.1-resource-variability.json \
+            --binary target/release/anthrosim \
+            --run-dir /tmp/anthrosim-m7-6-resource-variability
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/anthrosim-m7-6-resource-variability')
+          runs = json.loads((root / 'analysis/runs.json').read_text())
+          points = json.loads((root / 'analysis/points.json').read_text())
+          summary = json.loads((root / 'analysis/summary.json').read_text())
+          manifest = json.loads((root / 'sweep-manifest.json').read_text())
+          record = json.loads((root / 'reproduction-record.json').read_text())
+
+          assert len(manifest['points']) == 18
+          assert len(runs) == 144
+          assert len(points) == 18
+          assert all(row['state'] == 'completed' for row in runs)
+          assert all(row['completedRuns'] == 8 for row in points)
+          assert all(row['failedRuns'] == 0 for row in points)
+          assert all(row['incompleteRuns'] == 0 for row in points)
+          assert all(row['personRecordLimitReachedRuns'] == 0 for row in points)
+          assert summary['plannedRuns'] == 144
+          assert summary['completedRuns'] == 144
+          assert record['sweepId'] == manifest['sweepId']
+          PY
+          cat /tmp/anthrosim-m7-6-resource-variability/reproduction-record.json
+          cat /tmp/anthrosim-m7-6-resource-variability/analysis/summary.json
+          cat /tmp/anthrosim-m7-6-resource-variability/analysis/points.csv
 
       - name: Generate completed M5 sample bundle
         run: |
