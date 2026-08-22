@@ -135,19 +135,23 @@ The current move completes at the same decision boundary. There is no persistent
 
 For an interior cell, a Manhattan candidate radius `r` exposes at most `2r(r + 1)` move candidates. At the default radius three this is 24 candidates, independent of total world area.
 
-## Persistence
+## Persistence and observability
 
-A database is not the simulation loop. v0.1 writes versioned manifests, metrics, events, and later checkpoints at controlled boundaries. The authoritative state remains in memory while a run is executing.
+A database is not the simulation loop. The authoritative simulation remains in memory while a run executes; M5 writes versioned artifacts at controlled boundaries for offline analysis and deterministic resumption.
 
-The eventual persistence pattern is expected to combine:
+M5 introduces three explicit artifact classes:
 
-- immutable run manifest;
-- append-oriented event/metric outputs;
-- periodic checkpoints;
-- compact experiment summaries;
-- optional analytical columnar formats for research workflows.
+- authoritative chronological events for births, deaths and completed household moves;
+- derived annual/terminal metric snapshots that reconcile against authoritative state;
+- deterministic annual-boundary checkpoints containing dynamic state, history and exact named-RNG stream positions.
 
-M4 currently emits aggregate resource and migration summaries in the run manifest. Migration also retains a configured bounded sample of detailed decision traces so factor-by-factor choice explanations can be inspected without allowing normal manifests to grow without bound. Full chronological event/metric streams remain deferred to M5.
+A controlled run directory contains a manifest, generated world, founder population, event log, metric series and checkpoint. The explorer and research tooling can therefore inspect a completed run without a live database or simulation process.
+
+Checkpoint restoration reconstructs the immutable synthetic world from experiment configuration + seed and verifies its digest, restores full population/resource state, reconstructs migration scratch buffers from persistent migration state, and restores all seven named ChaCha8 streams from stable stream labels plus their recorded word positions. A composite state digest is checked before execution continues.
+
+M5 v1 deliberately supports resumable checkpoints only at completed annual boundaries. This keeps the resource -> migration -> demography schedule position unambiguous; partially completed subannual boundaries are not serialized as resumable states.
+
+Migration still retains a bounded summary sample of detailed decision traces for ordinary manifests, while the authoritative event log records every completed move. Future analytical columnar formats may be added downstream without changing the in-memory simulation ownership boundary.
 
 ## Performance policy
 
