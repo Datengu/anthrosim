@@ -92,7 +92,7 @@ This improves compactness and exact cross-run comparison and reduces the risk th
 
 Floating-point analysis remains appropriate downstream; avoiding it in authoritative state is not an ideological restriction where a later model genuinely requires it.
 
-M6 has an additional display-boundary concern: JavaScript `Number` cannot exactly represent every Rust `u64`. The explorer therefore preserves integers outside JavaScript's safe integer range as exact decimal strings during JSON parsing instead of silently rounding authoritative artifact values.
+M6 has an additional display-boundary concern: JavaScript `Number` cannot exactly represent every Rust `u64`. The explorer therefore preserves integers outside JavaScript's safe integer range as exact decimal strings during JSON parsing instead of silently rounding authoritative artifact values. Numeric visualisations reject unsafe conversions rather than approximate them.
 
 ## Deterministic randomness
 
@@ -149,7 +149,7 @@ M5 introduces three explicit artifact classes:
 - derived annual/terminal metric snapshots that reconcile against authoritative state;
 - deterministic annual-boundary checkpoints containing dynamic state, history and exact named-RNG stream positions.
 
-A controlled run directory contains a manifest, generated world, founder population, event log, metric series and checkpoint. The explorer and research tooling can therefore inspect a completed run without a live database or simulation process.
+A completed controlled run directory contains a manifest, generated world, founder population, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains world, founder population, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.
 
 Checkpoint restoration reconstructs the immutable synthetic world from experiment configuration + seed and verifies its digest, restores full population/resource state, reconstructs migration scratch buffers from persistent migration state, and restores all seven named ChaCha8 streams from stable stream labels plus their recorded word positions. A composite state digest is checked before execution continues.
 
@@ -161,7 +161,9 @@ Migration still retains a bounded summary sample of detailed decision traces for
 
 M6 is intentionally **artifact-first and read-only**.
 
-`scripts/serve-explorer.py` binds to loopback by default and exposes only the fixed explorer assets plus the six expected files from one explicitly selected run directory. It implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.
+`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus the five run files common to completed and paused M5 bundles. `manifest.json` is additionally exposed only when it actually exists. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.
+
+For completed bundles, the manifest is the terminal summary and schema catalogue. For paused bundles, the checkpoint itself is the authoritative current boundary; M6 does not manufacture a completed manifest. Separately written events/metrics are checked against the history embedded in the checkpoint.
 
 The explorer distinguishes three data classes:
 
@@ -169,9 +171,9 @@ The explorer distinguishes three data classes:
 - **derived** M5 metric snapshots;
 - **reconstructed display state**, such as historical living-cell occupancy replayed from founder locations plus authoritative birth/death/migration events.
 
-M6 does not manufacture historical resource surfaces or historical individual condition where M5 did not serialize them. Final resource stock and final living condition are read from the checkpoint; earlier unavailable values are labelled unavailable rather than interpolated.
+M6 does not manufacture historical resource surfaces or historical individual condition where M5 did not serialize them. Checkpoint resource stock and condition are authoritative only at that checkpoint boundary; earlier unavailable values are labelled unavailable rather than interpolated.
 
-The terminal reconstruction is verified against the final checkpoint in CI: person count, living count, occupied cells, every person location/household and total final food stock must agree. The server smoke test hashes the run bundle before and after access to verify no file changed.
+Boundary reconstruction is verified against the checkpoint in CI: person count, living count, occupied cells, every person location/household and total checkpoint food stock must agree. CI generates both completed and genuinely paused sample bundles. Separate server smoke tests hash each bundle before and after access to verify no file changed.
 
 The explorer has no Cargo dependency and no place in the authoritative dependency graph. Removing the entire `explorer/` and its serving scripts leaves the Rust simulation build and headless execution unchanged.
 
