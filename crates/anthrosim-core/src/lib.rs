@@ -29,7 +29,8 @@ pub use demography::{
 };
 pub use events::{DeathCause, EventKind, EventLog, EventProvenance, EventRecord};
 pub use invariants::{
-    InvariantError, InvariantReport, validate_checkpoint_invariants, validate_recorded_run_invariants,
+    InvariantError, InvariantReport, validate_checkpoint_invariants,
+    validate_recorded_run_invariants,
 };
 pub use manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason};
 pub use metrics::{
