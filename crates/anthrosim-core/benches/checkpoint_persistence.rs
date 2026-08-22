@@ -1,6 +1,8 @@
 use std::hint::black_box;
 
-use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, SimulationCheckpoint, WorldConfig};
+use anthrosim_core::{
+    ExperimentConfig, PopulationConfig, Simulation, SimulationCheckpoint, WorldConfig,
+};
 use criterion::{Criterion, criterion_group, criterion_main};
 
 fn checkpoint_fixture() -> SimulationCheckpoint {

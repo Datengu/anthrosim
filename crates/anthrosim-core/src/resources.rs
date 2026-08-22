@@ -157,6 +157,7 @@ impl ResourceSystem {
     }
 
     #[cfg(test)]
+    #[cfg(test)]
     pub(crate) fn process_period(
         &mut self,
         population: &mut Population,
