@@ -9,9 +9,7 @@ use clap::{Parser, Subcommand};
 
 mod ensemble;
 
-use ensemble::{
-    EnsembleRunSettings, execute_ensemble, experiment_config, resolve_ensemble_seeds,
-};
+use ensemble::{EnsembleRunSettings, execute_ensemble, experiment_config, resolve_ensemble_seeds};
 
 #[derive(Debug, Parser)]
 #[command(
