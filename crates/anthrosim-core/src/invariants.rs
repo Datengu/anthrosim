@@ -2,16 +2,25 @@ use thiserror::Error;
 
 use crate::{
     checkpoint::{SimulationCheckpoint, state_digest64},
-    config::{PROBABILITY_PER_MILLION, validate_demography_config},
+    config::PROBABILITY_PER_MILLION,
+    demography::{DemographyConfigError, validate_demography_config},
     events::{EventKind, EventLog, EventProvenance},
-    manifest::{RunManifest, StopReason},
-    metrics::{MetricProvenance, MetricSeries, MigrationMetrics, PopulationMetrics, ResourceMetrics},
-    migration::{MigrationCheckpointState, MigrationError, MigrationSystem, MigrationSummary, validate_migration_config},
-    population::{PopulationSummary, PopulationValidationError},
-    resources::{ResourceError, ResourceSummary, validate_resource_config},
+    manifest::{ArtifactSchemas, RunManifest, StopReason},
+    metrics::{
+        MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics,
+        ResourceMetrics,
+    },
+    migration::{
+        MigrationCheckpointState, MigrationConfigError, MigrationError, MigrationSystem,
+        MigrationSummary, validate_migration_config,
+    },
+    population::{Population, PopulationSummary, PopulationValidationError},
+    resources::{
+        ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config,
+    },
     rng::RngFactory,
     simulation::RecordedRun,
-    time::DAYS_PER_YEAR,
+    time::{DAYS_PER_YEAR, SimTime},
     world::{PERMILLE_MAX, World, WorldError},
 };
 
@@ -38,11 +47,11 @@ pub enum InvariantError {
     #[error(transparent)]
     Migration(#[from] MigrationError),
     #[error(transparent)]
-    DemographyConfig(#[from] crate::demography::DemographyConfigError),
+    DemographyConfig(#[from] DemographyConfigError),
     #[error(transparent)]
-    ResourceConfig(#[from] crate::resources::ResourceConfigError),
+    ResourceConfig(#[from] ResourceConfigError),
     #[error(transparent)]
-    MigrationConfig(#[from] crate::migration::MigrationConfigError),
+    MigrationConfig(#[from] MigrationConfigError),
 }
 
 impl SimulationCheckpoint {
@@ -60,43 +69,12 @@ impl RecordedRun {
 pub fn validate_checkpoint_invariants(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<InvariantReport, InvariantError> {
-    if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
-        return violation(format!(
-            "checkpoint schema {} does not match current schema {}",
-            checkpoint.schema_version,
-            SimulationCheckpoint::CURRENT_SCHEMA_VERSION
-        ));
-    }
-    if checkpoint.model_version != env!("CARGO_PKG_VERSION") {
-        return violation(format!(
-            "checkpoint model version {} does not match current model version {}",
-            checkpoint.model_version,
-            env!("CARGO_PKG_VERSION")
-        ));
-    }
-    if checkpoint.experiment.schema_version != crate::ExperimentConfig::CURRENT_SCHEMA_VERSION {
-        return violation("checkpoint experiment schema is not current");
-    }
-    validate_demography_config(&checkpoint.experiment.demography)?;
-    validate_resource_config(&checkpoint.experiment.resources)?;
-    validate_migration_config(&checkpoint.experiment.migration)?;
-
-    let expected_completed_years = checkpoint.time.days() / DAYS_PER_YEAR;
-    if checkpoint.completed_years != expected_completed_years {
-        return violation(format!(
-            "checkpoint completedYears {} does not match day-derived value {}",
-            checkpoint.completed_years, expected_completed_years
-        ));
-    }
-    let duration_days = u128::from(checkpoint.experiment.duration_years) * u128::from(DAYS_PER_YEAR);
-    if u128::from(checkpoint.time.days()) > duration_days {
-        return violation("checkpoint time exceeds configured experiment duration");
-    }
+    validate_checkpoint_identity(checkpoint)?;
 
     let rng_factory = RngFactory::new(checkpoint.experiment.seed);
     let world = World::generate(checkpoint.experiment.world, rng_factory)?;
     if world.digest64() != checkpoint.world_digest64 {
-        return violation("checkpoint world digest does not match deterministic reconstruction");
+        return violation("world digest does not match deterministic reconstruction");
     }
 
     checkpoint.population.validate(&world)?;
@@ -114,7 +92,11 @@ pub fn validate_checkpoint_invariants(
     let resources = checkpoint.resources.summary(&checkpoint.population);
     let migration_summary = migration.summary();
 
-    validate_resource_accounting(&resources, checkpoint.time.days(), &checkpoint.experiment.resources)?;
+    validate_resource_accounting(
+        &resources,
+        checkpoint.time.days(),
+        checkpoint.experiment.resources.periods_per_year,
+    )?;
     validate_migration_accounting(
         &checkpoint.migration,
         &migration_summary,
@@ -123,7 +105,7 @@ pub fn validate_checkpoint_invariants(
         population.household_count,
         resources.periods_processed,
     )?;
-    let event_counts = validate_events(
+    let counts = validate_events(
         &checkpoint.events,
         checkpoint.time.days(),
         &world,
@@ -150,7 +132,7 @@ pub fn validate_checkpoint_invariants(
     );
     if actual_digest != checkpoint.state_digest64 {
         return violation(format!(
-            "checkpoint state digest mismatch: stored {}, reconstructed {}",
+            "state digest mismatch: stored {}, reconstructed {}",
             checkpoint.state_digest64, actual_digest
         ));
     }
@@ -158,9 +140,9 @@ pub fn validate_checkpoint_invariants(
     Ok(InvariantReport {
         event_count: u64::try_from(checkpoint.events.len()).unwrap_or(u64::MAX),
         metric_snapshot_count: u64::try_from(checkpoint.metrics.len()).unwrap_or(u64::MAX),
-        births: event_counts.births,
-        deaths: event_counts.deaths,
-        migration_moves: event_counts.migrations,
+        births: counts.births,
+        deaths: counts.deaths,
+        migration_moves: counts.migrations,
         resource_periods: resources.periods_processed,
     })
 }
@@ -171,6 +153,30 @@ pub fn validate_recorded_run_invariants(
     let report = validate_checkpoint_invariants(&run.checkpoint)?;
     validate_manifest_against_checkpoint(&run.manifest, &run.checkpoint)?;
     Ok(report)
+}
+
+fn validate_checkpoint_identity(checkpoint: &SimulationCheckpoint) -> Result<(), InvariantError> {
+    if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
+        return violation("checkpoint schema is not current");
+    }
+    if checkpoint.model_version != env!("CARGO_PKG_VERSION") {
+        return violation("checkpoint model version does not match this build");
+    }
+    if checkpoint.experiment.schema_version != crate::ExperimentConfig::CURRENT_SCHEMA_VERSION {
+        return violation("experiment schema is not current");
+    }
+    validate_demography_config(&checkpoint.experiment.demography)?;
+    validate_resource_config(&checkpoint.experiment.resources)?;
+    validate_migration_config(&checkpoint.experiment.migration)?;
+
+    if checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR {
+        return violation("completedYears does not match the checkpoint day");
+    }
+    let duration_days = u128::from(checkpoint.experiment.duration_years) * u128::from(DAYS_PER_YEAR);
+    if u128::from(checkpoint.time.days()) > duration_days {
+        return violation("checkpoint time exceeds configured duration");
+    }
+    Ok(())
 }
 
 fn validate_manifest_against_checkpoint(
@@ -189,9 +195,12 @@ fn validate_manifest_against_checkpoint(
     )?
     .summary();
 
-    if manifest.model_version != checkpoint.model_version
+    if manifest.schema_version != RunManifest::CURRENT_SCHEMA_VERSION
+        || manifest.artifact_schemas != ArtifactSchemas::current()
+        || manifest.model_version != checkpoint.model_version
         || manifest.git_commit != checkpoint.git_commit
         || manifest.experiment != checkpoint.experiment
+        || manifest.start_time != SimTime::ZERO
         || manifest.end_time != checkpoint.time
         || manifest.world != world.summary()
         || manifest.population != population
@@ -199,7 +208,7 @@ fn validate_manifest_against_checkpoint(
         || manifest.migration != migration
         || manifest.state_digest64 != checkpoint.state_digest64
     {
-        return violation("run manifest does not reconcile with its final checkpoint");
+        return violation("run manifest does not reconcile with the final checkpoint");
     }
     if manifest.statistics.simulated_days != checkpoint.time.days()
         || manifest.statistics.authoritative_event_count
@@ -209,14 +218,15 @@ fn validate_manifest_against_checkpoint(
         || manifest.statistics.resource_periods_processed != resources.periods_processed
         || manifest.statistics.migration_decision_boundaries != migration.decision_boundaries
     {
-        return violation("run manifest statistics do not reconcile with final artifacts");
+        return violation("run statistics do not reconcile with final artifacts");
     }
 
     match manifest.stop_reason {
         StopReason::DurationReached => {
-            let expected = u128::from(manifest.experiment.duration_years) * u128::from(DAYS_PER_YEAR);
-            if u128::from(manifest.end_time.days()) != expected {
-                return violation("duration-reached run did not end at configured duration");
+            let duration_days =
+                u128::from(manifest.experiment.duration_years) * u128::from(DAYS_PER_YEAR);
+            if u128::from(manifest.end_time.days()) != duration_days {
+                return violation("duration-reached run ended before or after configured duration");
             }
         }
         StopReason::PopulationExtinct => {
@@ -226,7 +236,7 @@ fn validate_manifest_against_checkpoint(
         }
         StopReason::PersonRecordLimitReached => {
             if manifest.population.person_records != manifest.experiment.population.max_person_records {
-                return violation("record-limit stop does not end exactly at the configured record ceiling");
+                return violation("record-limit run did not end exactly at its record ceiling");
             }
         }
     }
@@ -236,33 +246,30 @@ fn validate_manifest_against_checkpoint(
 fn validate_resource_accounting(
     resources: &ResourceSummary,
     day: u64,
-    config: &crate::ResourceConfig,
+    periods_per_year: u16,
 ) -> Result<(), InvariantError> {
     let available = u128::from(resources.initial_food_stock) + u128::from(resources.regenerated_food);
     let accounted = u128::from(resources.harvested_food) + u128::from(resources.final_food_stock);
     if available != accounted {
         return violation(format!(
-            "resource stock accounting drifted: available {available}, accounted {accounted}"
+            "resource stock drift: available {available}, accounted {accounted}"
         ));
     }
     if resources.consumed_food != resources.harvested_food {
-        return violation("resource consumed-food total does not match harvested allocation");
-    }
-    if resources.scarcity_deaths > resources.household_periods_with_unmet_need.saturating_mul(u64::MAX) {
-        return violation("unreachable resource accounting state");
+        return violation("consumed-food total differs from allocated harvest");
     }
 
+    let periods = u64::from(periods_per_year);
     let full_years = day / DAYS_PER_YEAR;
     let remainder = day % DAYS_PER_YEAR;
-    let periods = u64::from(config.periods_per_year);
     let partial_periods = (1..=periods)
         .filter(|period| period.saturating_mul(DAYS_PER_YEAR) / periods <= remainder)
         .count() as u64;
-    let elapsed_period_boundaries = full_years
+    let elapsed_boundaries = full_years
         .saturating_mul(periods)
         .saturating_add(partial_periods);
-    if resources.periods_processed > elapsed_period_boundaries {
-        return violation("resource periods processed exceed elapsed scheduled boundaries");
+    if resources.periods_processed > elapsed_boundaries {
+        return violation("resource periods exceed elapsed scheduled boundaries");
     }
     Ok(())
 }
@@ -278,61 +285,64 @@ fn validate_migration_accounting(
     if state.schema_version != MigrationCheckpointState::CURRENT_SCHEMA_VERSION
         || state.model_id != config.model_id
     {
-        return violation("migration checkpoint identity does not match configuration");
+        return violation("migration checkpoint identity does not match its configuration");
     }
     if state.households_under_pressure > state.households_evaluated
         || state.moves_completed > state.households_under_pressure
         || state.decision_boundaries > resource_periods
+        || state.households_evaluated
+            > state.decision_boundaries.saturating_mul(household_count)
     {
-        return violation("migration counter ordering is impossible");
+        return violation("migration counters have an impossible ordering");
     }
-    if state.households_evaluated
-        > state.decision_boundaries.saturating_mul(household_count)
-    {
-        return violation("migration evaluated more households than decision boundaries permit");
-    }
+
     let directional_distance = u128::from(state.northward_steps)
         + u128::from(state.eastward_steps)
         + u128::from(state.southward_steps)
         + u128::from(state.westward_steps);
     if directional_distance != u128::from(state.total_distance_cells) {
-        return violation("migration directional step totals do not reconcile with total distance");
+        return violation("migration directional steps do not reconcile with total distance");
     }
     let score_ceiling = u128::from(state.moves_completed) * u128::from(PERMILLE_MAX);
-    for (name, total) in [
-        ("origin resource", state.origin_resource_score_total),
-        ("destination resource", state.destination_resource_score_total),
-        ("origin water", state.origin_water_security_score_total),
-        ("destination water", state.destination_water_security_score_total),
+    for total in [
+        state.origin_resource_score_total,
+        state.destination_resource_score_total,
+        state.origin_water_security_score_total,
+        state.destination_water_security_score_total,
     ] {
         if u128::from(total) > score_ceiling {
-            return violation(format!("migration {name} score total exceeds move-count ceiling"));
+            return violation("migration score total exceeds the move-count permille ceiling");
         }
     }
-    if state.recorded_decision_traces.len()
-        > usize::try_from(config.max_recorded_decision_traces).unwrap_or(usize::MAX)
-        || state.recorded_decision_traces.len()
-            > usize::try_from(state.moves_completed).unwrap_or(usize::MAX)
+
+    let trace_limit = usize::try_from(config.max_recorded_decision_traces).unwrap_or(usize::MAX);
+    let move_limit = usize::try_from(state.moves_completed).unwrap_or(usize::MAX);
+    if state.recorded_decision_traces.len() > trace_limit
+        || state.recorded_decision_traces.len() > move_limit
     {
-        return violation("migration decision trace count exceeds configured or completed-move count");
+        return violation("migration trace count exceeds its configured or completed-move limit");
     }
     if !config.enabled
         && (state.decision_boundaries != 0
             || state.households_evaluated != 0
+            || state.households_under_pressure != 0
             || state.moves_completed != 0
+            || state.people_moved != 0
             || !state.recorded_decision_traces.is_empty())
     {
         return violation("disabled migration accumulated migration activity");
     }
-
     for trace in &state.recorded_decision_traces {
         validate_migration_trace(trace, world, household_count, config.candidate_radius_cells)?;
     }
 
     if summary.decision_boundaries != state.decision_boundaries
+        || summary.households_evaluated != state.households_evaluated
+        || summary.households_under_pressure != state.households_under_pressure
         || summary.moves_completed != state.moves_completed
         || summary.people_moved != state.people_moved
         || summary.total_distance_cells != state.total_distance_cells
+        || summary.travel_condition_cost_total != state.travel_condition_cost_total
     {
         return violation("migration summary does not reconcile with checkpoint counters");
     }
@@ -355,9 +365,9 @@ fn validate_migration_trace(
         return violation("migration trace references a cell outside the world");
     }
     let distance = manhattan_distance(world, trace.origin, trace.destination)
-        .ok_or_else(|| InvariantError::Violation("migration trace coordinates are invalid".to_owned()))?;
+        .ok_or_else(|| InvariantError::Violation("migration trace coordinates are invalid".into()))?;
     if distance == 0 || distance != trace.distance_cells || distance > radius {
-        return violation("migration trace distance violates bounded local movement");
+        return violation("migration trace violates bounded local movement");
     }
     if trace.decision_day != trace.completed_day
         || trace.pressure_permille > PERMILLE_MAX
@@ -385,7 +395,7 @@ fn validate_events(
     events: &EventLog,
     day: u64,
     world: &World,
-    population_state: &crate::Population,
+    population_state: &Population,
     population: &PopulationSummary,
     resources: &ResourceSummary,
     migration: &MigrationSummary,
@@ -393,18 +403,20 @@ fn validate_events(
     if events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
         return violation("event log schema is not current");
     }
+
     let mut counts = EventCounts::default();
-    let mut previous_day = 0_u64;
+    let mut previous_day = None;
     for (index, record) in events.events.iter().enumerate() {
         let expected_sequence = u64::try_from(index).unwrap_or(u64::MAX).saturating_add(1);
         if record.sequence != expected_sequence
             || record.day > day
-            || (index > 0 && record.day < previous_day)
+            || previous_day.is_some_and(|prior| record.day < prior)
             || record.provenance != EventProvenance::Authoritative
         {
-            return violation("event log sequence, time ordering, or provenance is invalid");
+            return violation("event sequence, time ordering, or provenance is invalid");
         }
-        previous_day = record.day;
+        previous_day = Some(record.day);
+
         match &record.event {
             EventKind::Birth {
                 person,
@@ -415,10 +427,12 @@ fn validate_events(
                 reproductive_sex,
             } => {
                 counts.births = counts.births.saturating_add(1);
-                let snapshot = population_state
-                    .person(*person)
-                    .ok_or_else(|| InvariantError::Violation("birth event references missing person".to_owned()))?;
-                if snapshot.birth_day != i64::try_from(record.day).unwrap_or(i64::MAX)
+                let snapshot = population_state.person(*person).ok_or_else(|| {
+                    InvariantError::Violation("birth event references a missing person".into())
+                })?;
+                let birth_day = i64::try_from(record.day)
+                    .map_err(|_| InvariantError::Violation("birth event day exceeds i64".into()))?;
+                if snapshot.birth_day != birth_day
                     || snapshot.female_parent != *female_parent
                     || snapshot.male_parent != *male_parent
                     || snapshot.household != *household
@@ -440,9 +454,9 @@ fn validate_events(
                 if matches!(cause, crate::DeathCause::ResourceScarcity) {
                     counts.scarcity_deaths = counts.scarcity_deaths.saturating_add(1);
                 }
-                let snapshot = population_state
-                    .person(*person)
-                    .ok_or_else(|| InvariantError::Violation("death event references missing person".to_owned()))?;
+                let snapshot = population_state.person(*person).ok_or_else(|| {
+                    InvariantError::Violation("death event references a missing person".into())
+                })?;
                 if snapshot.death_day != Some(record.day)
                     || snapshot.household != *household
                     || snapshot.location != *cell
@@ -471,8 +485,9 @@ fn validate_events(
                 counts.migration_distance = counts
                     .migration_distance
                     .saturating_add(u64::from(*distance_cells));
-                let distance = manhattan_distance(world, *origin, *destination)
-                    .ok_or_else(|| InvariantError::Violation("migration event has invalid cells".to_owned()))?;
+                let distance = manhattan_distance(world, *origin, *destination).ok_or_else(|| {
+                    InvariantError::Violation("migration event references invalid cells".into())
+                })?;
                 if household.0 == 0
                     || household.0 > population.household_count
                     || distance == 0
@@ -496,7 +511,7 @@ fn validate_events(
         || counts.people_moved != migration.people_moved
         || counts.migration_distance != migration.total_distance_cells
     {
-        return violation("authoritative event counts do not reconcile with subsystem summaries");
+        return violation("authoritative event totals do not reconcile with subsystem summaries");
     }
     Ok(counts)
 }
@@ -509,27 +524,21 @@ fn validate_metrics(
     resources: &ResourceSummary,
     migration: &MigrationSummary,
 ) -> Result<(), InvariantError> {
-    if metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION {
-        return violation("metric series schema is not current");
+    if metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION || metrics.snapshots.is_empty() {
+        return violation("metric series schema is invalid or terminal snapshot is missing");
     }
-    if metrics.snapshots.is_empty() {
-        return violation("checkpoint has no terminal metric snapshot");
-    }
-    let mut previous = None;
+    let mut previous_day = None;
     for snapshot in &metrics.snapshots {
-        if snapshot.schema_version != crate::MetricSnapshot::CURRENT_SCHEMA_VERSION
+        if snapshot.schema_version != MetricSnapshot::CURRENT_SCHEMA_VERSION
             || snapshot.provenance != MetricProvenance::Derived
             || snapshot.day > day
-            || previous.is_some_and(|prior| snapshot.day <= prior)
+            || previous_day.is_some_and(|prior| snapshot.day <= prior)
         {
             return violation("metric snapshot schema, provenance, or ordering is invalid");
         }
-        previous = Some(snapshot.day);
+        previous_day = Some(snapshot.day);
     }
-    let final_snapshot = metrics
-        .snapshots
-        .last()
-        .ok_or_else(|| InvariantError::Violation("terminal metric snapshot is missing".to_owned()))?;
+    let final_snapshot = metrics.snapshots.last().expect("non-empty checked above");
     if final_snapshot.day != day
         || final_snapshot.state_digest64 != state_digest
         || final_snapshot.population != PopulationMetrics::from(population)
