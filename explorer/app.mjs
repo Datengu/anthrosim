@@ -2,6 +2,7 @@ import {
   eventsForEntity,
   genealogyForPerson,
   mapValues,
+  parseLosslessJson,
   reconstructState,
   snapshotAtOrBefore,
   summarizeCell,
@@ -29,7 +30,7 @@ async function loadBundle() {
   const entries = await Promise.all(Object.entries(FILES).map(async ([key, file]) => {
     const response = await fetch(`/run/${file}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`could not read ${file}: HTTP ${response.status}`);
-    return [key, await response.json()];
+    return [key, parseLosslessJson(await response.text())];
   }));
   return Object.fromEntries(entries);
 }
@@ -46,15 +47,12 @@ function addDefinition(list, term, value) {
 }
 
 function formatNumber(value) {
-  return Number(value ?? 0).toLocaleString();
+  const number = Number(value ?? 0);
+  return Number.isSafeInteger(number) ? number.toLocaleString() : String(value);
 }
 
 function yearLabel(day) {
   return `Year ${(day / 365).toLocaleString(undefined, { maximumFractionDigits: 2 })} · day ${formatNumber(day)}`;
-}
-
-function eventField(event, camel, snake) {
-  return event[camel] ?? event[snake];
 }
 
 function snapshotIndex(snapshot) {
@@ -221,6 +219,12 @@ function renderHousehold(householdId) {
   appendRelevantEvents(container, { household: id });
 }
 
+function conditionText(person) {
+  if (person.conditionSource === "final_checkpoint") return `${person.conditionPermille}/1000 · authoritative final checkpoint`;
+  if (person.conditionSource === "death_event") return `${person.conditionPermille}/1000 · authoritative death event`;
+  return "not serialized at this historical boundary";
+}
+
 function renderPerson(personId) {
   const id = Number(personId);
   const genealogy = genealogyForPerson(reconstructed, id);
@@ -236,7 +240,7 @@ function renderPerson(personId) {
   addDefinition(dl, "Reproductive sex", person.reproductiveSex);
   addDefinition(dl, "Household", person.household);
   addDefinition(dl, "Reconstructed cell", person.location);
-  addDefinition(dl, "Condition", `${person.conditionPermille}/1000${person.alive && selectedDay !== bundle.manifest.endTime ? " (not historically serialized; only event-time/final condition is authoritative)" : ""}`);
+  addDefinition(dl, "Condition", conditionText(person));
   container.append(dl);
 
   const family = create("div", null, "entity-links");
@@ -291,8 +295,8 @@ function showRawEvent(record) {
   const details = create("details", null, "raw-details");
   details.open = true;
   details.append(create("summary", `events.json → events[${record.sequence - 1}] · authoritative`));
-  const pre = create("pre", JSON.stringify(record, null, 2));
-  details.append(pre);
+  details.append(create("p", "Unsafe JSON integers are preserved as exact decimal strings by the explorer.", "source-ref"));
+  details.append(create("pre", JSON.stringify(record, null, 2)));
   container.append(details);
   details.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
