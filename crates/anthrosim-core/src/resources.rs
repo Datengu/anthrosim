@@ -533,6 +533,7 @@ pub(crate) enum ResourceStepOutcome {
     PopulationExtinct,
 }
 
+#[derive(Debug)]
 pub(crate) struct ResourceRngs {
     pub scarcity_mortality: ChaCha8Rng,
 }
