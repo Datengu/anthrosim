@@ -1,5 +1,33 @@
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
+use serde::{Deserialize, Serialize};
+
+/// Serializable position within one deterministic ChaCha stream.
+///
+/// AnthroSim reconstructs a named stream from the experiment seed and restores
+/// this word position rather than serializing opaque RNG implementation bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RngStreamPosition {
+    pub low: u64,
+    pub high: u64,
+}
+
+impl RngStreamPosition {
+    #[must_use]
+    pub fn capture(rng: &ChaCha8Rng) -> Self {
+        let position = rng.get_word_pos();
+        Self {
+            low: position as u64,
+            high: (position >> 64) as u64,
+        }
+    }
+
+    pub fn restore(self, rng: &mut ChaCha8Rng) {
+        let position = (u128::from(self.high) << 64) | u128::from(self.low);
+        rng.set_word_pos(position);
+    }
+}
 
 /// Creates deterministic named random streams derived from one master seed.
 ///
@@ -72,5 +100,20 @@ mod tests {
         let mut migration = factory.stream("migration");
 
         assert_ne!(world.next_u64(), migration.next_u64());
+    }
+
+    #[test]
+    fn stream_position_restores_exact_continuation() {
+        let factory = RngFactory::new(42);
+        let mut original = factory.stream("checkpoint-test");
+        for _ in 0..17 {
+            let _ = original.next_u64();
+        }
+        let position = RngStreamPosition::capture(&original);
+        let expected = original.next_u64();
+
+        let mut restored = factory.stream("checkpoint-test");
+        position.restore(&mut restored);
+        assert_eq!(restored.next_u64(), expected);
     }
 }
