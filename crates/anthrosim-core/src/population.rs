@@ -136,6 +136,12 @@ impl CellOccupancy {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct HouseholdRelocationOutcome {
+    pub people_moved: u64,
+    pub condition_loss_total: u64,
+}
+
 /// Authoritative persistent person/household state.
 ///
 /// Hot per-person fields are stored as parallel contiguous arrays rather than
@@ -366,6 +372,16 @@ impl Population {
     }
 
     #[must_use]
+    pub(crate) fn female_parent_at_index(&self, index: usize) -> Option<PersonId> {
+        self.female_parents.get(index).copied()
+    }
+
+    #[must_use]
+    pub(crate) fn male_parent_at_index(&self, index: usize) -> Option<PersonId> {
+        self.male_parents.get(index).copied()
+    }
+
+    #[must_use]
     pub(crate) fn condition_at_index(&self, index: usize) -> Option<u16> {
         self.condition_permille.get(index).copied()
     }
@@ -444,6 +460,63 @@ impl Population {
         Ok(id)
     }
 
+    pub(crate) fn apply_household_relocations(
+        &mut self,
+        destinations: &[CellId],
+        condition_costs: &[u16],
+        world: &World,
+    ) -> Result<HouseholdRelocationOutcome, PopulationError> {
+        if destinations.len() != self.household_count()
+            || condition_costs.len() != self.household_count()
+        {
+            return Err(PopulationError::RelocationShapeMismatch);
+        }
+        for (household_index, &destination) in destinations.iter().enumerate() {
+            if destination == CellId::INVALID {
+                continue;
+            }
+            if world.cell(destination).is_none() {
+                return Err(PopulationError::InvalidRelocationDestination { destination });
+            }
+            self.household_locations[household_index] = destination;
+        }
+
+        let mut people_moved = 0_u64;
+        let mut condition_loss_total = 0_u64;
+        for index in 0..self.person_count() {
+            if !self.is_alive_index(index) {
+                continue;
+            }
+            let household = self.households[index];
+            let household_index = usize::try_from(
+                household
+                    .0
+                    .checked_sub(1)
+                    .ok_or(PopulationError::RelocationShapeMismatch)?,
+            )
+            .map_err(|_| PopulationError::RelocationShapeMismatch)?;
+            let destination = destinations
+                .get(household_index)
+                .copied()
+                .ok_or(PopulationError::RelocationShapeMismatch)?;
+            if destination == CellId::INVALID {
+                continue;
+            }
+            self.locations[index] = destination;
+            let before = self.condition_permille[index];
+            let after = before.saturating_sub(condition_costs[household_index]);
+            self.condition_permille[index] = after;
+            people_moved = people_moved.saturating_add(1);
+            condition_loss_total =
+                condition_loss_total.saturating_add(u64::from(before.saturating_sub(after)));
+        }
+        self.rebuild_occupancy(world)?;
+        Ok(HouseholdRelocationOutcome {
+            people_moved,
+            condition_loss_total,
+        })
+    }
+
     pub(crate) fn rebuild_occupancy(&mut self, world: &World) -> Result<(), PopulationError> {
         self.occupancy = CellOccupancy::build(&self.locations, world.cell_count())?;
         Ok(())
@@ -505,7 +578,7 @@ impl Population {
             let household_location = self
                 .household_location(household)
                 .ok_or(PopulationValidationError::InvalidPersonHousehold { person, household })?;
-            if household_location != location {
+            if self.is_alive_index(index) && household_location != location {
                 return Err(PopulationValidationError::HouseholdLocationMismatch {
                     person,
                     household,
@@ -797,6 +870,10 @@ pub enum PopulationError {
     InitialPopulationExceedsRecordLimit { initial_population: u32, limit: u64 },
     #[error("persistent person record limit {limit} has been reached")]
     PersonRecordLimitReached { limit: u64 },
+    #[error("household relocation arrays do not match the population household layout")]
+    RelocationShapeMismatch,
+    #[error("household relocation destination {destination:?} is outside the world")]
+    InvalidRelocationDestination { destination: CellId },
     #[error("simulation day {day} cannot be represented as an epoch-relative signed birth day")]
     SimulationDayTooLarge { day: u64 },
     #[error("internal population invariant failed: {reason}")]

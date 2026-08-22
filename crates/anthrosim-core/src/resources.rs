@@ -102,6 +102,12 @@ impl ResourceSystem {
     }
 
     #[must_use]
+    pub fn cell_food_stock(&self, cell: crate::ids::CellId) -> Option<u64> {
+        let index = usize::try_from(cell.0.checked_sub(1)?).ok()?;
+        self.cell_food_stock.get(index).copied()
+    }
+
+    #[must_use]
     pub fn summary(&self, population: &Population) -> ResourceSummary {
         ResourceSummary {
             schema_version: ResourceSummary::CURRENT_SCHEMA_VERSION,

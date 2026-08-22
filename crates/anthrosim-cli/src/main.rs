@@ -1,6 +1,8 @@
 use std::{fs, path::Path, path::PathBuf, process::ExitCode};
 
-use anthrosim_core::{ExperimentConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig};
+use anthrosim_core::{
+    ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig,
+};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -54,6 +56,14 @@ enum Command {
         #[arg(long, default_value_t = 100)]
         annual_food_need: u32,
 
+        /// Disable M4 household migration while retaining all other systems.
+        #[arg(long, default_value_t = false)]
+        disable_migration: bool,
+
+        /// Manhattan-radius local knowledge used for migration destination discovery.
+        #[arg(long, default_value_t = 3)]
+        migration_radius: u16,
+
         /// Optional path to write the JSON run manifest.
         #[arg(long)]
         output: Option<PathBuf>,
@@ -90,6 +100,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             max_person_records,
             resource_productivity_scale_permille,
             annual_food_need,
+            disable_migration,
+            migration_radius,
             output,
             world_output,
             population_output,
@@ -97,6 +109,9 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let resources = ResourceConfig::synthetic_validation_v1()
                 .with_productivity_scale_permille(resource_productivity_scale_permille)
                 .with_annual_need_units_per_person(annual_food_need);
+            let migration = MigrationConfig::synthetic_validation_v1()
+                .with_enabled(!disable_migration)
+                .with_candidate_radius_cells(migration_radius);
             let config = ExperimentConfig::new(seed, years)
                 .with_world(WorldConfig::new(world_width, world_height))
                 .with_population(
@@ -104,7 +119,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         .with_target_household_size(household_size)
                         .with_max_person_records(max_person_records),
                 )
-                .with_resources(resources);
+                .with_resources(resources)
+                .with_migration(migration);
             let simulation = Simulation::new(config)?;
 
             if let Some(path) = world_output {
