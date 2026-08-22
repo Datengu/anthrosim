@@ -26,6 +26,7 @@ pub struct RngCheckpoint {
 pub struct SimulationCheckpoint {
     pub schema_version: u32,
     pub model_version: String,
+    pub model_semantics_id: String,
     pub git_commit: Option<String>,
     pub experiment: ExperimentConfig,
     pub time: SimTime,
@@ -42,7 +43,7 @@ pub struct SimulationCheckpoint {
 }
 
 impl SimulationCheckpoint {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 }
 
 #[must_use]
