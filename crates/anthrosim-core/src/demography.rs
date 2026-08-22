@@ -2,11 +2,11 @@ use rand::Rng;
 use thiserror::Error;
 
 use crate::{
-    config::{
-        AgeProbabilityBand, DemographyConfig, PROBABILITY_PER_MILLION,
-    },
-    time::DAYS_PER_YEAR,
-    world::PERMILLE_MAX,
+    config::{AgeProbabilityBand, DemographyConfig, PROBABILITY_PER_MILLION},
+    ids::{CellId, PersonId},
+    population::{Population, PopulationError, ReproductiveSex},
+    time::{DAYS_PER_YEAR, SimTime},
+    world::{PERMILLE_MAX, World},
 };
 
 pub fn validate_demography_config(config: &DemographyConfig) -> Result<(), DemographyConfigError> {
@@ -92,15 +92,13 @@ pub fn annual_probability_for_age(bands: &[AgeProbabilityBand], age_days: u64) -
     let age_years = u32::try_from(age_years).unwrap_or(u32::MAX - 1);
     bands
         .iter()
-        .find(|band| {
-            age_years >= band.start_age_years && age_years < band.end_age_years_exclusive
-        })
+        .find(|band| age_years >= band.start_age_years && age_years < band.end_age_years_exclusive)
         .map_or(0, |band| band.annual_probability_per_million)
 }
 
 /// Stable integer probability draw used by demographic schedules.
 ///
-/// Rejection sampling avoids modulo bias while keeping the authoritative draw
+/// Rejection sampling avoids modulo bias while keeping authoritative draws
 /// integer-only. The RNG stream itself is version-pinned by AnthroSim's build
 /// provenance.
 pub(crate) fn draw_per_million<R: Rng + ?Sized>(rng: &mut R, probability: u32) -> bool {
@@ -111,14 +109,230 @@ pub(crate) fn draw_per_million<R: Rng + ?Sized>(rng: &mut R, probability: u32) -
         return true;
     }
 
-    let scale = u64::from(PROBABILITY_PER_MILLION);
-    let acceptance_limit = u64::MAX - (u64::MAX % scale);
+    draw_bounded(rng, u64::from(PROBABILITY_PER_MILLION)) < u64::from(probability)
+}
+
+fn draw_bounded<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u64) -> u64 {
+    debug_assert!(upper_exclusive > 0);
+    let acceptance_limit = u64::MAX - (u64::MAX % upper_exclusive);
     loop {
         let draw = rng.next_u64();
         if draw < acceptance_limit {
-            return draw % scale < u64::from(probability);
+            return draw % upper_exclusive;
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DemographyStepOutcome {
+    Continue,
+    PopulationExtinct,
+    PersonRecordLimitReached,
+}
+
+/// Advance one annual M2 demographic boundary.
+///
+/// Scheduling is intentionally explicit: mortality is evaluated first for
+/// records that existed at the start of the boundary, then fertility is
+/// evaluated among surviving female records. Newborns are not exposed to a
+/// mortality draw until a later annual boundary. M2 father selection is local
+/// to the mother's current cell and uniform among eligible living male records;
+/// it does not model marriage, pair bonds, kin avoidance, or social paternity.
+pub(crate) fn process_demographic_year<M, F, P, S>(
+    population: &mut Population,
+    world: &World,
+    config: &DemographyConfig,
+    day: u64,
+    mortality_rng: &mut M,
+    fertility_rng: &mut F,
+    parentage_rng: &mut P,
+    newborn_sex_rng: &mut S,
+) -> Result<DemographyStepOutcome, PopulationError>
+where
+    M: Rng + ?Sized,
+    F: Rng + ?Sized,
+    P: Rng + ?Sized,
+    S: Rng + ?Sized,
+{
+    let records_at_boundary_start = population.person_count();
+
+    for index in 0..records_at_boundary_start {
+        if !population.is_alive_index(index) {
+            continue;
+        }
+        let age_days = population.age_days_at_index(index, day).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "living person has no representable age at demographic boundary",
+            },
+        )?;
+        let probability = annual_probability_for_age(&config.mortality_bands, age_days);
+        if draw_per_million(mortality_rng, probability) {
+            population.mark_death(index, day);
+        }
+    }
+
+    if population.living_count() == 0 {
+        return Ok(DemographyStepOutcome::PopulationExtinct);
+    }
+
+    let mut births_added = false;
+    for female_index in 0..records_at_boundary_start {
+        if !population.is_alive_index(female_index)
+            || population.reproductive_sex_at_index(female_index) != Some(ReproductiveSex::Female)
+        {
+            continue;
+        }
+
+        let age_days = population.age_days_at_index(female_index, day).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "living female has no representable age at fertility boundary",
+            },
+        )?;
+        let fertility_probability = annual_probability_for_age(&config.fertility_bands, age_days);
+        if fertility_probability == 0 {
+            continue;
+        }
+
+        if let Some(last_birth_day) = population.last_birth_day_at_index(female_index)
+            && day.saturating_sub(last_birth_day) < u64::from(config.minimum_birth_spacing_days)
+        {
+            continue;
+        }
+
+        let location = population.location_at_index(female_index).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "living female is missing a location",
+            },
+        )?;
+        if !has_eligible_male_in_cell(population, location, day, config) {
+            continue;
+        }
+        if !draw_per_million(fertility_rng, fertility_probability) {
+            continue;
+        }
+
+        if population.record_limit_reached() {
+            if births_added {
+                population.rebuild_occupancy(world)?;
+            }
+            return Ok(DemographyStepOutcome::PersonRecordLimitReached);
+        }
+
+        let male_parent = select_male_parent(
+            population,
+            location,
+            day,
+            config,
+            parentage_rng,
+        )
+        .ok_or(PopulationError::InternalInvariant {
+            reason: "eligible local male disappeared during a demographic boundary",
+        })?;
+        let female_parent = population.person_id_at_index(female_index).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "living female is missing a stable person ID",
+            },
+        )?;
+        let household = population.household_at_index(female_index).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "living female is missing a household",
+            },
+        )?;
+
+        let male_probability = u32::from(config.male_birth_permille) * 1_000;
+        let newborn_sex = if draw_per_million(newborn_sex_rng, male_probability) {
+            ReproductiveSex::Male
+        } else {
+            ReproductiveSex::Female
+        };
+
+        population.append_birth(
+            day,
+            newborn_sex,
+            location,
+            household,
+            female_parent,
+            male_parent,
+        )?;
+        population.note_successful_birth(female_index, day);
+        births_added = true;
+
+        if population.record_limit_reached() {
+            population.rebuild_occupancy(world)?;
+            return Ok(DemographyStepOutcome::PersonRecordLimitReached);
+        }
+    }
+
+    if births_added {
+        population.rebuild_occupancy(world)?;
+    }
+
+    Ok(DemographyStepOutcome::Continue)
+}
+
+fn has_eligible_male_in_cell(
+    population: &Population,
+    location: CellId,
+    day: u64,
+    config: &DemographyConfig,
+) -> bool {
+    population
+        .occupancy()
+        .people_in_cell(location)
+        .is_some_and(|people| {
+            people
+                .iter()
+                .copied()
+                .any(|candidate| male_is_eligible(population, candidate, location, day, config))
+        })
+}
+
+fn select_male_parent<R: Rng + ?Sized>(
+    population: &Population,
+    location: CellId,
+    day: u64,
+    config: &DemographyConfig,
+    rng: &mut R,
+) -> Option<PersonId> {
+    let people = population.occupancy().people_in_cell(location)?;
+    let mut selected = None;
+    let mut eligible_seen = 0_u64;
+
+    for &candidate in people {
+        if !male_is_eligible(population, candidate, location, day, config) {
+            continue;
+        }
+        eligible_seen = eligible_seen.saturating_add(1);
+        if draw_bounded(rng, eligible_seen) == 0 {
+            selected = Some(candidate);
+        }
+    }
+    selected
+}
+
+fn male_is_eligible(
+    population: &Population,
+    candidate: PersonId,
+    location: CellId,
+    day: u64,
+    config: &DemographyConfig,
+) -> bool {
+    let Some(person) = population.person(candidate) else {
+        return false;
+    };
+    if !person.is_alive()
+        || person.reproductive_sex != ReproductiveSex::Male
+        || person.location != location
+    {
+        return false;
+    }
+
+    let Some(age_days) = person.age_days_at(SimTime::from_days(day)) else {
+        return false;
+    };
+    let age_years = age_days / DAYS_PER_YEAR;
+    age_years >= u64::from(config.male_parent_min_age_years)
+        && age_years < u64::from(config.male_parent_max_age_years_exclusive)
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -129,7 +343,9 @@ pub enum DemographyConfigError {
     EmptyScheduleId,
     #[error("{schedule} schedule must contain at least one age band")]
     EmptySchedule { schedule: &'static str },
-    #[error("{schedule} schedule has a gap: expected next band at age {expected_start}, found {actual_start}")]
+    #[error(
+        "{schedule} schedule has a gap: expected next band at age {expected_start}, found {actual_start}"
+    )]
     ScheduleGap {
         schedule: &'static str,
         expected_start: u32,
@@ -148,7 +364,9 @@ pub enum DemographyConfigError {
         index: usize,
         value: u32,
     },
-    #[error("{schedule} schedule ends at age {final_end_exclusive} instead of covering open-ended old age")]
+    #[error(
+        "{schedule} schedule ends at age {final_end_exclusive} instead of covering open-ended old age"
+    )]
     ScheduleDoesNotCoverOldAge {
         schedule: &'static str,
         final_end_exclusive: u32,
@@ -168,6 +386,7 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     use super::*;
+    use crate::{config::PopulationConfig, rng::RngFactory, world::WorldConfig};
 
     #[test]
     fn default_synthetic_schedule_is_structurally_valid() {
@@ -177,7 +396,10 @@ mod tests {
     #[test]
     fn mortality_lookup_respects_half_open_age_bands() {
         let config = DemographyConfig::synthetic_validation_v1();
-        assert_eq!(annual_probability_for_age(&config.mortality_bands, 0), 180_000);
+        assert_eq!(
+            annual_probability_for_age(&config.mortality_bands, 0),
+            180_000
+        );
         assert_eq!(
             annual_probability_for_age(&config.mortality_bands, DAYS_PER_YEAR),
             50_000
@@ -189,9 +411,44 @@ mod tests {
     }
 
     #[test]
-    fn probability_extremes_do_not_consume_semantic_uncertainty() {
+    fn probability_extremes_are_exact() {
         let mut rng = ChaCha8Rng::seed_from_u64(1);
         assert!(!draw_per_million(&mut rng, 0));
         assert!(draw_per_million(&mut rng, PROBABILITY_PER_MILLION));
+    }
+
+    #[test]
+    fn certain_mortality_can_extinguish_a_population() {
+        let world = World::generate(WorldConfig::new(4, 4), RngFactory::new(9)).unwrap();
+        let mut population =
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(9))
+                .unwrap();
+        let mut config = DemographyConfig::synthetic_validation_v1();
+        for band in &mut config.mortality_bands {
+            band.annual_probability_per_million = PROBABILITY_PER_MILLION;
+        }
+        for band in &mut config.fertility_bands {
+            band.annual_probability_per_million = 0;
+        }
+
+        let mut mortality = RngFactory::new(9).stream("test/mortality");
+        let mut fertility = RngFactory::new(9).stream("test/fertility");
+        let mut parentage = RngFactory::new(9).stream("test/parentage");
+        let mut sex = RngFactory::new(9).stream("test/sex");
+        let outcome = process_demographic_year(
+            &mut population,
+            &world,
+            &config,
+            DAYS_PER_YEAR,
+            &mut mortality,
+            &mut fertility,
+            &mut parentage,
+            &mut sex,
+        )
+        .unwrap();
+
+        assert_eq!(outcome, DemographyStepOutcome::PopulationExtinct);
+        assert_eq!(population.living_count(), 0);
+        assert_eq!(population.summary().deaths_since_start, 100);
     }
 }
