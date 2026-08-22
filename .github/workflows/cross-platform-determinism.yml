@@ -1,0 +1,89 @@
+name: Cross-platform determinism
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  golden-run:
+    name: Golden run (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run deterministic golden fixture
+        env:
+          ANTHROSIM_CROSS_PLATFORM_GOLDEN: ${{ github.workspace }}/cross-platform-golden.json
+        run: cargo test --locked -p anthrosim-core --test cross_platform_golden -- --nocapture
+
+      - name: Upload normalized scientific output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cross-platform-golden-${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 7
+          path: ${{ github.workspace }}/cross-platform-golden.json
+
+  compare-golden-runs:
+    name: Compare cross-platform golden runs
+    needs: golden-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Download platform outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: golden-artifacts
+          pattern: cross-platform-golden-*
+
+      - name: Require byte-identical authoritative outputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import difflib
+          import sys
+
+          files = sorted(Path('golden-artifacts').glob('*/cross-platform-golden.json'))
+          if len(files) != 3:
+              raise SystemExit(f'expected three platform golden files, found {len(files)}: {files}')
+
+          reference = files[0]
+          reference_bytes = reference.read_bytes()
+          for candidate in files[1:]:
+              candidate_bytes = candidate.read_bytes()
+              if candidate_bytes == reference_bytes:
+                  continue
+              before = reference.read_text().splitlines(keepends=True)
+              after = candidate.read_text().splitlines(keepends=True)
+              sys.stdout.writelines(difflib.unified_diff(
+                  before,
+                  after,
+                  fromfile=str(reference),
+                  tofile=str(candidate),
+              ))
+              raise SystemExit(
+                  f'cross-platform deterministic output differs: {reference} != {candidate}'
+              )
+
+          print('Cross-platform deterministic golden output is byte-identical on all three runners.')
+          PY
