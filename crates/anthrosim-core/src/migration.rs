@@ -87,6 +87,15 @@ struct CandidateEvaluation {
     weight: u64,
 }
 
+pub(crate) struct MigrationBoundaryContext<'a> {
+    pub world: &'a World,
+    pub resources: &'a ResourceSystem,
+    pub migration: &'a MigrationConfig,
+    pub annual_food_need: u32,
+    pub resource_periods_per_year: u16,
+    pub day: u64,
+}
+
 #[derive(Debug)]
 pub struct MigrationRngs {
     choice: ChaCha8Rng,
@@ -190,14 +199,17 @@ impl MigrationSystem {
     pub(crate) fn process_boundary(
         &mut self,
         population: &mut Population,
-        world: &World,
-        resources: &ResourceSystem,
-        config: &MigrationConfig,
-        annual_food_need: u32,
-        resource_periods_per_year: u16,
-        day: u64,
+        context: &MigrationBoundaryContext<'_>,
         rngs: &mut MigrationRngs,
     ) -> Result<(), MigrationError> {
+        let MigrationBoundaryContext {
+            world,
+            resources,
+            migration: config,
+            annual_food_need,
+            resource_periods_per_year,
+            day,
+        } = *context;
         validate_migration_config(config)?;
         if !config.enabled || population.living_count() == 0 {
             return Ok(());
@@ -484,13 +496,14 @@ impl MigrationSystem {
                 "resource cell outside world",
             ))?;
         let demand = period_need_per_person.saturating_mul(u64::from(destination_population));
-        let resource_score = if demand == 0 {
-            PERMILLE_MAX
-        } else {
-            u16::try_from(stock.saturating_mul(u64::from(PERMILLE_MAX)) / demand)
-                .unwrap_or(PERMILLE_MAX)
-                .min(PERMILLE_MAX)
-        };
+        let resource_score = u16::try_from(
+            stock
+                .saturating_mul(u64::from(PERMILLE_MAX))
+                .checked_div(demand)
+                .unwrap_or(u64::from(PERMILLE_MAX)),
+        )
+        .unwrap_or(PERMILLE_MAX)
+        .min(PERMILLE_MAX);
         let water_security_score = u16::try_from(
             (u32::from(world_cell.water_access) * 3
                 + u32::from(PERMILLE_MAX - world_cell.environmental_stress))
@@ -525,7 +538,7 @@ impl MigrationSystem {
         let negative = i64::from(travel_penalty) * i64::from(config.travel_cost_weight)
             + i64::from(uncertainty_penalty)
             + i64::from(relocation_risk);
-        let total_utility = i32::try_from(positive.saturating_sub(negative)).unwrap_or_else(|_| {
+        let total_utility = i32::try_from(positive.saturating_sub(negative)).unwrap_or({
             if positive >= negative {
                 i32::MAX
             } else {
@@ -1035,12 +1048,14 @@ mod tests {
             migration
                 .process_boundary(
                     &mut population,
-                    &world,
-                    &resources,
-                    &experiment.migration,
-                    experiment.resources.annual_need_units_per_person,
-                    experiment.resources.periods_per_year,
-                    91,
+                    &MigrationBoundaryContext {
+                        world: &world,
+                        resources: &resources,
+                        migration: &experiment.migration,
+                        annual_food_need: experiment.resources.annual_need_units_per_person,
+                        resource_periods_per_year: experiment.resources.periods_per_year,
+                        day: 91,
+                    },
                     &mut rngs,
                 )
                 .unwrap();

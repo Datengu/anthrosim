@@ -8,8 +8,8 @@ use crate::{
     },
     manifest::{RunManifest, StopReason},
     migration::{
-        MigrationConfigError, MigrationError, MigrationRngs, MigrationSystem,
-        validate_migration_config,
+        MigrationBoundaryContext, MigrationConfigError, MigrationError, MigrationRngs,
+        MigrationSystem, validate_migration_config,
     },
     population::{Population, PopulationError},
     resources::{
@@ -132,12 +132,14 @@ impl Simulation {
                     }
                     self.migration.process_boundary(
                         &mut self.population,
-                        &self.world,
-                        &self.resources,
-                        &self.config.migration,
-                        self.config.resources.annual_need_units_per_person,
-                        self.config.resources.periods_per_year,
-                        day,
+                        &MigrationBoundaryContext {
+                            world: &self.world,
+                            resources: &self.resources,
+                            migration: &self.config.migration,
+                            annual_food_need: self.config.resources.annual_need_units_per_person,
+                            resource_periods_per_year: self.config.resources.periods_per_year,
+                            day,
+                        },
                         &mut migration_rngs,
                     )?;
                 }
