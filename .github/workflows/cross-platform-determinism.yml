@@ -32,7 +32,7 @@ jobs:
 
       - name: Run deterministic golden fixture
         env:
-          ANTHROSIM_CROSS_PLATFORM_GOLDEN: cross-platform-golden.json
+          ANTHROSIM_CROSS_PLATFORM_GOLDEN: ${{ github.workspace }}/cross-platform-golden.json
         run: cargo test --locked -p anthrosim-core --test cross_platform_golden -- --nocapture
 
       - name: Upload normalized scientific output
@@ -41,7 +41,7 @@ jobs:
           name: cross-platform-golden-${{ matrix.os }}
           if-no-files-found: error
           retention-days: 7
-          path: cross-platform-golden.json
+          path: ${{ github.workspace }}/cross-platform-golden.json
 
   compare-golden-runs:
     name: Compare cross-platform golden runs
