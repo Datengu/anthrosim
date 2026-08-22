@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::ExperimentConfig, population::PopulationSummary, time::SimTime, world::WorldSummary,
+    config::ExperimentConfig,
+    population::PopulationSummary,
+    resources::ResourceSummary,
+    time::SimTime,
+    world::WorldSummary,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,11 +26,12 @@ pub struct RunManifest {
     pub experiment: ExperimentConfig,
     pub world: WorldSummary,
     pub population: PopulationSummary,
+    pub resources: ResourceSummary,
     pub start_time: SimTime,
     pub end_time: SimTime,
     pub stop_reason: StopReason,
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 }
