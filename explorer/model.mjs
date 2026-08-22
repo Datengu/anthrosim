@@ -203,7 +203,7 @@ export function reconstructState(bundle, day) {
         id,
         birthDay: record.day,
         deathDay: null,
-        reproductiveSex: event.reproductiveSex,
+        reproductiveSex: event.reproductive_sex ?? event.reproductiveSex,
         location: asNumber(event.cell, "birth cell"),
         household: asNumber(event.household, "birth household"),
         femaleParent: asNumber(event.female_parent ?? event.femaleParent ?? 0, "female parent"),
