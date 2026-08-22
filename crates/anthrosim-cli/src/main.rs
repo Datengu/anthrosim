@@ -430,9 +430,7 @@ fn resolve_ensemble_seeds(
         )
     })?;
 
-    Ok((0..count)
-        .map(|offset| start + u64::from(offset))
-        .collect())
+    Ok((0..count).map(|offset| start + u64::from(offset)).collect())
 }
 
 fn validate_unique_seeds(seeds: &[u64]) -> Result<(), io::Error> {
@@ -491,12 +489,7 @@ fn execute_ensemble(
         let world = simulation.world().clone();
         let initial_population = simulation.population().clone();
         let recorded = simulation.run_recorded()?;
-        write_completed_bundle(
-            &run_directory,
-            &world,
-            &initial_population,
-            &recorded,
-        )?;
+        write_completed_bundle(&run_directory, &world, &initial_population, &recorded)?;
         write_json(
             &run_directory.join("completion.json"),
             &EnsembleRunCompletion {
@@ -629,10 +622,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system time after Unix epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!(
-            "anthrosim-{label}-{}-{nanos}",
-            std::process::id()
-        ))
+        std::env::temp_dir().join(format!("anthrosim-{label}-{}-{nanos}", std::process::id()))
     }
 
     #[test]
@@ -643,9 +633,18 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(first.definition.seeds, vec![9, 2, 42]);
-        assert_eq!(first.runs[0].relative_run_dir, "runs/seed-00000000000000000009");
-        assert_eq!(first.runs[1].relative_run_dir, "runs/seed-00000000000000000002");
-        assert_ne!(first.runs[0].relative_run_dir, first.runs[1].relative_run_dir);
+        assert_eq!(
+            first.runs[0].relative_run_dir,
+            "runs/seed-00000000000000000009"
+        );
+        assert_eq!(
+            first.runs[1].relative_run_dir,
+            "runs/seed-00000000000000000002"
+        );
+        assert_ne!(
+            first.runs[0].relative_run_dir,
+            first.runs[1].relative_run_dir
+        );
     }
 
     #[test]
