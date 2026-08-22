@@ -160,11 +160,12 @@ where
         if !population.is_alive_index(index) {
             continue;
         }
-        let age_days = population.age_days_at_index(index, day).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "living person has no representable age at demographic boundary",
-            },
-        )?;
+        let age_days =
+            population
+                .age_days_at_index(index, day)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "living person has no representable age at demographic boundary",
+                })?;
         let probability = annual_probability_for_age(&config.mortality_bands, age_days);
         if draw_per_million(mortality_rng, probability) {
             population.mark_death(index, day);
@@ -218,16 +219,10 @@ where
             return Ok(DemographyStepOutcome::PersonRecordLimitReached);
         }
 
-        let male_parent = select_male_parent(
-            population,
-            location,
-            day,
-            config,
-            parentage_rng,
-        )
-        .ok_or(PopulationError::InternalInvariant {
-            reason: "eligible local male disappeared during a demographic boundary",
-        })?;
+        let male_parent = select_male_parent(population, location, day, config, parentage_rng)
+            .ok_or(PopulationError::InternalInvariant {
+                reason: "eligible local male disappeared during a demographic boundary",
+            })?;
         let female_parent = population.person_id_at_index(female_index).ok_or(
             PopulationError::InternalInvariant {
                 reason: "living female is missing a stable person ID",
@@ -421,8 +416,7 @@ mod tests {
     fn certain_mortality_can_extinguish_a_population() {
         let world = World::generate(WorldConfig::new(4, 4), RngFactory::new(9)).unwrap();
         let mut population =
-            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(9))
-                .unwrap();
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(9)).unwrap();
         let mut config = DemographyConfig::synthetic_validation_v1();
         for band in &mut config.mortality_bands {
             band.annual_probability_per_million = PROBABILITY_PER_MILLION;
