@@ -5,6 +5,7 @@ import {
   eventsForEntity,
   genealogyForPerson,
   mapValues,
+  parseLosslessJson,
   reconstructState,
   snapshotAtOrBefore,
   validateBundle,
@@ -62,6 +63,14 @@ function fixture() {
     },
   };
 }
+
+test("lossless parser preserves unsafe JSON integers as exact decimal strings", () => {
+  const parsed = parseLosslessJson('{"small":42,"digest":18446744073709551615,"negative":-9223372036854775808,"text":"18446744073709551615"}');
+  assert.equal(parsed.small, 42);
+  assert.equal(parsed.digest, "18446744073709551615");
+  assert.equal(parsed.negative, "-9223372036854775808");
+  assert.equal(parsed.text, "18446744073709551615");
+});
 
 test("bundle validation reconciles manifest, events, metrics and schemas", () => {
   const result = validateBundle(fixture());
