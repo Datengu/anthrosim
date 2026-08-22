@@ -2,7 +2,7 @@
 
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { mapValues, parseLosslessJson, reconstructState, validateBundle } from "../explorer/model.mjs";
+import { parseLosslessJson, reconstructState, validateBundle } from "../explorer/model.mjs";
 
 const FILES = {
   manifest: "manifest.json",
@@ -51,9 +51,10 @@ async function main() {
     }
   }
 
-  const finalFood = mapValues(bundle, finalState, "finalFood").reduce((sum, value) => sum + value, 0);
-  if (finalFood !== bundle.manifest.resources.finalFoodStock) {
-    fail(`final cell food sum ${finalFood} != manifest ${bundle.manifest.resources.finalFoodStock}`);
+  const finalFood = bundle.checkpoint.resources.cellFoodStock.reduce((sum, value) => sum + BigInt(value), 0n);
+  const manifestFood = BigInt(bundle.manifest.resources.finalFoodStock);
+  if (finalFood !== manifestFood) {
+    fail(`final cell food sum ${finalFood} != manifest ${manifestFood}`);
   }
 
   console.log(`M6 bundle validation passed: ${runDir}`);
