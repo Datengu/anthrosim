@@ -28,7 +28,7 @@ The first version focuses on:
 - deterministic multi-seed batch/ensemble execution with immutable provenance and retry state;
 - deterministic parameter sweeps with derived machine-readable analysis tables;
 - long-run correctness soaks and cross-artifact invariant validation;
-- performance benchmarks and invariant validation.
+- end-to-end performance and process-memory acceptance gates.
 
 Culture, language, trade, states, religion, warfare, AI-controlled agents, and real-Earth palaeoenvironmental data are intentionally deferred.
 
@@ -44,6 +44,7 @@ Culture, language, trade, states, religion, warfare, AI-controlled agents, and r
 - **M7.2 — Immutable experiment provenance and retry semantics:** complete; each planned run has an exact serialized configuration, explicit lifecycle state and deterministic reconciliation/retry behaviour.
 - **M7.3 — Parameter sweeps and aggregate analysis outputs:** complete; explicit parameter grids expand deterministically into M7.2 experiments and produce separate derived CSV/JSON tables for downstream Python/R analysis.
 - **M7.4 — Long-run soak and invariant hardening:** complete; automated long-duration/adversarial runs validate cross-artifact population, genealogy, household, resource, migration, event, metric and checkpoint consistency without weakening model invariants.
+- **M7.5 — Performance and memory acceptance benchmarking:** implemented; the canonical 10,000-founder, 2,000-year observable lifecycle is measured end-to-end in release mode and CI gates material throughput/RSS regressions without introducing a special fast path.
 
 M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
 
@@ -54,6 +55,8 @@ M6 makes those artifacts navigable without changing them. It provides timeline, 
 M7.1–M7.3 add experiment orchestration around that same run path rather than a second simulator. Every ensemble or sweep child is created through the existing `Simulation` lifecycle and written with the existing completed M5 bundle format. The experiment layer records exactly which configurations were requested, whether each child is genuinely complete, and which derived summary rows were calculated from completed results; it does not change the underlying model.
 
 M7.4 hardens that path rather than adding another model mechanism. Completed runs and checkpoints can now be subjected to a cross-artifact invariant validator, and ordinary CI includes long-duration stable, dynamic checkpoint/resume, adversarial scarcity, explicit terminal-state and multi-seed ensemble soaks. A checkpoint-schema ambiguity found around terminal record-limit boundaries is deliberately tracked as follow-up issue #31 rather than silently broadening the supported resume contract.
+
+M7.5 establishes an explicit v0.1 engineering performance envelope. On the initial two-vCPU GitHub-hosted baseline, the ordinary event/metric-observable 10,000-founder workload completed all 2,000 requested years in about 73 seconds at about 27 simulated years/second and about 134 MiB peak RSS. CI keeps broad anti-regression floors around that measurement; no hot-path optimization or nondeterministic shortcut was justified by the evidence.
 
 No historical destination, route, settlement, tribe or migration outcome is scripted into that loop.
 
@@ -171,7 +174,7 @@ These are **derived analysis artifacts**, not authoritative simulation state. `r
 
 The CSV files are intentionally ordinary rectangular tables with no special Rust tooling required. Python `pandas.read_csv(...)`, base R `read.csv(...)`, or equivalent tools can consume them directly. M7.3 does not add statistical inference, plotting or a general-purpose analysis framework to AnthroSim core.
 
-See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the full M7.1–M7.3 provenance, retry, sweep and downstream-analysis contract, and [`docs/research/soak-v0.1.md`](docs/research/soak-v0.1.md) for the M7.4 invariant and long-run soak boundary.
+See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the full M7.1–M7.3 provenance, retry, sweep and downstream-analysis contract, [`docs/research/soak-v0.1.md`](docs/research/soak-v0.1.md) for the M7.4 invariant and long-run soak boundary, and [`docs/benchmarks/m7-5-acceptance.md`](docs/benchmarks/m7-5-acceptance.md) for the M7.5 workload, measurements and acceptance limits.
 
 For a completed run the manifest records configuration, artifact schema versions, world/population/resource/migration summaries, state digest, runtime counters and stop reason. For a paused run the checkpoint carries the current authoritative experiment/state boundary. See [`docs/research/observability-v0.1.md`](docs/research/observability-v0.1.md) for the authoritative-event/derived-metric distinction and checkpoint compatibility rules, and [`docs/research/explorer-v0.1.md`](docs/research/explorer-v0.1.md) for M6 display provenance and reconstruction limits.
 

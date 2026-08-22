@@ -50,6 +50,7 @@ jobs:
           node --check explorer/app.mjs
           node --check scripts/validate-explorer-bundle.mjs
           python3 -m py_compile scripts/serve-explorer.py
+          python3 -m py_compile scripts/benchmark-performance-acceptance.py
 
       - name: Test M6 explorer artifact model
         run: node --test explorer/model.test.mjs
@@ -71,6 +72,14 @@ jobs:
 
       - name: Build release binaries
         run: cargo build --locked --workspace --release
+
+      - name: Run M7.5 10k-person 2000-year performance acceptance
+        run: |
+          python3 scripts/benchmark-performance-acceptance.py \
+            --binary target/release/anthrosim \
+            --report /tmp/anthrosim-m7-5-performance.json \
+            --enforce
+          cat /tmp/anthrosim-m7-5-performance.json
 
       - name: Generate completed M5 sample bundle
         run: |
@@ -162,12 +171,16 @@ jobs:
           sha256sum /tmp/anthrosim-m6-paused/*.json > /tmp/m6-paused-after.sha256
           diff -u /tmp/m6-paused-before.sha256 /tmp/m6-paused-after.sha256
 
-      - name: Measure one-million-founder process memory
+      - name: Measure and gate one-million-founder process memory
         run: |
-          /usr/bin/time -v target/release/anthrosim run \
+          /usr/bin/time -v -o /tmp/anthrosim-million-founder-time.txt target/release/anthrosim run \
             --years 0 \
             --world-width 64 \
             --world-height 64 \
             --population 1000000 \
             --max-person-records 1000000 \
             --output /tmp/anthrosim-m5-memory.json
+          cat /tmp/anthrosim-million-founder-time.txt
+          max_rss_kib=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/, "", $2); print $2}' /tmp/anthrosim-million-founder-time.txt)
+          test -n "$max_rss_kib"
+          test "$max_rss_kib" -le 163840
