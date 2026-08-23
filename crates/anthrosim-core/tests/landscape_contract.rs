@@ -132,15 +132,14 @@ fn evidence_input_links_resolve_against_experiment_catalogue() {
         applicability: "M8.1 contract test only".to_owned(),
         competing_estimates: Vec::new(),
     };
-    let catalog = EvidenceCatalog::new(vec![record]).with_external_inputs(vec![
-        ExternalInputEvidence {
+    let catalog =
+        EvidenceCatalog::new(vec![record]).with_external_inputs(vec![ExternalInputEvidence {
             input_id: "terrain_normalized".to_owned(),
             evidence_id: "terrain_source".to_owned(),
             format: "anthrosim-landscape-v1".to_owned(),
             spatial_reference: Some("EPSG:27700".to_owned()),
             content_digest: Some("fixture".to_owned()),
-        },
-    ]);
+        }]);
     catalog.validate().expect("catalog should be valid");
 
     let mut linked = bundle();
@@ -164,5 +163,8 @@ fn invalid_geometry_is_rejected_explicitly() {
 
     let mut invalid = bundle();
     invalid.geometry.spatial_reference.clear();
-    assert_eq!(invalid.validate(), Err(LandscapeError::EmptySpatialReference));
+    assert_eq!(
+        invalid.validate(),
+        Err(LandscapeError::EmptySpatialReference)
+    );
 }
