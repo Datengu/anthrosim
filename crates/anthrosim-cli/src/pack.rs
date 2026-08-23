@@ -1,7 +1,8 @@
 use std::{
+    ffi::OsString,
     fs::{self, File},
     io::{self, BufReader, Read, Seek, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use serde::Deserialize;
@@ -48,13 +49,19 @@ pub fn pack_completed_run(
     run_dir: &Path,
     output: Option<&Path>,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let files = validated_bundle_files(run_dir)?;
+    let canonical_run_dir = fs::canonicalize(run_dir)?;
+    let files = validated_bundle_files(&canonical_run_dir)?;
     let output = output
         .map(Path::to_path_buf)
         .unwrap_or_else(|| run_dir.with_extension("zip"));
+    let resolved_output = resolve_path_for_containment(&output)?;
 
-    if output == run_dir {
-        return Err(invalid_input("archive output cannot be the run directory").into());
+    if resolved_output.starts_with(&canonical_run_dir) {
+        return Err(invalid_input(format!(
+            "archive output must be outside the source run directory: {}",
+            output.display()
+        ))
+        .into());
     }
     if let Some(parent) = output
         .parent()
@@ -80,6 +87,58 @@ pub fn pack_completed_run(
     }
     fs::rename(&temp, &output)?;
     Ok(output)
+}
+
+fn resolve_path_for_containment(path: &Path) -> io::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let normalized = normalize_path(&absolute);
+    if normalized.exists() {
+        return fs::canonicalize(normalized);
+    }
+
+    let mut ancestor = normalized.as_path();
+    let mut missing = Vec::<OsString>::new();
+    while !ancestor.exists() {
+        let name = ancestor.file_name().ok_or_else(|| {
+            invalid_input(format!(
+                "archive output has no resolvable existing ancestor: {}",
+                path.display()
+            ))
+        })?;
+        missing.push(name.to_os_string());
+        ancestor = ancestor.parent().ok_or_else(|| {
+            invalid_input(format!(
+                "archive output has no resolvable existing ancestor: {}",
+                path.display()
+            ))
+        })?;
+    }
+
+    let mut resolved = fs::canonicalize(ancestor)?;
+    for component in missing.iter().rev() {
+        resolved.push(component);
+    }
+    Ok(resolved)
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            Component::RootDir => normalized.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                let _ = normalized.pop();
+            }
+            Component::Normal(value) => normalized.push(value),
+        }
+    }
+    normalized
 }
 
 fn validated_bundle_files(run_dir: &Path) -> io::Result<Vec<(String, PathBuf)>> {
@@ -383,6 +442,41 @@ mod tests {
     }
 
     #[test]
+    fn output_inside_run_directory_is_rejected_without_modifying_bundle() {
+        let root = test_dir("inside-run-dir");
+        write_minimal_completed_bundle(&root);
+        let before = snapshot_bundle(&root);
+        let output = root.join("exports").join("run.zip");
+
+        let error = pack_completed_run(&root, Some(&output))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("outside the source run directory"));
+        assert_eq!(snapshot_bundle(&root), before);
+        assert!(!output.exists());
+        assert!(!root.join("exports").exists());
+        cleanup(&root, &[]);
+    }
+
+    #[test]
+    fn canonical_artifact_output_alias_is_rejected_without_modifying_bundle() {
+        let root = test_dir("artifact-alias");
+        write_minimal_completed_bundle(&root);
+        let before = snapshot_bundle(&root);
+        let output = root.join("nested").join("..").join("manifest.json");
+
+        let error = pack_completed_run(&root, Some(&output))
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("outside the source run directory"));
+        assert_eq!(snapshot_bundle(&root), before);
+        assert_eq!(fs::read(root.join("manifest.json")).unwrap(), b"{}\n");
+        cleanup(&root, &[]);
+    }
+
+    #[test]
     fn paused_bundle_without_manifest_is_rejected() {
         let root = test_dir("paused");
         write_minimal_completed_bundle(&root);
@@ -410,6 +504,21 @@ mod tests {
             fs::write(root.join(name), "{}\n").unwrap();
         }
         fs::write(root.join("initial-population.json"), "{}\n").unwrap();
+    }
+
+    fn snapshot_bundle(root: &Path) -> Vec<(String, Vec<u8>)> {
+        let mut files = fs::read_dir(root)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+            .map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let bytes = fs::read(entry.path()).unwrap();
+                (name, bytes)
+            })
+            .collect::<Vec<_>>();
+        files.sort_by(|left, right| left.0.cmp(&right.0));
+        files
     }
 
     fn central_directory_names(bytes: &[u8]) -> BTreeSet<String> {
