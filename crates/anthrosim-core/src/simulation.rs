@@ -839,7 +839,10 @@ mod tests {
             resumed.checkpoint.terminal_stop_reason,
             uninterrupted.checkpoint.terminal_stop_reason
         );
-        assert_eq!(resumed.manifest.resume_lineage, resumed.checkpoint.resume_lineage);
+        assert_eq!(
+            resumed.manifest.resume_lineage,
+            resumed.checkpoint.resume_lineage
+        );
     }
 
     #[test]
@@ -886,7 +889,10 @@ mod tests {
         assert_eq!(boundary.continuation, SourceRevisionIdentity::current());
         assert_eq!(boundary.boundary_day, boundary_day);
         assert_eq!(boundary.source_state_digest64, source_state_digest64);
-        assert_eq!(resumed.manifest.git_commit, boundary.continuation.git_commit);
+        assert_eq!(
+            resumed.manifest.git_commit,
+            boundary.continuation.git_commit
+        );
     }
 
     #[test]
