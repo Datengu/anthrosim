@@ -18,9 +18,7 @@ mod bundle;
 #[path = "../run_directory.rs"]
 mod run_directory;
 
-use run_directory::{
-    RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory,
-};
+use run_directory::{RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -308,7 +306,8 @@ fn prepare_landscape_resume_transaction(
     checkpoint: &LandscapeCheckpoint,
     landscape: &LandscapeBundle,
     world: &World,
-) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>> {
+) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>>
+{
     if !target_is_nonempty_directory(run_dir)? {
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
@@ -329,12 +328,7 @@ fn prepare_landscape_resume_transaction(
         )
         .into());
     }
-    verify_landscape_checkpoint_artifacts(
-        run_dir,
-        &checkpoint.core_checkpoint,
-        landscape,
-        world,
-    )?;
+    verify_landscape_checkpoint_artifacts(run_dir, &checkpoint.core_checkpoint, landscape, world)?;
     let preserved = preserved_population_artifact(run_dir, world)?;
     Ok((
         RunDirectoryTransaction::replace_verified(run_dir)?,
@@ -348,14 +342,14 @@ fn prepare_spatial_resume_transaction(
     checkpoint: &SpatialLandscapeCheckpoint,
     landscape: &LandscapeBundle,
     world: &World,
-) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>> {
+) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>>
+{
     if !target_is_nonempty_directory(run_dir)? {
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
     verify_resume_checkpoint_path(checkpoint_path, run_dir)?;
 
-    let stored: SpatialLandscapeCheckpoint =
-        read_json(&run_dir.join("landscape-checkpoint.json"))?;
+    let stored: SpatialLandscapeCheckpoint = read_json(&run_dir.join("landscape-checkpoint.json"))?;
     if stored != *checkpoint {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -371,12 +365,7 @@ fn prepare_spatial_resume_transaction(
         )
         .into());
     }
-    verify_landscape_checkpoint_artifacts(
-        run_dir,
-        &checkpoint.core_checkpoint,
-        landscape,
-        world,
-    )?;
+    verify_landscape_checkpoint_artifacts(run_dir, &checkpoint.core_checkpoint, landscape, world)?;
     let preserved = preserved_population_artifact(run_dir, world)?;
     Ok((
         RunDirectoryTransaction::replace_verified(run_dir)?,
