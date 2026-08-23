@@ -758,8 +758,7 @@ fn mean_u64(values: impl Iterator<Item = u64>) -> Option<f64> {
 
 fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,resource_scarcity_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells
-",
+        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,resource_scarcity_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -802,8 +801,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,mean_final_living_population_completed_only,mean_final_living_occupied_cell_count_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,mean_living_condition_permille_completed_only,mean_resource_scarcity_deaths_completed_only,mean_resource_unmet_need_completed_only,mean_migration_moves_completed_only,mean_migration_total_distance_cells_completed_only,pooled_mean_migration_distance_cells_per_move_completed_only,source_completed_run_ids
-",
+        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,mean_final_living_population_completed_only,mean_final_living_occupied_cell_count_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,mean_living_condition_permille_completed_only,mean_resource_scarcity_deaths_completed_only,mean_resource_unmet_need_completed_only,mean_migration_moves_completed_only,mean_migration_total_distance_cells_completed_only,pooled_mean_migration_distance_cells_per_move_completed_only,source_completed_run_ids\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -937,6 +935,7 @@ mod tests {
             annual_food_need: 100,
             disable_migration: false,
             migration_radius: 3,
+            spatial: None,
         }
     }
 
