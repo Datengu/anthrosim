@@ -34,6 +34,55 @@ jobs:
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed --check
 
+      - name: Reject tampered spatial semantics, identity and mechanism artifacts
+        run: |
+          rm -rf /tmp/spatial-bad-semantics /tmp/spatial-bad-identity /tmp/spatial-bad-mechanisms
+          cp -a spatial-observed /tmp/spatial-bad-semantics
+          cp -a spatial-observed /tmp/spatial-bad-identity
+          cp -a spatial-observed /tmp/spatial-bad-mechanisms
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def load(path):
+              return json.loads(path.read_text())
+
+          def save(path, value):
+              path.write_text(json.dumps(value, indent=2) + '\n')
+
+          semantics = Path('/tmp/spatial-bad-semantics')
+          for name in ('landscape-manifest.json', 'landscape-checkpoint.json'):
+              path = semantics / name
+              value = load(path)
+              value['spatial']['spatialModelSemanticsId'] = 'tampered-spatial-semantics'
+              save(path, value)
+
+          identity = Path('/tmp/spatial-bad-identity')
+          for name in ('landscape-manifest.json', 'landscape-checkpoint.json'):
+              path = identity / name
+              value = load(path)
+              value['spatial']['configIdentity'] = 'tampered-spatial-config-identity'
+              save(path, value)
+
+          mechanisms = Path('/tmp/spatial-bad-mechanisms/spatial-mechanisms.json')
+          value = load(mechanisms)
+          value['transforms'][0]['targetMax'] += 1
+          save(mechanisms, value)
+          PY
+
+          for fixture in \
+            /tmp/spatial-bad-semantics \
+            /tmp/spatial-bad-identity \
+            /tmp/spatial-bad-mechanisms; do
+            rm -f "$fixture/spatial-observability.json"
+            if cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir "$fixture"; then
+              echo "tampered spatial artifact set unexpectedly produced observability: $fixture" >&2
+              exit 1
+            fi
+            test ! -e "$fixture/spatial-observability.json"
+          done
+
       - name: Verify new-directory resumed spatial history end to end
         run: |
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run \
@@ -45,6 +94,10 @@ jobs:
             --max-person-records 10000 \
             --run-dir spatial-resume-source \
             --checkpoint-year 2
+
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resume-source
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resume-source --check
+
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- resume \
             --checkpoint spatial-resume-source/landscape-checkpoint.json \
             --landscape examples/landscape-loading/landscape.json \
