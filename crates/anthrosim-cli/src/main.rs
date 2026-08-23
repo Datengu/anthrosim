@@ -171,6 +171,10 @@ enum Command {
         #[arg(long, requires = "landscape")]
         mechanisms: Option<PathBuf>,
 
+        /// Optional M8 evidence catalogue included in immutable experiment identity; requires --landscape.
+        #[arg(long, requires = "landscape")]
+        evidence: Option<PathBuf>,
+
         /// Experiment root containing immutable provenance, statuses and child run bundles.
         #[arg(long)]
         run_dir: PathBuf,
@@ -250,6 +254,10 @@ enum Command {
         /// Optional versioned M8.4 spatial mechanism JSON shared by every point; requires --landscape.
         #[arg(long, requires = "landscape")]
         mechanisms: Option<PathBuf>,
+
+        /// Optional M8 evidence catalogue included in every point's immutable experiment identity; requires --landscape.
+        #[arg(long, requires = "landscape")]
+        evidence: Option<PathBuf>,
 
         /// Explicit founder-population values for the Cartesian parameter grid.
         #[arg(long, value_delimiter = ',', num_args = 1..)]
@@ -414,14 +422,17 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             migration_radius,
             landscape,
             mechanisms,
+            evidence,
             run_dir,
             retry,
         } => {
             let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
             let spatial = match (landscape, mechanisms) {
-                (Some(landscape), Some(mechanisms)) => {
-                    Some(load_spatial_run_settings(&landscape, &mechanisms)?)
-                }
+                (Some(landscape), Some(mechanisms)) => Some(load_spatial_run_settings(
+                    &landscape,
+                    &mechanisms,
+                    evidence.as_deref(),
+                )?),
                 (None, None) => None,
                 _ => unreachable!("clap requires landscape and mechanisms together"),
             };
@@ -458,6 +469,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             migration_radius,
             landscape,
             mechanisms,
+            evidence,
             sweep_population,
             sweep_household_size,
             sweep_resource_productivity_scale_permille,
@@ -470,9 +482,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         } => {
             let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
             let spatial = match (landscape, mechanisms) {
-                (Some(landscape), Some(mechanisms)) => {
-                    Some(load_spatial_run_settings(&landscape, &mechanisms)?)
-                }
+                (Some(landscape), Some(mechanisms)) => Some(load_spatial_run_settings(
+                    &landscape,
+                    &mechanisms,
+                    evidence.as_deref(),
+                )?),
                 (None, None) => None,
                 _ => unreachable!("clap requires landscape and mechanisms together"),
             };

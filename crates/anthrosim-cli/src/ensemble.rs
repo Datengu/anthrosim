@@ -5,9 +5,9 @@ use std::{
 };
 
 use anthrosim_core::{
-    ExperimentConfig, LandscapeBinding, LandscapeBundle, MigrationConfig, Population,
-    PopulationConfig, ResourceConfig, RunManifest, SPATIAL_MODEL_SEMANTICS_ID, Simulation,
-    SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
+    EvidenceCatalog, ExperimentConfig, LandscapeBinding, LandscapeBundle, MigrationConfig,
+    Population, PopulationConfig, ResourceConfig, RunManifest, SPATIAL_MODEL_SEMANTICS_ID,
+    Simulation, SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismConfig, World,
     WorldConfig, validate_spatial_landscape_recorded_run,
 };
@@ -27,6 +27,8 @@ pub(crate) struct SpatialRunSettings {
     pub(crate) spatial_model_semantics_id: String,
     pub(crate) landscape_binding: LandscapeBinding,
     pub(crate) mechanisms: SpatialMechanismConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) evidence: Option<EvidenceCatalog>,
     #[serde(skip)]
     pub(crate) runtime_landscape_path: Option<PathBuf>,
 }
@@ -36,6 +38,7 @@ impl PartialEq for SpatialRunSettings {
         self.spatial_model_semantics_id == other.spatial_model_semantics_id
             && self.landscape_binding == other.landscape_binding
             && self.mechanisms == other.mechanisms
+            && self.evidence == other.evidence
     }
 }
 
@@ -157,16 +160,41 @@ enum BundleInspection {
 pub(crate) fn load_spatial_run_settings(
     landscape_path: &Path,
     mechanisms_path: &Path,
+    evidence_path: Option<&Path>,
 ) -> Result<SpatialRunSettings, Box<dyn std::error::Error>> {
     let landscape: LandscapeBundle = read_json(landscape_path)?;
     landscape.validate()?;
     let landscape_binding = LandscapeBinding::from_bundle(&landscape)?;
     let mechanisms: SpatialMechanismConfig = read_json(mechanisms_path)?;
     mechanisms.validate()?;
+    let evidence = evidence_path
+        .map(read_json::<EvidenceCatalog>)
+        .transpose()?;
+
+    if let Some(catalog) = &evidence {
+        catalog.validate()?;
+        landscape.validate_evidence_links(catalog)?;
+        mechanisms.validate_evidence_links(Some(catalog))?;
+    } else {
+        mechanisms.validate_evidence_links(None)?;
+        if landscape
+            .layers
+            .iter()
+            .any(|layer| layer.evidence_input_id.is_some())
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "landscape contains evidence input links but no --evidence catalogue was supplied",
+            )
+            .into());
+        }
+    }
+
     Ok(SpatialRunSettings {
         spatial_model_semantics_id: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
         landscape_binding,
         mechanisms,
+        evidence,
         runtime_landscape_path: Some(landscape_path.to_path_buf()),
     })
 }
@@ -179,7 +207,7 @@ pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> Ex
     let migration = MigrationConfig::synthetic_validation_v1()
         .with_enabled(!settings.disable_migration)
         .with_candidate_radius_cells(settings.migration_radius);
-    ExperimentConfig::new(seed, settings.years)
+    let config = ExperimentConfig::new(seed, settings.years)
         .with_world(WorldConfig::new(
             settings.world_width,
             settings.world_height,
@@ -190,7 +218,15 @@ pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> Ex
                 .with_max_person_records(settings.max_person_records),
         )
         .with_resources(resources)
-        .with_migration(migration)
+        .with_migration(migration);
+
+    settings
+        .spatial
+        .as_ref()
+        .and_then(|spatial| spatial.evidence.as_ref())
+        .map_or(config.clone(), |evidence| {
+            config.with_evidence(evidence.clone())
+        })
 }
 
 pub(crate) fn resolve_ensemble_seeds(
@@ -431,6 +467,12 @@ fn load_runtime_landscape(
         .into());
     }
     spatial.mechanisms.validate()?;
+    if let Some(catalog) = &spatial.evidence {
+        catalog.validate()?;
+        spatial.mechanisms.validate_evidence_links(Some(catalog))?;
+    } else {
+        spatial.mechanisms.validate_evidence_links(None)?;
+    }
 
     let stored_path = directory.join("landscape.json");
     let source_path = spatial
@@ -445,6 +487,19 @@ fn load_runtime_landscape(
         })?;
     let landscape: LandscapeBundle = read_json(source_path)?;
     spatial.landscape_binding.validate_bundle(&landscape)?;
+    if let Some(catalog) = &spatial.evidence {
+        landscape.validate_evidence_links(catalog)?;
+    } else if landscape
+        .layers
+        .iter()
+        .any(|layer| layer.evidence_input_id.is_some())
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "landscape contains evidence input links but the spatial experiment has no evidence catalogue",
+        )
+        .into());
+    }
     if settings.world_width != spatial.landscape_binding.width
         || settings.world_height != spatial.landscape_binding.height
     {
@@ -495,6 +550,9 @@ fn initialize_experiment(
             &directory.join("spatial-mechanisms.json"),
             &spatial.mechanisms,
         )?;
+        if let Some(evidence) = &spatial.evidence {
+            write_json(&directory.join("evidence.json"), evidence)?;
+        }
     }
     for spec in &manifest.runs {
         write_status(directory, &initial_status(manifest, spec))?;
@@ -910,8 +968,9 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use anthrosim_core::{
-        GridGeometry, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, NoDataPolicy,
-        SpatialFieldTransform, SpatialTargetField, TransformDirection,
+        EvidenceRecord, EvidenceSource, GridGeometry, LandscapeLayer, LandscapeLayerRole,
+        LandscapeValueDomain, NoDataPolicy, ParameterProvenance, SpatialFieldTransform,
+        SpatialTargetField, TransformDirection,
     };
 
     use super::*;
@@ -943,6 +1002,30 @@ mod tests {
 
     fn read_status(root: &Path, seed: u64) -> RunStatus {
         read_json(&root.join(status_relative_path(&run_id(seed)))).expect("status")
+    }
+
+    fn evidence_catalog(applicability: &str) -> EvidenceCatalog {
+        EvidenceCatalog::new(vec![EvidenceRecord {
+            schema_version: EvidenceRecord::CURRENT_SCHEMA_VERSION,
+            evidence_id: "terrain-transform-evidence".to_owned(),
+            provenance: ParameterProvenance::EmpiricalDerived,
+            source: EvidenceSource {
+                source_id: "open-dem-fixture".to_owned(),
+                citation: "Open DEM fixture used for evidence identity testing".to_owned(),
+                persistent_id: Some("https://example.invalid/dem".to_owned()),
+                dataset_version: Some("v1".to_owned()),
+                licence: Some("open-test-licence".to_owned()),
+                spatial_coverage: Some("generic test grid".to_owned()),
+                temporal_coverage: None,
+            },
+            original_variable: "elevation".to_owned(),
+            original_units: "metre".to_owned(),
+            transformation: None,
+            simulation_units: "movement_cost".to_owned(),
+            uncertainty: None,
+            applicability: applicability.to_owned(),
+            competing_estimates: Vec::new(),
+        }])
     }
 
     fn spatial_fixture_settings() -> (EnsembleRunSettings, PathBuf) {
@@ -1030,6 +1113,7 @@ mod tests {
             spatial_model_semantics_id: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
             landscape_binding: LandscapeBinding::from_bundle(&landscape).expect("binding"),
             mechanisms,
+            evidence: None,
             runtime_landscape_path: Some(landscape_path),
         });
         (settings, source_root)
@@ -1109,6 +1193,34 @@ mod tests {
         );
         let serialized = serde_json::to_string(&manifest).expect("serialize");
         assert!(!serialized.contains(source_root.to_string_lossy().as_ref()));
+        fs::remove_dir_all(source_root).expect("cleanup");
+    }
+
+    #[test]
+    fn spatial_evidence_is_in_immutable_config_and_retry_boundary() {
+        let root = temp_path("spatial-evidence-identity");
+        let (mut settings, source_root) = spatial_fixture_settings();
+        let evidence = evidence_catalog("first declared applicability");
+        let spatial = settings.spatial.as_mut().expect("spatial");
+        spatial.mechanisms.transforms[0].evidence_id =
+            Some("terrain-transform-evidence".to_owned());
+        spatial.evidence = Some(evidence.clone());
+
+        let manifest = build_experiment_manifest(&settings, &[68]).expect("manifest");
+        assert_eq!(manifest.runs[0].experiment.evidence, Some(evidence));
+        execute_ensemble(&root, settings.clone(), vec![68], false).expect("evidence run");
+        assert!(root.join("evidence.json").is_file());
+        let before = fs::read(root.join("experiment-manifest.json")).expect("manifest bytes");
+
+        let mut changed = settings;
+        changed.spatial.as_mut().expect("spatial").evidence =
+            Some(evidence_catalog("changed applicability"));
+        assert!(execute_ensemble(&root, changed, vec![68], true).is_err());
+        assert_eq!(
+            before,
+            fs::read(root.join("experiment-manifest.json")).expect("manifest bytes")
+        );
+        fs::remove_dir_all(root).expect("cleanup");
         fs::remove_dir_all(source_root).expect("cleanup");
     }
 
