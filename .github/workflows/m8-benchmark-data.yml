@@ -31,8 +31,18 @@ jobs:
             --source-cache .cache/m8/N46E007.hgt.gz \
             --expected-sha256 cf790a87057dfdf126f9b314d9ec71d407afdedbe71c79e2b14c903d024ce0b9
 
-      - name: Require byte-identical committed reference package
-        run: diff -ru examples/m8-first-evidence-grounded-benchmark m8-benchmark-prepared
+      - name: Require byte-identical committed input references
+        run: |
+          for artifact in \
+            landscape.json \
+            evidence.json \
+            source-provenance.json \
+            spatial-mechanisms-flat.json \
+            spatial-mechanisms-weak.json \
+            spatial-mechanisms-moderate.json \
+            spatial-mechanisms-strong.json; do
+            cmp "examples/m8-first-evidence-grounded-benchmark/${artifact}" "m8-benchmark-prepared/${artifact}"
+          done
 
       - name: Show source identity
         run: cat m8-benchmark-prepared/source-provenance.json
