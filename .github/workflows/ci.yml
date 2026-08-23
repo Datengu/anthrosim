@@ -9,9 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  rust:
+  quality:
+    name: Quality and tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -41,8 +42,19 @@ jobs:
       - name: Clippy
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
-      - name: Test
+      - name: Test workspace
         run: cargo test --locked --workspace --all-features
+
+  explorer:
+    name: Explorer and script validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: Validate M6/M7 source syntax
         run: |
@@ -55,6 +67,24 @@ jobs:
 
       - name: Test M6 explorer artifact model
         run: node --test explorer/model.test.mjs
+
+  benchmarks:
+    name: Core benchmarks
+    needs: [quality, explorer]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
 
       - name: Benchmark synthetic world generation
         run: cargo bench --locked -p anthrosim-core --bench world_generation -- --noplot
@@ -71,18 +101,57 @@ jobs:
       - name: Benchmark M5 checkpoint persistence
         run: cargo bench --locked -p anthrosim-core --bench checkpoint_persistence -- --noplot
 
+  release-build:
+    name: Release build
+    needs: [quality, explorer]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
       - name: Build release binaries
         env:
           ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
         run: cargo build --locked --workspace --release
 
-      - name: Run M7.5 10k-person 2000-year performance acceptance
-        run: |
-          python3 scripts/benchmark-performance-acceptance.py \
-            --binary target/release/anthrosim \
-            --report /tmp/anthrosim-m7-5-performance.json \
-            --enforce
-          cat /tmp/anthrosim-m7-5-performance.json
+      - name: Archive release binary for downstream gates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: anthrosim-ci-release-linux
+          if-no-files-found: error
+          retention-days: 1
+          path: target/release/anthrosim
+
+  soak-ensemble:
+    name: 1000-run ensemble soak
+    needs: release-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Download release binary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: anthrosim-ci-release-linux
+          path: target/release
+
+      - name: Restore executable bit
+        run: chmod +x target/release/anthrosim
 
       - name: Exercise unattended 1000-run M7 ensemble scale
         run: |
@@ -110,6 +179,70 @@ jobs:
           assert all(status['state'] == 'completed' for status in statuses)
           assert all(status['attempt'] == 1 for status in statuses)
           PY
+
+  performance-memory:
+    name: Performance and memory acceptance
+    needs: release-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Download release binary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: anthrosim-ci-release-linux
+          path: target/release
+
+      - name: Restore executable bit
+        run: chmod +x target/release/anthrosim
+
+      - name: Run M7.5 10k-person 2000-year performance acceptance
+        run: |
+          python3 scripts/benchmark-performance-acceptance.py \
+            --binary target/release/anthrosim \
+            --report /tmp/anthrosim-m7-5-performance.json \
+            --enforce
+          cat /tmp/anthrosim-m7-5-performance.json
+
+      - name: Measure and gate one-million-founder process memory
+        run: |
+          /usr/bin/time -v -o /tmp/anthrosim-million-founder-time.txt target/release/anthrosim run \
+            --years 0 \
+            --world-width 64 \
+            --world-height 64 \
+            --population 1000000 \
+            --max-person-records 1000000 \
+            --output /tmp/anthrosim-m5-memory.json
+          cat /tmp/anthrosim-million-founder-time.txt
+          max_rss_kib=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/, "", $2); print $2}' /tmp/anthrosim-million-founder-time.txt)
+          test -n "$max_rss_kib"
+          test "$max_rss_kib" -le 163840
+
+  reference-experiment:
+    name: Canonical M7.6 reference experiment
+    needs: release-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Download release binary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: anthrosim-ci-release-linux
+          path: target/release
+
+      - name: Restore executable bit
+        run: chmod +x target/release/anthrosim
 
       - name: Run M7.6 canonical resource variability experiment
         run: |
@@ -184,6 +317,27 @@ jobs:
             /tmp/anthrosim-m7-6-resource-variability/reproduction-record.json
             /tmp/anthrosim-m7-6-resource-variability/sweep-manifest.json
             /tmp/anthrosim-m7-6-resource-variability/analysis/
+
+  bundle-integration:
+    name: M5/M6 bundle integration
+    needs: release-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Download release binary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: anthrosim-ci-release-linux
+          path: target/release
+
+      - name: Restore executable bit
+        run: chmod +x target/release/anthrosim
 
       - name: Generate completed M5 sample bundle
         run: |
@@ -274,17 +428,3 @@ jobs:
           trap - EXIT
           sha256sum /tmp/anthrosim-m6-paused/*.json > /tmp/m6-paused-after.sha256
           diff -u /tmp/m6-paused-before.sha256 /tmp/m6-paused-after.sha256
-
-      - name: Measure and gate one-million-founder process memory
-        run: |
-          /usr/bin/time -v -o /tmp/anthrosim-million-founder-time.txt target/release/anthrosim run \
-            --years 0 \
-            --world-width 64 \
-            --world-height 64 \
-            --population 1000000 \
-            --max-person-records 1000000 \
-            --output /tmp/anthrosim-m5-memory.json
-          cat /tmp/anthrosim-million-founder-time.txt
-          max_rss_kib=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/, "", $2); print $2}' /tmp/anthrosim-million-founder-time.txt)
-          test -n "$max_rss_kib"
-          test "$max_rss_kib" -le 163840
