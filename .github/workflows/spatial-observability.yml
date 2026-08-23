@@ -34,6 +34,42 @@ jobs:
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed --check
 
+      - name: Verify new-directory resumed spatial history end to end
+        run: |
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run \
+            --landscape examples/landscape-loading/landscape.json \
+            --mechanisms examples/landscape-loading/spatial-mechanisms.json \
+            --seed 8602 \
+            --years 4 \
+            --population 40 \
+            --max-person-records 10000 \
+            --run-dir spatial-resume-source \
+            --checkpoint-year 2
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- resume \
+            --checkpoint spatial-resume-source/landscape-checkpoint.json \
+            --landscape examples/landscape-loading/landscape.json \
+            --run-dir spatial-resumed-new
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run \
+            --landscape examples/landscape-loading/landscape.json \
+            --mechanisms examples/landscape-loading/spatial-mechanisms.json \
+            --seed 8602 \
+            --years 4 \
+            --population 40 \
+            --max-person-records 10000 \
+            --run-dir spatial-resume-uninterrupted
+
+          test -f spatial-resumed-new/resume-start-population.json
+          test ! -e spatial-resumed-new/initial-population.json
+
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resumed-new
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resumed-new --check
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- tree --root spatial-resumed-new --check
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resume-uninterrupted
+          cmp spatial-resume-uninterrupted/spatial-observability.json spatial-resumed-new/spatial-observability.json
+
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-pack -- spatial-resumed-new --output /tmp/spatial-resumed-new.zip
+          test -s /tmp/spatial-resumed-new.zip
+
       - name: Test explorer artifact models
         run: node --test explorer/model.test.mjs explorer/spatial-model.test.mjs
 
