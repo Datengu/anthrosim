@@ -1,4 +1,8 @@
-use std::{fs, path::{Path, PathBuf}, process::ExitCode};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 use anthrosim_core::{
     ExperimentConfig, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
@@ -133,7 +137,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     &run_dir,
                     &landscape,
                     &world,
-                    &initial_population,
+                    Some(&initial_population),
                     &recorded,
                 )?;
                 println!("wrote landscape-bound run bundle {}", run_dir.display());
@@ -152,15 +156,17 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let recorded = simulation.run_recorded()?;
 
             fs::create_dir_all(&run_dir)?;
-            let initial_population_path = run_dir.join("initial-population.json");
-            if !initial_population_path.exists() {
-                write_json(&run_dir.join("resume-start-population.json"), &resume_population)?;
+            if !run_dir.join("initial-population.json").is_file() {
+                write_json(
+                    &run_dir.join("resume-start-population.json"),
+                    &resume_population,
+                )?;
             }
             write_completed_landscape_bundle(
                 &run_dir,
                 &landscape,
                 &world,
-                &resume_population,
+                None,
                 &recorded,
             )?;
             println!("wrote resumed landscape-bound run bundle {}", run_dir.display());
@@ -206,19 +212,30 @@ fn write_completed_landscape_bundle(
     directory: &Path,
     landscape: &LandscapeBundle,
     world: &World,
-    initial_population: &Population,
+    initial_population: Option<&Population>,
     recorded: &LandscapeRecordedRun,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_landscape_recorded_run_invariants(recorded)?;
     fs::create_dir_all(directory)?;
     write_json(&directory.join("landscape.json"), landscape)?;
     write_json(&directory.join("world.json"), world)?;
-    write_json(&directory.join("initial-population.json"), initial_population)?;
+    if let Some(initial_population) = initial_population {
+        write_json(
+            &directory.join("initial-population.json"),
+            initial_population,
+        )?;
+    }
     write_json(&directory.join("manifest.json"), recorded.core_manifest())?;
-    write_json(&directory.join("landscape-manifest.json"), &recorded.manifest)?;
+    write_json(
+        &directory.join("landscape-manifest.json"),
+        &recorded.manifest,
+    )?;
     write_json(&directory.join("events.json"), recorded.events())?;
     write_json(&directory.join("metrics.json"), recorded.metrics())?;
-    write_json(&directory.join("checkpoint.json"), recorded.core_checkpoint())?;
+    write_json(
+        &directory.join("checkpoint.json"),
+        recorded.core_checkpoint(),
+    )?;
     write_json(
         &directory.join("landscape-checkpoint.json"),
         &recorded.checkpoint,
@@ -237,10 +254,22 @@ fn write_landscape_checkpoint_bundle(
     fs::create_dir_all(directory)?;
     write_json(&directory.join("landscape.json"), landscape)?;
     write_json(&directory.join("world.json"), world)?;
-    write_json(&directory.join("initial-population.json"), initial_population)?;
-    write_json(&directory.join("events.json"), &checkpoint.core_checkpoint.events)?;
-    write_json(&directory.join("metrics.json"), &checkpoint.core_checkpoint.metrics)?;
-    write_json(&directory.join("checkpoint.json"), &checkpoint.core_checkpoint)?;
+    write_json(
+        &directory.join("initial-population.json"),
+        initial_population,
+    )?;
+    write_json(
+        &directory.join("events.json"),
+        &checkpoint.core_checkpoint.events,
+    )?;
+    write_json(
+        &directory.join("metrics.json"),
+        &checkpoint.core_checkpoint.metrics,
+    )?;
+    write_json(
+        &directory.join("checkpoint.json"),
+        &checkpoint.core_checkpoint,
+    )?;
     write_json(&directory.join("landscape-checkpoint.json"), checkpoint)?;
     Ok(())
 }
@@ -254,7 +283,10 @@ fn write_json<T: serde::Serialize + ?Sized>(
     path: &Path,
     value: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         fs::create_dir_all(parent)?;
     }
     let json = serde_json::to_string_pretty(value)?;
