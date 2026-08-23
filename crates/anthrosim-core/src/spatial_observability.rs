@@ -263,23 +263,27 @@ pub fn derive_spatial_observability(
 
     let migration_flows = flow_map
         .into_iter()
-        .map(|((origin, destination), accumulator)| SpatialMigrationFlow {
-            provenance: MetricProvenance::Derived,
-            origin: CellId::new(origin),
-            destination: CellId::new(destination),
-            distance_cells: accumulator.distance_cells,
-            moves: accumulator.moves,
-            people_moved: accumulator.people_moved,
-        })
+        .map(
+            |((origin, destination), accumulator)| SpatialMigrationFlow {
+                provenance: MetricProvenance::Derived,
+                origin: CellId::new(origin),
+                destination: CellId::new(destination),
+                distance_cells: accumulator.distance_cells,
+                moves: accumulator.moves,
+                people_moved: accumulator.people_moved,
+            },
+        )
         .collect::<Vec<_>>();
     let migration_distance_distribution = distance_map
         .into_iter()
-        .map(|(distance_cells, accumulator)| SpatialMigrationDistanceBin {
-            provenance: MetricProvenance::Derived,
-            distance_cells,
-            moves: accumulator.moves,
-            people_moved: accumulator.people_moved,
-        })
+        .map(
+            |(distance_cells, accumulator)| SpatialMigrationDistanceBin {
+                provenance: MetricProvenance::Derived,
+                distance_cells,
+                moves: accumulator.moves,
+                people_moved: accumulator.people_moved,
+            },
+        )
         .collect::<Vec<_>>();
 
     let summary = build_summary(end_day, &cell_rows, checkpoint)?;
@@ -460,10 +464,12 @@ fn process_events(
                         .ok_or(SpatialObservabilityError::AccountingOverflow)?;
                 }
 
-                let flow = flows.entry((origin.0, destination.0)).or_insert(FlowAccumulator {
-                    distance_cells: *distance_cells,
-                    ..FlowAccumulator::default()
-                });
+                let flow = flows
+                    .entry((origin.0, destination.0))
+                    .or_insert(FlowAccumulator {
+                        distance_cells: *distance_cells,
+                        ..FlowAccumulator::default()
+                    });
                 if flow.distance_cells != *distance_cells {
                     return Err(SpatialObservabilityError::FlowDistanceMismatch {
                         origin: *origin,
@@ -633,7 +639,11 @@ fn build_summary(
         || terminal_occupied_cells != population_summary.living_occupied_cell_count
         || births != population_summary.births_since_start
         || deaths != population_summary.deaths_since_start
-        || scarcity_deaths != checkpoint.resources.summary(&checkpoint.population).scarcity_deaths
+        || scarcity_deaths
+            != checkpoint
+                .resources
+                .summary(&checkpoint.population)
+                .scarcity_deaths
         || migration_moves != checkpoint.migration.moves_completed
         || migration_people_moved != checkpoint.migration.people_moved
     {
@@ -691,9 +701,9 @@ fn ratio_permille(
         .checked_mul(1_000)
         .ok_or(SpatialObservabilityError::AccountingOverflow)?
         / u128::from(denominator);
-    Ok(Some(
-        u16::try_from(scaled).map_err(|_| SpatialObservabilityError::AccountingOverflow)?,
-    ))
+    Ok(Some(u16::try_from(scaled).map_err(|_| {
+        SpatialObservabilityError::AccountingOverflow
+    })?))
 }
 
 fn cell_index(cell: CellId, cell_count: usize) -> Result<usize, SpatialObservabilityError> {
@@ -719,7 +729,9 @@ pub enum SpatialObservabilityError {
     GridMismatch,
     #[error("checkpoint world digest {expected} does not match supplied world digest {actual}")]
     WorldDigestMismatch { expected: u64, actual: u64 },
-    #[error("spatial binding world digest {expected} does not match supplied world digest {actual}")]
+    #[error(
+        "spatial binding world digest {expected} does not match supplied world digest {actual}"
+    )]
     SpatialWorldDigestMismatch { expected: u64, actual: u64 },
     #[error("invalid cell {0:?} in spatial observability input")]
     InvalidCell(CellId),
@@ -742,11 +754,10 @@ pub enum SpatialObservabilityError {
     #[error("cell {cell:?} would have negative population at day {day}")]
     NegativeCellPopulation { cell: CellId, day: u64 },
     #[error("migration flow {origin:?}->{destination:?} has inconsistent recorded distance")]
-    FlowDistanceMismatch {
-        origin: CellId,
-        destination: CellId,
-    },
-    #[error("terminal population reconstruction mismatch for {cell:?}: derived {derived}, authoritative {authoritative}")]
+    FlowDistanceMismatch { origin: CellId, destination: CellId },
+    #[error(
+        "terminal population reconstruction mismatch for {cell:?}: derived {derived}, authoritative {authoritative}"
+    )]
     TerminalCellPopulationMismatch {
         cell: CellId,
         derived: u64,
