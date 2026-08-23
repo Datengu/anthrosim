@@ -7,6 +7,7 @@ use crate::{
     metrics::MetricSeries,
     migration::{MigrationSummary, MigrationSystem},
     population::{Population, PopulationSummary},
+    provenance::ResumeLineage,
     resources::{ResourceSummary, ResourceSystem},
     time::SimTime,
     world::{World, WorldSummary},
@@ -67,6 +68,8 @@ pub struct RunManifest {
     pub model_version: String,
     pub model_semantics_id: String,
     pub git_commit: Option<String>,
+    #[serde(default)]
+    pub resume_lineage: ResumeLineage,
     pub experiment: ExperimentConfig,
     pub artifact_schemas: ArtifactSchemas,
     pub world: WorldSummary,
@@ -81,5 +84,5 @@ pub struct RunManifest {
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 9;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 10;
 }
