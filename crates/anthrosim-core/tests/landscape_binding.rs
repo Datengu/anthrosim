@@ -79,8 +79,14 @@ fn checkpoint_resume_matches_uninterrupted_landscape_run() {
     validate_landscape_recorded_run_invariants(&resumed).unwrap();
 
     let mut resumed_without_lineage = resumed.clone();
-    resumed_without_lineage.manifest.core_manifest.resume_lineage = ResumeLineage::new();
-    resumed_without_lineage.checkpoint.core_checkpoint.resume_lineage = ResumeLineage::new();
+    resumed_without_lineage
+        .manifest
+        .core_manifest
+        .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .resume_lineage = ResumeLineage::new();
     assert_eq!(resumed_without_lineage, uninterrupted);
 
     assert_eq!(
