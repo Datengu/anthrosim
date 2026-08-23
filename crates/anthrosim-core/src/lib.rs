@@ -65,7 +65,9 @@ pub use population::{
     CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
     PopulationValidationError, ReproductiveSex,
 };
-pub use provenance::MODEL_SEMANTICS_ID;
+pub use provenance::{
+    MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, ResumeLineageError, SourceRevisionIdentity,
+};
 pub use resources::{
     ResourceConfigError, ResourceError, ResourceSummary, ResourceSystem, validate_resource_config,
 };
