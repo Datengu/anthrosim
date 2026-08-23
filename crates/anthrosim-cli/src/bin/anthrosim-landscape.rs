@@ -124,11 +124,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if let Some(mechanisms_path) = mechanisms {
                 let mechanisms: SpatialMechanismConfig = read_json(&mechanisms_path)?;
                 mechanisms.validate()?;
-                let simulation = SpatialLandscapeSimulation::new(
-                    config,
-                    landscape.clone(),
-                    mechanisms.clone(),
-                )?;
+                let simulation =
+                    SpatialLandscapeSimulation::new(config, landscape.clone(), mechanisms.clone())?;
                 let world = simulation.world().clone();
                 let initial_population = simulation.population().clone();
 
@@ -214,13 +211,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         &resume_population,
                     )?;
                 }
-                write_completed_spatial_bundle(
-                    &run_dir,
-                    &landscape,
-                    &world,
-                    None,
-                    &recorded,
-                )?;
+                write_completed_spatial_bundle(&run_dir, &landscape, &world, None, &recorded)?;
                 println!(
                     "wrote resumed transformed landscape run bundle {}",
                     run_dir.display()
