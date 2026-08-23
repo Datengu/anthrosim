@@ -7,14 +7,6 @@ use crate::{
     validate_recorded_run_invariants,
 };
 
-/// Checkpoint schema used only for M8.3 landscape-bound checkpoints.
-///
-/// Synthetic checkpoints remain on `SimulationCheckpoint::CURRENT_SCHEMA_VERSION`, preserving
-/// their existing byte-level representation. A landscape-bound checkpoint uses a distinct
-/// schema so calling `Simulation::from_checkpoint` directly cannot silently discard the bound
-/// landscape. Resume must go through `LandscapeSimulation::from_checkpoint` with the same bundle.
-pub const LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION: u32 = 5;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LandscapeBinding {
@@ -44,7 +36,6 @@ impl LandscapeBinding {
     }
 
     pub fn validate_bundle(&self, bundle: &LandscapeBundle) -> Result<(), LandscapeBindingError> {
-        bundle.validate()?;
         let actual = Self::from_bundle(bundle)?;
         if actual != *self {
             return Err(LandscapeBindingError::BindingMismatch {
@@ -53,6 +44,64 @@ impl LandscapeBinding {
             });
         }
         Ok(())
+    }
+}
+
+/// Versioned M8.3 wrapper around the unchanged M1-M7 run manifest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LandscapeRunManifest {
+    pub schema_version: u32,
+    pub landscape: LandscapeBinding,
+    pub core_manifest: RunManifest,
+}
+
+impl LandscapeRunManifest {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+}
+
+/// Versioned M8.3 wrapper around the unchanged M1-M7 simulation checkpoint.
+///
+/// A landscape-bound resume consumes this wrapper plus the supplied normalized bundle. The core
+/// checkpoint remains byte-compatible with pre-M8 artifacts, while this wrapper makes silently
+/// dropping or replacing the landscape impossible on the supported M8.3 resume path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LandscapeCheckpoint {
+    pub schema_version: u32,
+    pub landscape: LandscapeBinding,
+    pub core_checkpoint: SimulationCheckpoint,
+}
+
+impl LandscapeCheckpoint {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LandscapeRecordedRun {
+    pub manifest: LandscapeRunManifest,
+    pub checkpoint: LandscapeCheckpoint,
+}
+
+impl LandscapeRecordedRun {
+    #[must_use]
+    pub const fn core_manifest(&self) -> &RunManifest {
+        &self.manifest.core_manifest
+    }
+
+    #[must_use]
+    pub const fn core_checkpoint(&self) -> &SimulationCheckpoint {
+        &self.checkpoint.core_checkpoint
+    }
+
+    #[must_use]
+    pub const fn events(&self) -> &crate::EventLog {
+        &self.checkpoint.core_checkpoint.events
+    }
+
+    #[must_use]
+    pub const fn metrics(&self) -> &crate::MetricSeries {
+        &self.checkpoint.core_checkpoint.metrics
     }
 }
 
@@ -88,34 +137,26 @@ impl LandscapeSimulation {
     }
 
     pub fn from_checkpoint(
-        checkpoint: SimulationCheckpoint,
+        checkpoint: LandscapeCheckpoint,
         landscape: LandscapeBundle,
     ) -> Result<Self, LandscapeBindingError> {
-        if checkpoint.schema_version != LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION {
+        if checkpoint.schema_version != LandscapeCheckpoint::CURRENT_SCHEMA_VERSION {
             return Err(LandscapeBindingError::UnsupportedLandscapeCheckpointSchema {
                 found: checkpoint.schema_version,
-                supported: LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION,
+                supported: LandscapeCheckpoint::CURRENT_SCHEMA_VERSION,
             });
         }
-        let stored_binding = checkpoint
-            .landscape
-            .clone()
-            .ok_or(LandscapeBindingError::MissingCheckpointBinding)?;
-        stored_binding.validate_bundle(&landscape)?;
-        validate_grid_match(&checkpoint.experiment, &stored_binding)?;
-        if let Some(evidence) = &checkpoint.experiment.evidence {
+        checkpoint.landscape.validate_bundle(&landscape)?;
+        validate_grid_match(&checkpoint.core_checkpoint.experiment, &checkpoint.landscape)?;
+        if let Some(evidence) = &checkpoint.core_checkpoint.experiment.evidence {
             evidence.validate()?;
             landscape.validate_evidence_links(evidence)?;
         }
-
-        let mut internal = checkpoint;
-        internal.schema_version = SimulationCheckpoint::CURRENT_SCHEMA_VERSION;
-        internal.landscape = None;
-        let simulation = Simulation::from_checkpoint(internal)?;
+        let simulation = Simulation::from_checkpoint(checkpoint.core_checkpoint)?;
         Ok(Self {
             simulation,
             landscape,
-            binding: stored_binding,
+            binding: checkpoint.landscape,
         })
     }
 
@@ -139,19 +180,34 @@ impl LandscapeSimulation {
         &self.binding
     }
 
-    pub fn checkpoint_at_year(self, target_year: u64) -> Result<SimulationCheckpoint, LandscapeBindingError> {
-        let binding = self.binding;
-        let mut checkpoint = self.simulation.checkpoint_at_year(target_year)?;
-        bind_checkpoint(&mut checkpoint, &binding);
-        Ok(checkpoint)
+    pub fn checkpoint_at_year(
+        self,
+        target_year: u64,
+    ) -> Result<LandscapeCheckpoint, LandscapeBindingError> {
+        Ok(LandscapeCheckpoint {
+            schema_version: LandscapeCheckpoint::CURRENT_SCHEMA_VERSION,
+            landscape: self.binding,
+            core_checkpoint: self.simulation.checkpoint_at_year(target_year)?,
+        })
     }
 
-    pub fn run_recorded(self) -> Result<RecordedRun, LandscapeBindingError> {
+    pub fn run_recorded(self) -> Result<LandscapeRecordedRun, LandscapeBindingError> {
         let binding = self.binding;
-        let mut recorded = self.simulation.run_recorded()?;
-        bind_recorded_run(&mut recorded, &binding);
-        validate_landscape_recorded_run_invariants(&recorded)?;
-        Ok(recorded)
+        let recorded = self.simulation.run_recorded()?;
+        let landscape_recorded = LandscapeRecordedRun {
+            manifest: LandscapeRunManifest {
+                schema_version: LandscapeRunManifest::CURRENT_SCHEMA_VERSION,
+                landscape: binding.clone(),
+                core_manifest: recorded.manifest.clone(),
+            },
+            checkpoint: LandscapeCheckpoint {
+                schema_version: LandscapeCheckpoint::CURRENT_SCHEMA_VERSION,
+                landscape: binding,
+                core_checkpoint: recorded.checkpoint,
+            },
+        };
+        validate_landscape_recorded_run_invariants(&landscape_recorded)?;
+        Ok(landscape_recorded)
     }
 }
 
@@ -170,52 +226,35 @@ fn validate_grid_match(
     Ok(())
 }
 
-fn bind_checkpoint(checkpoint: &mut SimulationCheckpoint, binding: &LandscapeBinding) {
-    checkpoint.schema_version = LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION;
-    checkpoint.landscape = Some(binding.clone());
-}
-
-fn bind_manifest(manifest: &mut RunManifest, binding: &LandscapeBinding) {
-    manifest.landscape = Some(binding.clone());
-    manifest.artifact_schemas.checkpoint = LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION;
-}
-
-fn bind_recorded_run(run: &mut RecordedRun, binding: &LandscapeBinding) {
-    bind_manifest(&mut run.manifest, binding);
-    bind_checkpoint(&mut run.checkpoint, binding);
-}
-
 pub fn validate_landscape_recorded_run_invariants(
-    run: &RecordedRun,
+    run: &LandscapeRecordedRun,
 ) -> Result<InvariantReport, LandscapeBindingError> {
-    let manifest_binding = run
-        .manifest
-        .landscape
-        .as_ref()
-        .ok_or(LandscapeBindingError::MissingManifestBinding)?;
-    let checkpoint_binding = run
-        .checkpoint
-        .landscape
-        .as_ref()
-        .ok_or(LandscapeBindingError::MissingCheckpointBinding)?;
-    if manifest_binding != checkpoint_binding {
+    if run.manifest.schema_version != LandscapeRunManifest::CURRENT_SCHEMA_VERSION {
+        return Err(LandscapeBindingError::UnsupportedLandscapeManifestSchema {
+            found: run.manifest.schema_version,
+            supported: LandscapeRunManifest::CURRENT_SCHEMA_VERSION,
+        });
+    }
+    if run.checkpoint.schema_version != LandscapeCheckpoint::CURRENT_SCHEMA_VERSION {
+        return Err(LandscapeBindingError::UnsupportedLandscapeCheckpointSchema {
+            found: run.checkpoint.schema_version,
+            supported: LandscapeCheckpoint::CURRENT_SCHEMA_VERSION,
+        });
+    }
+    if run.manifest.landscape != run.checkpoint.landscape {
         return Err(LandscapeBindingError::CrossArtifactBindingMismatch);
     }
-    if run.checkpoint.schema_version != LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION
-        || run.manifest.artifact_schemas.checkpoint != LANDSCAPE_BOUND_CHECKPOINT_SCHEMA_VERSION
+    if run.manifest.core_manifest.experiment != run.checkpoint.core_checkpoint.experiment
+        || run.manifest.core_manifest.state_digest64 != run.checkpoint.core_checkpoint.state_digest64
     {
-        return Err(LandscapeBindingError::CrossArtifactCheckpointSchemaMismatch);
+        return Err(LandscapeBindingError::CrossArtifactCoreMismatch);
     }
 
-    // Reuse every pre-M8 invariant without weakening the synthetic validator. The normalized clone
-    // represents the underlying M1-M7 authoritative state; the checks above validate the M8.3
-    // landscape-specific cross-artifact identity around it.
-    let mut normalized = run.clone();
-    normalized.manifest.landscape = None;
-    normalized.manifest.artifact_schemas.checkpoint = SimulationCheckpoint::CURRENT_SCHEMA_VERSION;
-    normalized.checkpoint.schema_version = SimulationCheckpoint::CURRENT_SCHEMA_VERSION;
-    normalized.checkpoint.landscape = None;
-    Ok(validate_recorded_run_invariants(&normalized)?)
+    let core = RecordedRun {
+        manifest: run.manifest.core_manifest.clone(),
+        checkpoint: run.checkpoint.core_checkpoint.clone(),
+    };
+    Ok(validate_recorded_run_invariants(&core)?)
 }
 
 #[derive(Debug, Error)]
@@ -239,14 +278,12 @@ pub enum LandscapeBindingError {
     },
     #[error("landscape binding mismatch: checkpoint expects {expected}, supplied bundle is {actual}")]
     BindingMismatch { expected: String, actual: String },
-    #[error("landscape-bound checkpoint is missing its landscape binding")]
-    MissingCheckpointBinding,
-    #[error("landscape-bound manifest is missing its landscape binding")]
-    MissingManifestBinding,
-    #[error("manifest and checkpoint landscape bindings disagree")]
+    #[error("landscape manifest and checkpoint bindings disagree")]
     CrossArtifactBindingMismatch,
-    #[error("manifest and checkpoint do not declare the landscape-bound checkpoint schema consistently")]
-    CrossArtifactCheckpointSchemaMismatch,
+    #[error("landscape wrapper core manifest and checkpoint do not describe the same run")]
+    CrossArtifactCoreMismatch,
     #[error("landscape-bound checkpoint schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedLandscapeCheckpointSchema { found: u32, supported: u32 },
+    #[error("landscape-bound manifest schema {found} is unsupported; supported schema is {supported}")]
+    UnsupportedLandscapeManifestSchema { found: u32, supported: u32 },
 }
