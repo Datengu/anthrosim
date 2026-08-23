@@ -18,9 +18,7 @@ use ensemble::{
     EnsembleRunSettings, execute_ensemble, experiment_config, load_spatial_run_settings,
     resolve_ensemble_seeds,
 };
-use run_directory::{
-    RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory,
-};
+use run_directory::{RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory};
 use sweep::{SweepDimensions, execute_sweep};
 
 #[derive(Debug, Parser)]
@@ -543,12 +541,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let simulation = Simulation::from_checkpoint(checkpoint.clone())?;
             let world = simulation.world().clone();
             let resume_population = simulation.population().clone();
-            let (transaction, preserved_population) = prepare_core_resume_transaction(
-                &checkpoint_path,
-                &run_dir,
-                &checkpoint,
-                &world,
-            )?;
+            let (transaction, preserved_population) =
+                prepare_core_resume_transaction(&checkpoint_path, &run_dir, &checkpoint, &world)?;
             let recorded = simulation.run_recorded()?;
             let staging = transaction.staging_dir();
 
@@ -580,7 +574,8 @@ fn prepare_core_resume_transaction(
     run_dir: &Path,
     checkpoint: &SimulationCheckpoint,
     world: &World,
-) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>> {
+) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>>
+{
     if !target_is_nonempty_directory(run_dir)? {
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
