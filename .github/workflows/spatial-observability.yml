@@ -112,7 +112,8 @@ jobs:
             --run-dir spatial-resume-uninterrupted
 
           test -f spatial-resumed-new/resume-start-population.json
-          test ! -e spatial-resumed-new/initial-population.json
+          test -f spatial-resumed-new/initial-population.json
+          cmp spatial-resume-source/initial-population.json spatial-resumed-new/initial-population.json
 
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resumed-new
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resumed-new --check
