@@ -61,6 +61,12 @@ When deliberately updating an action:
 
 Do not replace a pinned SHA with a mutable branch or version tag merely for update convenience. Automated dependency tooling is acceptable only when it produces an explicit PR containing the reviewed SHA change.
 
+## Release and versioning changes
+
+Milestone numbers, software release versions, model-semantics identity and exact Git provenance serve different purposes. Follow `docs/release-versioning.md` before changing the workspace/package version, creating a named release, or deciding whether an audit finding changes milestone status.
+
+Do not bump the package version as routine issue/PR bookkeeping. Version bumps should be explicit release decisions; exact source changes are already identified by Git provenance.
+
 ## Scientific changes
 
 A change is *scientific* when it changes simulated meaning rather than implementation only. Scientific changes should state:
