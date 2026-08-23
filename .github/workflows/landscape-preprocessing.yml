@@ -1,0 +1,47 @@
+name: Landscape preprocessing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: M8.2 preprocessing validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Python version
+        run: python3 --version
+
+      - name: Validate Python source
+        run: |
+          python3 -m py_compile scripts/build-landscape-bundle.py
+          python3 -m py_compile scripts/test-landscape-preprocess.py
+
+      - name: Test preprocessing contract
+        run: python3 scripts/test-landscape-preprocess.py
+
+      - name: Reproduce generic fixture twice
+        run: |
+          rm -rf /tmp/anthrosim-landscape-a /tmp/anthrosim-landscape-b
+          mkdir -p /tmp/anthrosim-landscape-a /tmp/anthrosim-landscape-b
+          python3 scripts/build-landscape-bundle.py \
+            examples/landscape-preprocess/recipe.json \
+            --output /tmp/anthrosim-landscape-a/landscape.json \
+            --record /tmp/anthrosim-landscape-a/record.json
+          python3 scripts/build-landscape-bundle.py \
+            examples/landscape-preprocess/recipe.json \
+            --output /tmp/anthrosim-landscape-b/landscape.json \
+            --record /tmp/anthrosim-landscape-b/record.json
+          cmp /tmp/anthrosim-landscape-a/landscape.json /tmp/anthrosim-landscape-b/landscape.json
+          cmp /tmp/anthrosim-landscape-a/record.json /tmp/anthrosim-landscape-b/record.json
