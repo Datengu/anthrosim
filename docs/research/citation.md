@@ -1,6 +1,6 @@
 # Citing AnthroSim
 
-AnthroSim carries machine-readable citation metadata in the repository-root `CITATION.cff` file. GitHub and other tooling can use that file to present a standard software citation.
+AnthroSim carries machine-readable citation metadata in the repository-root `CITATION.cff` file. GitHub and other tooling can use that file to present a standard software citation. When GitHub recognises the file, its **Cite this repository** interface can generate common citation formats from the same metadata.
 
 ## Released software
 
