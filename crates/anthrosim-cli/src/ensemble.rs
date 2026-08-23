@@ -5,8 +5,12 @@ use std::{
 };
 
 use anthrosim_core::{
-    ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, RunManifest, Simulation,
-    SimulationCheckpoint, WorldConfig,
+    ExperimentConfig, LandscapeBinding, LandscapeBundle, LandscapeLayerRole, LandscapeValueDomain,
+    MigrationConfig, NoDataPolicy, Population, PopulationConfig, ResourceConfig, RunManifest,
+    SPATIAL_MODEL_SEMANTICS_ID, Simulation, SimulationCheckpoint, SpatialLandscapeCheckpoint,
+    SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest, SpatialLandscapeSimulation,
+    SpatialMechanismConfig, SpatialTargetField, TransformDirection, World, WorldConfig,
+    validate_spatial_landscape_recorded_run,
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +19,28 @@ use crate::{read_json, write_completed_bundle, write_json};
 const ENSEMBLE_PLAN_SCHEMA_VERSION: u32 = 1;
 const ENSEMBLE_COMPLETION_SCHEMA_VERSION: u32 = 1;
 const EXPERIMENT_MANIFEST_SCHEMA_VERSION: u32 = 1;
+const SPATIAL_EXPERIMENT_MANIFEST_SCHEMA_VERSION: u32 = 2;
 const RUN_STATUS_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SpatialRunSettings {
+    pub(crate) spatial_model_semantics_id: String,
+    pub(crate) landscape_binding: LandscapeBinding,
+    pub(crate) mechanisms: SpatialMechanismConfig,
+    #[serde(skip)]
+    pub(crate) runtime_landscape_path: Option<PathBuf>,
+}
+
+impl PartialEq for SpatialRunSettings {
+    fn eq(&self, other: &Self) -> bool {
+        self.spatial_model_semantics_id == other.spatial_model_semantics_id
+            && self.landscape_binding == other.landscape_binding
+            && self.mechanisms == other.mechanisms
+    }
+}
+
+impl Eq for SpatialRunSettings {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +56,8 @@ pub(crate) struct EnsembleRunSettings {
     pub(crate) annual_food_need: u32,
     pub(crate) disable_migration: bool,
     pub(crate) migration_radius: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) spatial: Option<SpatialRunSettings>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -71,6 +98,8 @@ struct ExperimentRunSpec {
     run_id: String,
     relative_run_dir: String,
     experiment: ExperimentConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    spatial: Option<SpatialRunSettings>,
 }
 
 #[derive(Debug, Serialize)]
@@ -124,6 +153,23 @@ struct EnsembleRunCompletion {
 enum BundleInspection {
     AbsentOrIncomplete,
     Valid(RunResultRef),
+}
+
+pub(crate) fn load_spatial_run_settings(
+    landscape_path: &Path,
+    mechanisms_path: &Path,
+) -> Result<SpatialRunSettings, Box<dyn std::error::Error>> {
+    let landscape: LandscapeBundle = read_json(landscape_path)?;
+    landscape.validate()?;
+    let landscape_binding = LandscapeBinding::from_bundle(&landscape)?;
+    let mechanisms: SpatialMechanismConfig = read_json(mechanisms_path)?;
+    mechanisms.validate()?;
+    Ok(SpatialRunSettings {
+        spatial_model_semantics_id: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
+        landscape_binding,
+        mechanisms,
+        runtime_landscape_path: Some(landscape_path.to_path_buf()),
+    })
 }
 
 pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> ExperimentConfig {
@@ -239,30 +285,33 @@ fn build_experiment_manifest(
     }
     validate_unique_seeds(seeds)?;
 
+    let schema_version = if settings.spatial.is_some() {
+        SPATIAL_EXPERIMENT_MANIFEST_SCHEMA_VERSION
+    } else {
+        EXPERIMENT_MANIFEST_SCHEMA_VERSION
+    };
     let runs = seeds
         .iter()
         .map(|&seed| ExperimentRunSpec {
             run_id: run_id(seed),
             relative_run_dir: run_relative_dir(seed),
             experiment: experiment_config(seed, settings),
+            spatial: settings.spatial.clone(),
         })
         .collect::<Vec<_>>();
     let model_version = env!("CARGO_PKG_VERSION").to_owned();
     let git_commit = option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned);
     let identity = ExperimentIdentity {
-        schema_version: EXPERIMENT_MANIFEST_SCHEMA_VERSION,
+        schema_version,
         model_version: &model_version,
         git_commit: &git_commit,
         runs: &runs,
     };
     let identity_bytes = serde_json::to_vec(&identity)?;
-    let experiment_id = format!(
-        "anthrosim-exp-v{EXPERIMENT_MANIFEST_SCHEMA_VERSION}-{:016x}",
-        fnv1a64(&identity_bytes)
-    );
+    let experiment_id = format!("anthrosim-exp-v{schema_version}-{:016x}", fnv1a64(&identity_bytes));
 
     Ok(ExperimentManifest {
-        schema_version: EXPERIMENT_MANIFEST_SCHEMA_VERSION,
+        schema_version,
         experiment_id,
         model_version,
         git_commit,
@@ -310,13 +359,19 @@ pub(crate) fn execute_ensemble(
     seeds: Vec<u64>,
     retry: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let runtime_landscape = load_runtime_landscape(directory, &settings)?;
     let plan = plan_ensemble(settings.clone(), seeds.clone())?;
     let expected_manifest = build_experiment_manifest(&settings, &seeds)?;
 
     let manifest = if retry {
         load_matching_manifest(directory, &expected_manifest)?
     } else {
-        initialize_experiment(directory, &plan, &expected_manifest)?;
+        initialize_experiment(
+            directory,
+            &plan,
+            &expected_manifest,
+            runtime_landscape.as_ref(),
+        )?;
         expected_manifest
     };
 
@@ -328,7 +383,13 @@ pub(crate) fn execute_ensemble(
             continue;
         }
 
-        let succeeded = execute_run_attempt(directory, &manifest, spec, &mut status)?;
+        let succeeded = execute_run_attempt(
+            directory,
+            &manifest,
+            spec,
+            &mut status,
+            runtime_landscape.as_ref(),
+        )?;
         if !succeeded {
             unsuccessful = unsuccessful.saturating_add(1);
         }
@@ -350,15 +411,92 @@ pub(crate) fn execute_ensemble(
     Ok(())
 }
 
+fn load_runtime_landscape(
+    directory: &Path,
+    settings: &EnsembleRunSettings,
+) -> Result<Option<LandscapeBundle>, Box<dyn std::error::Error>> {
+    let Some(spatial) = &settings.spatial else {
+        return Ok(None);
+    };
+    if spatial.spatial_model_semantics_id != SPATIAL_MODEL_SEMANTICS_ID {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "spatial experiment semantics {} do not match this build's {}",
+                spatial.spatial_model_semantics_id, SPATIAL_MODEL_SEMANTICS_ID
+            ),
+        )
+        .into());
+    }
+    spatial.mechanisms.validate()?;
+
+    let stored_path = directory.join("landscape.json");
+    let source_path = spatial
+        .runtime_landscape_path
+        .as_deref()
+        .or_else(|| stored_path.is_file().then_some(stored_path.as_path()))
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "spatial ensemble requires its source landscape; provide --landscape for a fresh run or preserve the experiment-root landscape.json for retry",
+            )
+        })?;
+    let landscape: LandscapeBundle = read_json(source_path)?;
+    spatial.landscape_binding.validate_bundle(&landscape)?;
+    if settings.world_width != spatial.landscape_binding.width
+        || settings.world_height != spatial.landscape_binding.height
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "ensemble grid {}x{} does not match spatial landscape {}x{}",
+                settings.world_width,
+                settings.world_height,
+                spatial.landscape_binding.width,
+                spatial.landscape_binding.height
+            ),
+        )
+        .into());
+    }
+
+    if stored_path.is_file() && source_path != stored_path.as_path() {
+        let stored: LandscapeBundle = read_json(&stored_path)?;
+        spatial.landscape_binding.validate_bundle(&stored)?;
+        if stored != landscape {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "provided landscape differs from the immutable landscape preserved with this experiment",
+            )
+            .into());
+        }
+    }
+    Ok(Some(landscape))
+}
+
 fn initialize_experiment(
     directory: &Path,
     plan: &EnsemblePlan,
     manifest: &ExperimentManifest,
+    runtime_landscape: Option<&LandscapeBundle>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     require_empty_ensemble_directory(directory)?;
     fs::create_dir_all(directory)?;
     write_json(&directory.join("experiment-manifest.json"), manifest)?;
     write_json(&directory.join("ensemble-plan.json"), plan)?;
+    if let Some(landscape) = runtime_landscape {
+        let spatial = plan
+            .definition
+            .settings
+            .spatial
+            .as_ref()
+            .ok_or_else(|| io::Error::other("runtime landscape has no spatial experiment binding"))?;
+        spatial.landscape_binding.validate_bundle(landscape)?;
+        write_json(&directory.join("landscape.json"), landscape)?;
+        write_json(
+            &directory.join("spatial-mechanisms.json"),
+            &spatial.mechanisms,
+        )?;
+    }
     for spec in &manifest.runs {
         write_status(directory, &initial_status(manifest, spec))?;
     }
@@ -382,12 +520,12 @@ fn load_matching_manifest(
     }
 
     let actual: ExperimentManifest = read_json(&path)?;
-    if actual.schema_version != EXPERIMENT_MANIFEST_SCHEMA_VERSION {
+    if actual.schema_version != expected.schema_version {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             format!(
-                "unsupported experiment manifest schema {}; expected {}",
-                actual.schema_version, EXPERIMENT_MANIFEST_SCHEMA_VERSION
+                "experiment manifest schema {} does not match expected schema {}",
+                actual.schema_version, expected.schema_version
             ),
         )
         .into());
@@ -503,6 +641,18 @@ fn inspect_completed_bundle(
     {
         return Ok(BundleInspection::AbsentOrIncomplete);
     }
+    if spec.spatial.is_some()
+        && [
+            "landscape.json",
+            "spatial-mechanisms.json",
+            "landscape-manifest.json",
+            "landscape-checkpoint.json",
+        ]
+        .iter()
+        .any(|artifact| !run_directory.join(artifact).is_file())
+    {
+        return Ok(BundleInspection::AbsentOrIncomplete);
+    }
 
     let completion: EnsembleRunCompletion = read_json(&run_directory.join("completion.json"))?;
     if completion.schema_version != ENSEMBLE_COMPLETION_SCHEMA_VERSION
@@ -548,6 +698,44 @@ fn inspect_completed_bundle(
         .into());
     }
 
+    if let Some(spatial) = &spec.spatial {
+        let landscape: LandscapeBundle = read_json(&run_directory.join("landscape.json"))?;
+        spatial.landscape_binding.validate_bundle(&landscape)?;
+        let mechanisms: SpatialMechanismConfig =
+            read_json(&run_directory.join("spatial-mechanisms.json"))?;
+        if mechanisms != spatial.mechanisms {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("spatial mechanism configuration mismatch for {}", spec.run_id),
+            )
+            .into());
+        }
+        let spatial_manifest: SpatialLandscapeRunManifest =
+            read_json(&run_directory.join("landscape-manifest.json"))?;
+        let spatial_checkpoint: SpatialLandscapeCheckpoint =
+            read_json(&run_directory.join("landscape-checkpoint.json"))?;
+        let spatial_recorded = SpatialLandscapeRecordedRun {
+            manifest: spatial_manifest,
+            checkpoint: spatial_checkpoint,
+        };
+        validate_spatial_landscape_recorded_run(&spatial_recorded, &landscape)?;
+        if spatial_recorded.core_manifest() != &run_manifest
+            || spatial_recorded.core_checkpoint() != &checkpoint
+            || spatial_recorded.checkpoint.spatial.config != spatial.mechanisms
+            || spatial_recorded
+                .checkpoint
+                .spatial
+                .spatial_model_semantics_id
+                != spatial.spatial_model_semantics_id
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("spatial wrapper provenance mismatch for {}", spec.run_id),
+            )
+            .into());
+        }
+    }
+
     Ok(BundleInspection::Valid(RunResultRef {
         manifest_relative_path: format!("{}/manifest.json", spec.relative_run_dir),
         state_digest64: run_manifest.state_digest64,
@@ -559,6 +747,7 @@ fn execute_run_attempt(
     manifest: &ExperimentManifest,
     spec: &ExperimentRunSpec,
     status: &mut RunStatus,
+    runtime_landscape: Option<&LandscapeBundle>,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let run_directory = directory.join(&spec.relative_run_dir);
     if run_directory.exists() {
@@ -572,11 +761,38 @@ fn execute_run_attempt(
     write_status(directory, status)?;
 
     let attempt = (|| -> Result<RunResultRef, Box<dyn std::error::Error>> {
-        let simulation = Simulation::new(spec.experiment.clone())?;
-        let world = simulation.world().clone();
-        let initial_population = simulation.population().clone();
-        let recorded = simulation.run_recorded()?;
-        write_completed_bundle(&run_directory, &world, &initial_population, &recorded)?;
+        let state_digest64 = if let Some(spatial) = &spec.spatial {
+            let landscape = runtime_landscape.ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "spatial run has no runtime landscape source",
+                )
+            })?;
+            spatial.landscape_binding.validate_bundle(landscape)?;
+            let simulation = SpatialLandscapeSimulation::new(
+                spec.experiment.clone(),
+                landscape.clone(),
+                spatial.mechanisms.clone(),
+            )?;
+            let world = simulation.world().clone();
+            let initial_population = simulation.population().clone();
+            let recorded = simulation.run_recorded()?;
+            write_completed_spatial_bundle(
+                &run_directory,
+                landscape,
+                &world,
+                &initial_population,
+                &recorded,
+            )?;
+            recorded.core_manifest().state_digest64
+        } else {
+            let simulation = Simulation::new(spec.experiment.clone())?;
+            let world = simulation.world().clone();
+            let initial_population = simulation.population().clone();
+            let recorded = simulation.run_recorded()?;
+            write_completed_bundle(&run_directory, &world, &initial_population, &recorded)?;
+            recorded.manifest.state_digest64
+        };
         write_json(
             &run_directory.join("completion.json"),
             &EnsembleRunCompletion {
@@ -588,7 +804,7 @@ fn execute_run_attempt(
         )?;
         Ok(RunResultRef {
             manifest_relative_path: format!("{}/manifest.json", spec.relative_run_dir),
-            state_digest64: recorded.manifest.state_digest64,
+            state_digest64,
         })
     })();
 
@@ -616,6 +832,43 @@ fn execute_run_attempt(
             Ok(false)
         }
     }
+}
+
+fn write_completed_spatial_bundle(
+    directory: &Path,
+    landscape: &LandscapeBundle,
+    world: &World,
+    initial_population: &Population,
+    recorded: &SpatialLandscapeRecordedRun,
+) -> Result<(), Box<dyn std::error::Error>> {
+    validate_spatial_landscape_recorded_run(recorded, landscape)?;
+    fs::create_dir_all(directory)?;
+    write_json(&directory.join("landscape.json"), landscape)?;
+    write_json(
+        &directory.join("spatial-mechanisms.json"),
+        &recorded.checkpoint.spatial.config,
+    )?;
+    write_json(&directory.join("world.json"), world)?;
+    write_json(
+        &directory.join("initial-population.json"),
+        initial_population,
+    )?;
+    write_json(&directory.join("manifest.json"), recorded.core_manifest())?;
+    write_json(
+        &directory.join("landscape-manifest.json"),
+        &recorded.manifest,
+    )?;
+    write_json(&directory.join("events.json"), recorded.events())?;
+    write_json(&directory.join("metrics.json"), recorded.metrics())?;
+    write_json(
+        &directory.join("checkpoint.json"),
+        recorded.core_checkpoint(),
+    )?;
+    write_json(
+        &directory.join("landscape-checkpoint.json"),
+        &recorded.checkpoint,
+    )?;
+    Ok(())
 }
 
 fn write_status(directory: &Path, status: &RunStatus) -> Result<(), Box<dyn std::error::Error>> {
@@ -654,6 +907,11 @@ fn require_empty_ensemble_directory(directory: &Path) -> Result<(), io::Error> {
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    use anthrosim_core::{
+        GridGeometry, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
+        SpatialFieldTransform,
+    };
+
     use super::*;
 
     fn small_settings() -> EnsembleRunSettings {
@@ -669,6 +927,7 @@ mod tests {
             annual_food_need: 100,
             disable_migration: false,
             migration_radius: 3,
+            spatial: None,
         }
     }
 
@@ -682,6 +941,96 @@ mod tests {
 
     fn read_status(root: &Path, seed: u64) -> RunStatus {
         read_json(&root.join(status_relative_path(&run_id(seed)))).expect("status")
+    }
+
+    fn spatial_fixture_settings() -> (EnsembleRunSettings, PathBuf) {
+        let source_root = temp_path("spatial-ensemble-source");
+        fs::create_dir_all(&source_root).expect("source root");
+        let domain = LandscapeValueDomain { min: 0, max: 1_000 };
+        let layer = |id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>| LandscapeLayer {
+            layer_id: id.to_owned(),
+            role,
+            unit: "normalized_index".to_owned(),
+            value_domain: Some(domain),
+            evidence_input_id: None,
+            values,
+        };
+        let landscape = LandscapeBundle::new(
+            2,
+            2,
+            GridGeometry {
+                origin_x: 0,
+                origin_y: 0,
+                cell_size_x: 1,
+                cell_size_y: 1,
+                coordinate_unit: "metre".to_owned(),
+                spatial_reference: "LOCAL_CS[generic]".to_owned(),
+            },
+            vec![
+                layer(
+                    "terrain",
+                    LandscapeLayerRole::TerrainTraversal,
+                    vec![Some(0), Some(250), Some(500), Some(1_000)],
+                ),
+                layer(
+                    "water",
+                    LandscapeLayerRole::WaterAccessibility,
+                    vec![Some(1_000), Some(750), Some(500), Some(250)],
+                ),
+                layer(
+                    "resources",
+                    LandscapeLayerRole::ResourceOpportunity,
+                    vec![Some(250), Some(500), Some(750), Some(1_000)],
+                ),
+            ],
+        );
+        let landscape_path = source_root.join("landscape.json");
+        write_json(&landscape_path, &landscape).expect("landscape");
+        let mechanisms = SpatialMechanismConfig::new(
+            "ensemble_spatial_fixture_v1",
+            vec![
+                SpatialFieldTransform::new(
+                    SpatialTargetField::MovementCost,
+                    "terrain",
+                    "normalized_index",
+                    domain,
+                    1_000,
+                    3_000,
+                    TransformDirection::Direct,
+                    NoDataPolicy::Reject,
+                ),
+                SpatialFieldTransform::new(
+                    SpatialTargetField::WaterAccess,
+                    "water",
+                    "normalized_index",
+                    domain,
+                    0,
+                    1_000,
+                    TransformDirection::Direct,
+                    NoDataPolicy::Reject,
+                ),
+                SpatialFieldTransform::new(
+                    SpatialTargetField::BaseProductivity,
+                    "resources",
+                    "normalized_index",
+                    domain,
+                    0,
+                    1_000,
+                    TransformDirection::Direct,
+                    NoDataPolicy::Reject,
+                ),
+            ],
+        );
+        let mut settings = small_settings();
+        settings.world_width = 2;
+        settings.world_height = 2;
+        settings.spatial = Some(SpatialRunSettings {
+            spatial_model_semantics_id: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
+            landscape_binding: LandscapeBinding::from_bundle(&landscape).expect("binding"),
+            mechanisms,
+            runtime_landscape_path: Some(landscape_path),
+        });
+        (settings, source_root)
     }
 
     #[test]
@@ -727,11 +1076,82 @@ mod tests {
         let first = build_experiment_manifest(&settings, &[5, 9]).expect("manifest");
         let second = build_experiment_manifest(&settings, &[5, 9]).expect("manifest");
         assert_eq!(first, second);
+        assert_eq!(first.schema_version, EXPERIMENT_MANIFEST_SCHEMA_VERSION);
         assert_eq!(first.runs[0].experiment, experiment_config(5, &settings));
         assert_eq!(first.runs[1].experiment, experiment_config(9, &settings));
+        assert!(first.runs.iter().all(|run| run.spatial.is_none()));
 
         let changed = build_experiment_manifest(&settings, &[5, 10]).expect("manifest");
         assert_ne!(first.experiment_id, changed.experiment_id);
+    }
+
+    #[test]
+    fn spatial_manifest_uses_new_schema_and_immutable_spatial_identity() {
+        let (settings, source_root) = spatial_fixture_settings();
+        let manifest = build_experiment_manifest(&settings, &[5]).expect("manifest");
+        assert_eq!(
+            manifest.schema_version,
+            SPATIAL_EXPERIMENT_MANIFEST_SCHEMA_VERSION
+        );
+        let spatial = manifest.runs[0].spatial.as_ref().expect("spatial binding");
+        assert_eq!(
+            spatial.spatial_model_semantics_id,
+            SPATIAL_MODEL_SEMANTICS_ID
+        );
+        assert_eq!(
+            spatial.runtime_landscape_path,
+            settings
+                .spatial
+                .as_ref()
+                .and_then(|value| value.runtime_landscape_path.clone())
+        );
+        let serialized = serde_json::to_string(&manifest).expect("serialize");
+        assert!(!serialized.contains(source_root.to_string_lossy().as_ref()));
+        fs::remove_dir_all(source_root).expect("cleanup");
+    }
+
+    #[test]
+    fn spatial_ensemble_preserves_wrappers_and_retries_exactly() {
+        let root = temp_path("spatial-ensemble");
+        let (settings, source_root) = spatial_fixture_settings();
+        execute_ensemble(&root, settings.clone(), vec![71, 72], false)
+            .expect("fresh spatial ensemble");
+        for seed in [71, 72] {
+            let run = root.join(run_relative_dir(seed));
+            for artifact in [
+                "landscape.json",
+                "spatial-mechanisms.json",
+                "landscape-manifest.json",
+                "landscape-checkpoint.json",
+                "manifest.json",
+                "checkpoint.json",
+            ] {
+                assert!(run.join(artifact).is_file(), "missing {artifact}");
+            }
+        }
+        assert!(root.join("landscape.json").is_file());
+        let before = fs::read(root.join("experiment-manifest.json")).expect("manifest bytes");
+        execute_ensemble(&root, settings.clone(), vec![71, 72], true)
+            .expect("spatial retry");
+        let after = fs::read(root.join("experiment-manifest.json")).expect("manifest bytes");
+        assert_eq!(before, after);
+        assert_eq!(read_status(&root, 71).attempt, 1);
+
+        let mut changed = settings;
+        changed
+            .spatial
+            .as_mut()
+            .expect("spatial")
+            .mechanisms
+            .transforms[0]
+            .target_max = 4_000;
+        assert!(execute_ensemble(&root, changed, vec![71, 72], true).is_err());
+        assert_eq!(
+            before,
+            fs::read(root.join("experiment-manifest.json")).expect("manifest bytes")
+        );
+        fs::remove_dir_all(root).expect("cleanup");
+        fs::remove_dir_all(source_root).expect("cleanup");
     }
 
     #[test]
