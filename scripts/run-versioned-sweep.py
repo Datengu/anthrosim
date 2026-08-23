@@ -166,6 +166,19 @@ def verify_manifest(definition: dict, run_dir: Path) -> dict:
     return manifest
 
 
+def require_reproducible_source_identity(manifest: dict) -> str:
+    revision = manifest.get("gitCommit")
+    if not revision:
+        raise SystemExit(
+            "versioned research sweep requires an exact Git source identity; rebuild inside a Git checkout or provide ANTHROSIM_GIT_COMMIT explicitly"
+        )
+    if revision.endswith("-dirty"):
+        raise SystemExit(
+            "versioned research sweep refuses a dirty tracked source tree; commit/stash tracked changes or use a controlled explicit ANTHROSIM_GIT_COMMIT override"
+        )
+    return revision
+
+
 def main() -> int:
     args = parse_args()
     definition_path = args.definition.resolve()
@@ -180,6 +193,7 @@ def main() -> int:
         return completed.returncode
 
     manifest = verify_manifest(definition, args.run_dir)
+    source_revision = require_reproducible_source_identity(manifest)
     source_hash = hashlib.sha256(raw).hexdigest()
     source_copy = args.run_dir / "source-definition.json"
     if args.retry and source_copy.is_file():
@@ -195,7 +209,7 @@ def main() -> int:
         "scientificStatus": definition["scientificStatus"],
         "definitionSha256": source_hash,
         "modelVersion": manifest["modelVersion"],
-        "gitCommit": manifest.get("gitCommit"),
+        "gitCommit": source_revision,
         "sourceDefinition": "source-definition.json",
         "sweepManifest": "sweep-manifest.json",
         "sweepId": manifest["sweepId"],
