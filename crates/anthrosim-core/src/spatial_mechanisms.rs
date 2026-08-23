@@ -322,10 +322,7 @@ fn transform_values(
     Ok(output)
 }
 
-fn linear_map(
-    value: i32,
-    transform: &SpatialFieldTransform,
-) -> Result<u16, SpatialMechanismError> {
+fn linear_map(value: i32, transform: &SpatialFieldTransform) -> Result<u16, SpatialMechanismError> {
     if value < transform.source_domain.min || value > transform.source_domain.max {
         return Err(SpatialMechanismError::SourceValueOutsideDomain {
             layer_id: transform.source_layer_id.clone(),
@@ -401,7 +398,9 @@ pub enum SpatialMechanismError {
         expected: LandscapeValueDomain,
         actual: Option<LandscapeValueDomain>,
     },
-    #[error("landscape layer {layer_id} contains nodata at cell {cell_index}, but policy is reject")]
+    #[error(
+        "landscape layer {layer_id} contains nodata at cell {cell_index}, but policy is reject"
+    )]
     NoDataRejected { layer_id: String, cell_index: u64 },
     #[error("nodata replacement {value} for layer {layer_id} is outside its source domain")]
     NoDataConstantOutsideSourceDomain { layer_id: String, value: i32 },
