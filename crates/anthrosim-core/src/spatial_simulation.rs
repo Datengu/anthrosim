@@ -221,7 +221,10 @@ impl SpatialLandscapeSimulation {
         checkpoint.landscape.validate_bundle(&landscape)?;
         validate_core_checkpoint_header(&checkpoint.core_checkpoint)?;
         validate_experiment(&checkpoint.core_checkpoint.experiment)?;
-        validate_grid_match(&checkpoint.core_checkpoint.experiment, &checkpoint.landscape)?;
+        validate_grid_match(
+            &checkpoint.core_checkpoint.experiment,
+            &checkpoint.landscape,
+        )?;
         if let Some(evidence) = &checkpoint.core_checkpoint.experiment.evidence {
             evidence.validate()?;
             landscape.validate_evidence_links(evidence)?;
@@ -245,10 +248,10 @@ impl SpatialLandscapeSimulation {
             .population
             .validate(&world)
             .map_err(PopulationError::from)?;
-        checkpoint.core_checkpoint.resources.validate_checkpoint_state(
-            &world,
-            &checkpoint.core_checkpoint.experiment.resources,
-        )?;
+        checkpoint
+            .core_checkpoint
+            .resources
+            .validate_checkpoint_state(&world, &checkpoint.core_checkpoint.experiment.resources)?;
         validate_terminal_checkpoint_state(&checkpoint.core_checkpoint)?;
         let migration = MigrationSystem::from_checkpoint_state(
             &checkpoint.core_checkpoint.population,
@@ -643,7 +646,8 @@ pub fn validate_spatial_landscape_recorded_run(
         });
     }
     if run.manifest.core_manifest.experiment != run.checkpoint.core_checkpoint.experiment
-        || run.manifest.core_manifest.state_digest64 != run.checkpoint.core_checkpoint.state_digest64
+        || run.manifest.core_manifest.state_digest64
+            != run.checkpoint.core_checkpoint.state_digest64
         || run.manifest.core_manifest.world.digest64 != format!("{:016x}", world.digest64())
         || run.manifest.core_manifest.stop_reason
             != run
@@ -660,10 +664,10 @@ pub fn validate_spatial_landscape_recorded_run(
         .population
         .validate(&world)
         .map_err(PopulationError::from)?;
-    run.checkpoint.core_checkpoint.resources.validate_checkpoint_state(
-        &world,
-        &run.checkpoint.core_checkpoint.experiment.resources,
-    )?;
+    run.checkpoint
+        .core_checkpoint
+        .resources
+        .validate_checkpoint_state(&world, &run.checkpoint.core_checkpoint.experiment.resources)?;
     let migration = MigrationSystem::from_checkpoint_state(
         &run.checkpoint.core_checkpoint.population,
         &world,
@@ -751,9 +755,7 @@ fn validate_core_checkpoint_header(
         });
     }
     if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
-        return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch {
-            artifact: "events",
-        });
+        return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch { artifact: "events" });
     }
     if checkpoint.metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION {
         return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch {
