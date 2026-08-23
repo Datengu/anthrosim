@@ -31,7 +31,7 @@ The first version includes:
 - end-to-end performance and process-memory acceptance gates;
 - a versioned, reproducible 144-run synthetic resource-variability reference experiment.
 
-Culture, language, trade, states, religion, warfare, AI-controlled agents, and real-Earth palaeoenvironmental data are intentionally deferred.
+Evidence-grounded real-world spatial inputs are planned for M8. Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them.
 
 ## Current milestone status
 
@@ -48,6 +48,7 @@ Culture, language, trade, states, religion, warfare, AI-controlled agents, and r
 - **M7.5 — Performance and memory acceptance benchmarking:** complete; the canonical 10,000-founder, 2,000-year observable lifecycle is measured end-to-end in release mode and CI gates material throughput/RSS regressions without introducing a special fast path.
 - **M7.6 — First resource-variability experiment and v0.1 closure:** complete; a versioned 18-point × 8-seed synthetic experiment exercises resource magnitude, seasonal variability and migration state through the ordinary M7 path, preserves exact provenance, and documents observed behaviour and scientific limits.
 - **M7 / v0.1 experiment-engine baseline:** complete. Further work should build on this baseline rather than treating its synthetic parameters as empirically validated.
+- **M8 — Evidence-grounded spatial experiments:** planned. M8 will add reproducible, provenance-tracked spatial environments so existing mechanisms can be tested under declared real-world geographical constraints without scripting historical outcomes. See [`docs/roadmap.md`](docs/roadmap.md).
 
 M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
 
@@ -190,6 +191,8 @@ For a completed run the manifest records configuration, artifact schema versions
 AnthroSim v0.1 is a **completed research-oriented software and synthetic-validation baseline, not a validated anthropological model**. The executable demographic, resource and migration presets are deliberately named `synthetic_validation_v1`. Their role is to verify mechanisms, invariants, deterministic replay, controlled comparisons and directional causal behaviour before empirical calibration/validation claims are attempted.
 
 v0.1 can support reproducible questions of the form “what does this declared model do when assumption X changes?” It cannot yet turn those results into claims about a real prehistoric population, site, environment or migration system. See [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md) and [`docs/scientific-model.md`](docs/scientific-model.md) for the explicit interpretation limits.
+
+Post-v0.1 development is question-led rather than feature-led. The planned M8 spatial work is intended to test declared model mechanisms under evidence-grounded geographical constraints; real-world spatial inputs alone do not establish archaeological or anthropological validity. See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Contributing and security
 
