@@ -1,7 +1,7 @@
 use anthrosim_core::{
     ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole,
     LandscapeValueDomain, MigrationConfig, NoDataPolicy, PopulationConfig, ResourceConfig,
-    SpatialFieldTransform, SpatialLandscapeError, SpatialLandscapeSimulation,
+    ResumeLineage, SpatialFieldTransform, SpatialLandscapeError, SpatialLandscapeSimulation,
     SpatialMechanismConfig, SpatialTargetField, TransformDirection, WorldConfig, ids::CellId,
     validate_spatial_landscape_recorded_run,
 };
@@ -270,12 +270,37 @@ fn transformed_checkpoint_resume_matches_uninterrupted() {
         .unwrap()
         .checkpoint_at_year(2)
         .unwrap();
+    let source_day = checkpoint.core_checkpoint.time.days();
+    let source_state_digest64 = checkpoint.core_checkpoint.state_digest64;
     let resumed = SpatialLandscapeSimulation::from_checkpoint(checkpoint, fixture())
         .unwrap()
         .run_recorded()
         .unwrap();
 
-    assert_eq!(resumed, uninterrupted);
+    validate_spatial_landscape_recorded_run(&resumed, &fixture()).unwrap();
+
+    let mut resumed_without_lineage = resumed.clone();
+    resumed_without_lineage
+        .manifest
+        .core_manifest
+        .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .resume_lineage = ResumeLineage::new();
+    assert_eq!(resumed_without_lineage, uninterrupted);
+
+    assert_eq!(
+        resumed.manifest.core_manifest.resume_lineage,
+        resumed.checkpoint.core_checkpoint.resume_lineage
+    );
+    let boundaries = &resumed.manifest.core_manifest.resume_lineage.boundaries;
+    assert_eq!(boundaries.len(), 1);
+    let boundary = &boundaries[0];
+    assert_eq!(boundary.source, boundary.continuation);
+    assert_eq!(boundary.boundary_day, source_day);
+    assert_eq!(boundary.boundary_completed_years, 2);
+    assert_eq!(boundary.source_state_digest64, source_state_digest64);
 }
 
 #[test]
