@@ -5,9 +5,12 @@ use std::{
 };
 
 use anthrosim_core::{
-    LandscapeBundle, LandscapeCheckpoint, Population, SimulationCheckpoint,
-    SpatialLandscapeCheckpoint, SpatialMechanismBinding, SpatialObservabilityReport, World,
-    derive_spatial_observability, rng::RngFactory,
+    EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
+    LandscapeRunManifest, LandscapeSimulation, Population, RunManifest, SimulationCheckpoint,
+    SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest,
+    SpatialLandscapeSimulation, SpatialMechanismBinding, SpatialMechanismConfig,
+    SpatialObservabilityReport, World, derive_spatial_observability, rng::RngFactory,
+    validate_landscape_recorded_run_invariants, validate_spatial_landscape_recorded_run,
 };
 use clap::{Parser, Subcommand};
 
@@ -100,8 +103,19 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     let landscape: LandscapeBundle = read_json(&landscape_path)?;
     let world: World = read_json(&world_path)?;
     let checkpoint: SimulationCheckpoint = read_json(&checkpoint_path)?;
+    landscape.validate()?;
+    world.validate()?;
+    if checkpoint.world_digest64 != world.digest64() {
+        return Err(format!(
+            "{} world.json digest does not match checkpoint.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    validate_evidence_artifact(run_dir, &checkpoint)?;
+    let spatial_binding =
+        validate_landscape_wrapper(run_dir, &landscape, &world, &checkpoint)?;
     let initial_population = resolve_initial_population(run_dir, &world, &checkpoint)?;
-    let spatial_binding = validate_landscape_wrapper(run_dir, &landscape, &checkpoint)?;
 
     let report = derive_spatial_observability(
         &landscape,
@@ -166,13 +180,34 @@ fn resolve_initial_population(
     Ok(initial_population)
 }
 
+fn validate_evidence_artifact(
+    run_dir: &Path,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let path = run_dir.join("evidence.json");
+    if !path.is_file() {
+        return Ok(());
+    }
+    let evidence: EvidenceCatalog = read_json(&path)?;
+    evidence.validate()?;
+    if checkpoint.experiment.evidence.as_ref() != Some(&evidence) {
+        return Err(format!(
+            "{} evidence.json does not match the evidence catalogue embedded in checkpoint.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn validate_landscape_wrapper(
     run_dir: &Path,
     landscape: &LandscapeBundle,
+    world: &World,
     checkpoint: &SimulationCheckpoint,
 ) -> Result<Option<SpatialMechanismBinding>, Box<dyn std::error::Error>> {
-    let path = run_dir.join("landscape-checkpoint.json");
-    if !path.is_file() {
+    let checkpoint_path = run_dir.join("landscape-checkpoint.json");
+    if !checkpoint_path.is_file() {
         return Err(format!(
             "{} is missing landscape-checkpoint.json required to bind the normalized landscape",
             run_dir.display()
@@ -180,30 +215,173 @@ fn validate_landscape_wrapper(
         .into());
     }
 
-    let value: serde_json::Value = read_json(&path)?;
-    if value.get("spatial").is_some() {
-        let wrapper: SpatialLandscapeCheckpoint = serde_json::from_value(value)?;
-        if wrapper.core_checkpoint != *checkpoint {
-            return Err(format!(
-                "{} landscape checkpoint wrapper disagrees with checkpoint.json",
-                run_dir.display()
-            )
-            .into());
-        }
-        wrapper.landscape.validate_bundle(landscape)?;
-        return Ok(Some(wrapper.spatial));
+    let checkpoint_value: serde_json::Value = read_json(&checkpoint_path)?;
+    let manifest_path = run_dir.join("manifest.json");
+    let wrapper_manifest_path = run_dir.join("landscape-manifest.json");
+    let completed = manifest_path.is_file();
+    if completed && !wrapper_manifest_path.is_file() {
+        return Err(format!(
+            "{} completed landscape-bound run is missing landscape-manifest.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    if !completed && wrapper_manifest_path.is_file() {
+        return Err(format!(
+            "{} has landscape-manifest.json without manifest.json",
+            run_dir.display()
+        )
+        .into());
     }
 
-    let wrapper: LandscapeCheckpoint = serde_json::from_value(value)?;
-    if wrapper.core_checkpoint != *checkpoint {
+    if checkpoint_value.get("spatial").is_some() {
+        validate_spatial_wrapper(
+            run_dir,
+            landscape,
+            world,
+            checkpoint,
+            checkpoint_value,
+            completed,
+        )
+    } else {
+        validate_plain_landscape_wrapper(
+            run_dir,
+            landscape,
+            world,
+            checkpoint,
+            checkpoint_value,
+            completed,
+        )?;
+        Ok(None)
+    }
+}
+
+fn validate_spatial_wrapper(
+    run_dir: &Path,
+    landscape: &LandscapeBundle,
+    world: &World,
+    checkpoint: &SimulationCheckpoint,
+    checkpoint_value: serde_json::Value,
+    completed: bool,
+) -> Result<Option<SpatialMechanismBinding>, Box<dyn std::error::Error>> {
+    let wrapper_checkpoint: SpatialLandscapeCheckpoint = serde_json::from_value(checkpoint_value)?;
+    if wrapper_checkpoint.core_checkpoint != *checkpoint {
         return Err(format!(
             "{} landscape checkpoint wrapper disagrees with checkpoint.json",
             run_dir.display()
         )
         .into());
     }
-    wrapper.landscape.validate_bundle(landscape)?;
-    Ok(None)
+
+    let mechanisms_path = run_dir.join("spatial-mechanisms.json");
+    if !mechanisms_path.is_file() {
+        return Err(format!(
+            "{} transformed spatial run is missing spatial-mechanisms.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    let mechanisms: SpatialMechanismConfig = read_json(&mechanisms_path)?;
+    if mechanisms != wrapper_checkpoint.spatial.config {
+        return Err(format!(
+            "{} spatial-mechanisms.json disagrees with landscape-checkpoint.json",
+            run_dir.display()
+        )
+        .into());
+    }
+
+    if completed {
+        let core_manifest: RunManifest = read_json(&run_dir.join("manifest.json"))?;
+        let wrapper_manifest: SpatialLandscapeRunManifest =
+            read_json(&run_dir.join("landscape-manifest.json"))?;
+        if wrapper_manifest.core_manifest != core_manifest {
+            return Err(format!(
+                "{} landscape manifest wrapper disagrees with manifest.json",
+                run_dir.display()
+            )
+            .into());
+        }
+        let run = SpatialLandscapeRecordedRun {
+            manifest: wrapper_manifest,
+            checkpoint: wrapper_checkpoint.clone(),
+        };
+        validate_spatial_landscape_recorded_run(&run, landscape)?;
+    } else {
+        let simulation =
+            SpatialLandscapeSimulation::from_checkpoint(wrapper_checkpoint.clone(), landscape.clone())?;
+        if simulation.world() != world {
+            return Err(format!(
+                "{} world.json does not match deterministic transformed-world reconstruction",
+                run_dir.display()
+            )
+            .into());
+        }
+    }
+
+    if wrapper_checkpoint.spatial.transformed_world_digest64 != world.digest64() {
+        return Err(format!(
+            "{} world.json does not match the transformed world bound by landscape-checkpoint.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    Ok(Some(wrapper_checkpoint.spatial))
+}
+
+fn validate_plain_landscape_wrapper(
+    run_dir: &Path,
+    landscape: &LandscapeBundle,
+    world: &World,
+    checkpoint: &SimulationCheckpoint,
+    checkpoint_value: serde_json::Value,
+    completed: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if run_dir.join("spatial-mechanisms.json").is_file() {
+        return Err(format!(
+            "{} has spatial-mechanisms.json but its landscape checkpoint is not transformed",
+            run_dir.display()
+        )
+        .into());
+    }
+
+    let wrapper_checkpoint: LandscapeCheckpoint = serde_json::from_value(checkpoint_value)?;
+    if wrapper_checkpoint.core_checkpoint != *checkpoint {
+        return Err(format!(
+            "{} landscape checkpoint wrapper disagrees with checkpoint.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    wrapper_checkpoint.landscape.validate_bundle(landscape)?;
+
+    if completed {
+        let core_manifest: RunManifest = read_json(&run_dir.join("manifest.json"))?;
+        let wrapper_manifest: LandscapeRunManifest =
+            read_json(&run_dir.join("landscape-manifest.json"))?;
+        if wrapper_manifest.core_manifest != core_manifest {
+            return Err(format!(
+                "{} landscape manifest wrapper disagrees with manifest.json",
+                run_dir.display()
+            )
+            .into());
+        }
+        let run = LandscapeRecordedRun {
+            manifest: wrapper_manifest,
+            checkpoint: wrapper_checkpoint,
+        };
+        validate_landscape_recorded_run_invariants(&run)?;
+    } else {
+        let simulation =
+            LandscapeSimulation::from_checkpoint(wrapper_checkpoint, landscape.clone())?;
+        if simulation.world() != world {
+            return Err(format!(
+                "{} world.json does not match deterministic landscape-bound reconstruction",
+                run_dir.display()
+            )
+            .into());
+        }
+    }
+    Ok(())
 }
 
 fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
