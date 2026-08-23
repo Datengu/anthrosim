@@ -11,7 +11,7 @@ use anthrosim_core::{
     LandscapeRunManifest, MetricSeries, Population, RecordedRun, RunManifest, SimulationCheckpoint,
     SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest,
     SpatialMechanismBinding, SpatialMechanismConfig, SpatialObservabilityReport, World,
-    derive_spatial_observability, validate_landscape_recorded_run_invariants,
+    derive_spatial_observability, rng::RngFactory, validate_landscape_recorded_run_invariants,
     validate_recorded_run_invariants, validate_spatial_landscape_recorded_run,
 };
 use serde::Deserialize;
@@ -173,6 +173,9 @@ fn validate_semantics(
             initial_population = Some(population);
         }
     }
+    if initial_population.is_none() && has_landscape {
+        initial_population = Some(reconstruct_initial_population(&checkpoint, &world)?);
+    }
 
     let (landscape, spatial_binding) = if has_landscape {
         let (landscape, spatial) =
@@ -191,17 +194,42 @@ fn validate_semantics(
     validate_optional_completion(run_dir, &checkpoint)?;
 
     if let Some(landscape) = landscape.as_ref() {
+        let initial_population = initial_population.as_ref().ok_or_else(|| {
+            invalid("landscape-bound run has no resolvable original founder population")
+        })?;
         validate_optional_spatial_observability(
             run_dir,
             landscape,
             &world,
-            initial_population.as_ref(),
+            initial_population,
             &checkpoint,
             spatial_binding.as_ref(),
         )?;
     }
 
     Ok(())
+}
+
+fn reconstruct_initial_population(
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+) -> Result<Population, BundleValidationError> {
+    let population = Population::initialize(
+        checkpoint.experiment.population,
+        world,
+        RngFactory::new(checkpoint.experiment.seed),
+    )
+    .map_err(|error| {
+        invalid(format!(
+            "unable to reconstruct original founder population: {error}"
+        ))
+    })?;
+    population.validate(world).map_err(|error| {
+        invalid(format!(
+            "reconstructed original founder population failed validation: {error}"
+        ))
+    })?;
+    Ok(population)
 }
 
 fn validate_landscape_artifacts(
@@ -351,7 +379,7 @@ fn validate_optional_spatial_observability(
     run_dir: &Path,
     landscape: &LandscapeBundle,
     world: &World,
-    initial_population: Option<&Population>,
+    initial_population: &Population,
     checkpoint: &SimulationCheckpoint,
     spatial: Option<&SpatialMechanismBinding>,
 ) -> Result<(), BundleValidationError> {
@@ -380,19 +408,17 @@ fn validate_optional_spatial_observability(
         ));
     }
 
-    if let Some(initial_population) = initial_population {
-        let regenerated =
-            derive_spatial_observability(landscape, world, initial_population, checkpoint, spatial)
-                .map_err(|error| {
-                    invalid(format!(
-                        "spatial-observability.json could not be regenerated: {error}"
-                    ))
-                })?;
-        if regenerated != report {
-            return Err(invalid(
-                "spatial-observability.json does not match deterministic regeneration",
-            ));
-        }
+    let regenerated =
+        derive_spatial_observability(landscape, world, initial_population, checkpoint, spatial)
+            .map_err(|error| {
+                invalid(format!(
+                    "spatial-observability.json could not be regenerated: {error}"
+                ))
+            })?;
+    if regenerated != report {
+        return Err(invalid(
+            "spatial-observability.json does not match deterministic regeneration",
+        ));
     }
     Ok(())
 }
@@ -478,6 +504,20 @@ mod tests {
         let error = validated_bundle_files(&root).unwrap_err().to_string();
         assert!(error.contains("metrics.json does not match checkpoint.json"));
         cleanup(&root);
+    }
+
+    #[test]
+    fn founder_population_reconstructs_from_experiment_identity() {
+        let config = ExperimentConfig::new(72, 0)
+            .with_world(WorldConfig::new(4, 4))
+            .with_population(PopulationConfig::new(8).with_target_household_size(2));
+        let simulation = Simulation::new(config).unwrap();
+        let world = simulation.world().clone();
+        let expected = simulation.population().clone();
+        let checkpoint = simulation.run_recorded().unwrap().checkpoint;
+
+        let reconstructed = reconstruct_initial_population(&checkpoint, &world).unwrap();
+        assert_eq!(reconstructed, expected);
     }
 
     fn write_real_completed_bundle(root: &Path) {

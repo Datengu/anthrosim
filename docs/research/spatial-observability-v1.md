@@ -34,7 +34,20 @@ anthrosim-spatial-observability tree --root EXPERIMENT_OR_SWEEP --check
 
 `--check` does not write. It deterministically regenerates the report in memory and requires exact equality with the existing `spatial-observability.json`.
 
-The postprocessor requires the preserved normalized landscape, authoritative transformed/baseline world, founder population and checkpoint. For an inert M8.3 landscape-bound run, the `LandscapeCheckpoint` wrapper must reconcile with `checkpoint.json` and the exact landscape binding. For a transformed M8.4 run, the `SpatialLandscapeCheckpoint` wrapper must additionally reconcile the spatial mechanism binding and transformed world identity.
+The postprocessor requires the preserved normalized landscape, authoritative transformed/baseline world, a resolvable original founder population and checkpoint. For an inert M8.3 landscape-bound run, the `LandscapeCheckpoint` wrapper must reconcile with `checkpoint.json` and the exact landscape binding. For a transformed M8.4 run, the `SpatialLandscapeCheckpoint` wrapper must additionally reconcile the spatial mechanism binding and transformed world identity.
+
+### Resume population semantics
+
+`initial-population.json` and `resume-start-population.json` describe different moments and must never be treated as aliases:
+
+- `initial-population.json` is the original day-zero founder population used as the baseline for full-history event replay;
+- `resume-start-population.json` is the authoritative population at the checkpoint boundary from which a resumed execution continued.
+
+A new-directory resume may legitimately contain only `resume-start-population.json`. The checkpoint still preserves the immutable experiment seed and population initialization configuration, while `world.json` preserves the exact authoritative world used by the resumed run. Under the same compatible model semantics, M8.5 deterministically regenerates the original founders from those inputs and uses that regenerated population as day zero.
+
+The resume-boundary population is validated as a population artifact but is **never** substituted for founders. Doing so would replay pre-resume births, deaths and migrations on top of an already-evolved population and corrupt full-history occupancy/person-day accounting.
+
+This rule applies consistently to `anthrosim-spatial-observability run`, `tree`, and completed-run semantic bundle validation. If neither an original founder snapshot nor the population provenance required for the supported resumed-bundle contract is present, processing fails rather than inventing a baseline.
 
 ## Report identity
 
@@ -57,14 +70,15 @@ These source fields apply to every derived row in the report. M8.6 aggregation m
 
 M8.5 does not add an authoritative historical state archive. Instead, occupancy statistics are derived from data that already exist:
 
-1. initialize living counts from `initial-population.json`;
-2. replay authoritative events in sequence order;
-3. births add one living person to their recorded cell;
-4. deaths remove one living person from their recorded cell;
-5. household migrations move the event's exact `peopleMoved` count from origin to destination;
-6. finalize each cell at the terminal checkpoint day;
-7. independently count living people by cell from the terminal checkpoint population;
-8. require exact cell-by-cell agreement between event reconstruction and terminal authoritative state.
+1. resolve the original day-zero founders from `initial-population.json`, or deterministically reconstruct them for a supported resumed bundle;
+2. initialize living counts from that founder population;
+3. replay authoritative events in sequence order;
+4. births add one living person to their recorded cell;
+5. deaths remove one living person from their recorded cell;
+6. household migrations move the event's exact `peopleMoved` count from origin to destination;
+7. finalize each cell at the terminal checkpoint day;
+8. independently count living people by cell from the terminal checkpoint population;
+9. require exact cell-by-cell agreement between event reconstruction and terminal authoritative state.
 
 A disagreement is an error, not a visualization warning.
 
