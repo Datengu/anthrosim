@@ -11,6 +11,7 @@ pub mod evidence;
 pub mod ids;
 pub mod invariants;
 pub mod landscape;
+pub mod landscape_binding;
 pub mod manifest;
 pub mod metrics;
 pub mod migration;
@@ -42,6 +43,10 @@ pub use invariants::{
 pub use landscape::{
     GridGeometry, LandscapeBundle, LandscapeError, LandscapeLayer, LandscapeLayerRole,
     LandscapeValueDomain,
+};
+pub use landscape_binding::{
+    LandscapeBinding, LandscapeBindingError, LandscapeCheckpoint, LandscapeRecordedRun,
+    LandscapeRunManifest, LandscapeSimulation, validate_landscape_recorded_run_invariants,
 };
 pub use manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason};
 pub use metrics::{
