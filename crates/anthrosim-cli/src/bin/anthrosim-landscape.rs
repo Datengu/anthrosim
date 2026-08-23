@@ -5,13 +5,12 @@ use std::{
 };
 
 use anthrosim_core::{
-    EvidenceCatalog, EventLog, ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeCheckpoint,
-    LandscapeLayer, LandscapeLayerRole, LandscapeRecordedRun, LandscapeSimulation,
-    LandscapeValueDomain, MetricSeries, MigrationConfig, NoDataPolicy, Population,
-    PopulationConfig, ResourceConfig, SimulationCheckpoint, SpatialFieldTransform,
-    SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, SpatialTargetField, TransformDirection, World, WorldConfig,
-    validate_landscape_recorded_run_invariants, validate_spatial_landscape_recorded_run,
+    EventLog, EvidenceCatalog, ExperimentConfig, LandscapeBundle, LandscapeCheckpoint,
+    LandscapeRecordedRun, LandscapeSimulation, MetricSeries, MigrationConfig, Population,
+    PopulationConfig, ResourceConfig, SimulationCheckpoint, SpatialLandscapeCheckpoint,
+    SpatialLandscapeRecordedRun, SpatialLandscapeSimulation, SpatialMechanismConfig, World,
+    WorldConfig, validate_landscape_recorded_run_invariants,
+    validate_spatial_landscape_recorded_run,
 };
 use clap::{Parser, Subcommand};
 
@@ -550,7 +549,10 @@ fn write_completed_landscape_bundle(
             initial_population,
         )?;
     }
-    write_evidence_if_present(directory, recorded.core_checkpoint().experiment.evidence.as_ref())?;
+    write_evidence_if_present(
+        directory,
+        recorded.core_checkpoint().experiment.evidence.as_ref(),
+    )?;
     write_json(&directory.join("manifest.json"), recorded.core_manifest())?;
     write_json(
         &directory.join("landscape-manifest.json"),
@@ -589,7 +591,10 @@ fn write_completed_spatial_bundle(
             initial_population,
         )?;
     }
-    write_evidence_if_present(directory, recorded.core_checkpoint().experiment.evidence.as_ref())?;
+    write_evidence_if_present(
+        directory,
+        recorded.core_checkpoint().experiment.evidence.as_ref(),
+    )?;
     write_json(&directory.join("manifest.json"), recorded.core_manifest())?;
     write_json(
         &directory.join("landscape-manifest.json"),
@@ -704,7 +709,9 @@ fn write_json<T: serde::Serialize + ?Sized>(
 #[cfg(test)]
 mod tests {
     use anthrosim_core::{
-        EvidenceRecord, EvidenceSource, ExternalInputEvidence, ParameterProvenance,
+        EvidenceRecord, EvidenceSource, ExternalInputEvidence, GridGeometry, LandscapeLayer,
+        LandscapeLayerRole, LandscapeValueDomain, NoDataPolicy, ParameterProvenance,
+        SpatialFieldTransform, SpatialTargetField, TransformDirection,
     };
 
     use super::*;
@@ -769,17 +776,19 @@ mod tests {
         let landscape = evidence_landscape();
         let mechanisms = SpatialMechanismConfig::new(
             "standalone-evidence-test",
-            vec![SpatialFieldTransform::new(
-                SpatialTargetField::MovementCost,
-                "terrain",
-                "permille",
-                LandscapeValueDomain { min: 0, max: 1_000 },
-                1_000,
-                2_000,
-                TransformDirection::Direct,
-                NoDataPolicy::Reject,
-            )
-            .with_evidence_id("terrain-assumption")],
+            vec![
+                SpatialFieldTransform::new(
+                    SpatialTargetField::MovementCost,
+                    "terrain",
+                    "permille",
+                    LandscapeValueDomain { min: 0, max: 1_000 },
+                    1_000,
+                    2_000,
+                    TransformDirection::Direct,
+                    NoDataPolicy::Reject,
+                )
+                .with_evidence_id("terrain-assumption"),
+            ],
         );
         let config = experiment_config(
             77,
@@ -816,9 +825,7 @@ mod tests {
                 NoDataPolicy::Reject,
             )],
         );
-        let config = experiment_config(
-            78, 0, 1, 1, 1, 1, 16, 1_000, 1_000, 100, false, 1, None,
-        );
+        let config = experiment_config(78, 0, 1, 1, 1, 1, 16, 1_000, 1_000, 100, false, 1, None);
 
         assert!(SpatialLandscapeSimulation::new(config, landscape, mechanisms).is_err());
     }
