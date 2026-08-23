@@ -5,27 +5,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use serde::Deserialize;
-
-const REQUIRED_JSON: &[&str] = &[
-    "checkpoint.json",
-    "events.json",
-    "manifest.json",
-    "metrics.json",
-    "world.json",
-];
-
-const POPULATION_JSON: &[&str] = &["initial-population.json", "resume-start-population.json"];
-
-const OPTIONAL_JSON: &[&str] = &[
-    "completion.json",
-    "evidence.json",
-    "landscape-checkpoint.json",
-    "landscape-manifest.json",
-    "landscape.json",
-    "spatial-mechanisms.json",
-    "spatial-observability.json",
-];
+use crate::bundle;
 
 const ZIP_LOCAL_FILE_HEADER: u32 = 0x0403_4b50;
 const ZIP_CENTRAL_DIRECTORY_HEADER: u32 = 0x0201_4b50;
@@ -50,7 +30,7 @@ pub fn pack_completed_run(
     output: Option<&Path>,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let canonical_run_dir = fs::canonicalize(run_dir)?;
-    let files = validated_bundle_files(&canonical_run_dir)?;
+    let files = bundle::validated_bundle_files(&canonical_run_dir)?;
     let output = output
         .map(Path::to_path_buf)
         .unwrap_or_else(|| run_dir.with_extension("zip"));
@@ -139,114 +119,6 @@ fn normalize_path(path: &Path) -> PathBuf {
         }
     }
     normalized
-}
-
-fn validated_bundle_files(run_dir: &Path) -> io::Result<Vec<(String, PathBuf)>> {
-    if !run_dir.is_dir() {
-        return Err(invalid_input(format!(
-            "run directory does not exist or is not a directory: {}",
-            run_dir.display()
-        )));
-    }
-
-    let mut names = Vec::new();
-    for name in REQUIRED_JSON {
-        require_json(run_dir, name, &mut names)?;
-    }
-
-    let mut has_population = false;
-    for name in POPULATION_JSON {
-        let path = run_dir.join(name);
-        if path.is_file() {
-            validate_json(&path)?;
-            names.push((*name).to_string());
-            has_population = true;
-        } else if path.exists() {
-            return Err(invalid_input(format!(
-                "expected bundle artifact is not a regular file: {}",
-                path.display()
-            )));
-        }
-    }
-    if !has_population {
-        return Err(invalid_input(
-            "completed run bundle must contain initial-population.json or resume-start-population.json",
-        ));
-    }
-
-    for name in OPTIONAL_JSON {
-        let path = run_dir.join(name);
-        if path.is_file() {
-            validate_json(&path)?;
-            names.push((*name).to_string());
-        } else if path.exists() {
-            return Err(invalid_input(format!(
-                "expected bundle artifact is not a regular file: {}",
-                path.display()
-            )));
-        }
-    }
-
-    let has_landscape = names.iter().any(|name| name == "landscape.json");
-    let has_landscape_manifest = names.iter().any(|name| name == "landscape-manifest.json");
-    let has_landscape_checkpoint = names.iter().any(|name| name == "landscape-checkpoint.json");
-    let has_spatial_mechanisms = names.iter().any(|name| name == "spatial-mechanisms.json");
-    let has_spatial_observability = names
-        .iter()
-        .any(|name| name == "spatial-observability.json");
-
-    if has_landscape && (!has_landscape_manifest || !has_landscape_checkpoint) {
-        return Err(invalid_input(
-            "completed landscape-bound run must contain landscape-manifest.json and landscape-checkpoint.json",
-        ));
-    }
-    if !has_landscape
-        && (has_landscape_manifest
-            || has_landscape_checkpoint
-            || has_spatial_mechanisms
-            || has_spatial_observability)
-    {
-        return Err(invalid_input(
-            "landscape/spatial artifacts require landscape.json in the same completed run bundle",
-        ));
-    }
-
-    names.sort_unstable();
-    names.dedup();
-    Ok(names
-        .into_iter()
-        .map(|name| {
-            let path = run_dir.join(&name);
-            (name, path)
-        })
-        .collect())
-}
-
-fn require_json(run_dir: &Path, name: &str, names: &mut Vec<String>) -> io::Result<()> {
-    let path = run_dir.join(name);
-    if !path.is_file() {
-        return Err(invalid_input(format!(
-            "completed run bundle is missing required artifact: {}",
-            path.display()
-        )));
-    }
-    validate_json(&path)?;
-    names.push(name.to_string());
-    Ok(())
-}
-
-fn validate_json(path: &Path) -> io::Result<()> {
-    let file = File::open(path)?;
-    let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
-    serde::de::IgnoredAny::deserialize(&mut deserializer)
-        .map_err(|error| invalid_input(format!("invalid JSON in {}: {error}", path.display())))?;
-    deserializer.end().map_err(|error| {
-        invalid_input(format!(
-            "invalid trailing JSON in {}: {error}",
-            path.display()
-        ))
-    })?;
-    Ok(())
 }
 
 fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
@@ -407,6 +279,8 @@ mod tests {
         sync::atomic::{AtomicU64, Ordering},
     };
 
+    use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
+
     use super::*;
 
     static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
@@ -414,8 +288,7 @@ mod tests {
     #[test]
     fn pack_is_deterministic_and_excludes_unrelated_files() {
         let root = test_dir("deterministic");
-        write_minimal_completed_bundle(&root);
-        fs::write(root.join("completion.json"), "{}\n").unwrap();
+        write_real_completed_bundle(&root);
         fs::write(root.join("notes.txt"), "do not share\n").unwrap();
 
         let first = root.with_extension("first.zip");
@@ -429,7 +302,6 @@ mod tests {
             names,
             BTreeSet::from([
                 "checkpoint.json".to_string(),
-                "completion.json".to_string(),
                 "events.json".to_string(),
                 "initial-population.json".to_string(),
                 "manifest.json".to_string(),
@@ -444,7 +316,7 @@ mod tests {
     #[test]
     fn output_inside_run_directory_is_rejected_without_modifying_bundle() {
         let root = test_dir("inside-run-dir");
-        write_minimal_completed_bundle(&root);
+        write_real_completed_bundle(&root);
         let before = snapshot_bundle(&root);
         let output = root.join("exports").join("run.zip");
 
@@ -462,7 +334,7 @@ mod tests {
     #[test]
     fn canonical_artifact_output_alias_is_rejected_without_modifying_bundle() {
         let root = test_dir("artifact-alias");
-        write_minimal_completed_bundle(&root);
+        write_real_completed_bundle(&root);
         let before = snapshot_bundle(&root);
         let output = root.join("nested").join("..").join("manifest.json");
 
@@ -472,14 +344,13 @@ mod tests {
 
         assert!(error.contains("outside the source run directory"));
         assert_eq!(snapshot_bundle(&root), before);
-        assert_eq!(fs::read(root.join("manifest.json")).unwrap(), b"{}\n");
         cleanup(&root, &[]);
     }
 
     #[test]
     fn paused_bundle_without_manifest_is_rejected() {
         let root = test_dir("paused");
-        write_minimal_completed_bundle(&root);
+        write_real_completed_bundle(&root);
         fs::remove_file(root.join("manifest.json")).unwrap();
 
         let error = pack_completed_run(&root, None).unwrap_err().to_string();
@@ -490,20 +361,39 @@ mod tests {
     #[test]
     fn malformed_json_is_rejected() {
         let root = test_dir("invalid-json");
-        write_minimal_completed_bundle(&root);
+        write_real_completed_bundle(&root);
         fs::write(root.join("metrics.json"), "{").unwrap();
 
         let error = pack_completed_run(&root, None).unwrap_err().to_string();
-        assert!(error.contains("invalid JSON"));
+        assert!(error.contains("metrics.json"));
         cleanup(&root, &[]);
     }
 
-    fn write_minimal_completed_bundle(root: &Path) {
+    fn write_real_completed_bundle(root: &Path) {
+        let config = ExperimentConfig::new(71, 0)
+            .with_world(WorldConfig::new(4, 4))
+            .with_population(
+                PopulationConfig::new(8)
+                    .with_target_household_size(2)
+                    .with_max_person_records(64),
+            );
+        let simulation = Simulation::new(config).unwrap();
+        let world = simulation.world().clone();
+        let initial_population = simulation.population().clone();
+        let recorded = simulation.run_recorded().unwrap();
+
         fs::create_dir_all(root).unwrap();
-        for name in REQUIRED_JSON {
-            fs::write(root.join(name), "{}\n").unwrap();
-        }
-        fs::write(root.join("initial-population.json"), "{}\n").unwrap();
+        write_json(&root.join("world.json"), &world);
+        write_json(&root.join("initial-population.json"), &initial_population);
+        write_json(&root.join("manifest.json"), &recorded.manifest);
+        write_json(&root.join("events.json"), recorded.events());
+        write_json(&root.join("metrics.json"), recorded.metrics());
+        write_json(&root.join("checkpoint.json"), &recorded.checkpoint);
+    }
+
+    fn write_json<T: serde::Serialize + ?Sized>(path: &Path, value: &T) {
+        let json = serde_json::to_string_pretty(value).unwrap();
+        fs::write(path, format!("{json}\n")).unwrap();
     }
 
     fn snapshot_bundle(root: &Path) -> Vec<(String, Vec<u8>)> {
