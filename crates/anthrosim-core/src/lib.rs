@@ -21,6 +21,7 @@ pub mod resources;
 pub mod rng;
 pub mod simulation;
 pub mod spatial_mechanisms;
+pub mod spatial_observability;
 pub mod spatial_simulation;
 pub mod time;
 pub mod world;
@@ -74,6 +75,12 @@ pub use spatial_mechanisms::{
     NoDataPolicy, SPATIAL_MODEL_SEMANTICS_ID, SpatialFieldTransform, SpatialMechanismConfig,
     SpatialMechanismError, SpatialMechanismOverlay, SpatialTargetField, TransformDirection,
     transform_landscape,
+};
+pub use spatial_observability::{
+    SpatialCellObservability, SpatialDerivedCell, SpatialLayerDescriptor,
+    SpatialMigrationDistanceBin, SpatialMigrationFlow, SpatialModelFacingCell,
+    SpatialObservabilityError, SpatialObservabilityReport, SpatialObservabilitySource,
+    SpatialObservabilitySummary, derive_spatial_observability,
 };
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,

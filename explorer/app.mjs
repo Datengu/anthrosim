@@ -121,7 +121,7 @@ function overlayProvenance(overlay) {
     return `Authoritative checkpoint cell food stock at day ${runInfo.endTime}; it does not represent earlier selected boundaries.`;
   }
   const labels = { productivity: "baseProductivity", water: "waterAccess", movement: "movementCost" };
-  return `Exported world ground-truth field world.json → cells[].${labels[overlay]}; terrain is immutable in v0.1.`;
+  return `Authoritative simulation-world field world.json → cells[].${labels[overlay]}. This is model-facing state; for landscape-bound runs it may be transformed from normalized input and is not historical ground truth.`;
 }
 
 function colorFor(value, min, max, overlay) {

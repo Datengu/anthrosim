@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the AnthroSim M6 explorer and exactly one M5 run bundle read-only."""
+"""Serve the AnthroSim explorer and exactly one run bundle read-only."""
 
 from __future__ import annotations
 
@@ -19,9 +19,23 @@ BASE_RUN_FILES = {
     "metrics.json",
     "checkpoint.json",
 }
-OPTIONAL_RUN_FILES = {"manifest.json"}
+OPTIONAL_RUN_FILES = {
+    "manifest.json",
+    "landscape.json",
+    "landscape-manifest.json",
+    "landscape-checkpoint.json",
+    "spatial-mechanisms.json",
+    "spatial-observability.json",
+}
 ALLOWED_RUN_FILES = BASE_RUN_FILES | OPTIONAL_RUN_FILES
-EXPLORER_FILES = {"index.html", "app.mjs", "model.mjs", "style.css"}
+EXPLORER_FILES = {
+    "index.html",
+    "app.mjs",
+    "model.mjs",
+    "spatial.mjs",
+    "spatial-model.mjs",
+    "style.css",
+}
 
 
 class ExplorerHandler(BaseHTTPRequestHandler):
@@ -93,7 +107,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "run_dir",
         type=Path,
-        help="M5 run directory containing world, founder population, events, metrics and checkpoint; manifest is optional for paused runs",
+        help="run directory containing world, founder population, events, metrics and checkpoint; manifest and M8 spatial artifacts are optional",
     )
     parser.add_argument("--host", default="127.0.0.1", help="bind address; defaults to loopback only")
     parser.add_argument("--port", type=int, default=8765, help="local port; defaults to 8765")
