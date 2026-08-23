@@ -50,9 +50,11 @@ jobs:
           assert manifest['gitCommit'] == expected, (manifest['gitCommit'], expected)
           PY
 
-      - name: Verify tracked modifications are marked dirty
+      - name: Verify different tracked dirty trees get different exact identities
         run: |
-          printf '\n<!-- source provenance dirty-tree probe -->\n' >> README.md
+          unset ANTHROSIM_GIT_COMMIT
+          printf '\n<!-- source provenance dirty-tree probe A -->\n' >> README.md
+          git diff HEAD --binary --full-index --no-ext-diff --no-textconv -- | git hash-object --stdin > /tmp/anthrosim-dirty-a-digest.txt
           cargo run --locked -p anthrosim-cli --bin anthrosim -- run \
             --years 0 \
             --world-width 1 \
@@ -61,18 +63,38 @@ jobs:
             --household-size 1 \
             --max-person-records 1 \
             --seed 80 \
-            --output /tmp/anthrosim-dirty-provenance.json
+            --output /tmp/anthrosim-dirty-a-provenance.json
+
           git checkout -- README.md
+          printf '\n<!-- source provenance dirty-tree probe B -->\n' >> README.md
+          git diff HEAD --binary --full-index --no-ext-diff --no-textconv -- | git hash-object --stdin > /tmp/anthrosim-dirty-b-digest.txt
+          cargo run --locked -p anthrosim-cli --bin anthrosim -- run \
+            --years 0 \
+            --world-width 1 \
+            --world-height 1 \
+            --population 1 \
+            --household-size 1 \
+            --max-person-records 1 \
+            --seed 80 \
+            --output /tmp/anthrosim-dirty-b-provenance.json
+          git checkout -- README.md
+
           python3 - <<'PY'
           import json
           import subprocess
           from pathlib import Path
 
-          expected = subprocess.check_output(
-              ['git', 'rev-parse', 'HEAD'], text=True
-          ).strip() + '-dirty'
-          manifest = json.loads(Path('/tmp/anthrosim-dirty-provenance.json').read_text())
-          assert manifest['gitCommit'] == expected, (manifest['gitCommit'], expected)
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          digest_a = Path('/tmp/anthrosim-dirty-a-digest.txt').read_text().strip()
+          digest_b = Path('/tmp/anthrosim-dirty-b-digest.txt').read_text().strip()
+          manifest_a = json.loads(Path('/tmp/anthrosim-dirty-a-provenance.json').read_text())
+          manifest_b = json.loads(Path('/tmp/anthrosim-dirty-b-provenance.json').read_text())
+          expected_a = f'{head}-dirty-{digest_a}'
+          expected_b = f'{head}-dirty-{digest_b}'
+          assert digest_a != digest_b, (digest_a, digest_b)
+          assert manifest_a['gitCommit'] == expected_a, (manifest_a['gitCommit'], expected_a)
+          assert manifest_b['gitCommit'] == expected_b, (manifest_b['gitCommit'], expected_b)
+          assert manifest_a['gitCommit'] != manifest_b['gitCommit']
           PY
 
       - name: Verify explicit build-time override remains authoritative
