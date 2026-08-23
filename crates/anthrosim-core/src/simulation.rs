@@ -7,6 +7,7 @@ use crate::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
         process_demographic_year_recorded, validate_demography_config,
     },
+    evidence::EvidenceError,
     events::EventLog,
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
     metrics::{
@@ -502,6 +503,9 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
+    if let Some(evidence) = &config.evidence {
+        evidence.validate()?;
+    }
     Ok(())
 }
 
@@ -574,6 +578,8 @@ pub enum SimulationError {
         stopped_day: u64,
     },
     #[error(transparent)]
+    Evidence(#[from] EvidenceError),
+    #[error(transparent)]
     Demography(#[from] DemographyConfigError),
     #[error(transparent)]
     ResourceConfig(#[from] ResourceConfigError),
@@ -593,6 +599,7 @@ pub enum SimulationError {
 mod tests {
     use super::*;
     use crate::{
+        EvidenceCatalog, ParameterEvidenceLink,
         config::{
             DemographyConfig, MigrationConfig, PROBABILITY_PER_MILLION, PopulationConfig,
             ResourceConfig, WorldConfig,
@@ -637,6 +644,54 @@ mod tests {
             .with_demography(demography)
             .with_resources(no_pressure_resources())
             .with_migration(disabled_migration())
+    }
+
+    fn dangling_evidence_config(seed: u64) -> ExperimentConfig {
+        ExperimentConfig::new(seed, 1).with_evidence(
+            EvidenceCatalog::new(Vec::new()).with_parameter_links(vec![ParameterEvidenceLink {
+                parameter_path: "resources.annualNeedUnitsPerPerson".to_owned(),
+                evidence_id: "missing".to_owned(),
+                note: None,
+            }]),
+        )
+    }
+
+    #[test]
+    fn malformed_evidence_is_rejected_by_core_construction() {
+        let mut catalog = EvidenceCatalog::new(Vec::new());
+        catalog.schema_version = 999;
+        let config = ExperimentConfig::new(6, 1).with_evidence(catalog);
+        assert!(matches!(
+            Simulation::new(config),
+            Err(SimulationError::Evidence(
+                EvidenceError::UnsupportedCatalogSchema { .. }
+            ))
+        ));
+    }
+
+    #[test]
+    fn dangling_evidence_reference_is_rejected_by_core_construction() {
+        assert!(matches!(
+            Simulation::new(dangling_evidence_config(7)),
+            Err(SimulationError::Evidence(
+                EvidenceError::UnknownEvidenceReference { evidence_id }
+            )) if evidence_id == "missing"
+        ));
+    }
+
+    #[test]
+    fn checkpoint_resume_revalidates_embedded_evidence() {
+        let mut checkpoint = Simulation::new(ExperimentConfig::new(8, 2))
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        checkpoint.experiment = dangling_evidence_config(8).with_world(checkpoint.experiment.world);
+        assert!(matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::Evidence(
+                EvidenceError::UnknownEvidenceReference { evidence_id }
+            )) if evidence_id == "missing"
+        ));
     }
 
     #[test]
