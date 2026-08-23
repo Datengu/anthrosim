@@ -2,6 +2,8 @@ use std::{path::PathBuf, process::ExitCode};
 
 use clap::Parser;
 
+#[path = "../bundle.rs"]
+mod bundle;
 #[path = "../pack.rs"]
 mod pack;
 
