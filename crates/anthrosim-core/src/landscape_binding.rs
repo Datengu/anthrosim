@@ -138,7 +138,8 @@ impl LandscapeSimulation {
             &checkpoint.core_checkpoint.experiment,
             &checkpoint.landscape,
         )?;
-        landscape.validate_evidence_context(checkpoint.core_checkpoint.experiment.evidence.as_ref())?;
+        landscape
+            .validate_evidence_context(checkpoint.core_checkpoint.experiment.evidence.as_ref())?;
         Ok(Self {
             simulation: Simulation::from_checkpoint(checkpoint.core_checkpoint)?,
             landscape,
