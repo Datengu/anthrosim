@@ -1,0 +1,111 @@
+name: Spatial observability
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  observability:
+    name: Derive and inspect spatial observability
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run transformed landscape fixture
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --seed 8601 --years 4 --population 40 --max-person-records 10000 --run-dir spatial-observed
+
+      - name: Derive and deterministically verify report
+        run: |
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed --check
+
+      - name: Test explorer artifact models
+        run: node --test explorer/model.test.mjs explorer/spatial-model.test.mjs
+
+      - name: Validate report provenance and reconciliation fields
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('spatial-observed')
+          report = json.loads((root / 'spatial-observability.json').read_text())
+          checkpoint = json.loads((root / 'checkpoint.json').read_text())
+          landscape_manifest = json.loads((root / 'landscape-manifest.json').read_text())
+
+          if report['schemaVersion'] != 1 or report['provenance'] != 'derived':
+              raise SystemExit('M8.5 report schema/provenance mismatch')
+          if report['source']['seed'] != checkpoint['experiment']['seed']:
+              raise SystemExit('M8.5 report seed mismatch')
+          if report['source']['runStateDigest64'] != checkpoint['stateDigest64']:
+              raise SystemExit('M8.5 report state identity mismatch')
+          if report['source']['landscapeIdentity'] != landscape_manifest['landscape']['landscapeIdentity']:
+              raise SystemExit('M8.5 report landscape identity mismatch')
+          if len(report['cells']) != len(json.loads((root / 'world.json').read_text())['cells']):
+              raise SystemExit('M8.5 per-cell table shape mismatch')
+          if any(row['derived']['provenance'] != 'derived' for row in report['cells']):
+              raise SystemExit('M8.5 per-cell derived provenance missing')
+          unavailable = ' '.join(report['unavailableObservables'])
+          if 'historical per-cell food stock' not in unavailable:
+              raise SystemExit('M8.5 report failed to declare unavailable resource history')
+
+          print('M8.5 machine-readable report is provenance-bound and explicitly incomplete where history is unavailable.')
+          PY
+
+      - name: Prove explorer serves spatial artifacts read-only
+        run: |
+          find spatial-observed -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/spatial-before.sha256
+          python3 scripts/serve-explorer.py spatial-observed --no-browser --port 8875 > /tmp/anthrosim-explorer.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python3 - <<'PY'
+          import time
+          import urllib.request
+          for _ in range(50):
+              try:
+                  urllib.request.urlopen('http://127.0.0.1:8875/', timeout=1).read()
+                  break
+              except Exception:
+                  time.sleep(0.1)
+          else:
+              raise SystemExit('explorer did not become ready')
+          PY
+          curl --fail --silent http://127.0.0.1:8875/run/landscape.json > /tmp/served-landscape.json
+          curl --fail --silent http://127.0.0.1:8875/run/spatial-observability.json > /tmp/served-observability.json
+          cmp spatial-observed/landscape.json /tmp/served-landscape.json
+          cmp spatial-observed/spatial-observability.json /tmp/served-observability.json
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://127.0.0.1:8875/run/spatial-observability.json)
+          test "$status" = "405"
+          kill "$server_pid"
+          wait "$server_pid" || true
+          trap - EXIT
+          find spatial-observed -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/spatial-after.sha256
+          diff -u /tmp/spatial-before.sha256 /tmp/spatial-after.sha256
+
+      - name: Derive observability across an M7 spatial sweep
+        run: |
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim -- sweep --seeds 8701,8702 --years 1 --world-width 2 --world-height 2 --population 20 --max-person-records 1000 --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --sweep-annual-food-need 80,100 --run-dir observed-sweep
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- tree --root observed-sweep
+          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- tree --root observed-sweep --check
+          python3 - <<'PY'
+          from pathlib import Path
+          reports = sorted(Path('observed-sweep').glob('experiments/point-*/runs/seed-*/spatial-observability.json'))
+          if len(reports) != 4:
+              raise SystemExit(f'expected four M7 spatial reports, found {len(reports)}: {reports}')
+          print('M8.5 observability regenerates across the complete M7 sweep tree.')
+          PY
