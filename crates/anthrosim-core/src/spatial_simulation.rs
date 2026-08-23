@@ -21,7 +21,7 @@ use crate::{
         MigrationSystem, validate_migration_config,
     },
     population::{Population, PopulationError},
-    provenance::MODEL_SEMANTICS_ID,
+    provenance::{MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, SourceRevisionIdentity},
     resources::{
         ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
         ResourceStepOutcome, ResourceSystem, validate_resource_config,
@@ -154,6 +154,7 @@ pub struct SpatialLandscapeSimulation {
     config: ExperimentConfig,
     time: SimTime,
     terminal_stop_reason: Option<StopReason>,
+    resume_lineage: ResumeLineage,
     landscape: LandscapeBundle,
     landscape_binding: LandscapeBinding,
     spatial_binding: SpatialMechanismBinding,
@@ -193,6 +194,7 @@ impl SpatialLandscapeSimulation {
             config,
             time: SimTime::ZERO,
             terminal_stop_reason: None,
+            resume_lineage: ResumeLineage::new(),
             landscape,
             landscape_binding,
             spatial_binding,
@@ -219,7 +221,7 @@ impl SpatialLandscapeSimulation {
             });
         }
         checkpoint.landscape.validate_bundle(&landscape)?;
-        validate_core_checkpoint_header(&checkpoint.core_checkpoint)?;
+        validate_core_checkpoint_header(&checkpoint.core_checkpoint, true)?;
         validate_experiment(&checkpoint.core_checkpoint.experiment)?;
         validate_grid_match(
             &checkpoint.core_checkpoint.experiment,
@@ -276,11 +278,25 @@ impl SpatialLandscapeSimulation {
             checkpoint.core_checkpoint.rng.migration_uncertainty,
         ]);
         let expected_state_digest = checkpoint.core_checkpoint.state_digest64;
+        let source_identity = SourceRevisionIdentity {
+            model_version: checkpoint.core_checkpoint.model_version.clone(),
+            model_semantics_id: checkpoint.core_checkpoint.model_semantics_id.clone(),
+            git_commit: checkpoint.core_checkpoint.git_commit.clone(),
+        };
+        let mut resume_lineage = checkpoint.core_checkpoint.resume_lineage.clone();
+        resume_lineage.boundaries.push(ResumeBoundary {
+            source: source_identity,
+            continuation: SourceRevisionIdentity::current(),
+            boundary_day: checkpoint.core_checkpoint.time.days(),
+            boundary_completed_years: checkpoint.core_checkpoint.completed_years,
+            source_state_digest64: checkpoint.core_checkpoint.state_digest64,
+        });
 
         let simulation = Self {
             config: checkpoint.core_checkpoint.experiment,
             time: checkpoint.core_checkpoint.time,
             terminal_stop_reason: checkpoint.core_checkpoint.terminal_stop_reason,
+            resume_lineage,
             landscape,
             landscape_binding: checkpoint.landscape,
             spatial_binding: checkpoint.spatial,
@@ -562,6 +578,7 @@ impl SpatialLandscapeSimulation {
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
             model_semantics_id: MODEL_SEMANTICS_ID.to_owned(),
             git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
+            resume_lineage: self.resume_lineage.clone(),
             experiment: self.config.clone(),
             artifact_schemas: ArtifactSchemas::current(),
             world: self.world.summary(),
@@ -591,6 +608,7 @@ impl SpatialLandscapeSimulation {
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
             model_semantics_id: MODEL_SEMANTICS_ID.to_owned(),
             git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
+            resume_lineage: self.resume_lineage,
             experiment: self.config,
             time: self.time,
             completed_years,
@@ -630,7 +648,7 @@ pub fn validate_spatial_landscape_recorded_run(
         return Err(SpatialLandscapeError::CrossArtifactSpatialMismatch);
     }
     run.manifest.landscape.validate_bundle(landscape)?;
-    validate_core_checkpoint_header(&run.checkpoint.core_checkpoint)?;
+    validate_core_checkpoint_header(&run.checkpoint.core_checkpoint, false)?;
     validate_experiment(&run.checkpoint.core_checkpoint.experiment)?;
 
     let world = reconstruct_world(
@@ -646,6 +664,8 @@ pub fn validate_spatial_landscape_recorded_run(
         });
     }
     if run.manifest.core_manifest.experiment != run.checkpoint.core_checkpoint.experiment
+        || run.manifest.core_manifest.resume_lineage
+            != run.checkpoint.core_checkpoint.resume_lineage
         || run.manifest.core_manifest.state_digest64
             != run.checkpoint.core_checkpoint.state_digest64
         || run.manifest.core_manifest.world.digest64 != format!("{:016x}", world.digest64())
@@ -740,8 +760,13 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
 
 fn validate_core_checkpoint_header(
     checkpoint: &SimulationCheckpoint,
+    allow_pre_lineage_schema: bool,
 ) -> Result<(), SpatialLandscapeError> {
-    if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
+    let pre_lineage_schema =
+        checkpoint.schema_version == SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION;
+    if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION
+        && !(allow_pre_lineage_schema && pre_lineage_schema)
+    {
         return Err(SpatialLandscapeError::UnsupportedCoreCheckpointSchema {
             found: checkpoint.schema_version,
             supported: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
@@ -758,6 +783,28 @@ fn validate_core_checkpoint_header(
             found: checkpoint.model_semantics_id.clone(),
             expected: MODEL_SEMANTICS_ID.to_owned(),
         });
+    }
+    let source_identity = SourceRevisionIdentity {
+        model_version: checkpoint.model_version.clone(),
+        model_semantics_id: checkpoint.model_semantics_id.clone(),
+        git_commit: checkpoint.git_commit.clone(),
+    };
+    if pre_lineage_schema {
+        if !checkpoint.resume_lineage.boundaries.is_empty() {
+            return Err(SpatialLandscapeError::CheckpointResumeLineageInvalid {
+                reason: "pre-lineage checkpoint schema unexpectedly contains resume boundaries"
+                    .to_owned(),
+            });
+        }
+    } else {
+        checkpoint
+            .resume_lineage
+            .validate_for_artifact(checkpoint.time.days(), &source_identity)
+            .map_err(
+                |error| SpatialLandscapeError::CheckpointResumeLineageInvalid {
+                    reason: error.to_string(),
+                },
+            )?;
     }
     if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
         return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch { artifact: "events" });
@@ -855,6 +902,8 @@ pub enum SpatialLandscapeError {
     CheckpointModelVersionMismatch { found: String, expected: String },
     #[error("checkpoint core semantics {found} does not match current core semantics {expected}")]
     CheckpointCoreSemanticsMismatch { found: String, expected: String },
+    #[error("checkpoint resume lineage is invalid: {reason}")]
+    CheckpointResumeLineageInvalid { reason: String },
     #[error("checkpoint {artifact} artifact schema is incompatible with this build")]
     CheckpointArtifactSchemaMismatch { artifact: &'static str },
     #[error("checkpoint day {day} is not a completed annual boundary")]

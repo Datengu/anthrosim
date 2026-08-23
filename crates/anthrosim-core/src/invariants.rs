@@ -15,7 +15,7 @@ use crate::{
         MigrationSystem, validate_migration_config,
     },
     population::{Population, PopulationSummary, PopulationValidationError},
-    provenance::MODEL_SEMANTICS_ID,
+    provenance::{MODEL_SEMANTICS_ID, SourceRevisionIdentity},
     resources::{ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config},
     rng::RngFactory,
     simulation::RecordedRun,
@@ -177,6 +177,17 @@ fn validate_checkpoint_identity(
     if checkpoint.model_semantics_id != MODEL_SEMANTICS_ID {
         return violation("checkpoint model semantics identity does not match this build");
     }
+    let checkpoint_identity = SourceRevisionIdentity {
+        model_version: checkpoint.model_version.clone(),
+        model_semantics_id: checkpoint.model_semantics_id.clone(),
+        git_commit: checkpoint.git_commit.clone(),
+    };
+    checkpoint
+        .resume_lineage
+        .validate_for_artifact(checkpoint.time.days(), &checkpoint_identity)
+        .map_err(|error| {
+            InvariantError::Violation(format!("checkpoint resume lineage is invalid: {error}"))
+        })?;
     if checkpoint.experiment.schema_version != crate::ExperimentConfig::CURRENT_SCHEMA_VERSION {
         return violation("experiment schema is not current");
     }
@@ -234,6 +245,7 @@ fn validate_manifest_against_checkpoint(
         || manifest.model_version != checkpoint.model_version
         || manifest.model_semantics_id != checkpoint.model_semantics_id
         || manifest.git_commit != checkpoint.git_commit
+        || manifest.resume_lineage != checkpoint.resume_lineage
         || manifest.experiment != checkpoint.experiment
         || manifest.start_time != SimTime::ZERO
         || manifest.end_time != checkpoint.time

@@ -1,6 +1,7 @@
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, InvariantError, MigrationConfig, PopulationConfig,
-    ResourceConfig, SimTime, Simulation, StopReason, WorldConfig, config::PROBABILITY_PER_MILLION,
+    ResourceConfig, ResumeLineage, SimTime, Simulation, StopReason, WorldConfig,
+    config::PROBABILITY_PER_MILLION,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -74,14 +75,33 @@ fn long_dynamic_checkpoint_resume_matches_uninterrupted_execution() {
         .checkpoint_at_year(60)
         .unwrap();
     checkpoint.validate_invariants().unwrap();
+    let source_day = checkpoint.time.days();
+    let source_state_digest64 = checkpoint.state_digest64;
     let resumed = Simulation::from_checkpoint(checkpoint)
         .unwrap()
         .run_recorded()
         .unwrap();
     resumed.validate_invariants().unwrap();
 
-    assert_eq!(resumed.manifest, uninterrupted.manifest);
-    assert_eq!(resumed.checkpoint, uninterrupted.checkpoint);
+    let mut resumed_manifest_without_lineage = resumed.manifest.clone();
+    resumed_manifest_without_lineage.resume_lineage = ResumeLineage::new();
+    assert_eq!(resumed_manifest_without_lineage, uninterrupted.manifest);
+
+    let mut resumed_checkpoint_without_lineage = resumed.checkpoint.clone();
+    resumed_checkpoint_without_lineage.resume_lineage = ResumeLineage::new();
+    assert_eq!(resumed_checkpoint_without_lineage, uninterrupted.checkpoint);
+
+    assert_eq!(
+        resumed.manifest.resume_lineage,
+        resumed.checkpoint.resume_lineage
+    );
+    let boundaries = &resumed.manifest.resume_lineage.boundaries;
+    assert_eq!(boundaries.len(), 1);
+    let boundary = &boundaries[0];
+    assert_eq!(boundary.source, boundary.continuation);
+    assert_eq!(boundary.boundary_day, source_day);
+    assert_eq!(boundary.boundary_completed_years, 60);
+    assert_eq!(boundary.source_state_digest64, source_state_digest64);
 }
 
 #[test]
