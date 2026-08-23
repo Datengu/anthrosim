@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use AnthroSim in research, cite the released software version and preserve the exact source revision used for the experiment."
+title: "AnthroSim"
+type: software
+authors:
+  - family-names: "Datengu"
+version: "0.1.0"
+date-released: 2026-08-22
+repository-code: "https://github.com/Datengu/anthrosim"
+url: "https://github.com/Datengu/anthrosim"
+license: "Apache-2.0"
+keywords:
+  - agent-based simulation
+  - anthropology
+  - archaeology
+  - reproducibility
+  - demography
+  - migration
+abstract: >-
+  AnthroSim is a reproducible agent-based simulation framework for exploring
+  human demography, migration, kinship, cultural transmission, and long-run
+  social emergence. Version 0.1 establishes a deterministic synthetic
+  population-simulation and experiment baseline and is not an empirically
+  validated model of human prehistory.
