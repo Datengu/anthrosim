@@ -800,9 +800,11 @@ fn validate_core_checkpoint_header(
         checkpoint
             .resume_lineage
             .validate_for_artifact(checkpoint.time.days(), &source_identity)
-            .map_err(|error| SpatialLandscapeError::CheckpointResumeLineageInvalid {
-                reason: error.to_string(),
-            })?;
+            .map_err(
+                |error| SpatialLandscapeError::CheckpointResumeLineageInvalid {
+                    reason: error.to_string(),
+                },
+            )?;
     }
     if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
         return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch { artifact: "events" });
