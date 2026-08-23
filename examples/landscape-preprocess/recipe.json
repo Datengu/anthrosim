@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "geometry": {
+    "width": 2,
+    "height": 2,
+    "originX": 500000,
+    "originY": 200000,
+    "cellSizeX": 25,
+    "cellSizeY": 25,
+    "coordinateUnit": "metre",
+    "spatialReference": "EPSG:27700"
+  },
+  "toolchain": [
+    {
+      "name": "GDAL",
+      "version": "example-pinned-version"
+    }
+  ],
+  "steps": [
+    {
+      "description": "Reproject and align source raster to the declared analysis grid",
+      "command": "gdalwarp -t_srs <target-crs> -te <extent> -tr <cell-size> <source> <aligned-output>"
+    },
+    {
+      "description": "Derive integer model-facing traversal values and export the aligned grid as CSV",
+      "command": "documented project-specific QGIS/GDAL expression followed by CSV export"
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "example_elevation",
+      "path": "source-elevation.csv",
+      "citation": "Synthetic publishable M8.2 fixture; not empirical evidence",
+      "datasetVersion": "fixture-v1",
+      "licence": "repository fixture"
+    }
+  ],
+  "nodataPolicy": "Source nodata remains explicit as NA in aligned CSV exports and becomes JSON null. No implicit fill is applied.",
+  "notes": "Generic synthetic fixture demonstrating the preprocessing contract only.",
+  "layers": [
+    {
+      "layerId": "terrain_traversal",
+      "role": "terrain_traversal",
+      "unit": "permille",
+      "valueDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "path": "terrain-traversal.csv",
+      "nodataToken": "NA"
+    },
+    {
+      "layerId": "water_accessibility",
+      "role": "water_accessibility",
+      "unit": "permille",
+      "valueDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "path": "water-accessibility.csv",
+      "nodataToken": "NA"
+    }
+  ]
+}
