@@ -1,6 +1,6 @@
 use anthrosim_core::{
     EventKind, EventLog, EventProvenance, ExperimentConfig, MetricProvenance, MetricSeries,
-    PopulationConfig, Simulation, SimulationCheckpoint, WorldConfig,
+    PopulationConfig, ResumeLineage, Simulation, SimulationCheckpoint, WorldConfig,
 };
 
 fn experiment() -> ExperimentConfig {
@@ -10,7 +10,7 @@ fn experiment() -> ExperimentConfig {
 }
 
 #[test]
-fn json_round_trip_checkpoint_resumes_to_identical_final_run() {
+fn json_round_trip_checkpoint_resumes_to_identical_authoritative_final_state() {
     let config = experiment();
     let uninterrupted = Simulation::new(config.clone())
         .unwrap()
@@ -21,6 +21,7 @@ fn json_round_trip_checkpoint_resumes_to_identical_final_run() {
         .unwrap()
         .checkpoint_at_year(3)
         .unwrap();
+    let source_digest = checkpoint.state_digest64;
     let json = serde_json::to_string_pretty(&checkpoint).unwrap();
     let restored: SimulationCheckpoint = serde_json::from_str(&json).unwrap();
     let resumed = Simulation::from_checkpoint(restored)
@@ -28,8 +29,21 @@ fn json_round_trip_checkpoint_resumes_to_identical_final_run() {
         .run_recorded()
         .unwrap();
 
-    assert_eq!(resumed.manifest, uninterrupted.manifest);
-    assert_eq!(resumed.checkpoint, uninterrupted.checkpoint);
+    let mut resumed_manifest_without_lineage = resumed.manifest.clone();
+    resumed_manifest_without_lineage.resume_lineage = ResumeLineage::new();
+    assert_eq!(resumed_manifest_without_lineage, uninterrupted.manifest);
+
+    let mut resumed_checkpoint_without_lineage = resumed.checkpoint.clone();
+    resumed_checkpoint_without_lineage.resume_lineage = ResumeLineage::new();
+    assert_eq!(resumed_checkpoint_without_lineage, uninterrupted.checkpoint);
+
+    assert_eq!(resumed.manifest.resume_lineage.boundaries.len(), 1);
+    assert_eq!(resumed.checkpoint.resume_lineage.boundaries.len(), 1);
+    assert_eq!(
+        resumed.manifest.resume_lineage.boundaries[0].source_state_digest64,
+        source_digest
+    );
+    assert_eq!(resumed.manifest.resume_lineage, resumed.checkpoint.resume_lineage);
 }
 
 #[test]
