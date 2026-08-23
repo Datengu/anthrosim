@@ -31,7 +31,7 @@ For a built release binary, the equivalent is:
 anthrosim-recover --run-dir PATH_TO_RUN
 ```
 
-The command reconciles only transaction artifacts bound to that canonical run path. Ordinary run/resume commands fail before starting new work when unresolved transaction state is present. Running the recovery command when no transaction state exists is a safe no-op and reports that no recovery was needed.
+The command reconciles only transaction artifacts bound to that canonical run path. Ordinary run/resume commands fail before starting new work when unresolved transaction state is present. Running the recovery command when no transaction state exists is a safe no-op and reports that no recovery was needed. Ambiguous or unsafe recovery state exits with an error and leaves the competing artifacts untouched for inspection.
 
 ## Deterministic recovery rules
 
