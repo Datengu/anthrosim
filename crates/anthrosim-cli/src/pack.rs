@@ -130,9 +130,7 @@ fn validated_bundle_files(run_dir: &Path) -> io::Result<Vec<(String, PathBuf)>> 
 
     let has_landscape = names.iter().any(|name| name == "landscape.json");
     let has_landscape_manifest = names.iter().any(|name| name == "landscape-manifest.json");
-    let has_landscape_checkpoint = names
-        .iter()
-        .any(|name| name == "landscape-checkpoint.json");
+    let has_landscape_checkpoint = names.iter().any(|name| name == "landscape-checkpoint.json");
     let has_spatial_mechanisms = names.iter().any(|name| name == "spatial-mechanisms.json");
     let has_spatial_observability = names
         .iter()
@@ -181,11 +179,13 @@ fn require_json(run_dir: &Path, name: &str, names: &mut Vec<String>) -> io::Resu
 fn validate_json(path: &Path) -> io::Result<()> {
     let file = File::open(path)?;
     let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
-    serde::de::IgnoredAny::deserialize(&mut deserializer).map_err(|error| {
-        invalid_input(format!("invalid JSON in {}: {error}", path.display()))
-    })?;
+    serde::de::IgnoredAny::deserialize(&mut deserializer)
+        .map_err(|error| invalid_input(format!("invalid JSON in {}: {error}", path.display())))?;
     deserializer.end().map_err(|error| {
-        invalid_input(format!("invalid trailing JSON in {}: {error}", path.display()))
+        invalid_input(format!(
+            "invalid trailing JSON in {}: {error}",
+            path.display()
+        ))
     })?;
     Ok(())
 }
@@ -435,7 +435,10 @@ mod tests {
 
     fn test_dir(label: &str) -> PathBuf {
         let id = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
-        std::env::temp_dir().join(format!("anthrosim-pack-{label}-{}-{id}", std::process::id()))
+        std::env::temp_dir().join(format!(
+            "anthrosim-pack-{label}-{}-{id}",
+            std::process::id()
+        ))
     }
 
     fn cleanup(root: &Path, files: &[&Path]) {
