@@ -1,17 +1,27 @@
 use std::{
-    fs,
+    fs, io,
     path::{Path, PathBuf},
     process::ExitCode,
 };
 
 use anthrosim_core::{
-    ExperimentConfig, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
-    LandscapeSimulation, MigrationConfig, Population, PopulationConfig, ResourceConfig,
-    SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, World, WorldConfig, validate_landscape_recorded_run_invariants,
-    validate_spatial_landscape_recorded_run,
+    EventLog, ExperimentConfig, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
+    LandscapeSimulation, MetricSeries, MigrationConfig, Population, PopulationConfig,
+    ResourceConfig, SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
+    SpatialLandscapeSimulation, SpatialMechanismConfig, World, WorldConfig,
+    validate_landscape_recorded_run_invariants, validate_spatial_landscape_recorded_run,
 };
 use clap::{Parser, Subcommand};
+
+#[path = "../bundle.rs"]
+mod bundle;
+#[path = "../run_directory.rs"]
+mod run_directory;
+
+use run_directory::{RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory};
+
+type PreservedPopulation = (&'static str, Population);
+type PreparedResume = (RunDirectoryTransaction, Option<PreservedPopulation>);
 
 #[derive(Debug, Parser)]
 #[command(
@@ -120,6 +130,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 disable_migration,
                 migration_radius,
             );
+            let transaction = RunDirectoryTransaction::fresh(&run_dir)?;
 
             if let Some(mechanisms_path) = mechanisms {
                 let mechanisms: SpatialMechanismConfig = read_json(&mechanisms_path)?;
@@ -132,12 +143,13 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(target_year) = checkpoint_year {
                     let checkpoint = simulation.checkpoint_at_year(target_year)?;
                     write_spatial_checkpoint_bundle(
-                        &run_dir,
+                        transaction.staging_dir(),
                         &landscape,
                         &world,
                         &initial_population,
                         &checkpoint,
                     )?;
+                    transaction.commit()?;
                     println!(
                         "wrote transformed landscape checkpoint at year {target_year} to {}",
                         run_dir.display()
@@ -145,12 +157,14 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     let recorded = simulation.run_recorded()?;
                     write_completed_spatial_bundle(
-                        &run_dir,
+                        transaction.staging_dir(),
                         &landscape,
                         &world,
                         Some(&initial_population),
                         &recorded,
                     )?;
+                    bundle::validated_bundle_files(transaction.staging_dir())?;
+                    transaction.commit()?;
                     println!(
                         "wrote transformed landscape run bundle {}",
                         run_dir.display()
@@ -164,12 +178,13 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(target_year) = checkpoint_year {
                     let checkpoint = simulation.checkpoint_at_year(target_year)?;
                     write_landscape_checkpoint_bundle(
-                        &run_dir,
+                        transaction.staging_dir(),
                         &landscape,
                         &world,
                         &initial_population,
                         &checkpoint,
                     )?;
+                    transaction.commit()?;
                     println!(
                         "wrote landscape-bound checkpoint at year {target_year} to {}",
                         run_dir.display()
@@ -177,12 +192,14 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     let recorded = simulation.run_recorded()?;
                     write_completed_landscape_bundle(
-                        &run_dir,
+                        transaction.staging_dir(),
                         &landscape,
                         &world,
                         Some(&initial_population),
                         &recorded,
                     )?;
+                    bundle::validated_bundle_files(transaction.staging_dir())?;
+                    transaction.commit()?;
                     println!("wrote landscape-bound run bundle {}", run_dir.display());
                 }
             }
@@ -192,26 +209,33 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             landscape,
             run_dir,
         } => {
-            let checkpoint_value: serde_json::Value = read_json(&checkpoint)?;
+            let checkpoint_path = checkpoint;
+            let checkpoint_value: serde_json::Value = read_json(&checkpoint_path)?;
             let landscape: LandscapeBundle = read_json(&landscape)?;
 
             if checkpoint_value.get("spatial").is_some() {
                 let checkpoint: SpatialLandscapeCheckpoint =
                     serde_json::from_value(checkpoint_value)?;
-                let simulation =
-                    SpatialLandscapeSimulation::from_checkpoint(checkpoint, landscape.clone())?;
+                let simulation = SpatialLandscapeSimulation::from_checkpoint(
+                    checkpoint.clone(),
+                    landscape.clone(),
+                )?;
                 let world = simulation.world().clone();
                 let resume_population = simulation.population().clone();
+                let (transaction, preserved_population) = prepare_spatial_resume_transaction(
+                    &checkpoint_path,
+                    &run_dir,
+                    &checkpoint,
+                    &landscape,
+                    &world,
+                )?;
                 let recorded = simulation.run_recorded()?;
+                let staging = transaction.staging_dir();
 
-                fs::create_dir_all(&run_dir)?;
-                if !run_dir.join("initial-population.json").is_file() {
-                    write_json(
-                        &run_dir.join("resume-start-population.json"),
-                        &resume_population,
-                    )?;
-                }
-                write_completed_spatial_bundle(&run_dir, &landscape, &world, None, &recorded)?;
+                write_resume_population(staging, preserved_population, &resume_population)?;
+                write_completed_spatial_bundle(staging, &landscape, &world, None, &recorded)?;
+                bundle::validated_bundle_files(staging)?;
+                transaction.commit()?;
                 println!(
                     "wrote resumed transformed landscape run bundle {}",
                     run_dir.display()
@@ -219,19 +243,23 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 let checkpoint: LandscapeCheckpoint = serde_json::from_value(checkpoint_value)?;
                 let simulation =
-                    LandscapeSimulation::from_checkpoint(checkpoint, landscape.clone())?;
+                    LandscapeSimulation::from_checkpoint(checkpoint.clone(), landscape.clone())?;
                 let world = simulation.world().clone();
                 let resume_population = simulation.population().clone();
+                let (transaction, preserved_population) = prepare_landscape_resume_transaction(
+                    &checkpoint_path,
+                    &run_dir,
+                    &checkpoint,
+                    &landscape,
+                    &world,
+                )?;
                 let recorded = simulation.run_recorded()?;
+                let staging = transaction.staging_dir();
 
-                fs::create_dir_all(&run_dir)?;
-                if !run_dir.join("initial-population.json").is_file() {
-                    write_json(
-                        &run_dir.join("resume-start-population.json"),
-                        &resume_population,
-                    )?;
-                }
-                write_completed_landscape_bundle(&run_dir, &landscape, &world, None, &recorded)?;
+                write_resume_population(staging, preserved_population, &resume_population)?;
+                write_completed_landscape_bundle(staging, &landscape, &world, None, &recorded)?;
+                bundle::validated_bundle_files(staging)?;
+                transaction.commit()?;
                 println!(
                     "wrote resumed landscape-bound run bundle {}",
                     run_dir.display()
@@ -275,6 +303,185 @@ fn experiment_config(
         .with_migration(migration)
 }
 
+fn prepare_landscape_resume_transaction(
+    checkpoint_path: &Path,
+    run_dir: &Path,
+    checkpoint: &LandscapeCheckpoint,
+    landscape: &LandscapeBundle,
+    world: &World,
+) -> Result<PreparedResume, Box<dyn std::error::Error>> {
+    if !target_is_nonempty_directory(run_dir)? {
+        return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
+    }
+    verify_resume_checkpoint_path(checkpoint_path, run_dir)?;
+
+    let stored: LandscapeCheckpoint = read_json(&run_dir.join("landscape-checkpoint.json"))?;
+    if stored != *checkpoint {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stored landscape-checkpoint.json does not match the supplied checkpoint",
+        )
+        .into());
+    }
+    if run_dir.join("spatial-mechanisms.json").exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "inert landscape checkpoint directory unexpectedly contains spatial-mechanisms.json",
+        )
+        .into());
+    }
+    verify_landscape_checkpoint_artifacts(run_dir, &checkpoint.core_checkpoint, landscape, world)?;
+    let preserved = preserved_population_artifact(run_dir, world)?;
+    Ok((
+        RunDirectoryTransaction::replace_verified(run_dir)?,
+        Some(preserved),
+    ))
+}
+
+fn prepare_spatial_resume_transaction(
+    checkpoint_path: &Path,
+    run_dir: &Path,
+    checkpoint: &SpatialLandscapeCheckpoint,
+    landscape: &LandscapeBundle,
+    world: &World,
+) -> Result<PreparedResume, Box<dyn std::error::Error>> {
+    if !target_is_nonempty_directory(run_dir)? {
+        return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
+    }
+    verify_resume_checkpoint_path(checkpoint_path, run_dir)?;
+
+    let stored: SpatialLandscapeCheckpoint = read_json(&run_dir.join("landscape-checkpoint.json"))?;
+    if stored != *checkpoint {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stored landscape-checkpoint.json does not match the supplied checkpoint",
+        )
+        .into());
+    }
+    let mechanisms: SpatialMechanismConfig = read_json(&run_dir.join("spatial-mechanisms.json"))?;
+    if mechanisms != checkpoint.spatial.config {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "spatial-mechanisms.json does not reconcile with the supplied checkpoint",
+        )
+        .into());
+    }
+    verify_landscape_checkpoint_artifacts(run_dir, &checkpoint.core_checkpoint, landscape, world)?;
+    let preserved = preserved_population_artifact(run_dir, world)?;
+    Ok((
+        RunDirectoryTransaction::replace_verified(run_dir)?,
+        Some(preserved),
+    ))
+}
+
+fn verify_resume_checkpoint_path(
+    checkpoint_path: &Path,
+    run_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let stored_path = run_dir.join("landscape-checkpoint.json");
+    if !stored_path.is_file() || !same_existing_path(checkpoint_path, &stored_path)? {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "non-empty resume target {} may only be replaced in-place using its own landscape-checkpoint.json",
+                run_dir.display()
+            ),
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn verify_landscape_checkpoint_artifacts(
+    run_dir: &Path,
+    checkpoint: &SimulationCheckpoint,
+    landscape: &LandscapeBundle,
+    world: &World,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let stored_landscape: LandscapeBundle = read_json(&run_dir.join("landscape.json"))?;
+    stored_landscape.validate()?;
+    if stored_landscape != *landscape {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "landscape.json does not match the landscape supplied for resume",
+        )
+        .into());
+    }
+
+    let stored_core: SimulationCheckpoint = read_json(&run_dir.join("checkpoint.json"))?;
+    if stored_core != *checkpoint {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "checkpoint.json does not reconcile with landscape-checkpoint.json",
+        )
+        .into());
+    }
+
+    let stored_world: World = read_json(&run_dir.join("world.json"))?;
+    stored_world.validate()?;
+    if stored_world.digest64() != world.digest64()
+        || stored_world.digest64() != checkpoint.world_digest64
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "world.json does not reconcile with the supplied landscape checkpoint",
+        )
+        .into());
+    }
+
+    let events: EventLog = read_json(&run_dir.join("events.json"))?;
+    if events != checkpoint.events {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "events.json does not reconcile with the supplied landscape checkpoint",
+        )
+        .into());
+    }
+    let metrics: MetricSeries = read_json(&run_dir.join("metrics.json"))?;
+    if metrics != checkpoint.metrics {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "metrics.json does not reconcile with the supplied landscape checkpoint",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn preserved_population_artifact(
+    run_dir: &Path,
+    world: &World,
+) -> Result<PreservedPopulation, Box<dyn std::error::Error>> {
+    for name in ["initial-population.json", "resume-start-population.json"] {
+        let path = run_dir.join(name);
+        if path.is_file() {
+            let population: Population = read_json(&path)?;
+            population.validate(world)?;
+            return Ok((name, population));
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "in-place landscape resume source has no preserved population snapshot",
+    )
+    .into())
+}
+
+fn write_resume_population(
+    staging: &Path,
+    preserved: Option<PreservedPopulation>,
+    resume_population: &Population,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some((name, population)) = preserved {
+        write_json(&staging.join(name), &population)
+    } else {
+        write_json(
+            &staging.join("resume-start-population.json"),
+            resume_population,
+        )
+    }
+}
+
 fn write_completed_landscape_bundle(
     directory: &Path,
     landscape: &LandscapeBundle,
@@ -283,7 +490,6 @@ fn write_completed_landscape_bundle(
     recorded: &LandscapeRecordedRun,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_landscape_recorded_run_invariants(recorded)?;
-    fs::create_dir_all(directory)?;
     write_json(&directory.join("landscape.json"), landscape)?;
     write_json(&directory.join("world.json"), world)?;
     if let Some(initial_population) = initial_population {
@@ -318,7 +524,6 @@ fn write_completed_spatial_bundle(
     recorded: &SpatialLandscapeRecordedRun,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_spatial_landscape_recorded_run(recorded, landscape)?;
-    fs::create_dir_all(directory)?;
     write_json(&directory.join("landscape.json"), landscape)?;
     write_json(
         &directory.join("spatial-mechanisms.json"),
@@ -357,7 +562,6 @@ fn write_landscape_checkpoint_bundle(
     checkpoint: &LandscapeCheckpoint,
 ) -> Result<(), Box<dyn std::error::Error>> {
     checkpoint.landscape.validate_bundle(landscape)?;
-    fs::create_dir_all(directory)?;
     write_json(&directory.join("landscape.json"), landscape)?;
     write_json(&directory.join("world.json"), world)?;
     write_json(
@@ -389,7 +593,6 @@ fn write_spatial_checkpoint_bundle(
 ) -> Result<(), Box<dyn std::error::Error>> {
     checkpoint.landscape.validate_bundle(landscape)?;
     checkpoint.spatial.config.validate()?;
-    fs::create_dir_all(directory)?;
     write_json(&directory.join("landscape.json"), landscape)?;
     write_json(
         &directory.join("spatial-mechanisms.json"),
