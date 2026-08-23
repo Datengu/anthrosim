@@ -89,7 +89,7 @@ def validate_resume_lineage(uninterrupted: Path, resumed: Path) -> None:
         not isinstance(boundary_day, int)
         or not isinstance(boundary_years, int)
         or boundary_day != boundary_years * 365
-        or boundary_day >= resumed_manifest["endTime"]["days"]
+        or boundary_day >= resumed_manifest["endTime"]
     ):
         raise SystemExit("resume boundary time is inconsistent with the completed run")
 
