@@ -1,0 +1,107 @@
+name: Temporary issue 92 patch
+
+on:
+  push:
+    branches: [fix/92-explorer-resumed-bundles]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/92-explorer-resumed-bundles
+      - name: Apply scoped source changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          # Core CLI: every new-directory resume writes true day-zero founders and
+          # retains the resume-boundary population as separate provenance.
+          replace_once(
+              'crates/anthrosim-cli/src/main.rs',
+              '''use anthrosim_core::{\n    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint, World,\n};''',
+              '''use anthrosim_core::{\n    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint, World,\n    rng::RngFactory,\n};''',
+          )
+          replace_once(
+              'crates/anthrosim-cli/src/main.rs',
+              '''            write_json(&staging.join("world.json"), &world)?;\n            if let Some((name, population)) = preserved_population {\n                write_json(&staging.join(name), &population)?;\n            } else {\n                write_json(\n                    &staging.join("resume-start-population.json"),\n                    &resume_population,\n                )?;\n            }\n            write_recorded_outputs(staging, &recorded)?;''',
+              '''            write_json(&staging.join("world.json"), &world)?;\n            write_resume_populations(\n                staging,\n                preserved_population.as_ref(),\n                &resume_population,\n                &checkpoint,\n                &world,\n            )?;\n            write_recorded_outputs(staging, &recorded)?;''',
+          )
+          replace_once(
+              'crates/anthrosim-cli/src/main.rs',
+              '''fn write_completed_bundle(\n    directory: &Path,''',
+              '''fn write_resume_populations(\n    staging: &Path,\n    preserved: Option<&PreservedPopulation>,\n    resume_population: &Population,\n    checkpoint: &SimulationCheckpoint,\n    world: &World,\n) -> Result<(), Box<dyn std::error::Error>> {\n    let initial_population = match preserved {\n        Some((name, population)) if *name == "initial-population.json" => population.clone(),\n        _ => reconstruct_initial_population(checkpoint, world)?,\n    };\n    write_json(\n        &staging.join("initial-population.json"),\n        &initial_population,\n    )?;\n\n    if preserved.is_none_or(|(name, _)| *name == "resume-start-population.json") {\n        write_json(\n            &staging.join("resume-start-population.json"),\n            resume_population,\n        )?;\n    }\n    Ok(())\n}\n\nfn reconstruct_initial_population(\n    checkpoint: &SimulationCheckpoint,\n    world: &World,\n) -> Result<Population, Box<dyn std::error::Error>> {\n    let population = Population::initialize(\n        checkpoint.experiment.population,\n        world,\n        RngFactory::new(checkpoint.experiment.seed),\n    )?;\n    population.validate(world)?;\n    Ok(population)\n}\n\nfn write_completed_bundle(\n    directory: &Path,''',
+          )
+
+          # Landscape/spatial CLI: use exactly the same founder semantics.
+          replace_once(
+              'crates/anthrosim-cli/src/bin/anthrosim-landscape.rs',
+              '''    SpatialLandscapeRecordedRun, SpatialLandscapeSimulation, SpatialMechanismConfig, World,\n    WorldConfig, validate_landscape_recorded_run_invariants,''',
+              '''    SpatialLandscapeRecordedRun, SpatialLandscapeSimulation, SpatialMechanismConfig, World,\n    WorldConfig, rng::RngFactory, validate_landscape_recorded_run_invariants,''',
+          )
+          text_path = Path('crates/anthrosim-cli/src/bin/anthrosim-landscape.rs')
+          text = text_path.read_text()
+          old = '''                write_resume_population(staging, preserved_population, &resume_population)?;'''
+          if text.count(old) != 2:
+              raise SystemExit(f'anthrosim-landscape.rs: expected two resume writers, found {text.count(old)}')
+          text = text.replace(
+              old,
+              '''                write_resume_populations(\n                    staging,\n                    preserved_population.as_ref(),\n                    &resume_population,\n                    &checkpoint.core_checkpoint,\n                    &world,\n                )?;''',
+          )
+          text_path.write_text(text)
+          replace_once(
+              'crates/anthrosim-cli/src/bin/anthrosim-landscape.rs',
+              '''fn write_resume_population(\n    staging: &Path,\n    preserved: Option<PreservedPopulation>,\n    resume_population: &Population,\n) -> Result<(), Box<dyn std::error::Error>> {\n    if let Some((name, population)) = preserved {\n        write_json(&staging.join(name), &population)\n    } else {\n        write_json(\n            &staging.join("resume-start-population.json"),\n            resume_population,\n        )\n    }\n}\n''',
+              '''fn write_resume_populations(\n    staging: &Path,\n    preserved: Option<&PreservedPopulation>,\n    resume_population: &Population,\n    checkpoint: &SimulationCheckpoint,\n    world: &World,\n) -> Result<(), Box<dyn std::error::Error>> {\n    let initial_population = match preserved {\n        Some((name, population)) if *name == "initial-population.json" => population.clone(),\n        _ => reconstruct_initial_population(checkpoint, world)?,\n    };\n    write_json(\n        &staging.join("initial-population.json"),\n        &initial_population,\n    )?;\n\n    if preserved.is_none_or(|(name, _)| *name == "resume-start-population.json") {\n        write_json(\n            &staging.join("resume-start-population.json"),\n            resume_population,\n        )?;\n    }\n    Ok(())\n}\n\nfn reconstruct_initial_population(\n    checkpoint: &SimulationCheckpoint,\n    world: &World,\n) -> Result<Population, Box<dyn std::error::Error>> {\n    let population = Population::initialize(\n        checkpoint.experiment.population,\n        world,\n        RngFactory::new(checkpoint.experiment.seed),\n    )?;\n    population.validate(world)?;\n    Ok(population)\n}\n''',
+          )
+
+          # The Explorer still requires true founders; resume-start is separately
+          # exposed as optional provenance rather than aliased to founders.
+          replace_once(
+              'scripts/serve-explorer.py',
+              '''OPTIONAL_RUN_FILES = {\n    "manifest.json",''',
+              '''OPTIONAL_RUN_FILES = {\n    "manifest.json",\n    "resume-start-population.json",''',
+          )
+          replace_once(
+              'scripts/serve-explorer.py',
+              '''help="run directory containing world, founder population, events, metrics and checkpoint; manifest and M8 spatial artifacts are optional",''',
+              '''help="run directory containing world, original founder population, events, metrics and checkpoint; resume-boundary provenance, manifest and M8 spatial artifacts are optional",''',
+          )
+
+          # Required core integration: pause -> resume to another directory ->
+          # validate full history -> serve both population provenance artifacts.
+          replace_once(
+              '.github/workflows/ci.yml',
+              '''      - name: Validate M6 explorer against completed and paused sample runs\n        run: |\n          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-completed\n          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-paused\n''',
+              '''      - name: Resume M5 checkpoint into a new Explorer-compatible directory\n        run: |\n          rm -rf /tmp/anthrosim-m6-resumed-new\n          target/release/anthrosim resume \\\n            --checkpoint /tmp/anthrosim-m6-paused/checkpoint.json \\\n            --run-dir /tmp/anthrosim-m6-resumed-new\n          test -f /tmp/anthrosim-m6-resumed-new/manifest.json\n          test -f /tmp/anthrosim-m6-resumed-new/initial-population.json\n          test -f /tmp/anthrosim-m6-resumed-new/resume-start-population.json\n\n      - name: Validate M6 explorer against completed, paused and new-directory resumed runs\n        run: |\n          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-completed\n          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-paused\n          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-resumed-new\n\n      - name: Smoke-test M6 new-directory resumed bundle server\n        run: |\n          python3 scripts/serve-explorer.py /tmp/anthrosim-m6-resumed-new --port 8767 --no-browser >/tmp/m6-resumed-server.log 2>&1 &\n          server_pid=$!\n          trap 'kill "$server_pid" 2>/dev/null || true' EXIT\n          for attempt in $(seq 1 30); do\n            if curl -fsS http://127.0.0.1:8767/ >/tmp/m6-resumed-index.html; then\n              break\n            fi\n            sleep 0.2\n          done\n          test -s /tmp/m6-resumed-index.html\n          curl -fsS http://127.0.0.1:8767/run/initial-population.json | cmp - /tmp/anthrosim-m6-resumed-new/initial-population.json\n          curl -fsS http://127.0.0.1:8767/run/resume-start-population.json | cmp - /tmp/anthrosim-m6-resumed-new/resume-start-population.json\n          kill "$server_pid"\n          wait "$server_pid" 2>/dev/null || true\n          trap - EXIT\n''',
+          )
+
+          # Required spatial integration: the same resumed bundle must now be
+          # consumable by M6 without weakening M8.5 determinism.
+          replace_once(
+              '.github/workflows/spatial-observability.yml',
+              '''          test -f spatial-resumed-new/resume-start-population.json\n          test ! -e spatial-resumed-new/initial-population.json\n\n          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resumed-new''',
+              '''          test -f spatial-resumed-new/resume-start-population.json\n          test -f spatial-resumed-new/initial-population.json\n          node scripts/validate-explorer-bundle.mjs spatial-resumed-new\n\n          python3 scripts/serve-explorer.py spatial-resumed-new --no-browser --port 8876 > /tmp/anthrosim-resumed-explorer.log 2>&1 &\n          server_pid=$!\n          trap 'kill "$server_pid" 2>/dev/null || true' EXIT\n          for attempt in $(seq 1 30); do\n            if curl -fsS http://127.0.0.1:8876/ >/tmp/spatial-resumed-index.html; then\n              break\n            fi\n            sleep 0.2\n          done\n          test -s /tmp/spatial-resumed-index.html\n          curl -fsS http://127.0.0.1:8876/run/initial-population.json | cmp - spatial-resumed-new/initial-population.json\n          curl -fsS http://127.0.0.1:8876/run/resume-start-population.json | cmp - spatial-resumed-new/resume-start-population.json\n          kill "$server_pid"\n          wait "$server_pid" 2>/dev/null || true\n          trap - EXIT\n\n          cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-resumed-new''',
+          )
+          PY
+
+          cargo fmt --all
+          rm .github/workflows/zz-temp-issue-92-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Support Explorer for new-directory resumed bundles"
+          git push origin HEAD:fix/92-explorer-resumed-bundles
