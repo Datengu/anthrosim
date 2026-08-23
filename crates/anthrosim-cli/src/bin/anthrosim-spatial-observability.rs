@@ -8,6 +8,7 @@ use anthrosim_core::{
     LandscapeBundle, LandscapeCheckpoint, Population, SimulationCheckpoint,
     SpatialLandscapeCheckpoint, SpatialMechanismBinding, SpatialObservabilityReport, World,
     derive_spatial_observability,
+    rng::RngFactory,
 };
 use clap::{Parser, Subcommand};
 
@@ -85,14 +86,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Error>> {
     let landscape_path = run_dir.join("landscape.json");
     let world_path = run_dir.join("world.json");
-    let initial_population_path = run_dir.join("initial-population.json");
     let checkpoint_path = run_dir.join("checkpoint.json");
-    for path in [
-        &landscape_path,
-        &world_path,
-        &initial_population_path,
-        &checkpoint_path,
-    ] {
+    for path in [&landscape_path, &world_path, &checkpoint_path] {
         if !path.is_file() {
             return Err(format!(
                 "{} is not a complete landscape-bound run: missing {}",
@@ -105,8 +100,8 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
 
     let landscape: LandscapeBundle = read_json(&landscape_path)?;
     let world: World = read_json(&world_path)?;
-    let initial_population: Population = read_json(&initial_population_path)?;
     let checkpoint: SimulationCheckpoint = read_json(&checkpoint_path)?;
+    let initial_population = resolve_initial_population(run_dir, &world, &checkpoint)?;
     let spatial_binding = validate_landscape_wrapper(run_dir, &landscape, &checkpoint)?;
 
     let report = derive_spatial_observability(
@@ -135,6 +130,41 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
         println!("wrote {}", output.display());
     }
     Ok(())
+}
+
+fn resolve_initial_population(
+    run_dir: &Path,
+    world: &World,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<Population, Box<dyn std::error::Error>> {
+    let initial_path = run_dir.join("initial-population.json");
+    if initial_path.is_file() {
+        let population: Population = read_json(&initial_path)?;
+        population.validate(world)?;
+        return Ok(population);
+    }
+
+    let resume_path = run_dir.join("resume-start-population.json");
+    if !resume_path.is_file() {
+        return Err(format!(
+            "{} has no initial-population.json or resume-start-population.json population provenance",
+            run_dir.display()
+        )
+        .into());
+    }
+
+    // A resume-boundary population cannot be replayed from day zero when the
+    // checkpoint retains pre-resume events. Reconstruct the original founders
+    // from immutable experiment identity and the exact authoritative world.
+    let resume_population: Population = read_json(&resume_path)?;
+    resume_population.validate(world)?;
+    let initial_population = Population::initialize(
+        checkpoint.experiment.population,
+        world,
+        RngFactory::new(checkpoint.experiment.seed),
+    )?;
+    initial_population.validate(world)?;
+    Ok(initial_population)
 }
 
 fn validate_landscape_wrapper(
@@ -187,7 +217,6 @@ fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error
         if directory.join("landscape.json").is_file()
             && directory.join("checkpoint.json").is_file()
             && directory.join("world.json").is_file()
-            && directory.join("initial-population.json").is_file()
             && directory.join("landscape-checkpoint.json").is_file()
         {
             found.push(directory);
