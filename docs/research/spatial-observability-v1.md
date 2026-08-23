@@ -34,7 +34,7 @@ anthrosim-spatial-observability tree --root EXPERIMENT_OR_SWEEP --check
 
 `--check` does not write. It deterministically regenerates the report in memory and requires exact equality with the existing `spatial-observability.json`.
 
-The postprocessor requires the preserved normalized landscape, authoritative transformed/baseline world, founder population and checkpoint. If an M8.4 spatial checkpoint wrapper exists, the wrapper must reconcile with `checkpoint.json` and the exact landscape binding before derivation.
+The postprocessor requires the preserved normalized landscape, authoritative transformed/baseline world, founder population and checkpoint. For an inert M8.3 landscape-bound run, the `LandscapeCheckpoint` wrapper must reconcile with `checkpoint.json` and the exact landscape binding. For a transformed M8.4 run, the `SpatialLandscapeCheckpoint` wrapper must additionally reconcile the spatial mechanism binding and transformed world identity.
 
 ## Report identity
 
