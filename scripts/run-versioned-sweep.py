@@ -166,13 +166,17 @@ def verify_manifest(definition: dict, run_dir: Path) -> dict:
     return manifest
 
 
+def is_dirty_source_identity(revision: str) -> bool:
+    return revision.endswith("-dirty") or "-dirty-" in revision
+
+
 def require_reproducible_source_identity(manifest: dict) -> str:
     revision = manifest.get("gitCommit")
     if not revision:
         raise SystemExit(
             "versioned research sweep requires an exact Git source identity; rebuild inside a Git checkout or provide ANTHROSIM_GIT_COMMIT explicitly"
         )
-    if revision.endswith("-dirty"):
+    if is_dirty_source_identity(revision):
         raise SystemExit(
             "versioned research sweep refuses a dirty tracked source tree; commit/stash tracked changes or use a controlled explicit ANTHROSIM_GIT_COMMIT override"
         )

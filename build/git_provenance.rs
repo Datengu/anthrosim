@@ -1,7 +1,8 @@
 use std::{
     env,
+    io::Write,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 
 pub fn emit_git_provenance() {
@@ -48,15 +49,59 @@ pub fn emit_git_provenance() {
 
     if status.trim().is_empty() {
         println!("cargo:rustc-env=ANTHROSIM_GIT_COMMIT={commit}");
-    } else {
-        println!("cargo:rustc-env=ANTHROSIM_GIT_COMMIT={commit}-dirty");
+    } else if let Some(dirty_identity) = dirty_tree_identity(&repo_root) {
+        let revision = format!("{commit}-dirty-{dirty_identity}");
+        println!("cargo:rustc-env=ANTHROSIM_GIT_COMMIT={revision}");
         println!(
-            "cargo:warning=AnthroSim source tree has tracked modifications; provenance will record {commit}-dirty"
+            "cargo:warning=AnthroSim source tree has tracked modifications; provenance will record {revision}"
+        );
+    } else {
+        println!(
+            "cargo:warning=AnthroSim tracked source tree is dirty but its exact content identity could not be resolved; run provenance will record gitCommit=null"
         );
     }
 }
 
-fn git_output(directory: &Path, args: &[&str]) -> Option<String> {
+fn dirty_tree_identity(repo_root: &Path) -> Option<String> {
+    let diff = git_bytes(
+        repo_root,
+        &[
+            "diff",
+            "HEAD",
+            "--binary",
+            "--full-index",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--",
+        ],
+    )?;
+    if diff.is_empty() {
+        return None;
+    }
+
+    let mut child = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["hash-object", "--stdin"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .ok()?;
+    {
+        let stdin = child.stdin.as_mut()?;
+        stdin.write_all(&diff).ok()?;
+    }
+    let output = child.wait_with_output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    String::from_utf8(output.stdout)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn git_bytes(directory: &Path, args: &[&str]) -> Option<Vec<u8>> {
     let output = Command::new("git")
         .arg("-C")
         .arg(directory)
@@ -66,7 +111,11 @@ fn git_output(directory: &Path, args: &[&str]) -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    String::from_utf8(output.stdout)
+    Some(output.stdout)
+}
+
+fn git_output(directory: &Path, args: &[&str]) -> Option<String> {
+    String::from_utf8(git_bytes(directory, args)?)
         .ok()
         .map(|value| value.trim().to_owned())
 }
