@@ -4,11 +4,7 @@ use anthrosim_core::{
     SpatialTargetField, TransformDirection, transform_landscape,
 };
 
-fn layer(
-    id: &str,
-    role: LandscapeLayerRole,
-    values: Vec<Option<i32>>,
-) -> LandscapeLayer {
+fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
     LandscapeLayer {
         layer_id: id.to_owned(),
         role,
