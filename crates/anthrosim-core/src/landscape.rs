@@ -19,7 +19,12 @@ impl LandscapeBundle {
     pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
     #[must_use]
-    pub fn new(width: u32, height: u32, geometry: GridGeometry, layers: Vec<LandscapeLayer>) -> Self {
+    pub fn new(
+        width: u32,
+        height: u32,
+        geometry: GridGeometry,
+        layers: Vec<LandscapeLayer>,
+    ) -> Self {
         Self {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             width,
@@ -52,8 +57,9 @@ impl LandscapeBundle {
         self.geometry.validate()?;
 
         let expected = self.cell_count();
-        let _ = usize::try_from(expected)
-            .map_err(|_| LandscapeError::CellCountTooLarge { cell_count: expected })?;
+        let _ = usize::try_from(expected).map_err(|_| LandscapeError::CellCountTooLarge {
+            cell_count: expected,
+        })?;
 
         let mut layer_ids = BTreeSet::new();
         for layer in &self.layers {
@@ -103,7 +109,11 @@ impl LandscapeBundle {
 
     #[must_use]
     pub fn identity(&self) -> String {
-        format!("landscape-v{}-{:016x}", self.schema_version, self.digest64())
+        format!(
+            "landscape-v{}-{:016x}",
+            self.schema_version,
+            self.digest64()
+        )
     }
 }
 
@@ -282,7 +292,9 @@ pub enum LandscapeError {
     },
     #[error("landscape layer {layer_id} has an invalid value domain")]
     InvalidValueDomain { layer_id: String },
-    #[error("landscape layer {layer_id} cell {cell_index} value {value} is outside its declared domain")]
+    #[error(
+        "landscape layer {layer_id} cell {cell_index} value {value} is outside its declared domain"
+    )]
     ValueOutOfDomain {
         layer_id: String,
         cell_index: u64,
