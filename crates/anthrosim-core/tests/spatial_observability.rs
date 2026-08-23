@@ -178,7 +178,10 @@ fn report_keeps_normalized_inputs_distinct_from_model_facing_fields() {
     assert_eq!(report.cells[1].model_facing.water_access, 500);
     assert_eq!(source.layers[2].values[1], Some(500));
     assert_eq!(report.cells[1].model_facing.base_productivity, 500);
-    assert_eq!(report.cells[1].derived.provenance, MetricProvenance::Derived);
+    assert_eq!(
+        report.cells[1].derived.provenance,
+        MetricProvenance::Derived
+    );
 }
 
 #[test]
