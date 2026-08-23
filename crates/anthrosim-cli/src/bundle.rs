@@ -11,10 +11,8 @@ use anthrosim_core::{
     LandscapeRunManifest, MetricSeries, Population, RecordedRun, RunManifest, SimulationCheckpoint,
     SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest,
     SpatialMechanismBinding, SpatialMechanismConfig, SpatialObservabilityReport, World,
-    derive_spatial_observability,
-    rng::RngFactory,
-    validate_landscape_recorded_run_invariants, validate_recorded_run_invariants,
-    validate_spatial_landscape_recorded_run,
+    derive_spatial_observability, rng::RngFactory, validate_landscape_recorded_run_invariants,
+    validate_recorded_run_invariants, validate_spatial_landscape_recorded_run,
 };
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -221,7 +219,11 @@ fn reconstruct_initial_population(
         world,
         RngFactory::new(checkpoint.experiment.seed),
     )
-    .map_err(|error| invalid(format!("unable to reconstruct original founder population: {error}")))?;
+    .map_err(|error| {
+        invalid(format!(
+            "unable to reconstruct original founder population: {error}"
+        ))
+    })?;
     population.validate(world).map_err(|error| {
         invalid(format!(
             "reconstructed original founder population failed validation: {error}"
