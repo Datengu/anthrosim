@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "width": 2,
+  "height": 2,
+  "geometry": {
+    "originX": 1000,
+    "originY": 2000,
+    "cellSizeX": 25,
+    "cellSizeY": 25,
+    "coordinateUnit": "metre",
+    "spatialReference": "EPSG:27700"
+  },
+  "layers": [
+    {
+      "layerId": "terrain-traversal",
+      "role": "terrain_traversal",
+      "unit": "normalized_index",
+      "valueDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "values": [
+        100,
+        250,
+        500,
+        750
+      ]
+    },
+    {
+      "layerId": "water-accessibility",
+      "role": "water_accessibility",
+      "unit": "normalized_index",
+      "valueDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "values": [
+        900,
+        700,
+        400,
+        200
+      ]
+    },
+    {
+      "layerId": "resource-opportunity",
+      "role": "resource_opportunity",
+      "unit": "normalized_index",
+      "valueDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "values": [
+        600,
+        650,
+        550,
+        500
+      ]
+    }
+  ]
+}

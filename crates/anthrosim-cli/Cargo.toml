@@ -11,6 +11,10 @@ publish = false
 name = "anthrosim"
 path = "src/main.rs"
 
+[[bin]]
+name = "anthrosim-landscape"
+path = "src/bin/anthrosim-landscape.rs"
+
 [dependencies]
 anthrosim-core = { path = "../anthrosim-core" }
 clap.workspace = true
