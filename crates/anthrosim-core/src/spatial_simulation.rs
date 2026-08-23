@@ -695,6 +695,7 @@ fn reconstruct_world(
     landscape: &LandscapeBundle,
     mechanisms: &SpatialMechanismConfig,
 ) -> Result<World, SpatialLandscapeError> {
+    mechanisms.validate_evidence_links(config.evidence.as_ref())?;
     let overlay = transform_landscape(landscape, mechanisms)?;
     let world = World::generate(config.world, RngFactory::new(config.seed))?
         .with_model_field_overlay(
