@@ -7,8 +7,8 @@ use crate::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
         process_demographic_year_recorded, validate_demography_config,
     },
-    evidence::EvidenceError,
     events::EventLog,
+    evidence::EvidenceError,
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
     metrics::{
         MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics,
