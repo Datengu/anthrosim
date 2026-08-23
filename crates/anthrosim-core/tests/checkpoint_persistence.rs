@@ -43,7 +43,10 @@ fn json_round_trip_checkpoint_resumes_to_identical_authoritative_final_state() {
         resumed.manifest.resume_lineage.boundaries[0].source_state_digest64,
         source_digest
     );
-    assert_eq!(resumed.manifest.resume_lineage, resumed.checkpoint.resume_lineage);
+    assert_eq!(
+        resumed.manifest.resume_lineage,
+        resumed.checkpoint.resume_lineage
+    );
 }
 
 #[test]
