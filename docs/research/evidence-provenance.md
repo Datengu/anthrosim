@@ -42,6 +42,8 @@ A future terrain layer can therefore identify a source DEM, its CRS, source/vers
 
 `EvidenceCatalog::validate()` rejects unsupported record/catalog versions, duplicate/empty identifiers, broken parameter/input references, empty required fields and records incorrectly labelled `synthetic_validation`. Synthetic presets should not manufacture heavyweight evidence records merely to fill the schema.
 
+The evidence schema and its identity wiring are covered by the ordinary workspace tests. As M8 adds new evidence-backed spatial inputs or new cross-system invariants, representative cases should also be added to AnthroSim's generated invariant coverage rather than relying only on hand-written happy paths.
+
 This structure establishes traceability; it does **not** establish that a source is correct, that a transformation is archaeologically justified, or that uncertainty has been propagated adequately. Those remain scientific modelling decisions that must be reviewed and tested for each evidence-grounded preset.
 
 The catalogue is intended to be expanded alongside M8's real-landscape input architecture. It deliberately does not prescribe a database, GIS stack, raster format or archaeological ontology.
