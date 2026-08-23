@@ -79,13 +79,13 @@ impl LandscapeBundle {
             .collect();
 
         for layer in &self.layers {
-            if let Some(input_id) = layer.evidence_input_id.as_deref() {
-                if !external_inputs.contains(input_id) {
-                    return Err(LandscapeError::UnknownEvidenceInput {
-                        layer_id: layer.layer_id.clone(),
-                        input_id: input_id.to_owned(),
-                    });
-                }
+            if let Some(input_id) = layer.evidence_input_id.as_deref()
+                && !external_inputs.contains(input_id)
+            {
+                return Err(LandscapeError::UnknownEvidenceInput {
+                    layer_id: layer.layer_id.clone(),
+                    input_id: input_id.to_owned(),
+                });
             }
         }
         Ok(())
@@ -204,14 +204,14 @@ impl LandscapeLayer {
                 });
             }
             for (index, value) in self.values.iter().enumerate() {
-                if let Some(value) = value {
-                    if *value < domain.min || *value > domain.max {
-                        return Err(LandscapeError::ValueOutOfDomain {
-                            layer_id: self.layer_id.clone(),
-                            cell_index: index as u64,
-                            value: *value,
-                        });
-                    }
+                if let Some(value) = value
+                    && (*value < domain.min || *value > domain.max)
+                {
+                    return Err(LandscapeError::ValueOutOfDomain {
+                        layer_id: self.layer_id.clone(),
+                        cell_index: index as u64,
+                        value: *value,
+                    });
                 }
             }
         }
