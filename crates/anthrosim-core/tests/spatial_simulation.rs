@@ -2,15 +2,11 @@ use anthrosim_core::{
     ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole,
     LandscapeValueDomain, MigrationConfig, NoDataPolicy, PopulationConfig, ResourceConfig,
     SpatialFieldTransform, SpatialLandscapeError, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, SpatialTargetField, TransformDirection, WorldConfig,
-    ids::CellId, validate_spatial_landscape_recorded_run,
+    SpatialMechanismConfig, SpatialTargetField, TransformDirection, WorldConfig, ids::CellId,
+    validate_spatial_landscape_recorded_run,
 };
 
-fn layer(
-    id: &str,
-    role: LandscapeLayerRole,
-    values: Vec<Option<i32>>,
-) -> LandscapeLayer {
+fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
     LandscapeLayer {
         layer_id: id.to_owned(),
         role,
@@ -104,8 +100,8 @@ fn config(seed: u64) -> ExperimentConfig {
 #[test]
 fn transformed_world_uses_declared_model_facing_fields() {
     let source = fixture();
-    let simulation = SpatialLandscapeSimulation::new(config(9001), source.clone(), mechanisms())
-        .unwrap();
+    let simulation =
+        SpatialLandscapeSimulation::new(config(9001), source.clone(), mechanisms()).unwrap();
 
     assert_eq!(simulation.landscape(), &source);
     let cells = simulation.world().cells();
@@ -122,7 +118,10 @@ fn transformed_world_uses_declared_model_facing_fields() {
     assert_eq!(cells[1].food_stock, 5_000);
     assert_eq!(cells[2].food_stock, 10_000);
 
-    assert_eq!(simulation.resources().cell_food_stock(CellId::new(1)), Some(0));
+    assert_eq!(
+        simulation.resources().cell_food_stock(CellId::new(1)),
+        Some(0)
+    );
     assert_eq!(
         simulation.resources().cell_food_stock(CellId::new(2)),
         Some(5_000)
