@@ -59,7 +59,10 @@ mod integration_tests {
     fn resumed_bundle_packages_successfully() {
         let root = test_dir("resumed");
         let config = base_config(81, 1);
-        let checkpoint = Simulation::new(config).unwrap().checkpoint_at_year(0).unwrap();
+        let checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(0)
+            .unwrap();
         let simulation = Simulation::from_checkpoint(checkpoint).unwrap();
         let world = simulation.world().clone();
         let resume_population = simulation.population().clone();
@@ -71,7 +74,13 @@ mod integration_tests {
             &root.join("resume-start-population.json"),
             &resume_population,
         );
-        write_core_outputs(&root, &recorded.manifest, recorded.events(), recorded.metrics(), &recorded.checkpoint);
+        write_core_outputs(
+            &root,
+            &recorded.manifest,
+            recorded.events(),
+            recorded.metrics(),
+            &recorded.checkpoint,
+        );
 
         let archive = pack::pack_completed_run(&root, None).unwrap();
         assert!(archive.is_file());
@@ -90,10 +99,7 @@ mod integration_tests {
         fs::create_dir_all(&root).unwrap();
         write_json(&root.join("landscape.json"), &landscape);
         write_json(&root.join("world.json"), &world);
-        write_json(
-            &root.join("initial-population.json"),
-            &initial_population,
-        );
+        write_json(&root.join("initial-population.json"), &initial_population);
         write_core_outputs(
             &root,
             recorded.core_manifest(),
@@ -101,10 +107,7 @@ mod integration_tests {
             recorded.metrics(),
             recorded.core_checkpoint(),
         );
-        write_json(
-            &root.join("landscape-manifest.json"),
-            &recorded.manifest,
-        );
+        write_json(&root.join("landscape-manifest.json"), &recorded.manifest);
         write_json(
             &root.join("landscape-checkpoint.json"),
             &recorded.checkpoint,
@@ -133,10 +136,7 @@ mod integration_tests {
         write_json(&root.join("landscape.json"), &landscape);
         write_json(&root.join("spatial-mechanisms.json"), &mechanisms);
         write_json(&root.join("world.json"), &world);
-        write_json(
-            &root.join("initial-population.json"),
-            &initial_population,
-        );
+        write_json(&root.join("initial-population.json"), &initial_population);
         write_core_outputs(
             &root,
             recorded.core_manifest(),
@@ -144,10 +144,7 @@ mod integration_tests {
             recorded.metrics(),
             recorded.core_checkpoint(),
         );
-        write_json(
-            &root.join("landscape-manifest.json"),
-            &recorded.manifest,
-        );
+        write_json(&root.join("landscape-manifest.json"), &recorded.manifest);
         write_json(
             &root.join("landscape-checkpoint.json"),
             &recorded.checkpoint,
