@@ -1,0 +1,41 @@
+name: M8.6 benchmark data preparation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/prepare-m8-benchmark-landscape.py"
+      - ".github/workflows/m8-benchmark-data.yml"
+      - "docs/research/m8-first-evidence-grounded-benchmark.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-open-terrain:
+    name: Prepare pinned open terrain input
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Prepare deterministic normalized landscape
+        run: |
+          python3 scripts/prepare-m8-benchmark-landscape.py \
+            --output-dir m8-benchmark-prepared \
+            --source-cache .cache/m8/N46E007.hgt.gz
+
+      - name: Show source identity
+        run: cat m8-benchmark-prepared/source-provenance.json
+
+      - name: Upload prepared input package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: m8-benchmark-prepared
+          if-no-files-found: error
+          retention-days: 7
+          path: m8-benchmark-prepared/
