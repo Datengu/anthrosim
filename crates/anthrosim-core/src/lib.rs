@@ -10,6 +10,7 @@ pub mod events;
 pub mod evidence;
 pub mod ids;
 pub mod invariants;
+pub mod landscape;
 pub mod manifest;
 pub mod metrics;
 pub mod migration;
@@ -37,6 +38,10 @@ pub use evidence::{
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
     validate_recorded_run_invariants,
+};
+pub use landscape::{
+    GridGeometry, LandscapeBundle, LandscapeError, LandscapeLayer, LandscapeLayerRole,
+    LandscapeValueDomain,
 };
 pub use manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason};
 pub use metrics::{
