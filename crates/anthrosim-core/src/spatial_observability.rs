@@ -5,9 +5,9 @@ use thiserror::Error;
 
 use crate::{
     DeathCause, EventKind, EventLog, EventProvenance, GridGeometry, LandscapeBundle,
-    LandscapeError, LandscapeLayerRole, LandscapeValueDomain, MetricProvenance, PersonId,
-    Population, PopulationValidationError, SimulationCheckpoint, SpatialMechanismBinding, World,
-    ids::CellId,
+    LandscapeError, LandscapeLayerRole, LandscapeValueDomain, MetricProvenance, Population,
+    PopulationValidationError, SimulationCheckpoint, SpatialMechanismBinding, World,
+    ids::{CellId, PersonId},
 };
 
 /// Derived M8.5 spatial observability artifact.
@@ -719,7 +719,7 @@ fn cell_index(cell: CellId, cell_count: usize) -> Result<usize, SpatialObservabi
     Ok(index)
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SpatialObservabilityError {
     #[error(transparent)]
     Landscape(#[from] LandscapeError),
