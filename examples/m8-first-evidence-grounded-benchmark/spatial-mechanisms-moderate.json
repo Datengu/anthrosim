@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "modelId": "m8_6_terrain_moderate_v1",
+  "transforms": [
+    {
+      "target": "movement_cost",
+      "sourceLayerId": "terrain_contrast",
+      "expectedUnit": "metre_elevation_difference_per_20_arcsecond_step",
+      "sourceDomain": {
+        "min": 0,
+        "max": 2500
+      },
+      "targetMin": 1000,
+      "targetMax": 2500,
+      "direction": "direct",
+      "nodata": {
+        "kind": "reject"
+      }
+    }
+  ]
+}
