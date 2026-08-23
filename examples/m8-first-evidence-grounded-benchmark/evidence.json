@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "schemaVersion": 1,
+      "evidenceId": "mapzen_skadi_n46e007_elevation",
+      "provenance": "empirical_derived",
+      "source": {
+        "sourceId": "mapzen_terrain_tiles_skadi",
+        "citation": "Mapzen Terrain Tiles, Skadi N46E007, accessed from the AWS Open Data Registry; global SRTM terrain data attribution courtesy of the U.S. Geological Survey.",
+        "persistentId": "https://registry.opendata.aws/terrain-tiles/",
+        "datasetVersion": "content-addressed-sha256:cf790a87057dfdf126f9b314d9ec71d407afdedbe71c79e2b14c903d024ce0b9",
+        "licence": "Tilezen/joerd source attribution requirements apply",
+        "spatialCoverage": "fixed 16x16 sample patch within N46E007",
+        "temporalCoverage": "elevation source; no historical reconstruction implied"
+      },
+      "originalVariable": "bare-earth elevation",
+      "originalUnits": "metre",
+      "transformation": {
+        "method": "sample fixed HGT cells every 20 arcseconds; derive terrain_contrast as maximum absolute elevation difference to sampled N/E/S/W neighbours",
+        "sourceUnits": "metre",
+        "simulationUnits": "metre_elevation_difference_per_20_arcsecond_step",
+        "notes": "No void filling, smoothing, interpolation or outcome-based selection. The contrast layer is a terrain proxy, not a calibrated travel-cost surface."
+      },
+      "simulationUnits": "metre_elevation_difference_per_20_arcsecond_step",
+      "uncertainty": {
+        "representation": "qualitative",
+        "value": "Terrain Tiles combine open DEM sources; source resolution/vertical error and the terrain-to-movement translation are not calibrated here."
+      },
+      "applicability": "M8.6 public terrain-only null-model benchmark. Constrains traversal only; does not establish historical landscape conditions or archaeological validity.",
+      "competingEstimates": []
+    }
+  ],
+  "externalInputs": [
+    {
+      "inputId": "mapzen_skadi_n46e007",
+      "evidenceId": "mapzen_skadi_n46e007_elevation",
+      "format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v1",
+      "spatialReference": "EPSG:4326",
+      "contentDigest": "sha256:cf790a87057dfdf126f9b314d9ec71d407afdedbe71c79e2b14c903d024ce0b9"
+    }
+  ]
+}
