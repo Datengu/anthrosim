@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::ExperimentConfig, events::EventLog, manifest::StopReason, metrics::MetricSeries,
-    migration::MigrationCheckpointState, population::Population, resources::ResourceSystem,
-    rng::RngStreamPosition, time::SimTime,
+    config::ExperimentConfig, events::EventLog, landscape_binding::LandscapeBinding,
+    manifest::StopReason, metrics::MetricSeries, migration::MigrationCheckpointState,
+    population::Population, resources::ResourceSystem, rng::RngStreamPosition, time::SimTime,
 };
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
@@ -29,6 +29,10 @@ pub struct SimulationCheckpoint {
     pub model_semantics_id: String,
     pub git_commit: Option<String>,
     pub experiment: ExperimentConfig,
+    /// Present only for M8.3+ landscape-bound checkpoints. Synthetic M1-M7 checkpoints omit this
+    /// field entirely so their serialized representation remains byte-stable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landscape: Option<LandscapeBinding>,
     pub time: SimTime,
     pub completed_years: u64,
     pub terminal_stop_reason: Option<StopReason>,
