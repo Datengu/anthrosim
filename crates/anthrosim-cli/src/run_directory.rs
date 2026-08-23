@@ -4,6 +4,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use anthrosim_core::{Population, SimulationCheckpoint, World, rng::RngFactory};
+use serde::de::DeserializeOwned;
+
 static NEXT_TRANSACTION_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +45,7 @@ impl RunDirectoryTransaction {
     }
 
     pub(crate) fn commit(mut self) -> io::Result<()> {
+        materialize_original_founders_for_resumed_bundle(&self.staging)?;
         match self.mode {
             CommitMode::Fresh => self.commit_fresh()?,
             CommitMode::ReplaceVerified => self.commit_replacement()?,
@@ -153,6 +157,53 @@ pub(crate) fn same_existing_path(left: &Path, right: &Path) -> io::Result<bool> 
     Ok(fs::canonicalize(left)? == fs::canonicalize(right)?)
 }
 
+fn materialize_original_founders_for_resumed_bundle(staging: &Path) -> io::Result<()> {
+    let resume_population_path = staging.join("resume-start-population.json");
+    let initial_population_path = staging.join("initial-population.json");
+    if !resume_population_path.is_file() || initial_population_path.is_file() {
+        return Ok(());
+    }
+
+    let world: World = read_json(&staging.join("world.json"))?;
+    world.validate().map_err(invalid_data)?;
+    let checkpoint: SimulationCheckpoint = read_json(&staging.join("checkpoint.json"))?;
+    if checkpoint.world_digest64 != world.digest64() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "cannot reconstruct original founders: world.json does not match checkpoint.json",
+        ));
+    }
+
+    let resume_population: Population = read_json(&resume_population_path)?;
+    resume_population.validate(&world).map_err(invalid_data)?;
+
+    // resume-start-population.json is a boundary snapshot, not a day-zero
+    // population. Reconstruct the actual founders from immutable experiment
+    // identity and the authoritative world, matching bundle/M8.5 semantics.
+    let initial_population = Population::initialize(
+        checkpoint.experiment.population,
+        &world,
+        RngFactory::new(checkpoint.experiment.seed),
+    )
+    .map_err(invalid_data)?;
+    initial_population.validate(&world).map_err(invalid_data)?;
+    write_json(&initial_population_path, &initial_population)
+}
+
+fn read_json<T: DeserializeOwned>(path: &Path) -> io::Result<T> {
+    let content = fs::read_to_string(path)?;
+    serde_json::from_str(&content).map_err(invalid_data)
+}
+
+fn write_json<T: serde::Serialize + ?Sized>(path: &Path, value: &T) -> io::Result<()> {
+    let json = serde_json::to_string_pretty(value).map_err(invalid_data)?;
+    fs::write(path, format!("{json}\n"))
+}
+
+fn invalid_data(error: impl std::fmt::Display) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, error.to_string())
+}
+
 fn require_fresh_target(target: &Path) -> io::Result<()> {
     if target_is_nonempty_directory(target)? {
         return Err(nonempty_target_error(target));
@@ -231,6 +282,8 @@ fn unique_sibling_path(target: &Path, role: &str) -> PathBuf {
 mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
+    use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
+
     use super::*;
 
     static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
@@ -277,6 +330,34 @@ mod tests {
             fs::read_to_string(target.join("manifest.json")).unwrap(),
             "new\n"
         );
+        cleanup(&target);
+    }
+
+    #[test]
+    fn resumed_bundle_materializes_true_original_founders_before_promotion() {
+        let target = test_dir("resume-founders");
+        let config = ExperimentConfig::new(7_701, 2)
+            .with_world(WorldConfig::new(4, 4))
+            .with_population(PopulationConfig::new(24).with_target_household_size(4));
+        let simulation = Simulation::new(config).unwrap();
+        let world = simulation.world().clone();
+        let expected_founders = simulation.population().clone();
+        let checkpoint = simulation.checkpoint_at_year(1).unwrap();
+
+        let transaction = RunDirectoryTransaction::fresh(&target).unwrap();
+        let staging = transaction.staging_dir();
+        write_json(&staging.join("world.json"), &world).unwrap();
+        write_json(&staging.join("checkpoint.json"), &checkpoint).unwrap();
+        write_json(
+            &staging.join("resume-start-population.json"),
+            &checkpoint.population,
+        )
+        .unwrap();
+
+        transaction.commit().unwrap();
+        let actual: Population = read_json(&target.join("initial-population.json")).unwrap();
+        assert_eq!(actual, expected_founders);
+        assert!(target.join("resume-start-population.json").is_file());
         cleanup(&target);
     }
 
