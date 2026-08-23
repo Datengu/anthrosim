@@ -384,8 +384,7 @@ impl StableDigest {
 #[cfg(test)]
 mod tests {
     use crate::{
-        EvidenceCatalog, EvidenceRecord, EvidenceSource, ExternalInputEvidence,
-        ParameterProvenance,
+        EvidenceCatalog, EvidenceRecord, EvidenceSource, ExternalInputEvidence, ParameterProvenance,
     };
 
     use super::*;
