@@ -1,0 +1,38 @@
+name: Temporary issue 93 Clippy fix
+
+on:
+  push:
+    branches: [fix/93-run-directory-crash-recovery]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: fix/93-run-directory-crash-recovery
+      - run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('crates/anthrosim-cli/src/run_directory.rs')
+          text = path.read_text()
+          old = '''        return Err(io::Error::new(\n            io::ErrorKind::Other,\n            format!(\n                "run directory {} has interrupted transaction state; run anthrosim-recover --run-dir {} before starting or replacing it",\n                target.display(),\n                target.display()\n            ),\n        ));'''
+          new = '''        return Err(io::Error::other(format!(\n            "run directory {} has interrupted transaction state; run anthrosim-recover --run-dir {} before starting or replacing it",\n            target.display(),\n            target.display()\n        )));'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one Clippy target, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+          cargo fmt --all
+          rm .github/workflows/zz-fix-93.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Use idiomatic recovery I/O error"
+          git push origin HEAD:fix/93-run-directory-crash-recovery
