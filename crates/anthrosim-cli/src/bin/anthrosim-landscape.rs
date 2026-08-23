@@ -162,14 +162,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     &resume_population,
                 )?;
             }
-            write_completed_landscape_bundle(
-                &run_dir,
-                &landscape,
-                &world,
-                None,
-                &recorded,
-            )?;
-            println!("wrote resumed landscape-bound run bundle {}", run_dir.display());
+            write_completed_landscape_bundle(&run_dir, &landscape, &world, None, &recorded)?;
+            println!(
+                "wrote resumed landscape-bound run bundle {}",
+                run_dir.display()
+            );
         }
     }
     Ok(())
