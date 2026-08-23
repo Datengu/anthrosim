@@ -122,6 +122,51 @@ impl World {
         Ok(world)
     }
 
+    /// Apply already-validated M8.4 model-facing fields to an existing deterministic world.
+    ///
+    /// `None` preserves the synthetic baseline for that field. Every supplied slice must contain
+    /// exactly one value per world cell in row-major order. Productivity replacement also resets
+    /// the derived initial food stock to the same relationship used by synthetic world generation.
+    pub fn with_model_field_overlay(
+        mut self,
+        movement_cost: Option<&[u16]>,
+        water_access: Option<&[u16]>,
+        base_productivity: Option<&[u16]>,
+    ) -> Result<Self, WorldError> {
+        for (field, values) in [
+            ("movement_cost", movement_cost),
+            ("water_access", water_access),
+            ("base_productivity", base_productivity),
+        ] {
+            if let Some(values) = values
+                && values.len() != self.cells.len()
+            {
+                return Err(WorldError::OverlayLengthMismatch {
+                    field,
+                    expected: self.cells.len(),
+                    actual: values.len(),
+                });
+            }
+        }
+
+        for (index, cell) in self.cells.iter_mut().enumerate() {
+            if let Some(values) = movement_cost {
+                cell.movement_cost = values[index];
+            }
+            if let Some(values) = water_access {
+                cell.water_access = values[index];
+            }
+            if let Some(values) = base_productivity {
+                cell.base_productivity = values[index];
+                cell.food_stock =
+                    u32::from(cell.base_productivity) * INITIAL_FOOD_STOCK_MULTIPLIER;
+            }
+        }
+
+        self.validate()?;
+        Ok(self)
+    }
+
     #[must_use]
     pub const fn width(&self) -> u32 {
         self.width
@@ -304,6 +349,12 @@ pub enum WorldError {
     CellCountTooLarge { cell_count: u64 },
     #[error("unable to reserve memory for {cell_count} world cells")]
     AllocationFailed { cell_count: u64 },
+    #[error("spatial overlay field {field} has {actual} values; expected {expected}")]
+    OverlayLengthMismatch {
+        field: &'static str,
+        expected: usize,
+        actual: usize,
+    },
     #[error(transparent)]
     Validation(#[from] WorldValidationError),
 }
@@ -495,5 +546,29 @@ mod tests {
     fn rejects_invalid_dimensions() {
         let result = World::generate(WorldConfig::new(0, 10), RngFactory::new(1));
         assert!(matches!(result, Err(WorldError::InvalidDimensions)));
+    }
+
+    #[test]
+    fn model_field_overlay_changes_only_declared_fields() {
+        let baseline = world(77, 2, 1);
+        let transformed = baseline
+            .clone()
+            .with_model_field_overlay(Some(&[1_000, 2_000]), Some(&[100, 900]), Some(&[250, 750]))
+            .unwrap();
+
+        assert_ne!(baseline.digest64(), transformed.digest64());
+        assert_eq!(transformed.cells()[0].movement_cost, 1_000);
+        assert_eq!(transformed.cells()[1].movement_cost, 2_000);
+        assert_eq!(transformed.cells()[0].water_access, 100);
+        assert_eq!(transformed.cells()[1].water_access, 900);
+        assert_eq!(transformed.cells()[0].base_productivity, 250);
+        assert_eq!(transformed.cells()[1].base_productivity, 750);
+        assert_eq!(transformed.cells()[0].food_stock, 2_500);
+        assert_eq!(transformed.cells()[1].food_stock, 7_500);
+        assert_eq!(baseline.cells()[0].elevation, transformed.cells()[0].elevation);
+        assert_eq!(
+            baseline.cells()[0].season_amplitude,
+            transformed.cells()[0].season_amplitude
+        );
     }
 }
