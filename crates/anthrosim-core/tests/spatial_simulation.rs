@@ -191,13 +191,21 @@ fn transformed_water_access_changes_migration_utility_in_declared_direction() {
         .unwrap()
         .run_recorded()
         .unwrap();
-        traces.extend(run.core_manifest().migration.recorded_decision_traces.clone());
+        traces.extend(
+            run.core_manifest()
+                .migration
+                .recorded_decision_traces
+                .clone(),
+        );
         if !traces.is_empty() {
             break;
         }
     }
 
-    assert!(!traces.is_empty(), "controlled fixture should produce water-seeking moves");
+    assert!(
+        !traces.is_empty(),
+        "controlled fixture should produce water-seeking moves"
+    );
     assert!(traces.iter().all(|trace| {
         trace.destination_utility.water_security_score_permille
             > trace.origin_utility.water_security_score_permille
@@ -216,13 +224,21 @@ fn transformed_movement_cost_changes_migration_utility_in_declared_direction() {
         .unwrap()
         .run_recorded()
         .unwrap();
-        traces.extend(run.core_manifest().migration.recorded_decision_traces.clone());
+        traces.extend(
+            run.core_manifest()
+                .migration
+                .recorded_decision_traces
+                .clone(),
+        );
         if !traces.is_empty() {
             break;
         }
     }
 
-    assert!(!traces.is_empty(), "controlled fixture should produce lower-cost moves");
+    assert!(
+        !traces.is_empty(),
+        "controlled fixture should produce lower-cost moves"
+    );
     assert!(traces.iter().all(|trace| {
         trace.destination_utility.travel_penalty_permille
             < trace.origin_utility.travel_penalty_permille
