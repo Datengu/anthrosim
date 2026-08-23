@@ -351,14 +351,11 @@ fn require_no_unresolved_transaction(target: &Path) -> io::Result<()> {
     let marker = transaction_marker_path(target);
     let (stages, backups) = legacy_remnants(target)?;
     if marker.exists() || !stages.is_empty() || !backups.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "run directory {} has interrupted transaction state; run anthrosim-recover --run-dir {} before starting or replacing it",
-                target.display(),
-                target.display()
-            ),
-        ));
+        return Err(io::Error::other(format!(
+            "run directory {} has interrupted transaction state; run anthrosim-recover --run-dir {} before starting or replacing it",
+            target.display(),
+            target.display()
+        )));
     }
     Ok(())
 }
