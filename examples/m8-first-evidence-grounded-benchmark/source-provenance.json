@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sourceUrl": "https://elevation-tiles-prod.s3.amazonaws.com/skadi/N46/N46E007.hgt.gz",
+  "sourceTile": "N46E007.hgt.gz",
+  "sourceSha256": "cf790a87057dfdf126f9b314d9ec71d407afdedbe71c79e2b14c903d024ce0b9",
+  "sourceBytes": 15958095,
+  "hgtSideSamples": 3601,
+  "patch": {
+    "width": 16,
+    "height": 16,
+    "rowStart": 1300,
+    "colStart": 1300,
+    "strideArcseconds": 20,
+    "rowOrder": "north_to_south"
+  },
+  "derived": {
+    "terrainContrastMethod": "max_abs_difference_to_sampled_north_east_south_west_neighbour",
+    "terrainContrastDomain": [
+      0,
+      2500
+    ]
+  }
+}
