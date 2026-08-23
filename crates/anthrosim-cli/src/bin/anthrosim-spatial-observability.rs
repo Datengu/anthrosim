@@ -113,8 +113,7 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
         .into());
     }
     validate_evidence_artifact(run_dir, &checkpoint)?;
-    let spatial_binding =
-        validate_landscape_wrapper(run_dir, &landscape, &world, &checkpoint)?;
+    let spatial_binding = validate_landscape_wrapper(run_dir, &landscape, &world, &checkpoint)?;
     let initial_population = resolve_initial_population(run_dir, &world, &checkpoint)?;
 
     let report = derive_spatial_observability(
@@ -307,8 +306,10 @@ fn validate_spatial_wrapper(
         };
         validate_spatial_landscape_recorded_run(&run, landscape)?;
     } else {
-        let simulation =
-            SpatialLandscapeSimulation::from_checkpoint(wrapper_checkpoint.clone(), landscape.clone())?;
+        let simulation = SpatialLandscapeSimulation::from_checkpoint(
+            wrapper_checkpoint.clone(),
+            landscape.clone(),
+        )?;
         if simulation.world() != world {
             return Err(format!(
                 "{} world.json does not match deterministic transformed-world reconstruction",
