@@ -10,7 +10,10 @@ use clap::{Parser, Subcommand};
 mod ensemble;
 mod sweep;
 
-use ensemble::{EnsembleRunSettings, execute_ensemble, experiment_config, resolve_ensemble_seeds};
+use ensemble::{
+    EnsembleRunSettings, execute_ensemble, experiment_config, load_spatial_run_settings,
+    resolve_ensemble_seeds,
+};
 use sweep::{SweepDimensions, execute_sweep};
 
 #[derive(Debug, Parser)]
@@ -97,7 +100,7 @@ enum Command {
         population_output: Option<PathBuf>,
     },
 
-    /// Execute or retry many ordinary AnthroSim runs under one immutable experiment identity.
+    /// Execute or retry many runs under one immutable experiment identity.
     Ensemble {
         /// Explicit deterministic seeds. Comma-separated values are accepted.
         #[arg(
@@ -120,11 +123,11 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         years: u64,
 
-        /// Synthetic world width in cells.
+        /// World width in cells; spatial runs must match the normalized landscape.
         #[arg(long, default_value_t = 128)]
         world_width: u32,
 
-        /// Synthetic world height in cells.
+        /// World height in cells; spatial runs must match the normalized landscape.
         #[arg(long, default_value_t = 128)]
         world_height: u32,
 
@@ -140,15 +143,15 @@ enum Command {
         #[arg(long, default_value_t = 1_000_000)]
         max_person_records: u64,
 
-        /// Synthetic M3 environmental productivity scale, in permille (0..=1000).
+        /// M3 environmental productivity scale, in permille (0..=1000).
         #[arg(long, default_value_t = 1_000)]
         resource_productivity_scale_permille: u16,
 
-        /// Synthetic seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
+        /// Seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
         #[arg(long, default_value_t = 1_000)]
         resource_seasonality_scale_permille: u16,
 
-        /// Synthetic annual resource need per living person, in abstract units.
+        /// Annual resource need per living person, in abstract units.
         #[arg(long, default_value_t = 100)]
         annual_food_need: u32,
 
@@ -159,6 +162,14 @@ enum Command {
         /// Manhattan-radius local knowledge used for migration destination discovery.
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
+
+        /// Optional normalized M8.1 LandscapeBundle JSON; requires --mechanisms.
+        #[arg(long, requires = "mechanisms")]
+        landscape: Option<PathBuf>,
+
+        /// Optional versioned M8.4 spatial mechanism JSON; requires --landscape.
+        #[arg(long, requires = "landscape")]
+        mechanisms: Option<PathBuf>,
 
         /// Experiment root containing immutable provenance, statuses and child run bundles.
         #[arg(long)]
@@ -192,11 +203,11 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         years: u64,
 
-        /// Base synthetic world width in cells.
+        /// Base world width in cells; spatial sweeps must match the normalized landscape.
         #[arg(long, default_value_t = 128)]
         world_width: u32,
 
-        /// Base synthetic world height in cells.
+        /// Base world height in cells; spatial sweeps must match the normalized landscape.
         #[arg(long, default_value_t = 128)]
         world_height: u32,
 
@@ -216,7 +227,7 @@ enum Command {
         #[arg(long, default_value_t = 1_000)]
         resource_productivity_scale_permille: u16,
 
-        /// Synthetic seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
+        /// Seasonal-amplitude scale for renewable productivity, in permille (0..=1000).
         #[arg(long, default_value_t = 1_000)]
         resource_seasonality_scale_permille: u16,
 
@@ -231,6 +242,14 @@ enum Command {
         /// Base migration radius when its sweep dimension is not supplied.
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
+
+        /// Optional normalized M8.1 LandscapeBundle JSON shared by every point; requires --mechanisms.
+        #[arg(long, requires = "mechanisms")]
+        landscape: Option<PathBuf>,
+
+        /// Optional versioned M8.4 spatial mechanism JSON shared by every point; requires --landscape.
+        #[arg(long, requires = "landscape")]
+        mechanisms: Option<PathBuf>,
 
         /// Explicit founder-population values for the Cartesian parameter grid.
         #[arg(long, value_delimiter = ',', num_args = 1..)]
@@ -328,6 +347,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                spatial: None,
             };
             let config = experiment_config(seed, &settings);
             let simulation = Simulation::new(config)?;
@@ -392,10 +412,19 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             annual_food_need,
             disable_migration,
             migration_radius,
+            landscape,
+            mechanisms,
             run_dir,
             retry,
         } => {
             let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
+            let spatial = match (landscape, mechanisms) {
+                (Some(landscape), Some(mechanisms)) => {
+                    Some(load_spatial_run_settings(&landscape, &mechanisms)?)
+                }
+                (None, None) => None,
+                _ => unreachable!("clap requires landscape and mechanisms together"),
+            };
             let settings = EnsembleRunSettings {
                 years,
                 world_width,
@@ -408,6 +437,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                spatial,
             };
             execute_ensemble(&run_dir, settings, seeds, retry)?;
         }
@@ -426,6 +456,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             annual_food_need,
             disable_migration,
             migration_radius,
+            landscape,
+            mechanisms,
             sweep_population,
             sweep_household_size,
             sweep_resource_productivity_scale_permille,
@@ -437,6 +469,13 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             retry,
         } => {
             let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
+            let spatial = match (landscape, mechanisms) {
+                (Some(landscape), Some(mechanisms)) => {
+                    Some(load_spatial_run_settings(&landscape, &mechanisms)?)
+                }
+                (None, None) => None,
+                _ => unreachable!("clap requires landscape and mechanisms together"),
+            };
             let settings = EnsembleRunSettings {
                 years,
                 world_width,
@@ -449,6 +488,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                spatial,
             };
             let dimensions = SweepDimensions {
                 population: sweep_population,
