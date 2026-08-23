@@ -42,15 +42,15 @@ This keeps AnthroSim from becoming either a feature-accumulation project or a hi
 
 ## M8 — Evidence-grounded spatial experiments
 
-**Status:** planned; detailed implementation issues should be created from this contract before code work begins.
+**Status:** completed. M8.0-M8.6 establish the generic Level-D evidence-grounded spatial experiment path; they do not establish case-study or archaeological validation.
 
 ### Goal
 
 Allow AnthroSim to run controlled, reproducible experiments on evidence-grounded spatial environments while preserving the existing separation between authoritative simulation semantics and external GIS/scientific tooling.
 
-M8 should make it possible to ask whether the mechanisms already represented by the model can generate informative spatial patterns under declared real-world environmental constraints, without scripting known settlements, destinations, routes or historical outcomes.
+M8 makes it possible to ask whether the mechanisms already represented by the model can generate informative spatial patterns under declared real-world environmental constraints, without scripting known settlements, destinations, routes or historical outcomes.
 
-The first real-landscape exercise should be treated as a **null-model benchmark**, not as a reconstruction claim. Its value is to establish what the existing demographic, resource and mobility mechanisms can and cannot explain before more complex social mechanisms are introduced.
+The first real-landscape exercise is treated as a **null-model benchmark**, not as a reconstruction claim. Its value is to establish what the existing demographic, resource and mobility mechanisms can and cannot explain before more complex social mechanisms are introduced.
 
 ### Architectural boundary
 
@@ -58,7 +58,7 @@ AnthroSim should not become a GIS application.
 
 Raw elevation, LiDAR, hydrology, land-cover, palaeoenvironmental or other geospatial source data should normally be prepared with mature external tooling such as QGIS/GDAL and converted into a documented, versioned AnthroSim landscape bundle.
 
-AnthroSim should own:
+AnthroSim owns:
 
 - the normalized landscape input contract used by authoritative runs;
 - validation of that contract;
@@ -69,11 +69,11 @@ AnthroSim should own:
 
 External tooling should continue to own generic GIS editing, reprojection, raster/vector processing and exploratory cartography.
 
-### Proposed M8 slices
+### Implemented M8 slices
 
 #### M8.0 — Spatial research/benchmark contract
 
-Before implementation, define a generic benchmark specification that states:
+The generic benchmark specification defines:
 
 - the class of question being tested;
 - the null or competing model assumptions;
@@ -82,11 +82,11 @@ Before implementation, define a generic benchmark specification that states:
 - sensitivity dimensions and uncertainty to preserve;
 - explicit interpretation limits.
 
-The benchmark contract must remain usable without naming a particular archaeological site or requiring private/unpublished case-study information in the public core repository.
+The benchmark contract remains usable without naming a particular archaeological site or requiring private/unpublished case-study information in the public core repository.
 
 #### M8.1 — Versioned landscape input contract
 
-Define a normalized spatial bundle with explicit:
+The normalized spatial bundle records explicit:
 
 - schema version;
 - dimensions and cell resolution;
@@ -94,48 +94,39 @@ Define a normalized spatial bundle with explicit:
 - nodata/missing-data semantics;
 - layer names, units and value domains;
 - source/evidence references;
-- transformation history where relevant;
-- content digest or equivalent stable identity.
+- content identity.
 
-The contract should support synthetic fixtures as well as externally prepared real landscapes.
+The contract supports synthetic fixtures as well as externally prepared real-world-derived landscapes.
 
 #### M8.2 — Reproducible external preprocessing workflow
 
-Document and provide lightweight tooling/examples for converting external GIS data into the normalized AnthroSim landscape contract.
-
-The workflow should make reprojection, resampling, clipping, aggregation and derived-layer construction explicit rather than hiding them inside the simulation engine.
+Documented lightweight tooling converts externally prepared GIS/scientific data into the normalized AnthroSim landscape contract while making transformations explicit rather than hiding them inside the simulation engine.
 
 #### M8.3 — Deterministic landscape loading
 
-Allow an experiment to select an external normalized landscape instead of the synthetic M1 generator while preserving:
+Experiments can bind an external normalized landscape while preserving deterministic replay, invariant validation, checkpoint/resume semantics, exact experiment identity and the separation between immutable environmental inputs and dynamic simulation state.
 
-- deterministic replay;
-- invariant validation;
-- checkpoint/resume semantics;
-- exact experiment identity;
-- separation between immutable environmental inputs and dynamic simulation state.
-
-Synthetic world generation should remain available for engine tests and controlled experiments.
+Synthetic world generation remains available for engine tests and controlled experiments.
 
 #### M8.4 — Evidence-grounded spatial mechanisms
 
-Connect declared spatial layers to existing model mechanisms through explicit, inspectable transformations. Likely early examples include terrain-related movement cost, water accessibility and spatially varying resource opportunity.
+Declared spatial layers connect to existing model mechanisms through explicit, inspectable and identity-bearing transformations for movement cost, water accessibility and resource opportunity. Source values and model-facing values remain distinguishable, and nodata behavior is explicit.
 
-No transformation should be treated as empirically valid merely because its input data are real. Source evidence, modelling assumptions, units, uncertainty and sensitivity ranges remain separate concerns.
+No transformation is treated as empirically valid merely because its input data are real. Source evidence, modelling assumptions, units, uncertainty and sensitivity ranges remain separate concerns.
 
 #### M8.5 — Spatial observability and explorer support
 
-Expose real coordinates, landscape layers and relevant model-facing transformations to downstream artifacts and the read-only explorer.
+Machine-readable spatial observability records provenance, occupancy, migration flows and spatial concentration independently of the read-only explorer. The explorer can display normalized and transformed layers without becoming authoritative simulation state.
 
-Visualisation remains downstream from authoritative state. A visually realistic map must never substitute for provenance or imply that a simulation is historically validated.
+Visualisation remains downstream from authoritative state. A visually realistic map does not substitute for provenance or imply historical validation.
 
 #### M8.6 — First evidence-grounded spatial benchmark
 
-Run a versioned ensemble/sensitivity experiment using the ordinary M7 experiment machinery on an evidence-grounded landscape bundle.
+The first Level-D benchmark runs four terrain-to-movement-cost alternatives across eight paired seeds through ordinary M7 ensemble machinery on one pinned, open, provenance-tracked terrain input.
 
-The benchmark should ask what spatial patterns emerge from the mechanisms already represented, while withholding known historical outcomes from the model rules themselves.
+All 32 runs reached the configured 100-year duration. The predeclared aggregate classification is **fragile spatial structure**: total migration distance and terminal largest-cell share showed material paired effects under the strong terrain mapping, but effect direction was not stable across seeds; cell-time occupancy and terminal Herfindahl concentration were not distinctive under the predeclared threshold.
 
-Its acceptance criterion is not that the simulation reproduces a desired historical pattern. A robust mismatch, extinction, absence of aggregation, or other negative result can be scientifically useful if it is reproducible and its assumptions are explicit.
+This is a result about the declared terrain-only null model, not a reconstruction or validation of a historical population. See `docs/research/m8-first-evidence-grounded-benchmark-result.md` and the machine-readable `examples/m8-first-evidence-grounded-benchmark/reference-result.json`.
 
 ### M8 non-goals
 
@@ -153,9 +144,11 @@ M8 does not by itself:
 
 No fixed M9 feature list is declared yet.
 
-The first evidence-grounded spatial experiments should determine which scientific limitation is most important next. Candidate directions already consistent with the project vision include:
+The first evidence-grounded spatial benchmark shows that real-world-derived terrain can materially perturb individual simulated histories while the direction of the tested migration/concentration effects remains seed-sensitive. That result should shape the next question rather than be tuned away.
 
-- alternative demographic, household or mobility assumptions;
+Candidate directions already consistent with the project vision include:
+
+- alternative demographic, household or mobility assumptions where they are required by a concrete comparison;
 - richer kinship/social-interaction mechanisms;
 - settlement formation and persistence mechanisms;
 - exchange or cultural-transmission models;
