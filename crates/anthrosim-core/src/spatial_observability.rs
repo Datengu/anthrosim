@@ -191,13 +191,13 @@ pub fn derive_spatial_observability(
             actual: world.digest64(),
         });
     }
-    if let Some(spatial) = spatial {
-        if spatial.transformed_world_digest64 != world.digest64() {
-            return Err(SpatialObservabilityError::SpatialWorldDigestMismatch {
-                expected: spatial.transformed_world_digest64,
-                actual: world.digest64(),
-            });
-        }
+    if let Some(spatial) = spatial
+        && spatial.transformed_world_digest64 != world.digest64()
+    {
+        return Err(SpatialObservabilityError::SpatialWorldDigestMismatch {
+            expected: spatial.transformed_world_digest64,
+            actual: world.digest64(),
+        });
     }
 
     let end_day = checkpoint.time.days();
@@ -565,7 +565,7 @@ fn validate_terminal_counts(
     for (index, (derived, authoritative)) in cells
         .iter()
         .map(|cell| cell.current_population)
-        .zip(authoritative.into_iter())
+        .zip(authoritative)
         .enumerate()
     {
         if derived != authoritative {
