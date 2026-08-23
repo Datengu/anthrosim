@@ -21,6 +21,7 @@ BASE_RUN_FILES = {
 }
 OPTIONAL_RUN_FILES = {
     "manifest.json",
+    "resume-start-population.json",
     "landscape.json",
     "landscape-manifest.json",
     "landscape-checkpoint.json",
@@ -107,7 +108,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "run_dir",
         type=Path,
-        help="run directory containing world, founder population, events, metrics and checkpoint; manifest and M8 spatial artifacts are optional",
+        help="run directory containing world, original founder population, events, metrics and checkpoint; resume-boundary provenance, manifest and M8 spatial artifacts are optional",
     )
     parser.add_argument("--host", default="127.0.0.1", help="bind address; defaults to loopback only")
     parser.add_argument("--port", type=int, default=8765, help="local port; defaults to 8765")
