@@ -20,6 +20,9 @@ mod run_directory;
 
 use run_directory::{RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory};
 
+type PreservedPopulation = (&'static str, Population);
+type PreparedResume = (RunDirectoryTransaction, Option<PreservedPopulation>);
+
 #[derive(Debug, Parser)]
 #[command(
     name = "anthrosim-landscape",
@@ -306,8 +309,7 @@ fn prepare_landscape_resume_transaction(
     checkpoint: &LandscapeCheckpoint,
     landscape: &LandscapeBundle,
     world: &World,
-) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>>
-{
+) -> Result<PreparedResume, Box<dyn std::error::Error>> {
     if !target_is_nonempty_directory(run_dir)? {
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
@@ -342,8 +344,7 @@ fn prepare_spatial_resume_transaction(
     checkpoint: &SpatialLandscapeCheckpoint,
     landscape: &LandscapeBundle,
     world: &World,
-) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>>
-{
+) -> Result<PreparedResume, Box<dyn std::error::Error>> {
     if !target_is_nonempty_directory(run_dir)? {
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
@@ -450,7 +451,7 @@ fn verify_landscape_checkpoint_artifacts(
 fn preserved_population_artifact(
     run_dir: &Path,
     world: &World,
-) -> Result<(&'static str, Population), Box<dyn std::error::Error>> {
+) -> Result<PreservedPopulation, Box<dyn std::error::Error>> {
     for name in ["initial-population.json", "resume-start-population.json"] {
         let path = run_dir.join(name);
         if path.is_file() {
@@ -468,7 +469,7 @@ fn preserved_population_artifact(
 
 fn write_resume_population(
     staging: &Path,
-    preserved: Option<(&'static str, Population)>,
+    preserved: Option<PreservedPopulation>,
     resume_population: &Population,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some((name, population)) = preserved {
