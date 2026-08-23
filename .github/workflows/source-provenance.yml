@@ -1,0 +1,97 @@
+name: Source provenance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    name: Automatic Git source identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Verify clean checkout records exact Git revision automatically
+        run: |
+          unset ANTHROSIM_GIT_COMMIT
+          cargo run --locked -p anthrosim-cli --bin anthrosim -- run \
+            --years 0 \
+            --world-width 1 \
+            --world-height 1 \
+            --population 1 \
+            --household-size 1 \
+            --max-person-records 1 \
+            --seed 80 \
+            --output /tmp/anthrosim-clean-provenance.json
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          expected = subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True
+          ).strip()
+          manifest = json.loads(Path('/tmp/anthrosim-clean-provenance.json').read_text())
+          assert manifest['gitCommit'] == expected, (manifest['gitCommit'], expected)
+          PY
+
+      - name: Verify tracked modifications are marked dirty
+        run: |
+          printf '\n<!-- source provenance dirty-tree probe -->\n' >> README.md
+          cargo run --locked -p anthrosim-cli --bin anthrosim -- run \
+            --years 0 \
+            --world-width 1 \
+            --world-height 1 \
+            --population 1 \
+            --household-size 1 \
+            --max-person-records 1 \
+            --seed 80 \
+            --output /tmp/anthrosim-dirty-provenance.json
+          git checkout -- README.md
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          expected = subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True
+          ).strip() + '-dirty'
+          manifest = json.loads(Path('/tmp/anthrosim-dirty-provenance.json').read_text())
+          assert manifest['gitCommit'] == expected, (manifest['gitCommit'], expected)
+          PY
+
+      - name: Verify explicit build-time override remains authoritative
+        env:
+          ANTHROSIM_GIT_COMMIT: controlled-source-revision
+        run: |
+          cargo run --locked -p anthrosim-cli --bin anthrosim -- run \
+            --years 0 \
+            --world-width 1 \
+            --world-height 1 \
+            --population 1 \
+            --household-size 1 \
+            --max-person-records 1 \
+            --seed 80 \
+            --output /tmp/anthrosim-override-provenance.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path('/tmp/anthrosim-override-provenance.json').read_text())
+          assert manifest['gitCommit'] == 'controlled-source-revision'
+          PY
