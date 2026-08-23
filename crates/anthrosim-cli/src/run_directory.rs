@@ -307,7 +307,8 @@ fn recover_marked_transaction(target: &Path, marker_path: &Path) -> io::Result<R
             io::ErrorKind::InvalidData,
             format!(
                 "ambiguous interrupted run-directory transaction for {}: target/stage/backup presence is {:?}; no files were changed",
-                target.display(), state
+                target.display(),
+                state
             ),
         )),
     }
@@ -400,11 +401,17 @@ fn checked_directory_exists(path: &Path, role: &str) -> io::Result<bool> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("{role} may not be a symbolic link during recovery: {}", path.display()),
+            format!(
+                "{role} may not be a symbolic link during recovery: {}",
+                path.display()
+            ),
         )),
         Ok(metadata) if !metadata.is_dir() => Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("{role} is not a directory during recovery: {}", path.display()),
+            format!(
+                "{role} is not a directory during recovery: {}",
+                path.display()
+            ),
         )),
         Ok(_) => Ok(true),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
@@ -597,18 +604,28 @@ fn file_name_string(path: &Path) -> io::Result<String> {
     path.file_name()
         .and_then(|value| value.to_str())
         .map(ToOwned::to_owned)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "transaction path has no UTF-8 file name"))
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "transaction path has no UTF-8 file name",
+            )
+        })
 }
 
 fn is_safe_single_component(value: &str) -> bool {
     let path = Path::new(value);
     path.file_name().and_then(|name| name.to_str()) == Some(value)
-        && path.parent().is_some_and(|parent| parent.as_os_str().is_empty())
+        && path
+            .parent()
+            .is_some_and(|parent| parent.as_os_str().is_empty())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{mem, sync::atomic::{AtomicU64, Ordering}};
+    use std::{
+        mem,
+        sync::atomic::{AtomicU64, Ordering},
+    };
 
     use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
 
@@ -748,7 +765,10 @@ mod tests {
             recover_interrupted_replacement(&target).unwrap(),
             RecoveryOutcome::AbandonedStageRemoved
         );
-        assert_eq!(fs::read_to_string(target.join("checkpoint.json")).unwrap(), "old\n");
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
         assert!(!staging.exists());
         assert!(!transaction_marker_path(&target).exists());
         cleanup(&target);
@@ -768,7 +788,10 @@ mod tests {
             recover_interrupted_replacement(&target).unwrap(),
             RecoveryOutcome::PreviousBundleRestored
         );
-        assert_eq!(fs::read_to_string(target.join("checkpoint.json")).unwrap(), "old\n");
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
         assert!(!staging.exists());
         assert!(!backup.exists());
         assert!(!transaction_marker_path(&target).exists());
@@ -790,7 +813,10 @@ mod tests {
             recover_interrupted_replacement(&target).unwrap(),
             RecoveryOutcome::PromotedBundleKept
         );
-        assert_eq!(fs::read_to_string(target.join("checkpoint.json")).unwrap(), "new\n");
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "new\n"
+        );
         assert!(!backup.exists());
         assert!(!transaction_marker_path(&target).exists());
         cleanup(&target);
@@ -813,8 +839,14 @@ mod tests {
         let target = test_dir("legacy-ambiguous");
         let parent = usable_parent(&target);
         fs::create_dir_all(parent).unwrap();
-        let first = parent.join(format!(".{}.anthrosim-stage-one", target_base_name(&target)));
-        let second = parent.join(format!(".{}.anthrosim-stage-two", target_base_name(&target)));
+        let first = parent.join(format!(
+            ".{}.anthrosim-stage-one",
+            target_base_name(&target)
+        ));
+        let second = parent.join(format!(
+            ".{}.anthrosim-stage-two",
+            target_base_name(&target)
+        ));
         fs::create_dir(&first).unwrap();
         fs::create_dir(&second).unwrap();
 
