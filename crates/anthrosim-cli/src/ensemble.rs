@@ -224,7 +224,9 @@ pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> Ex
         .spatial
         .as_ref()
         .and_then(|spatial| spatial.evidence.as_ref())
-        .map_or(config.clone(), |evidence| config.with_evidence(evidence.clone()))
+        .map_or(config.clone(), |evidence| {
+            config.with_evidence(evidence.clone())
+        })
 }
 
 pub(crate) fn resolve_ensemble_seeds(
