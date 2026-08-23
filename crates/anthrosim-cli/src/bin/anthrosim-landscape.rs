@@ -5,10 +5,12 @@ use std::{
 };
 
 use anthrosim_core::{
-    EventLog, ExperimentConfig, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
-    LandscapeSimulation, MetricSeries, MigrationConfig, Population, PopulationConfig,
-    ResourceConfig, SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
-    SpatialLandscapeSimulation, SpatialMechanismConfig, World, WorldConfig,
+    EvidenceCatalog, EventLog, ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeCheckpoint,
+    LandscapeLayer, LandscapeLayerRole, LandscapeRecordedRun, LandscapeSimulation,
+    LandscapeValueDomain, MetricSeries, MigrationConfig, NoDataPolicy, Population,
+    PopulationConfig, ResourceConfig, SimulationCheckpoint, SpatialFieldTransform,
+    SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeSimulation,
+    SpatialMechanismConfig, SpatialTargetField, TransformDirection, World, WorldConfig,
     validate_landscape_recorded_run_invariants, validate_spatial_landscape_recorded_run,
 };
 use clap::{Parser, Subcommand};
@@ -44,6 +46,9 @@ enum Command {
         /// Optional M8.4 spatial-mechanism JSON. Omit to retain the inert M8.3 control path.
         #[arg(long)]
         mechanisms: Option<PathBuf>,
+        /// Optional M8 evidence catalogue. Required when landscape/mechanism evidence links are declared.
+        #[arg(long)]
+        evidence: Option<PathBuf>,
         #[arg(long, default_value_t = 1)]
         seed: u64,
         #[arg(long, default_value_t = 1_000)]
@@ -101,6 +106,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Command::Run {
             landscape,
             mechanisms,
+            evidence,
             seed,
             years,
             population,
@@ -116,6 +122,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         } => {
             let landscape: LandscapeBundle = read_json(&landscape)?;
             landscape.validate()?;
+            let evidence = evidence
+                .as_deref()
+                .map(read_json::<EvidenceCatalog>)
+                .transpose()?;
             let config = experiment_config(
                 seed,
                 years,
@@ -129,6 +139,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                evidence,
             );
             let transaction = RunDirectoryTransaction::fresh(&run_dir)?;
 
@@ -284,6 +295,7 @@ fn experiment_config(
     annual_food_need: u32,
     disable_migration: bool,
     migration_radius: u16,
+    evidence: Option<EvidenceCatalog>,
 ) -> ExperimentConfig {
     let resources = ResourceConfig::synthetic_validation_v1()
         .with_productivity_scale_permille(productivity_scale)
@@ -292,7 +304,7 @@ fn experiment_config(
     let migration = MigrationConfig::synthetic_validation_v1()
         .with_enabled(!disable_migration)
         .with_candidate_radius_cells(migration_radius);
-    ExperimentConfig::new(seed, years)
+    let config = ExperimentConfig::new(seed, years)
         .with_world(WorldConfig::new(width, height))
         .with_population(
             PopulationConfig::new(population)
@@ -300,7 +312,8 @@ fn experiment_config(
                 .with_max_person_records(max_person_records),
         )
         .with_resources(resources)
-        .with_migration(migration)
+        .with_migration(migration);
+    evidence.map_or(config.clone(), |catalog| config.with_evidence(catalog))
 }
 
 fn prepare_landscape_resume_transaction(
@@ -416,6 +429,7 @@ fn verify_landscape_checkpoint_artifacts(
         )
         .into());
     }
+    verify_evidence_artifact(run_dir, checkpoint.experiment.evidence.as_ref())?;
 
     let stored_world: World = read_json(&run_dir.join("world.json"))?;
     stored_world.validate()?;
@@ -444,6 +458,34 @@ fn verify_landscape_checkpoint_artifacts(
             "metrics.json does not reconcile with the supplied landscape checkpoint",
         )
         .into());
+    }
+    Ok(())
+}
+
+fn verify_evidence_artifact(
+    run_dir: &Path,
+    expected: Option<&EvidenceCatalog>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let path = run_dir.join("evidence.json");
+    match expected {
+        Some(expected) => {
+            let actual: EvidenceCatalog = read_json(&path)?;
+            if actual != *expected {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "evidence.json does not reconcile with the supplied landscape checkpoint",
+                )
+                .into());
+            }
+        }
+        None if path.exists() => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "evidence.json is present but the supplied landscape checkpoint has no evidence catalogue",
+            )
+            .into());
+        }
+        None => {}
     }
     Ok(())
 }
@@ -482,6 +524,16 @@ fn write_resume_population(
     }
 }
 
+fn write_evidence_if_present(
+    directory: &Path,
+    evidence: Option<&EvidenceCatalog>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(evidence) = evidence {
+        write_json(&directory.join("evidence.json"), evidence)?;
+    }
+    Ok(())
+}
+
 fn write_completed_landscape_bundle(
     directory: &Path,
     landscape: &LandscapeBundle,
@@ -498,6 +550,7 @@ fn write_completed_landscape_bundle(
             initial_population,
         )?;
     }
+    write_evidence_if_present(directory, recorded.core_checkpoint().experiment.evidence.as_ref())?;
     write_json(&directory.join("manifest.json"), recorded.core_manifest())?;
     write_json(
         &directory.join("landscape-manifest.json"),
@@ -536,6 +589,7 @@ fn write_completed_spatial_bundle(
             initial_population,
         )?;
     }
+    write_evidence_if_present(directory, recorded.core_checkpoint().experiment.evidence.as_ref())?;
     write_json(&directory.join("manifest.json"), recorded.core_manifest())?;
     write_json(
         &directory.join("landscape-manifest.json"),
@@ -567,6 +621,10 @@ fn write_landscape_checkpoint_bundle(
     write_json(
         &directory.join("initial-population.json"),
         initial_population,
+    )?;
+    write_evidence_if_present(
+        directory,
+        checkpoint.core_checkpoint.experiment.evidence.as_ref(),
     )?;
     write_json(
         &directory.join("events.json"),
@@ -603,6 +661,10 @@ fn write_spatial_checkpoint_bundle(
         &directory.join("initial-population.json"),
         initial_population,
     )?;
+    write_evidence_if_present(
+        directory,
+        checkpoint.core_checkpoint.experiment.evidence.as_ref(),
+    )?;
     write_json(
         &directory.join("events.json"),
         &checkpoint.core_checkpoint.events,
@@ -637,4 +699,127 @@ fn write_json<T: serde::Serialize + ?Sized>(
     let json = serde_json::to_string_pretty(value)?;
     fs::write(path, format!("{json}\n"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use anthrosim_core::{
+        EvidenceRecord, EvidenceSource, ExternalInputEvidence, ParameterProvenance,
+    };
+
+    use super::*;
+
+    fn valid_evidence() -> EvidenceCatalog {
+        EvidenceCatalog::new(vec![EvidenceRecord {
+            schema_version: EvidenceRecord::CURRENT_SCHEMA_VERSION,
+            evidence_id: "terrain-assumption".to_owned(),
+            provenance: ParameterProvenance::EmpiricalDerived,
+            source: EvidenceSource {
+                source_id: "terrain-source".to_owned(),
+                citation: "Standalone evidence test".to_owned(),
+                persistent_id: None,
+                dataset_version: None,
+                licence: None,
+                spatial_coverage: None,
+                temporal_coverage: None,
+            },
+            original_variable: "terrain".to_owned(),
+            original_units: "permille".to_owned(),
+            transformation: None,
+            simulation_units: "permille".to_owned(),
+            uncertainty: None,
+            applicability: "test".to_owned(),
+            competing_estimates: Vec::new(),
+        }])
+        .with_external_inputs(vec![ExternalInputEvidence {
+            input_id: "terrain-input".to_owned(),
+            evidence_id: "terrain-assumption".to_owned(),
+            format: "test-grid".to_owned(),
+            spatial_reference: Some("EPSG:27700".to_owned()),
+            content_digest: None,
+        }])
+    }
+
+    fn evidence_landscape() -> LandscapeBundle {
+        LandscapeBundle::new(
+            1,
+            1,
+            GridGeometry {
+                origin_x: 0,
+                origin_y: 0,
+                cell_size_x: 100,
+                cell_size_y: 100,
+                coordinate_unit: "m".to_owned(),
+                spatial_reference: "EPSG:27700".to_owned(),
+            },
+            vec![LandscapeLayer {
+                layer_id: "terrain".to_owned(),
+                role: LandscapeLayerRole::TerrainTraversal,
+                unit: "permille".to_owned(),
+                value_domain: Some(LandscapeValueDomain { min: 0, max: 1_000 }),
+                evidence_input_id: Some("terrain-input".to_owned()),
+                values: vec![Some(500)],
+            }],
+        )
+    }
+
+    #[test]
+    fn standalone_spatial_run_accepts_valid_evidence_catalogue() {
+        let evidence = valid_evidence();
+        let landscape = evidence_landscape();
+        let mechanisms = SpatialMechanismConfig::new(
+            "standalone-evidence-test",
+            vec![SpatialFieldTransform::new(
+                SpatialTargetField::MovementCost,
+                "terrain",
+                "permille",
+                LandscapeValueDomain { min: 0, max: 1_000 },
+                1_000,
+                2_000,
+                TransformDirection::Direct,
+                NoDataPolicy::Reject,
+            )
+            .with_evidence_id("terrain-assumption")],
+        );
+        let config = experiment_config(
+            77,
+            0,
+            1,
+            1,
+            1,
+            1,
+            16,
+            1_000,
+            1_000,
+            100,
+            false,
+            1,
+            Some(evidence),
+        );
+
+        assert!(SpatialLandscapeSimulation::new(config, landscape, mechanisms).is_ok());
+    }
+
+    #[test]
+    fn standalone_spatial_run_rejects_evidence_links_without_catalogue() {
+        let landscape = evidence_landscape();
+        let mechanisms = SpatialMechanismConfig::new(
+            "standalone-missing-evidence-test",
+            vec![SpatialFieldTransform::new(
+                SpatialTargetField::MovementCost,
+                "terrain",
+                "permille",
+                LandscapeValueDomain { min: 0, max: 1_000 },
+                1_000,
+                2_000,
+                TransformDirection::Direct,
+                NoDataPolicy::Reject,
+            )],
+        );
+        let config = experiment_config(
+            78, 0, 1, 1, 1, 1, 16, 1_000, 1_000, 100, false, 1, None,
+        );
+
+        assert!(SpatialLandscapeSimulation::new(config, landscape, mechanisms).is_err());
+    }
 }
