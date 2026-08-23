@@ -23,7 +23,7 @@ fn generated_cases() -> Vec<GeneratedCase> {
             for population in [8, 17] {
                 for household_size in [1, 5] {
                     for (productivity_scale, seasonality_scale) in [(250, 0), (1_000, 1_000)] {
-                        for (migration_enabled, migration_radius) in [(false, 0), (true, 1)] {
+                        for (migration_enabled, migration_radius) in [(false, 1), (true, 1)] {
                             cases.push(GeneratedCase {
                                 seed,
                                 width,
