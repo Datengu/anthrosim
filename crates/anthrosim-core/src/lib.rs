@@ -20,6 +20,7 @@ pub mod provenance;
 pub mod resources;
 pub mod rng;
 pub mod simulation;
+pub mod spatial_mechanisms;
 pub mod time;
 pub mod world;
 
@@ -68,5 +69,10 @@ pub use resources::{
 };
 pub use rng::RngStreamPosition;
 pub use simulation::{RecordedRun, Simulation, SimulationError};
+pub use spatial_mechanisms::{
+    NoDataPolicy, SPATIAL_MODEL_SEMANTICS_ID, SpatialFieldTransform, SpatialMechanismConfig,
+    SpatialMechanismError, SpatialMechanismOverlay, SpatialTargetField, TransformDirection,
+    transform_landscape,
+};
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};
