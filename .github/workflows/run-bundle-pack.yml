@@ -1,19 +1,12 @@
 name: Run bundle pack
 
+# This integration gate intentionally runs on every pull request and main push.
+# Run-bundle validity is a cross-module contract: core schemas, run/resume writers,
+# landscape/spatial artifacts, evidence and observability can all affect packing.
 on:
   push:
     branches: [main]
-    paths:
-      - 'crates/anthrosim-cli/src/pack.rs'
-      - 'crates/anthrosim-cli/src/bin/anthrosim-pack.rs'
-      - 'docs/research/explorer-v0.1.md'
-      - '.github/workflows/run-bundle-pack.yml'
   pull_request:
-    paths:
-      - 'crates/anthrosim-cli/src/pack.rs'
-      - 'crates/anthrosim-cli/src/bin/anthrosim-pack.rs'
-      - 'docs/research/explorer-v0.1.md'
-      - '.github/workflows/run-bundle-pack.yml'
 
 permissions:
   contents: read
@@ -36,13 +29,14 @@ jobs:
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
-      - name: Build simulator and packer
-        run: cargo build --locked --release -p anthrosim-cli --bin anthrosim --bin anthrosim-pack
+      - name: Build simulator and packers
+        run: cargo build --locked --release -p anthrosim-cli --bin anthrosim --bin anthrosim-landscape --bin anthrosim-pack
 
-      - name: Generate completed and paused bundles
+      - name: Generate completed, paused and transformed-spatial bundles
         run: |
-          rm -rf /tmp/anthrosim-pack-completed /tmp/anthrosim-pack-paused
+          rm -rf /tmp/anthrosim-pack-completed /tmp/anthrosim-pack-paused /tmp/anthrosim-pack-spatial
           rm -f /tmp/anthrosim-pack-completed.zip /tmp/anthrosim-pack-second.zip
+          rm -f /tmp/anthrosim-pack-spatial.zip /tmp/anthrosim-pack-spatial-second.zip
           target/release/anthrosim run \
             --years 2 \
             --world-width 8 \
@@ -58,37 +52,66 @@ jobs:
             --seed 71 \
             --run-dir /tmp/anthrosim-pack-paused \
             --checkpoint-year 1
+          target/release/anthrosim-landscape run \
+            --landscape examples/landscape-loading/landscape.json \
+            --mechanisms examples/landscape-loading/spatial-mechanisms.json \
+            --years 1 \
+            --population 20 \
+            --max-person-records 1000 \
+            --seed 72 \
+            --run-dir /tmp/anthrosim-pack-spatial
           printf 'must not be archived\n' >/tmp/anthrosim-pack-completed/notes.txt
+          printf 'must not be archived\n' >/tmp/anthrosim-pack-spatial/notes.txt
 
-      - name: Pack twice and require deterministic bytes
+      - name: Pack core and spatial bundles twice and require deterministic bytes
         run: |
           target/release/anthrosim-pack /tmp/anthrosim-pack-completed
           target/release/anthrosim-pack /tmp/anthrosim-pack-completed \
             --output /tmp/anthrosim-pack-second.zip
           cmp /tmp/anthrosim-pack-completed.zip /tmp/anthrosim-pack-second.zip
 
-      - name: Validate with Python standard ZIP reader
+          target/release/anthrosim-pack /tmp/anthrosim-pack-spatial
+          target/release/anthrosim-pack /tmp/anthrosim-pack-spatial \
+            --output /tmp/anthrosim-pack-spatial-second.zip
+          cmp /tmp/anthrosim-pack-spatial.zip /tmp/anthrosim-pack-spatial-second.zip
+
+      - name: Validate archives with Python standard ZIP reader
         run: |
           python3 - <<'PY'
           import json
           import zipfile
           from pathlib import Path
 
-          archive = Path('/tmp/anthrosim-pack-completed.zip')
-          expected = [
-              'checkpoint.json',
-              'events.json',
-              'initial-population.json',
-              'manifest.json',
-              'metrics.json',
-              'world.json',
-          ]
-          with zipfile.ZipFile(archive) as packed:
-              assert packed.testzip() is None
-              assert packed.namelist() == expected
-              assert 'notes.txt' not in packed.namelist()
-              for name in expected:
-                  json.loads(packed.read(name))
+          archives = {
+              Path('/tmp/anthrosim-pack-completed.zip'): [
+                  'checkpoint.json',
+                  'events.json',
+                  'initial-population.json',
+                  'manifest.json',
+                  'metrics.json',
+                  'world.json',
+              ],
+              Path('/tmp/anthrosim-pack-spatial.zip'): [
+                  'checkpoint.json',
+                  'events.json',
+                  'initial-population.json',
+                  'landscape-checkpoint.json',
+                  'landscape-manifest.json',
+                  'landscape.json',
+                  'manifest.json',
+                  'metrics.json',
+                  'spatial-mechanisms.json',
+                  'world.json',
+              ],
+          }
+
+          for archive, expected in archives.items():
+              with zipfile.ZipFile(archive) as packed:
+                  assert packed.testzip() is None
+                  assert packed.namelist() == expected
+                  assert 'notes.txt' not in packed.namelist()
+                  for name in expected:
+                      json.loads(packed.read(name))
           PY
 
       - name: Reject paused bundle
