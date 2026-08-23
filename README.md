@@ -71,6 +71,8 @@ No historical destination, route, settlement, tribe or migration outcome is scri
 
 AnthroSim uses the Rust toolchain pinned in `rust-toolchain.toml`. The CLI package contains multiple binaries, so local `cargo run` commands should explicitly select the main `anthrosim` binary.
 
+Builds made inside a Git checkout automatically capture source provenance; no manual environment variable is required. A clean tracked tree records the exact commit SHA in `gitCommit`. A staged or unstaged tracked modification records `<sha>-dirty` and emits a build warning. Outside a Git checkout AnthroSim does not invent a revision and records `gitCommit: null`. Controlled build environments may still supply `ANTHROSIM_GIT_COMMIT` explicitly. See [`docs/source-provenance.md`](docs/source-provenance.md).
+
 From the repository root, a small headless run can be executed with:
 
 ```text
@@ -191,17 +193,17 @@ The CSV files are intentionally ordinary rectangular tables with no special Rust
 
 ## Reproducing the v0.1 reference experiment
 
-The canonical source definition is [`experiments/v0.1-resource-variability.json`](experiments/v0.1-resource-variability.json). Build with an explicit source revision and launch it through the ordinary sweep path:
+The canonical source definition is [`experiments/v0.1-resource-variability.json`](experiments/v0.1-resource-variability.json). Build normally from a clean Git checkout; the source revision is captured automatically:
 
 ```text
-ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)" cargo build --locked --workspace --release
+cargo build --locked --workspace --release
 python3 scripts/run-versioned-sweep.py \
   experiments/v0.1-resource-variability.json \
   --binary target/release/anthrosim \
   --run-dir runs/v0.1-resource-variability
 ```
 
-The launcher copies the exact definition, records its SHA-256, verifies the immutable sweep manifest against the requested seeds/settings/dimensions, and writes a reproduction record containing the model and source identity. The full contract and Windows/PowerShell equivalent are in [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md).
+The launcher copies the exact definition, records its SHA-256, verifies the immutable sweep manifest against the requested seeds/settings/dimensions, and writes a reproduction record containing the model and source identity. It refuses a missing source identity or an automatically detected `-dirty` tracked tree. Controlled build systems can still provide `ANTHROSIM_GIT_COMMIT` explicitly. The full contract and Windows/PowerShell equivalent are in [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md), with the build-time source policy in [`docs/source-provenance.md`](docs/source-provenance.md).
 
 See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the M7 provenance/retry/sweep contract, [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md) for the synthetic reference experiment, [`docs/research/spatial-mechanisms-v1.md`](docs/research/spatial-mechanisms-v1.md) for M8 transformation semantics, [`docs/research/spatial-observability-v1.md`](docs/research/spatial-observability-v1.md) for M8 observability, and [`docs/roadmap.md`](docs/roadmap.md) for the question-led development direction after M8.
 
