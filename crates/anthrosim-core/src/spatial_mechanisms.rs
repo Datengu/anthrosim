@@ -435,7 +435,9 @@ pub enum SpatialMechanismError {
     EmptyExpectedUnit { layer_id: String },
     #[error("spatial mechanism source layer {layer_id} has an empty evidence identifier")]
     EmptyEvidenceId { layer_id: String },
-    #[error("spatial transform references evidence {evidence_id}, but experiment has no evidence catalogue")]
+    #[error(
+        "spatial transform references evidence {evidence_id}, but experiment has no evidence catalogue"
+    )]
     MissingEvidenceCatalog { evidence_id: String },
     #[error("spatial transform references unknown evidence record {evidence_id}")]
     UnknownEvidenceReference { evidence_id: String },
