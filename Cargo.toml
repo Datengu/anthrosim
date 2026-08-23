@@ -11,6 +11,7 @@ edition = "2024"
 rust-version = "1.97.1"
 authors = ["AnthroSim contributors"]
 repository = "https://github.com/Datengu/anthrosim"
+license = "Apache-2.0"
 
 [workspace.dependencies]
 clap = { version = "4.6.6", features = ["derive"] }
