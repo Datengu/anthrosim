@@ -158,8 +158,7 @@ impl World {
             }
             if let Some(values) = base_productivity {
                 cell.base_productivity = values[index];
-                cell.food_stock =
-                    u32::from(cell.base_productivity) * INITIAL_FOOD_STOCK_MULTIPLIER;
+                cell.food_stock = u32::from(cell.base_productivity) * INITIAL_FOOD_STOCK_MULTIPLIER;
             }
         }
 
@@ -565,7 +564,10 @@ mod tests {
         assert_eq!(transformed.cells()[1].base_productivity, 750);
         assert_eq!(transformed.cells()[0].food_stock, 2_500);
         assert_eq!(transformed.cells()[1].food_stock, 7_500);
-        assert_eq!(baseline.cells()[0].elevation, transformed.cells()[0].elevation);
+        assert_eq!(
+            baseline.cells()[0].elevation,
+            transformed.cells()[0].elevation
+        );
         assert_eq!(
             baseline.cells()[0].season_amplitude,
             transformed.cells()[0].season_amplitude
