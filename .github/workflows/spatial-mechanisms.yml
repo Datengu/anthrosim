@@ -50,6 +50,69 @@ jobs:
           retention-days: 7
           path: spatial-cross-platform-golden.json
 
+  spatial-m7-sweep:
+    name: Spatial M7 sweep integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run transformed parameter sweep through M7
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim -- sweep --seeds 8501,8502 --years 1 --world-width 2 --world-height 2 --population 20 --max-person-records 1000 --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --sweep-annual-food-need 80,100 --run-dir spatial-sweep
+
+      - name: Retry exact transformed sweep
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim -- sweep --seeds 8501,8502 --years 1 --world-width 2 --world-height 2 --population 20 --max-person-records 1000 --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --sweep-annual-food-need 80,100 --run-dir spatial-sweep --retry
+
+      - name: Validate M7 spatial provenance and analysis
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('spatial-sweep')
+          sweep_text = (root / 'sweep-manifest.json').read_text()
+          if 'runtimeLandscapePath' in sweep_text or 'examples/landscape-loading/landscape.json' in sweep_text:
+              raise SystemExit('runtime filesystem path leaked into immutable sweep identity')
+
+          runs = json.loads((root / 'analysis/runs.json').read_text())
+          points = json.loads((root / 'analysis/points.json').read_text())
+          if len(runs) != 4 or any(row['state'] != 'completed' for row in runs):
+              raise SystemExit(f'unexpected M7 spatial run analysis: {runs}')
+          if len(points) != 2 or any(row['completedRuns'] != 2 for row in points):
+              raise SystemExit(f'unexpected M7 spatial point analysis: {points}')
+
+          experiments = sorted((root / 'experiments').glob('point-*'))
+          if len(experiments) != 2:
+              raise SystemExit(f'expected two spatial sweep points, found {experiments}')
+          for experiment in experiments:
+              manifest = json.loads((experiment / 'experiment-manifest.json').read_text())
+              if manifest['schemaVersion'] != 2:
+                  raise SystemExit(f'spatial experiment did not use schema v2: {experiment}')
+              if not (experiment / 'landscape.json').is_file():
+                  raise SystemExit(f'missing preserved landscape: {experiment}')
+              if not (experiment / 'spatial-mechanisms.json').is_file():
+                  raise SystemExit(f'missing preserved mechanisms: {experiment}')
+              run_dirs = sorted((experiment / 'runs').glob('seed-*'))
+              if len(run_dirs) != 2:
+                  raise SystemExit(f'expected two runs in {experiment}, found {run_dirs}')
+              for run_dir in run_dirs:
+                  for artifact in ('landscape-manifest.json', 'landscape-checkpoint.json', 'spatial-mechanisms.json'):
+                      if not (run_dir / artifact).is_file():
+                          raise SystemExit(f'missing {artifact} in {run_dir}')
+
+          print('M8.4 transformed landscapes execute and retry through M7 sweep machinery.')
+          PY
+
   compare-spatial-golden:
     name: Compare transformed landscape golden runs
     needs: spatial-golden
