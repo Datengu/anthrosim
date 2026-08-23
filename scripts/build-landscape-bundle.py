@@ -53,12 +53,15 @@ def require_positive_int(value: Any, field: str) -> int:
     return value
 
 
-def resolve_input(recipe_dir: Path, raw_path: Any, field: str) -> Path:
-    text = require_nonempty(raw_path, field)
-    path = (recipe_dir / text).resolve()
+def resolve_input(recipe_dir: Path, raw_path: Any, field: str) -> tuple[Path, str]:
+    declared = require_nonempty(raw_path, field)
+    raw = Path(declared)
+    path = raw.resolve() if raw.is_absolute() else (recipe_dir / raw).resolve()
     if not path.is_file():
-        raise RecipeError(f"{field} does not exist: {text}")
-    return path
+        raise RecipeError(f"{field} does not exist: {declared}")
+    # Preserve only the recipe-declared locator in the reproduction record.
+    # Do not leak the machine-specific resolved path of private/external data.
+    return path, declared.replace("\\", "/")
 
 
 def load_grid(path: Path, width: int, height: int, nodata_token: str) -> list[int | None]:
@@ -163,11 +166,13 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         if source_id in source_ids:
             raise RecipeError(f"duplicate sourceId: {source_id}")
         source_ids.add(source_id)
-        source_path = resolve_input(recipe_dir, source.get("path"), f"sources[{index}].path")
+        source_path, source_locator = resolve_input(
+            recipe_dir, source.get("path"), f"sources[{index}].path"
+        )
         source_records.append(
             {
                 "sourceId": source_id,
-                "path": str(source_path.relative_to(recipe_dir)),
+                "path": source_locator,
                 "sha256": sha256(source_path),
                 "citation": require_nonempty(source.get("citation"), f"sources[{index}].citation"),
                 "datasetVersion": source.get("datasetVersion"),
@@ -192,7 +197,9 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         if role not in ALLOWED_ROLES:
             raise RecipeError(f"layers[{index}].role is unsupported: {role}")
         unit = require_nonempty(layer.get("unit"), f"layers[{index}].unit")
-        grid_path = resolve_input(recipe_dir, layer.get("path"), f"layers[{index}].path")
+        grid_path, grid_locator = resolve_input(
+            recipe_dir, layer.get("path"), f"layers[{index}].path"
+        )
         nodata_token = str(layer.get("nodataToken", "NA"))
         values = load_grid(grid_path, width, height, nodata_token)
 
@@ -229,7 +236,7 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         layer_inputs.append(
             {
                 "layerId": layer_id,
-                "path": str(grid_path.relative_to(recipe_dir)),
+                "path": grid_locator,
                 "sha256": sha256(grid_path),
                 "nodataToken": nodata_token,
             }
