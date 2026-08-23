@@ -21,6 +21,7 @@ pub mod resources;
 pub mod rng;
 pub mod simulation;
 pub mod spatial_mechanisms;
+pub mod spatial_simulation;
 pub mod time;
 pub mod world;
 
@@ -73,6 +74,11 @@ pub use spatial_mechanisms::{
     NoDataPolicy, SPATIAL_MODEL_SEMANTICS_ID, SpatialFieldTransform, SpatialMechanismConfig,
     SpatialMechanismError, SpatialMechanismOverlay, SpatialTargetField, TransformDirection,
     transform_landscape,
+};
+pub use spatial_simulation::{
+    SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
+    SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
+    validate_spatial_landscape_recorded_run,
 };
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};
