@@ -7,7 +7,7 @@ use std::{
 };
 
 use anthrosim_core::{
-    EvidenceCatalog, EventLog, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
+    EventLog, EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
     LandscapeRunManifest, MetricSeries, Population, RecordedRun, RunManifest, SimulationCheckpoint,
     SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest,
     SpatialMechanismBinding, SpatialMechanismConfig, SpatialObservabilityReport, World,
@@ -165,7 +165,9 @@ fn validate_semantics(
     for name in population_names {
         let population: Population = read_json(&run_dir.join(name))?;
         population.validate(&world).map_err(|error| {
-            invalid(format!("{name} failed validation against world.json: {error}"))
+            invalid(format!(
+                "{name} failed validation against world.json: {error}"
+            ))
         })?;
         if *name == "initial-population.json" {
             initial_population = Some(population);
@@ -379,18 +381,13 @@ fn validate_optional_spatial_observability(
     }
 
     if let Some(initial_population) = initial_population {
-        let regenerated = derive_spatial_observability(
-            landscape,
-            world,
-            initial_population,
-            checkpoint,
-            spatial,
-        )
-        .map_err(|error| {
-            invalid(format!(
-                "spatial-observability.json could not be regenerated: {error}"
-            ))
-        })?;
+        let regenerated =
+            derive_spatial_observability(landscape, world, initial_population, checkpoint, spatial)
+                .map_err(|error| {
+                    invalid(format!(
+                        "spatial-observability.json could not be regenerated: {error}"
+                    ))
+                })?;
         if regenerated != report {
             return Err(invalid(
                 "spatial-observability.json does not match deterministic regeneration",
@@ -412,11 +409,14 @@ fn require_regular_file(run_dir: &Path, name: &str) -> Result<(), BundleValidati
 }
 
 fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, BundleValidationError> {
-    let file = File::open(path).map_err(|error| {
-        invalid(format!("unable to read {}: {error}", path.display()))
-    })?;
-    serde_json::from_reader(BufReader::new(file))
-        .map_err(|error| invalid(format!("invalid AnthroSim JSON in {}: {error}", path.display())))
+    let file = File::open(path)
+        .map_err(|error| invalid(format!("unable to read {}: {error}", path.display())))?;
+    serde_json::from_reader(BufReader::new(file)).map_err(|error| {
+        invalid(format!(
+            "invalid AnthroSim JSON in {}: {error}",
+            path.display()
+        ))
+    })
 }
 
 fn from_value<T: DeserializeOwned>(
