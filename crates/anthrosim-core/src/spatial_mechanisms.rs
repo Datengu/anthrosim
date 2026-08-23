@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::{
     LandscapeBundle, LandscapeError, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
+    evidence::EvidenceCatalog,
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX},
 };
 
@@ -54,6 +55,42 @@ impl SpatialMechanismConfig {
             transform.validate()?;
             if !targets.insert(transform.target) {
                 return Err(SpatialMechanismError::DuplicateTarget(transform.target));
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate optional transformation-assumption evidence links against the experiment catalogue.
+    ///
+    /// A transform with no `evidenceId` remains valid for synthetic/null-model exploration. Once a
+    /// link is declared it is strict: the experiment must carry a valid `EvidenceCatalog` containing
+    /// that exact record identifier.
+    pub fn validate_evidence_links(
+        &self,
+        catalog: Option<&EvidenceCatalog>,
+    ) -> Result<(), SpatialMechanismError> {
+        self.validate()?;
+        if let Some(catalog) = catalog {
+            catalog.validate()?;
+        }
+        for transform in &self.transforms {
+            let Some(evidence_id) = transform.evidence_id.as_deref() else {
+                continue;
+            };
+            let evidence_id = evidence_id.trim();
+            let Some(catalog) = catalog else {
+                return Err(SpatialMechanismError::MissingEvidenceCatalog {
+                    evidence_id: evidence_id.to_owned(),
+                });
+            };
+            if !catalog
+                .records
+                .iter()
+                .any(|record| record.evidence_id == evidence_id)
+            {
+                return Err(SpatialMechanismError::UnknownEvidenceReference {
+                    evidence_id: evidence_id.to_owned(),
+                });
             }
         }
         Ok(())
@@ -121,6 +158,9 @@ pub struct SpatialFieldTransform {
     pub target_max: u16,
     pub direction: TransformDirection,
     pub nodata: NoDataPolicy,
+    /// Optional evidence record supporting the scientific assumption represented by this mapping.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_id: Option<String>,
 }
 
 impl SpatialFieldTransform {
@@ -145,7 +185,14 @@ impl SpatialFieldTransform {
             target_max,
             direction,
             nodata,
+            evidence_id: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_evidence_id(mut self, evidence_id: impl Into<String>) -> Self {
+        self.evidence_id = Some(evidence_id.into());
+        self
     }
 
     fn validate(&self) -> Result<(), SpatialMechanismError> {
@@ -154,6 +201,15 @@ impl SpatialFieldTransform {
         }
         if self.expected_unit.trim().is_empty() {
             return Err(SpatialMechanismError::EmptyExpectedUnit {
+                layer_id: self.source_layer_id.clone(),
+            });
+        }
+        if self
+            .evidence_id
+            .as_ref()
+            .is_some_and(|evidence_id| evidence_id.trim().is_empty())
+        {
+            return Err(SpatialMechanismError::EmptyEvidenceId {
                 layer_id: self.source_layer_id.clone(),
             });
         }
@@ -221,6 +277,13 @@ impl SpatialFieldTransform {
             NoDataPolicy::Constant { value } => {
                 digest.write_u8(1);
                 digest.write_i32(value);
+            }
+        }
+        match &self.evidence_id {
+            None => digest.write_u8(0),
+            Some(evidence_id) => {
+                digest.write_u8(1);
+                digest.write_str(evidence_id);
             }
         }
     }
@@ -358,6 +421,8 @@ fn linear_map(value: i32, transform: &SpatialFieldTransform) -> Result<u16, Spat
 pub enum SpatialMechanismError {
     #[error(transparent)]
     Landscape(#[from] LandscapeError),
+    #[error(transparent)]
+    Evidence(#[from] crate::EvidenceError),
     #[error("spatial mechanism schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
     #[error("spatial mechanism model identifier is empty")]
@@ -368,6 +433,12 @@ pub enum SpatialMechanismError {
     EmptyLayerId,
     #[error("spatial mechanism source layer {layer_id} has an empty expected unit")]
     EmptyExpectedUnit { layer_id: String },
+    #[error("spatial mechanism source layer {layer_id} has an empty evidence identifier")]
+    EmptyEvidenceId { layer_id: String },
+    #[error("spatial transform references evidence {evidence_id}, but experiment has no evidence catalogue")]
+    MissingEvidenceCatalog { evidence_id: String },
+    #[error("spatial transform references unknown evidence record {evidence_id}")]
+    UnknownEvidenceReference { evidence_id: String },
     #[error("spatial mechanism source layer {layer_id} has an invalid source domain")]
     InvalidSourceDomain { layer_id: String },
     #[error("spatial target {target:?} has invalid target domain {min}..={max}")]
