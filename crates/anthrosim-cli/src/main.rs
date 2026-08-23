@@ -1,18 +1,25 @@
 use std::{
-    fs,
+    fs, io,
     path::{Path, PathBuf},
     process::ExitCode,
 };
 
-use anthrosim_core::{Population, RecordedRun, Simulation, SimulationCheckpoint, World};
+use anthrosim_core::{
+    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint, World,
+};
 use clap::{Parser, Subcommand};
 
+mod bundle;
 mod ensemble;
+mod run_directory;
 mod sweep;
 
 use ensemble::{
     EnsembleRunSettings, execute_ensemble, experiment_config, load_spatial_run_settings,
     resolve_ensemble_seeds,
+};
+use run_directory::{
+    RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory,
 };
 use sweep::{SweepDimensions, execute_sweep};
 
@@ -371,13 +378,16 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some(target_year) = checkpoint_year {
                 let directory = run_dir.expect("clap requires run-dir with checkpoint-year");
-                write_json(&directory.join("world.json"), simulation.world())?;
+                let transaction = RunDirectoryTransaction::fresh(&directory)?;
+                let staging = transaction.staging_dir();
+                write_json(&staging.join("world.json"), simulation.world())?;
                 write_json(
-                    &directory.join("initial-population.json"),
+                    &staging.join("initial-population.json"),
                     simulation.population(),
                 )?;
                 let checkpoint = simulation.checkpoint_at_year(target_year)?;
-                write_checkpoint_bundle(&directory, &checkpoint)?;
+                write_checkpoint_bundle(staging, &checkpoint)?;
+                transaction.commit()?;
                 println!(
                     "wrote checkpoint at year {target_year} to {}",
                     directory.display()
@@ -386,10 +396,18 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if let Some(directory) = run_dir {
+                let transaction = RunDirectoryTransaction::fresh(&directory)?;
                 let world = simulation.world().clone();
                 let initial_population = simulation.population().clone();
                 let recorded = simulation.run_recorded()?;
-                write_completed_bundle(&directory, &world, &initial_population, &recorded)?;
+                write_completed_bundle(
+                    transaction.staging_dir(),
+                    &world,
+                    &initial_population,
+                    &recorded,
+                )?;
+                bundle::validated_bundle_files(transaction.staging_dir())?;
+                transaction.commit()?;
                 if let Some(path) = output {
                     write_json(&path, &recorded.manifest)?;
                     println!("wrote manifest {}", path.display());
@@ -520,22 +538,32 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             run_dir,
             output,
         } => {
-            let checkpoint: SimulationCheckpoint = read_json(&checkpoint)?;
-            let simulation = Simulation::from_checkpoint(checkpoint)?;
+            let checkpoint_path = checkpoint;
+            let checkpoint: SimulationCheckpoint = read_json(&checkpoint_path)?;
+            let simulation = Simulation::from_checkpoint(checkpoint.clone())?;
             let world = simulation.world().clone();
             let resume_population = simulation.population().clone();
+            let (transaction, preserved_population) = prepare_core_resume_transaction(
+                &checkpoint_path,
+                &run_dir,
+                &checkpoint,
+                &world,
+            )?;
             let recorded = simulation.run_recorded()?;
+            let staging = transaction.staging_dir();
 
-            fs::create_dir_all(&run_dir)?;
-            write_json(&run_dir.join("world.json"), &world)?;
-            let initial_path = run_dir.join("initial-population.json");
-            if !initial_path.exists() {
+            write_json(&staging.join("world.json"), &world)?;
+            if let Some((name, population)) = preserved_population {
+                write_json(&staging.join(name), &population)?;
+            } else {
                 write_json(
-                    &run_dir.join("resume-start-population.json"),
+                    &staging.join("resume-start-population.json"),
                     &resume_population,
                 )?;
             }
-            write_recorded_outputs(&run_dir, &recorded)?;
+            write_recorded_outputs(staging, &recorded)?;
+            bundle::validated_bundle_files(staging)?;
+            transaction.commit()?;
             if let Some(path) = output {
                 write_json(&path, &recorded.manifest)?;
                 println!("wrote manifest {}", path.display());
@@ -547,13 +575,115 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn prepare_core_resume_transaction(
+    checkpoint_path: &Path,
+    run_dir: &Path,
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>> {
+    if !target_is_nonempty_directory(run_dir)? {
+        return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
+    }
+
+    if run_dir.join("landscape-checkpoint.json").exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "core resume cannot replace a landscape-bound run directory; use anthrosim-landscape resume",
+        )
+        .into());
+    }
+
+    let stored_checkpoint_path = run_dir.join("checkpoint.json");
+    if !stored_checkpoint_path.is_file()
+        || !same_existing_path(checkpoint_path, &stored_checkpoint_path)?
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "non-empty resume target {} may only be replaced in-place using its own checkpoint.json",
+                run_dir.display()
+            ),
+        )
+        .into());
+    }
+
+    let stored_checkpoint: SimulationCheckpoint = read_json(&stored_checkpoint_path)?;
+    if stored_checkpoint != *checkpoint {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stored checkpoint.json does not match the supplied checkpoint",
+        )
+        .into());
+    }
+    verify_core_checkpoint_artifacts(run_dir, checkpoint, world)?;
+    let preserved_population = preserved_population_artifact(run_dir, world)?;
+    Ok((
+        RunDirectoryTransaction::replace_verified(run_dir)?,
+        Some(preserved_population),
+    ))
+}
+
+fn verify_core_checkpoint_artifacts(
+    run_dir: &Path,
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let stored_world: World = read_json(&run_dir.join("world.json"))?;
+    stored_world.validate()?;
+    if stored_world.digest64() != world.digest64()
+        || stored_world.digest64() != checkpoint.world_digest64
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "world.json does not reconcile with the supplied checkpoint",
+        )
+        .into());
+    }
+
+    let stored_events: EventLog = read_json(&run_dir.join("events.json"))?;
+    if stored_events != checkpoint.events {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "events.json does not reconcile with the supplied checkpoint",
+        )
+        .into());
+    }
+    let stored_metrics: MetricSeries = read_json(&run_dir.join("metrics.json"))?;
+    if stored_metrics != checkpoint.metrics {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "metrics.json does not reconcile with the supplied checkpoint",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn preserved_population_artifact(
+    run_dir: &Path,
+    world: &World,
+) -> Result<(&'static str, Population), Box<dyn std::error::Error>> {
+    for name in ["initial-population.json", "resume-start-population.json"] {
+        let path = run_dir.join(name);
+        if path.is_file() {
+            let population: Population = read_json(&path)?;
+            population.validate(world)?;
+            return Ok((name, population));
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "in-place resume source has no preserved population snapshot",
+    )
+    .into())
+}
+
 fn write_completed_bundle(
     directory: &Path,
     world: &World,
     initial_population: &Population,
     recorded: &RecordedRun,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(directory)?;
     write_json(&directory.join("world.json"), world)?;
     write_json(
         &directory.join("initial-population.json"),
@@ -577,7 +707,6 @@ fn write_checkpoint_bundle(
     directory: &Path,
     checkpoint: &SimulationCheckpoint,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(directory)?;
     write_json(&directory.join("events.json"), &checkpoint.events)?;
     write_json(&directory.join("metrics.json"), &checkpoint.metrics)?;
     write_json(&directory.join("checkpoint.json"), checkpoint)?;
