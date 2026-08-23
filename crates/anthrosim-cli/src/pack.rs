@@ -39,7 +39,6 @@ const CRC32_TABLE: [u32; 256] = crc32_table();
 #[derive(Debug)]
 struct ArchiveEntry {
     name: String,
-    path: PathBuf,
     crc32: u32,
     size: u32,
     local_header_offset: u32,
@@ -71,8 +70,7 @@ pub fn pack_completed_run(
         fs::remove_file(&temp)?;
     }
 
-    let result = write_zip(&temp, &files);
-    if let Err(error) = result {
+    if let Err(error) = write_zip(&temp, &files) {
         let _ = fs::remove_file(&temp);
         return Err(error.into());
     }
@@ -222,11 +220,16 @@ fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
         output.write_all(name_bytes)?;
 
         let mut source = BufReader::new(File::open(source_path)?);
-        io::copy(&mut source, &mut output)?;
+        let copied = io::copy(&mut source, &mut output)?;
+        if copied != u64::from(size) {
+            return Err(invalid_input(format!(
+                "artifact changed while packing: {}",
+                source_path.display()
+            )));
+        }
 
         entries.push(ArchiveEntry {
             name: name.clone(),
-            path: source_path.clone(),
             crc32,
             size,
             local_header_offset,
@@ -278,10 +281,6 @@ fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
     write_u32(&mut output, central_offset)?;
     write_u16(&mut output, 0)?;
     output.flush()?;
-
-    for entry in entries {
-        debug_assert!(entry.path.is_file());
-    }
     Ok(())
 }
 
@@ -357,7 +356,7 @@ mod tests {
     fn pack_is_deterministic_and_excludes_unrelated_files() {
         let root = test_dir("deterministic");
         write_minimal_completed_bundle(&root);
-        fs::write(root.join("spatial-observability.json"), "{}\n").unwrap();
+        fs::write(root.join("completion.json"), "{}\n").unwrap();
         fs::write(root.join("notes.txt"), "do not share\n").unwrap();
 
         let first = root.with_extension("first.zip");
@@ -371,11 +370,11 @@ mod tests {
             names,
             BTreeSet::from([
                 "checkpoint.json".to_string(),
+                "completion.json".to_string(),
                 "events.json".to_string(),
                 "initial-population.json".to_string(),
                 "manifest.json".to_string(),
                 "metrics.json".to_string(),
-                "spatial-observability.json".to_string(),
                 "world.json".to_string(),
             ])
         );
