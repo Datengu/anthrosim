@@ -1,7 +1,7 @@
 use std::{
     error::Error,
     fmt,
-    fs::{self, File},
+    fs::File,
     io::BufReader,
     path::{Path, PathBuf},
 };
@@ -433,7 +433,10 @@ fn invalid(message: impl Into<String>) -> BundleValidationError {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::{
+        fs,
+        sync::atomic::{AtomicU64, Ordering},
+    };
 
     use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
 
