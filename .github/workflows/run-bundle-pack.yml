@@ -1,0 +1,101 @@
+name: Run bundle pack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/anthrosim-cli/src/pack.rs'
+      - 'crates/anthrosim-cli/src/bin/anthrosim-pack.rs'
+      - 'docs/research/explorer-v0.1.md'
+      - '.github/workflows/run-bundle-pack.yml'
+  pull_request:
+    paths:
+      - 'crates/anthrosim-cli/src/pack.rs'
+      - 'crates/anthrosim-cli/src/bin/anthrosim-pack.rs'
+      - 'docs/research/explorer-v0.1.md'
+      - '.github/workflows/run-bundle-pack.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    name: Deterministic completed-run ZIP
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build simulator and packer
+        run: cargo build --locked --release -p anthrosim-cli --bin anthrosim --bin anthrosim-pack
+
+      - name: Generate completed and paused bundles
+        run: |
+          rm -rf /tmp/anthrosim-pack-completed /tmp/anthrosim-pack-paused
+          rm -f /tmp/anthrosim-pack-completed.zip /tmp/anthrosim-pack-second.zip
+          target/release/anthrosim run \
+            --years 2 \
+            --world-width 8 \
+            --world-height 8 \
+            --population 100 \
+            --seed 71 \
+            --run-dir /tmp/anthrosim-pack-completed
+          target/release/anthrosim run \
+            --years 2 \
+            --world-width 8 \
+            --world-height 8 \
+            --population 100 \
+            --seed 71 \
+            --run-dir /tmp/anthrosim-pack-paused \
+            --checkpoint-year 1
+          printf 'must not be archived\n' >/tmp/anthrosim-pack-completed/notes.txt
+
+      - name: Pack twice and require deterministic bytes
+        run: |
+          target/release/anthrosim-pack /tmp/anthrosim-pack-completed
+          target/release/anthrosim-pack /tmp/anthrosim-pack-completed \
+            --output /tmp/anthrosim-pack-second.zip
+          cmp /tmp/anthrosim-pack-completed.zip /tmp/anthrosim-pack-second.zip
+
+      - name: Validate with Python standard ZIP reader
+        run: |
+          python3 - <<'PY'
+          import json
+          import zipfile
+          from pathlib import Path
+
+          archive = Path('/tmp/anthrosim-pack-completed.zip')
+          expected = [
+              'checkpoint.json',
+              'events.json',
+              'initial-population.json',
+              'manifest.json',
+              'metrics.json',
+              'world.json',
+          ]
+          with zipfile.ZipFile(archive) as packed:
+              assert packed.testzip() is None
+              assert packed.namelist() == expected
+              assert 'notes.txt' not in packed.namelist()
+              for name in expected:
+                  json.loads(packed.read(name))
+          PY
+
+      - name: Reject paused bundle
+        run: |
+          if target/release/anthrosim-pack /tmp/anthrosim-pack-paused >/tmp/paused-pack.log 2>&1; then
+            cat /tmp/paused-pack.log
+            echo 'paused bundle unexpectedly packed successfully' >&2
+            exit 1
+          fi
+          grep -q 'manifest.json' /tmp/paused-pack.log
