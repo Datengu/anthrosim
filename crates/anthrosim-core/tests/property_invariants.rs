@@ -150,7 +150,10 @@ fn generated_checkpoint_resume_matches_uninterrupted_execution() {
             "generated checkpoint/resume state mismatch: {case:?}"
         );
 
-        assert_eq!(resumed.manifest.resume_lineage, resumed.checkpoint.resume_lineage);
+        assert_eq!(
+            resumed.manifest.resume_lineage,
+            resumed.checkpoint.resume_lineage
+        );
         let boundaries = &resumed.manifest.resume_lineage.boundaries;
         assert_eq!(
             boundaries.len(),
