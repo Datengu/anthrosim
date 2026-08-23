@@ -154,6 +154,35 @@ For M8.4 bundles, `spatial-mechanisms.json` is preserved alongside `landscape.js
 
 `resume` auto-detects whether the wrapper contains a spatial binding. No mechanism path is accepted on resume because the exact transformation is already part of the checkpoint contract.
 
+## M7 ensemble and sweep integration
+
+M8.4 spatial execution is also available through the ordinary M7 experiment machinery:
+
+```text
+anthrosim ensemble \
+  --landscape landscape.json \
+  --mechanisms spatial-mechanisms.json \
+  ...
+
+anthrosim sweep \
+  --landscape landscape.json \
+  --mechanisms spatial-mechanisms.json \
+  --sweep-annual-food-need 80,100 \
+  ...
+```
+
+The filesystem paths are runtime locators only. They are deliberately excluded from experiment and sweep identity. The immutable scientific identity contains instead:
+
+- the exact `LandscapeBinding` derived from landscape content;
+- `SPATIAL_MODEL_SEMANTICS_ID`;
+- the full `SpatialMechanismConfig`.
+
+A spatial ensemble uses experiment-manifest schema v2, while unchanged synthetic ensembles retain the existing schema-v1 serialized form. This prevents an older reader from silently treating a spatial experiment as an ordinary synthetic experiment while preserving the identity of existing synthetic experiment definitions.
+
+A fresh spatial experiment preserves `landscape.json` and `spatial-mechanisms.json` at the experiment root as well as inside completed run bundles. Retry validates the immutable definition and exact preserved landscape before retaining or rerunning child runs. Runtime machine paths therefore do not need to remain stable across machines.
+
+A spatial sweep carries one immutable landscape/mechanism binding through all of its M7 parameter points. Ordinary M7 dimensions such as population, resource scale, annual need and migration settings can still vary. Competing spatial transformation models should normally be represented as separate declared sweep/experiment definitions rather than hiding multiple scientific models behind path-valued sweep parameters.
+
 ## Validation boundary
 
 M8.4 verifies engineering and model-direction properties such as:
@@ -164,9 +193,11 @@ M8.4 verifies engineering and model-direction properties such as:
 - deterministic transformed `World` fields;
 - productivity affecting M3 initial resource state through the existing resource path;
 - movement cost and water accessibility entering the existing M4 migration utility through the authoritative transformed `World`;
+- controlled migration traces selecting higher water security when water is the isolated positive utility and lower travel penalty when transformed terrain cost is the isolated differentiator;
 - same input producing identical output;
 - checkpoint/resume matching uninterrupted execution;
 - transformation parameters changing spatial identity and authoritative world digest;
+- transformed execution and exact retry through M7 ensemble/sweep machinery;
 - cross-platform byte-identical canonical transformed outputs.
 
 These checks demonstrate that declared spatial assumptions are applied consistently. They do **not** demonstrate that a mapping is anthropologically or archaeologically correct.
