@@ -5,12 +5,11 @@ use std::{
 };
 
 use anthrosim_core::{
-    ExperimentConfig, LandscapeBinding, LandscapeBundle, LandscapeLayerRole, LandscapeValueDomain,
-    MigrationConfig, NoDataPolicy, Population, PopulationConfig, ResourceConfig, RunManifest,
-    SPATIAL_MODEL_SEMANTICS_ID, Simulation, SimulationCheckpoint, SpatialLandscapeCheckpoint,
-    SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, SpatialTargetField, TransformDirection, World, WorldConfig,
-    validate_spatial_landscape_recorded_run,
+    ExperimentConfig, LandscapeBinding, LandscapeBundle, MigrationConfig, Population,
+    PopulationConfig, ResourceConfig, RunManifest, SPATIAL_MODEL_SEMANTICS_ID, Simulation,
+    SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
+    SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismConfig, World,
+    WorldConfig, validate_spatial_landscape_recorded_run,
 };
 use serde::{Deserialize, Serialize};
 
@@ -308,7 +307,10 @@ fn build_experiment_manifest(
         runs: &runs,
     };
     let identity_bytes = serde_json::to_vec(&identity)?;
-    let experiment_id = format!("anthrosim-exp-v{schema_version}-{:016x}", fnv1a64(&identity_bytes));
+    let experiment_id = format!(
+        "anthrosim-exp-v{schema_version}-{:016x}",
+        fnv1a64(&identity_bytes)
+    );
 
     Ok(ExperimentManifest {
         schema_version,
@@ -484,12 +486,9 @@ fn initialize_experiment(
     write_json(&directory.join("experiment-manifest.json"), manifest)?;
     write_json(&directory.join("ensemble-plan.json"), plan)?;
     if let Some(landscape) = runtime_landscape {
-        let spatial = plan
-            .definition
-            .settings
-            .spatial
-            .as_ref()
-            .ok_or_else(|| io::Error::other("runtime landscape has no spatial experiment binding"))?;
+        let spatial = plan.definition.settings.spatial.as_ref().ok_or_else(|| {
+            io::Error::other("runtime landscape has no spatial experiment binding")
+        })?;
         spatial.landscape_binding.validate_bundle(landscape)?;
         write_json(&directory.join("landscape.json"), landscape)?;
         write_json(
@@ -706,7 +705,10 @@ fn inspect_completed_bundle(
         if mechanisms != spatial.mechanisms {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("spatial mechanism configuration mismatch for {}", spec.run_id),
+                format!(
+                    "spatial mechanism configuration mismatch for {}",
+                    spec.run_id
+                ),
             )
             .into());
         }
@@ -908,8 +910,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use anthrosim_core::{
-        GridGeometry, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
-        SpatialFieldTransform,
+        GridGeometry, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, NoDataPolicy,
+        SpatialFieldTransform, SpatialTargetField, TransformDirection,
     };
 
     use super::*;
@@ -1131,8 +1133,7 @@ mod tests {
         }
         assert!(root.join("landscape.json").is_file());
         let before = fs::read(root.join("experiment-manifest.json")).expect("manifest bytes");
-        execute_ensemble(&root, settings.clone(), vec![71, 72], true)
-            .expect("spatial retry");
+        execute_ensemble(&root, settings.clone(), vec![71, 72], true).expect("spatial retry");
         let after = fs::read(root.join("experiment-manifest.json")).expect("manifest bytes");
         assert_eq!(before, after);
         assert_eq!(read_status(&root, 71).attempt, 1);
