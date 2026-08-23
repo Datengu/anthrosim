@@ -4,6 +4,7 @@ use crate::{
     checkpoint::SimulationCheckpoint,
     config::ExperimentConfig,
     events::EventLog,
+    landscape_binding::LandscapeBinding,
     metrics::MetricSeries,
     migration::{MigrationSummary, MigrationSystem},
     population::{Population, PopulationSummary},
@@ -68,6 +69,8 @@ pub struct RunManifest {
     pub model_semantics_id: String,
     pub git_commit: Option<String>,
     pub experiment: ExperimentConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landscape: Option<LandscapeBinding>,
     pub artifact_schemas: ArtifactSchemas,
     pub world: WorldSummary,
     pub population: PopulationSummary,
