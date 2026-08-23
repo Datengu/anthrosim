@@ -227,7 +227,10 @@ pub fn validate_evidence_catalog(catalog: &EvidenceCatalog) -> Result<(), Eviden
         }
         if let Some(uncertainty) = &record.uncertainty {
             for (field, value) in [
-                ("uncertainty.representation", uncertainty.representation.as_str()),
+                (
+                    "uncertainty.representation",
+                    uncertainty.representation.as_str(),
+                ),
                 ("uncertainty.value", uncertainty.value.as_str()),
             ] {
                 if value.trim().is_empty() {
