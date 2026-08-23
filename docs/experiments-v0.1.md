@@ -26,9 +26,11 @@ Before any child simulation starts, a fresh ensemble writes `experiment-manifest
 - an experiment-manifest schema version;
 - a deterministic experiment ID;
 - the AnthroSim model/package version;
-- the build git commit when supplied through `ANTHROSIM_GIT_COMMIT`;
+- the build source revision in `gitCommit` when Git metadata or an explicit override is available;
 - every planned run ID and stable output path;
 - the complete exact `ExperimentConfig` for every child, including its seed.
+
+Ordinary builds from a Git checkout resolve the source revision automatically. A clean tracked tree records the exact commit SHA; staged or unstaged tracked modifications record `<sha>-dirty`; builds outside Git record `null` rather than fabricating an identity. A controlled build can still set `ANTHROSIM_GIT_COMMIT` explicitly. See [`source-provenance.md`](source-provenance.md) for the full policy.
 
 The experiment ID is a stable FNV-1a fingerprint of the versioned identity payload. It is an identifier and accidental-change detector, not a cryptographic signature. Retry safety does not rely on the fingerprint alone: AnthroSim deserializes the stored manifest and requires exact structural equality with the experiment definition requested by the retry command.
 
@@ -162,7 +164,7 @@ Before any point experiment starts, a fresh sweep writes `sweep-manifest.json`. 
 
 - a sweep-manifest schema version;
 - a deterministic sweep ID;
-- model/package and optional git identity;
+- model/package and build source identity;
 - the exact seed definition;
 - all base controls;
 - every explicitly declared sweep dimension and value order;
@@ -250,25 +252,26 @@ experiments/v0.1-resource-variability.json
 
 The definition records the synthetic-validation status, research-style question, base controls, exact ordered seed set, factorial dimensions and plain-language interpretation of the varied controls. `scripts/run-versioned-sweep.py` translates that file into the ordinary `anthrosim sweep` CLI and then verifies that the generated immutable `sweep-manifest.json` contains the same seeds, base settings and dimensions. The adapter does not simulate agents and does not aggregate results independently.
 
-For strongest source provenance, build the release binary with the checked-out revision embedded before launching the experiment. On a POSIX shell:
+Build the release binary normally from a clean Git checkout; the checked-out source revision is embedded automatically. On a POSIX shell:
 
 ```text
-ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)" cargo build --locked --workspace --release
+cargo build --locked --workspace --release
 python3 scripts/run-versioned-sweep.py \
   experiments/v0.1-resource-variability.json \
   --binary target/release/anthrosim \
   --run-dir runs/v0.1-resource-variability
 ```
 
-On PowerShell, set the equivalent environment variable before the build:
+On PowerShell:
 
 ```text
-$env:ANTHROSIM_GIT_COMMIT = (git rev-parse HEAD)
 cargo build --locked --workspace --release
 python scripts/run-versioned-sweep.py experiments/v0.1-resource-variability.json --binary target/release/anthrosim.exe --run-dir runs/v0.1-resource-variability
 ```
 
-A successful versioned run copies the exact input to `source-definition.json` and writes `reproduction-record.json`. That record contains the SHA-256 of the source definition, model/package version, embedded git revision when present, immutable sweep ID and paths to the authoritative sweep manifest and derived analysis directory. The immutable sweep manifest remains authoritative for the fully expanded point/run identity.
+No manual revision environment variable is required for the ordinary path. A clean tracked checkout records the exact SHA. A tracked modification produces a `-dirty` source identity and build warning. If Git metadata is unavailable, the build records `gitCommit: null`. `scripts/run-versioned-sweep.py` deliberately refuses both missing identity and automatically detected dirty source state so a formal versioned result cannot silently claim an unreproducible source tree. Controlled build systems may still set a non-empty `ANTHROSIM_GIT_COMMIT` override deliberately. See [`source-provenance.md`](source-provenance.md).
+
+A successful versioned run copies the exact input to `source-definition.json` and writes `reproduction-record.json`. That record contains the SHA-256 of the source definition, model/package version, required build source revision, immutable sweep ID and paths to the authoritative sweep manifest and derived analysis directory. The immutable sweep manifest remains authoritative for the fully expanded point/run identity.
 
 To retry an interrupted reproduction, use the exact same checked-out model revision, definition file, binary identity and output directory plus `--retry`. M7.2/M7.3 reconciliation then preserves valid completed children and retries only unfinished/failed runs; a changed immutable definition is rejected.
 
