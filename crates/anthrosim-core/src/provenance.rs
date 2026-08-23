@@ -151,7 +151,9 @@ pub enum ResumeLineageError {
     ModelSemanticsDiscontinuity { index: usize },
     #[error("resume-lineage boundary {index} precedes the previous boundary")]
     BoundaryOrder { index: usize },
-    #[error("resume-lineage boundary {index} source identity does not match the previous continuation")]
+    #[error(
+        "resume-lineage boundary {index} source identity does not match the previous continuation"
+    )]
     SourceContinuity { index: usize },
     #[error("resume-lineage final continuation identity does not match the containing artifact")]
     FinalIdentityMismatch,
