@@ -21,6 +21,9 @@ use ensemble::{
 use run_directory::{RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory};
 use sweep::{SweepDimensions, execute_sweep};
 
+type PreservedPopulation = (&'static str, Population);
+type PreparedResume = (RunDirectoryTransaction, Option<PreservedPopulation>);
+
 #[derive(Debug, Parser)]
 #[command(
     name = "anthrosim",
@@ -574,8 +577,7 @@ fn prepare_core_resume_transaction(
     run_dir: &Path,
     checkpoint: &SimulationCheckpoint,
     world: &World,
-) -> Result<(RunDirectoryTransaction, Option<(&'static str, Population)>), Box<dyn std::error::Error>>
-{
+) -> Result<PreparedResume, Box<dyn std::error::Error>> {
     if !target_is_nonempty_directory(run_dir)? {
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
@@ -657,7 +659,7 @@ fn verify_core_checkpoint_artifacts(
 fn preserved_population_artifact(
     run_dir: &Path,
     world: &World,
-) -> Result<(&'static str, Population), Box<dyn std::error::Error>> {
+) -> Result<PreservedPopulation, Box<dyn std::error::Error>> {
     for name in ["initial-population.json", "resume-start-population.json"] {
         let path = run_dir.join(name);
         if path.is_file() {
