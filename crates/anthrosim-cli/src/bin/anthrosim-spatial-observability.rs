@@ -7,8 +7,7 @@ use std::{
 use anthrosim_core::{
     LandscapeBundle, LandscapeCheckpoint, Population, SimulationCheckpoint,
     SpatialLandscapeCheckpoint, SpatialMechanismBinding, SpatialObservabilityReport, World,
-    derive_spatial_observability,
-    rng::RngFactory,
+    derive_spatial_observability, rng::RngFactory,
 };
 use clap::{Parser, Subcommand};
 
