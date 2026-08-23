@@ -19,7 +19,8 @@ PRIMARY_METRICS = {
     "terminalPopulationHerfindahlPerMillion": "terminalPopulationHerfindahlPerMillion",
     "terminalLargestCellSharePermille": "terminalLargestCellSharePermille",
 }
-DURATION_STOP_REASON = "duration_reached"
+# RunManifest serializes StopReason with serde rename_all = "camelCase".
+DURATION_STOP_REASON = "durationReached"
 
 
 def parse_args() -> argparse.Namespace:
