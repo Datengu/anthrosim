@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "modelId": "generic_spatial_null_v1",
+  "transforms": [
+    {
+      "target": "movement_cost",
+      "sourceLayerId": "terrain-traversal",
+      "expectedUnit": "normalized_index",
+      "sourceDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "targetMin": 1000,
+      "targetMax": 3000,
+      "direction": "direct",
+      "nodata": {
+        "kind": "reject"
+      }
+    },
+    {
+      "target": "water_access",
+      "sourceLayerId": "water-accessibility",
+      "expectedUnit": "normalized_index",
+      "sourceDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "targetMin": 0,
+      "targetMax": 1000,
+      "direction": "direct",
+      "nodata": {
+        "kind": "reject"
+      }
+    },
+    {
+      "target": "base_productivity",
+      "sourceLayerId": "resource-opportunity",
+      "expectedUnit": "normalized_index",
+      "sourceDomain": {
+        "min": 0,
+        "max": 1000
+      },
+      "targetMin": 0,
+      "targetMax": 1000,
+      "direction": "direct",
+      "nodata": {
+        "kind": "reject"
+      }
+    }
+  ]
+}

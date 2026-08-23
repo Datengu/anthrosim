@@ -1,0 +1,159 @@
+name: Spatial mechanism determinism
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  spatial-golden:
+    name: Spatial mechanism golden (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run uninterrupted transformed landscape fixture
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --seed 8401 --years 4 --population 40 --max-person-records 10000 --run-dir spatial-uninterrupted
+
+      - name: Run checkpointed transformed landscape fixture
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --seed 8401 --years 4 --population 40 --max-person-records 10000 --run-dir spatial-resumed --checkpoint-year 2
+
+      - name: Resume with exact landscape and stored mechanisms
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- resume --checkpoint spatial-resumed/landscape-checkpoint.json --landscape examples/landscape-loading/landscape.json --run-dir spatial-resumed
+
+      - name: Validate transformed resume equivalence and emit canonical golden
+        run: python scripts/validate-spatial-mechanisms.py --uninterrupted spatial-uninterrupted --resumed spatial-resumed --output spatial-cross-platform-golden.json
+
+      - name: Upload normalized M8.4 output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: spatial-cross-platform-${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 7
+          path: spatial-cross-platform-golden.json
+
+  spatial-m7-sweep:
+    name: Spatial M7 sweep integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run transformed parameter sweep through M7
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim -- sweep --seeds 8501,8502 --years 1 --world-width 2 --world-height 2 --population 20 --max-person-records 1000 --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --sweep-annual-food-need 80,100 --run-dir spatial-sweep
+
+      - name: Retry exact transformed sweep
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim -- sweep --seeds 8501,8502 --years 1 --world-width 2 --world-height 2 --population 20 --max-person-records 1000 --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --sweep-annual-food-need 80,100 --run-dir spatial-sweep --retry
+
+      - name: Validate M7 spatial provenance and analysis
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('spatial-sweep')
+          sweep_text = (root / 'sweep-manifest.json').read_text()
+          if 'runtimeLandscapePath' in sweep_text or 'examples/landscape-loading/landscape.json' in sweep_text:
+              raise SystemExit('runtime filesystem path leaked into immutable sweep identity')
+
+          runs = json.loads((root / 'analysis/runs.json').read_text())
+          points = json.loads((root / 'analysis/points.json').read_text())
+          if len(runs) != 4 or any(row['state'] != 'completed' for row in runs):
+              raise SystemExit(f'unexpected M7 spatial run analysis: {runs}')
+          if len(points) != 2 or any(row['completedRuns'] != 2 for row in points):
+              raise SystemExit(f'unexpected M7 spatial point analysis: {points}')
+
+          experiments = sorted((root / 'experiments').glob('point-*'))
+          if len(experiments) != 2:
+              raise SystemExit(f'expected two spatial sweep points, found {experiments}')
+          for experiment in experiments:
+              manifest = json.loads((experiment / 'experiment-manifest.json').read_text())
+              if manifest['schemaVersion'] != 2:
+                  raise SystemExit(f'spatial experiment did not use schema v2: {experiment}')
+              if not (experiment / 'landscape.json').is_file():
+                  raise SystemExit(f'missing preserved landscape: {experiment}')
+              if not (experiment / 'spatial-mechanisms.json').is_file():
+                  raise SystemExit(f'missing preserved mechanisms: {experiment}')
+              run_dirs = sorted((experiment / 'runs').glob('seed-*'))
+              if len(run_dirs) != 2:
+                  raise SystemExit(f'expected two runs in {experiment}, found {run_dirs}')
+              for run_dir in run_dirs:
+                  for artifact in ('landscape-manifest.json', 'landscape-checkpoint.json', 'spatial-mechanisms.json'):
+                      if not (run_dir / artifact).is_file():
+                          raise SystemExit(f'missing {artifact} in {run_dir}')
+
+          print('M8.4 transformed landscapes execute and retry through M7 sweep machinery.')
+          PY
+
+  compare-spatial-golden:
+    name: Compare transformed landscape golden runs
+    needs: spatial-golden
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Download platform outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: spatial-artifacts
+          pattern: spatial-cross-platform-*
+
+      - name: Require byte-identical transformed outputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import difflib
+          import sys
+
+          files = sorted(Path('spatial-artifacts').glob('*/spatial-cross-platform-golden.json'))
+          if len(files) != 3:
+              raise SystemExit(f'expected three M8.4 golden files, found {len(files)}: {files}')
+
+          reference = files[0]
+          reference_bytes = reference.read_bytes()
+          for candidate in files[1:]:
+              candidate_bytes = candidate.read_bytes()
+              if candidate_bytes == reference_bytes:
+                  continue
+              before = reference.read_text().splitlines(keepends=True)
+              after = candidate.read_text().splitlines(keepends=True)
+              sys.stdout.writelines(difflib.unified_diff(
+                  before,
+                  after,
+                  fromfile=str(reference),
+                  tofile=str(candidate),
+              ))
+              raise SystemExit(
+                  f'M8.4 cross-platform output differs: {reference} != {candidate}'
+              )
+
+          print('M8.4 transformed landscape golden output is byte-identical on all three runners.')
+          PY
