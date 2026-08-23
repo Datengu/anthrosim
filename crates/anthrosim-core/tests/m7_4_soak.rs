@@ -91,7 +91,10 @@ fn long_dynamic_checkpoint_resume_matches_uninterrupted_execution() {
     resumed_checkpoint_without_lineage.resume_lineage = ResumeLineage::new();
     assert_eq!(resumed_checkpoint_without_lineage, uninterrupted.checkpoint);
 
-    assert_eq!(resumed.manifest.resume_lineage, resumed.checkpoint.resume_lineage);
+    assert_eq!(
+        resumed.manifest.resume_lineage,
+        resumed.checkpoint.resume_lineage
+    );
     let boundaries = &resumed.manifest.resume_lineage.boundaries;
     assert_eq!(boundaries.len(), 1);
     let boundary = &boundaries[0];
