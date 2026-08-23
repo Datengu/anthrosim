@@ -61,6 +61,46 @@
       <div class="legend"><span id="legend-min"></span><div id="legend-gradient"></div><span id="legend-max"></span></div>
     </section>
 
+    <section id="spatial-m8" class="panel spatial-panel" aria-labelledby="spatial-heading" hidden>
+      <div class="panel-heading map-heading-row">
+        <div>
+          <p class="eyebrow">M8.5 / SPATIAL EVIDENCE & OBSERVABILITY</p>
+          <h2 id="spatial-heading">Normalized landscape and derived spatial observables</h2>
+        </div>
+        <span id="spatial-status" class="status">Loading spatial artifacts</span>
+      </div>
+      <p class="provenance-note">This panel is downstream and read-only. Normalized evidence inputs, authoritative model-facing fields, derived observables, and reconstructed displays remain separate provenance classes.</p>
+      <pre id="spatial-error" class="fatal-inline" hidden></pre>
+
+      <div class="spatial-columns">
+        <div>
+          <h3>Coordinate and identity metadata</h3>
+          <dl id="spatial-metadata"></dl>
+        </div>
+        <div>
+          <h3>Normalized layer catalogue</h3>
+          <div id="spatial-layer-catalogue" class="spatial-layer-catalogue"></div>
+        </div>
+      </div>
+
+      <h3>Derived spatial summary</h3>
+      <div id="spatial-summary" class="summary-grid"></div>
+
+      <div class="panel-heading map-heading-row spatial-map-heading">
+        <div>
+          <h3>Spatial artifact map</h3>
+          <p id="spatial-provenance" class="provenance-note"></p>
+        </div>
+        <div class="map-controls">
+          <label for="spatial-overlay">Overlay</label>
+          <select id="spatial-overlay"></select>
+        </div>
+      </div>
+      <canvas id="spatial-map" width="900" height="600" tabindex="0" aria-label="Normalized landscape and M8.5 spatial observability grid"></canvas>
+      <div class="legend"><span id="spatial-legend-min"></span><div id="spatial-legend-gradient"></div><span id="spatial-legend-max"></span></div>
+      <div id="spatial-cell-details" class="inspector-content"></div>
+    </section>
+
     <section class="panel inspector-panel" aria-labelledby="inspector-heading">
       <div class="panel-heading">
         <div>
@@ -114,5 +154,6 @@
   </footer>
 
   <script type="module" src="./app.mjs"></script>
+  <script type="module" src="./spatial.mjs"></script>
 </body>
 </html>
