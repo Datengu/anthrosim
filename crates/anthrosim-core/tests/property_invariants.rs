@@ -1,6 +1,6 @@
 use anthrosim_core::{
-    ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation, StopReason,
-    WorldConfig,
+    ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, ResumeLineage, Simulation,
+    StopReason, WorldConfig,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -126,6 +126,8 @@ fn generated_checkpoint_resume_matches_uninterrupted_execution() {
         checkpoint.validate_invariants().unwrap_or_else(|error| {
             panic!("generated checkpoint case {case:?} violated invariants: {error}")
         });
+        let source_day = checkpoint.time.days();
+        let source_state_digest64 = checkpoint.state_digest64;
         let resumed = Simulation::from_checkpoint(checkpoint)
             .unwrap_or_else(|error| panic!("generated checkpoint case {case:?} rejected: {error}"))
             .run_recorded()
@@ -134,14 +136,32 @@ fn generated_checkpoint_resume_matches_uninterrupted_execution() {
             panic!("generated resumed case {case:?} violated invariants: {error}")
         });
 
+        let mut resumed_manifest_without_lineage = resumed.manifest.clone();
+        resumed_manifest_without_lineage.resume_lineage = ResumeLineage::new();
         assert_eq!(
-            resumed.manifest, uninterrupted.manifest,
+            resumed_manifest_without_lineage, uninterrupted.manifest,
             "generated checkpoint/resume manifest mismatch: {case:?}"
         );
+
+        let mut resumed_checkpoint_without_lineage = resumed.checkpoint.clone();
+        resumed_checkpoint_without_lineage.resume_lineage = ResumeLineage::new();
         assert_eq!(
-            resumed.checkpoint, uninterrupted.checkpoint,
+            resumed_checkpoint_without_lineage, uninterrupted.checkpoint,
             "generated checkpoint/resume state mismatch: {case:?}"
         );
+
+        assert_eq!(resumed.manifest.resume_lineage, resumed.checkpoint.resume_lineage);
+        let boundaries = &resumed.manifest.resume_lineage.boundaries;
+        assert_eq!(
+            boundaries.len(),
+            1,
+            "generated resume lineage boundary count mismatch: {case:?}"
+        );
+        let boundary = &boundaries[0];
+        assert_eq!(boundary.source, boundary.continuation);
+        assert_eq!(boundary.boundary_day, source_day);
+        assert_eq!(boundary.boundary_completed_years, 2);
+        assert_eq!(boundary.source_state_digest64, source_state_digest64);
     }
 }
 
