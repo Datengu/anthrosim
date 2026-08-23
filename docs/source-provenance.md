@@ -44,6 +44,18 @@ If no explicit override is supplied and Git metadata cannot be resolved, AnthroS
 
 This is permitted for ordinary exploratory execution, but it is not sufficient for the versioned research/reference workflow.
 
+## Checkpoint resume lineage
+
+`gitCommit` remains exact provenance rather than a scientific resume-compatibility key. A checkpoint can therefore be continued by another source revision when the model-version and `MODEL_SEMANTICS_ID` compatibility rules permit it.
+
+To avoid losing the source identity that generated the pre-resume state, current checkpoints and run manifests carry a versioned `resumeLineage`. Each successful resume appends a boundary containing the source checkpoint identity, the continuing executable identity, the checkpoint day/year, and the source checkpoint `stateDigest64`.
+
+For example, if commit A produces a checkpoint at year 500 and compatible commit B continues it to year 1000, the completed artifact still has top-level `gitCommit = B`, but its lineage explicitly records an A → B boundary at year 500 together with the source state digest. A further resume appends another boundary rather than replacing the first one.
+
+The lineage does **not** make exact Git equality a resume requirement. Its purpose is to preserve exact source provenance for every authoritative execution segment while `MODEL_SEMANTICS_ID` continues to answer whether continuation is scientifically compatible.
+
+Semantic bundle validation requires the lineage in `manifest.json` and `checkpoint.json` to agree and checks boundary ordering/source continuity/final source identity. See `docs/adr/0004-model-semantics-compatibility-identity.md` for the compatibility decision.
+
 ## Research/reference policy
 
 `scripts/run-versioned-sweep.py` requires reproducible source identity. It fails after validating the generated immutable sweep manifest when:
