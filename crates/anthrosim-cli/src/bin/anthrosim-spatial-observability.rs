@@ -5,8 +5,9 @@ use std::{
 };
 
 use anthrosim_core::{
-    LandscapeBundle, Population, SimulationCheckpoint, SpatialLandscapeCheckpoint,
-    SpatialObservabilityReport, World, derive_spatial_observability,
+    LandscapeBundle, LandscapeCheckpoint, Population, SimulationCheckpoint,
+    SpatialLandscapeCheckpoint, SpatialMechanismBinding, SpatialObservabilityReport, World,
+    derive_spatial_observability,
 };
 use clap::{Parser, Subcommand};
 
@@ -106,34 +107,14 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     let world: World = read_json(&world_path)?;
     let initial_population: Population = read_json(&initial_population_path)?;
     let checkpoint: SimulationCheckpoint = read_json(&checkpoint_path)?;
-    let spatial_checkpoint_path = run_dir.join("landscape-checkpoint.json");
-    let spatial_checkpoint = if spatial_checkpoint_path.is_file() {
-        let value: serde_json::Value = read_json(&spatial_checkpoint_path)?;
-        if value.get("spatial").is_some() {
-            Some(serde_json::from_value::<SpatialLandscapeCheckpoint>(value)?)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-    if let Some(wrapper) = &spatial_checkpoint {
-        if wrapper.core_checkpoint != checkpoint {
-            return Err(format!(
-                "{} landscape checkpoint wrapper disagrees with checkpoint.json",
-                run_dir.display()
-            )
-            .into());
-        }
-        wrapper.landscape.validate_bundle(&landscape)?;
-    }
+    let spatial_binding = validate_landscape_wrapper(run_dir, &landscape, &checkpoint)?;
 
     let report = derive_spatial_observability(
         &landscape,
         &world,
         &initial_population,
         &checkpoint,
-        spatial_checkpoint.as_ref().map(|wrapper| &wrapper.spatial),
+        spatial_binding.as_ref(),
     )?;
     let output = run_dir.join("spatial-observability.json");
     if check {
@@ -156,6 +137,46 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+fn validate_landscape_wrapper(
+    run_dir: &Path,
+    landscape: &LandscapeBundle,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<Option<SpatialMechanismBinding>, Box<dyn std::error::Error>> {
+    let path = run_dir.join("landscape-checkpoint.json");
+    if !path.is_file() {
+        return Err(format!(
+            "{} is missing landscape-checkpoint.json required to bind the normalized landscape",
+            run_dir.display()
+        )
+        .into());
+    }
+
+    let value: serde_json::Value = read_json(&path)?;
+    if value.get("spatial").is_some() {
+        let wrapper: SpatialLandscapeCheckpoint = serde_json::from_value(value)?;
+        if wrapper.core_checkpoint != *checkpoint {
+            return Err(format!(
+                "{} landscape checkpoint wrapper disagrees with checkpoint.json",
+                run_dir.display()
+            )
+            .into());
+        }
+        wrapper.landscape.validate_bundle(landscape)?;
+        return Ok(Some(wrapper.spatial));
+    }
+
+    let wrapper: LandscapeCheckpoint = serde_json::from_value(value)?;
+    if wrapper.core_checkpoint != *checkpoint {
+        return Err(format!(
+            "{} landscape checkpoint wrapper disagrees with checkpoint.json",
+            run_dir.display()
+        )
+        .into());
+    }
+    wrapper.landscape.validate_bundle(landscape)?;
+    Ok(None)
+}
+
 fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut pending = vec![root.to_path_buf()];
     let mut found = Vec::new();
@@ -167,6 +188,7 @@ fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error
             && directory.join("checkpoint.json").is_file()
             && directory.join("world.json").is_file()
             && directory.join("initial-population.json").is_file()
+            && directory.join("landscape-checkpoint.json").is_file()
         {
             found.push(directory);
             continue;
