@@ -1,0 +1,96 @@
+name: Landscape loading determinism
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  landscape-golden:
+    name: Landscape golden run (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run uninterrupted landscape fixture
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --seed 8301 --years 4 --population 40 --max-person-records 10000 --run-dir landscape-uninterrupted
+
+      - name: Run checkpointed landscape fixture
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --seed 8301 --years 4 --population 40 --max-person-records 10000 --run-dir landscape-resumed --checkpoint-year 2
+
+      - name: Resume with exact same landscape
+        run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- resume --checkpoint landscape-resumed/landscape-checkpoint.json --landscape examples/landscape-loading/landscape.json --run-dir landscape-resumed
+
+      - name: Validate resume equivalence and emit canonical golden
+        run: python scripts/validate-landscape-loading.py --uninterrupted landscape-uninterrupted --resumed landscape-resumed --output landscape-cross-platform-golden.json
+
+      - name: Upload normalized M8.3 output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: landscape-cross-platform-${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 7
+          path: landscape-cross-platform-golden.json
+
+  compare-landscape-golden:
+    name: Compare landscape golden runs
+    needs: landscape-golden
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Download platform outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: landscape-artifacts
+          pattern: landscape-cross-platform-*
+
+      - name: Require byte-identical landscape-bound outputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import difflib
+          import sys
+
+          files = sorted(Path('landscape-artifacts').glob('*/landscape-cross-platform-golden.json'))
+          if len(files) != 3:
+              raise SystemExit(f'expected three M8.3 golden files, found {len(files)}: {files}')
+
+          reference = files[0]
+          reference_bytes = reference.read_bytes()
+          for candidate in files[1:]:
+              candidate_bytes = candidate.read_bytes()
+              if candidate_bytes == reference_bytes:
+                  continue
+              before = reference.read_text().splitlines(keepends=True)
+              after = candidate.read_text().splitlines(keepends=True)
+              sys.stdout.writelines(difflib.unified_diff(
+                  before,
+                  after,
+                  fromfile=str(reference),
+                  tofile=str(candidate),
+              ))
+              raise SystemExit(
+                  f'M8.3 cross-platform output differs: {reference} != {candidate}'
+              )
+
+          print('M8.3 landscape-bound golden output is byte-identical on all three runners.')
+          PY
