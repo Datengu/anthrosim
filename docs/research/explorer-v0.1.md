@@ -98,6 +98,28 @@ Person inspection exposes status, birth information, household, reconstructed lo
 
 The event browser exposes all authoritative M5 events with type filters and optional `person:<id>`, `household:<id>` or `cell:<id>` filtering. Event rows link back to the relevant entity and can reveal the raw event record. This gives a direct path from an aggregate observation to the state-transition evidence supporting it.
 
+## Sharing a completed run as one file
+
+The multi-file run directory remains the canonical scientific bundle, but a completed run can be packaged into one deterministic ZIP for uploading, sharing or archiving:
+
+```text
+cargo run --release -p anthrosim-cli --bin anthrosim-pack -- runs/my-run
+```
+
+The default output is written beside the directory as `runs/my-run.zip`. A custom destination can be supplied with `--output`.
+
+The packer:
+
+- requires a **completed** bundle, including `manifest.json`; paused checkpoint bundles are rejected;
+- requires the standard world/events/metrics/checkpoint artifacts plus either `initial-population.json` or `resume-start-population.json`;
+- validates included artifacts as JSON before writing the archive;
+- includes known landscape, spatial-mechanism, evidence, observability and ensemble-completion artifacts when they are present;
+- ignores unrelated files in the run directory rather than accidentally sharing them;
+- writes files in deterministic name order with fixed ZIP metadata, so the same unchanged bundle produces the same archive bytes;
+- uses ordinary ZIP storage with no proprietary format, so standard ZIP readers can unpack the original JSON artifacts.
+
+Packaging is a convenience layer only. It does not replace, rewrite or change the scientific meaning of the underlying run directory.
+
 ## Local server and security boundary
 
 `scripts/serve-explorer.py` uses only the Python standard library. By default it binds to `127.0.0.1` and serves one explicitly selected run directory plus the fixed explorer assets.
@@ -140,8 +162,10 @@ CI then generates both a completed run and a genuinely paused checkpoint bundle 
 - the loopback server opens both bundle forms, serves selected artifacts byte-for-byte and rejects writes;
 - bundle hashes are unchanged after explorer access.
 
-The existing Rust headless benchmarks run unchanged. Explorer code is downstream and cannot change those benchmarked binaries unless a separate core/CLI change is made.
+The run-bundle pack workflow separately generates a real completed bundle, packages it twice, requires byte-identical archives, validates the ZIP with Python's standard library, confirms unrelated files are excluded and confirms paused bundles are rejected.
+
+The existing Rust headless benchmarks run unchanged. Explorer and packaging code are downstream and cannot change those benchmarked model semantics.
 
 ## Scientific status
 
-M6 improves **inspectability**, not empirical validity. A clearer map or genealogy view does not make the underlying `synthetic_validation_v1` demographic, resource or migration parameters anthropologically calibrated. The same model-validation limits documented for M2–M4 remain in force.
+M6 improves **inspectability**, not empirical validity. A clearer map, genealogy view or shareable ZIP does not make the underlying `synthetic_validation_v1` demographic, resource or migration parameters anthropologically calibrated. The same model-validation limits documented for M2–M4 remain in force.
