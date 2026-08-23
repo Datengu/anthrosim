@@ -695,6 +695,7 @@ fn reconstruct_world(
     landscape: &LandscapeBundle,
     mechanisms: &SpatialMechanismConfig,
 ) -> Result<World, SpatialLandscapeError> {
+    landscape.validate_evidence_context(config.evidence.as_ref())?;
     mechanisms.validate_evidence_links(config.evidence.as_ref())?;
     let overlay = transform_landscape(landscape, mechanisms)?;
     let world = World::generate(config.world, RngFactory::new(config.seed))?
@@ -731,6 +732,9 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
+    if let Some(evidence) = &config.evidence {
+        evidence.validate()?;
+    }
     Ok(())
 }
 

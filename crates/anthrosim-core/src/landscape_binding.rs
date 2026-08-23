@@ -113,10 +113,7 @@ impl LandscapeSimulation {
     ) -> Result<Self, LandscapeBindingError> {
         let binding = LandscapeBinding::from_bundle(&landscape)?;
         validate_grid_match(&config, &binding)?;
-        if let Some(evidence) = &config.evidence {
-            evidence.validate()?;
-            landscape.validate_evidence_links(evidence)?;
-        }
+        landscape.validate_evidence_context(config.evidence.as_ref())?;
         Ok(Self {
             simulation: Simulation::new(config)?,
             landscape,
@@ -141,10 +138,8 @@ impl LandscapeSimulation {
             &checkpoint.core_checkpoint.experiment,
             &checkpoint.landscape,
         )?;
-        if let Some(evidence) = &checkpoint.core_checkpoint.experiment.evidence {
-            evidence.validate()?;
-            landscape.validate_evidence_links(evidence)?;
-        }
+        landscape
+            .validate_evidence_context(checkpoint.core_checkpoint.experiment.evidence.as_ref())?;
         Ok(Self {
             simulation: Simulation::from_checkpoint(checkpoint.core_checkpoint)?,
             landscape,

@@ -71,16 +71,36 @@ impl LandscapeBundle {
         Ok(())
     }
 
-    pub fn validate_evidence_links(&self, catalog: &EvidenceCatalog) -> Result<(), LandscapeError> {
-        let external_inputs: BTreeSet<&str> = catalog
-            .external_inputs
-            .iter()
-            .map(|input| input.input_id.as_str())
-            .collect();
+    /// Validate all landscape evidence links under one shared contract.
+    ///
+    /// Landscapes with no evidence links may omit a catalogue. Once a layer
+    /// declares `evidenceInputId`, a valid catalogue is mandatory and the
+    /// referenced external input must exist exactly.
+    pub fn validate_evidence_context(
+        &self,
+        catalog: Option<&EvidenceCatalog>,
+    ) -> Result<(), LandscapeError> {
+        self.validate()?;
+        if let Some(catalog) = catalog {
+            catalog
+                .validate()
+                .map_err(|error| LandscapeError::InvalidEvidenceCatalog(error.to_string()))?;
+        }
 
         for layer in &self.layers {
-            if let Some(input_id) = layer.evidence_input_id.as_deref()
-                && !external_inputs.contains(input_id)
+            let Some(input_id) = layer.evidence_input_id.as_deref() else {
+                continue;
+            };
+            let Some(catalog) = catalog else {
+                return Err(LandscapeError::MissingEvidenceCatalog {
+                    layer_id: layer.layer_id.clone(),
+                    input_id: input_id.to_owned(),
+                });
+            };
+            if !catalog
+                .external_inputs
+                .iter()
+                .any(|input| input.input_id == input_id)
             {
                 return Err(LandscapeError::UnknownEvidenceInput {
                     layer_id: layer.layer_id.clone(),
@@ -89,6 +109,10 @@ impl LandscapeBundle {
             }
         }
         Ok(())
+    }
+
+    pub fn validate_evidence_links(&self, catalog: &EvidenceCatalog) -> Result<(), LandscapeError> {
+        self.validate_evidence_context(Some(catalog))
     }
 
     /// Stable non-cryptographic identity for deterministic experiment wiring.
@@ -300,6 +324,12 @@ pub enum LandscapeError {
         cell_index: u64,
         value: i32,
     },
+    #[error(
+        "landscape layer {layer_id} references evidence external input {input_id}, but no evidence catalogue was supplied"
+    )]
+    MissingEvidenceCatalog { layer_id: String, input_id: String },
+    #[error("landscape evidence catalogue is invalid: {0}")]
+    InvalidEvidenceCatalog(String),
     #[error("landscape layer {layer_id} references unknown evidence external input {input_id}")]
     UnknownEvidenceInput { layer_id: String, input_id: String },
 }
@@ -348,5 +378,96 @@ impl StableDigest {
 
     const fn finish(self) -> u64 {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        EvidenceCatalog, EvidenceRecord, EvidenceSource, ExternalInputEvidence, ParameterProvenance,
+    };
+
+    use super::*;
+
+    fn evidence_landscape(input_id: &str) -> LandscapeBundle {
+        LandscapeBundle::new(
+            1,
+            1,
+            GridGeometry {
+                origin_x: 0,
+                origin_y: 0,
+                cell_size_x: 1,
+                cell_size_y: 1,
+                coordinate_unit: "m".to_owned(),
+                spatial_reference: "EPSG:27700".to_owned(),
+            },
+            vec![LandscapeLayer {
+                layer_id: "terrain".to_owned(),
+                role: LandscapeLayerRole::TerrainTraversal,
+                unit: "permille".to_owned(),
+                value_domain: Some(LandscapeValueDomain { min: 0, max: 1000 }),
+                evidence_input_id: Some(input_id.to_owned()),
+                values: vec![Some(500)],
+            }],
+        )
+    }
+
+    fn evidence_catalog(input_id: &str) -> EvidenceCatalog {
+        EvidenceCatalog::new(vec![EvidenceRecord {
+            schema_version: EvidenceRecord::CURRENT_SCHEMA_VERSION,
+            evidence_id: "terrain-source".to_owned(),
+            provenance: ParameterProvenance::EmpiricalDerived,
+            source: EvidenceSource {
+                source_id: "terrain-dataset".to_owned(),
+                citation: "Example terrain dataset".to_owned(),
+                persistent_id: None,
+                dataset_version: None,
+                licence: None,
+                spatial_coverage: None,
+                temporal_coverage: None,
+            },
+            original_variable: "terrain".to_owned(),
+            original_units: "permille".to_owned(),
+            transformation: None,
+            simulation_units: "permille".to_owned(),
+            uncertainty: None,
+            applicability: "test".to_owned(),
+            competing_estimates: Vec::new(),
+        }])
+        .with_external_inputs(vec![ExternalInputEvidence {
+            input_id: input_id.to_owned(),
+            evidence_id: "terrain-source".to_owned(),
+            format: "test-grid".to_owned(),
+            spatial_reference: Some("EPSG:27700".to_owned()),
+            content_digest: None,
+        }])
+    }
+
+    #[test]
+    fn evidence_link_requires_catalogue() {
+        let landscape = evidence_landscape("terrain-input");
+        assert!(matches!(
+            landscape.validate_evidence_context(None),
+            Err(LandscapeError::MissingEvidenceCatalog { layer_id, input_id })
+                if layer_id == "terrain" && input_id == "terrain-input"
+        ));
+    }
+
+    #[test]
+    fn unknown_evidence_input_is_rejected() {
+        let landscape = evidence_landscape("missing-input");
+        let catalog = evidence_catalog("other-input");
+        assert!(matches!(
+            landscape.validate_evidence_context(Some(&catalog)),
+            Err(LandscapeError::UnknownEvidenceInput { layer_id, input_id })
+                if layer_id == "terrain" && input_id == "missing-input"
+        ));
+    }
+
+    #[test]
+    fn valid_evidence_input_resolves() {
+        let landscape = evidence_landscape("terrain-input");
+        let catalog = evidence_catalog("terrain-input");
+        assert_eq!(landscape.validate_evidence_context(Some(&catalog)), Ok(()));
     }
 }
