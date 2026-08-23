@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     config::ExperimentConfig, events::EventLog, manifest::StopReason, metrics::MetricSeries,
-    migration::MigrationCheckpointState, population::Population, resources::ResourceSystem,
-    rng::RngStreamPosition, time::SimTime,
+    migration::MigrationCheckpointState, population::Population, provenance::ResumeLineage,
+    resources::ResourceSystem, rng::RngStreamPosition, time::SimTime,
 };
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
@@ -28,6 +28,8 @@ pub struct SimulationCheckpoint {
     pub model_version: String,
     pub model_semantics_id: String,
     pub git_commit: Option<String>,
+    #[serde(default)]
+    pub resume_lineage: ResumeLineage,
     pub experiment: ExperimentConfig,
     pub time: SimTime,
     pub completed_years: u64,
@@ -43,7 +45,8 @@ pub struct SimulationCheckpoint {
 }
 
 impl SimulationCheckpoint {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    pub const PRE_LINEAGE_SCHEMA_VERSION: u32 = 4;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 }
 
 #[must_use]
