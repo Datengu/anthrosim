@@ -272,6 +272,7 @@ impl SpatialLandscapeSimulation {
             checkpoint.core_checkpoint.rng.migration_choice,
             checkpoint.core_checkpoint.rng.migration_uncertainty,
         ]);
+        let expected_state_digest = checkpoint.core_checkpoint.state_digest64;
 
         let simulation = Self {
             config: checkpoint.core_checkpoint.experiment,
@@ -291,9 +292,9 @@ impl SpatialLandscapeSimulation {
             metrics: checkpoint.core_checkpoint.metrics,
         };
         let actual_digest = simulation.state_digest64();
-        if actual_digest != checkpoint.core_checkpoint.state_digest64 {
+        if actual_digest != expected_state_digest {
             return Err(SpatialLandscapeError::CheckpointStateDigestMismatch {
-                expected: checkpoint.core_checkpoint.state_digest64,
+                expected: expected_state_digest,
                 actual: actual_digest,
             });
         }
@@ -339,6 +340,7 @@ impl SpatialLandscapeSimulation {
         self.ensure_terminal_metric_snapshot();
         self.validate_state()?;
         let core_manifest = self.build_manifest(stop_reason);
+        let source_landscape = self.landscape.clone();
         let landscape = self.landscape_binding.clone();
         let spatial = self.spatial_binding.clone();
         let core_checkpoint = self.into_checkpoint();
@@ -356,7 +358,7 @@ impl SpatialLandscapeSimulation {
                 core_checkpoint,
             },
         };
-        validate_spatial_landscape_recorded_run(&run, &self.landscape)?;
+        validate_spatial_landscape_recorded_run(&run, &source_landscape)?;
         Ok(run)
     }
 
@@ -394,7 +396,10 @@ impl SpatialLandscapeSimulation {
         })
     }
 
-    fn advance_to_year(&mut self, target_year: u64) -> Result<Option<StopReason>, SpatialLandscapeError> {
+    fn advance_to_year(
+        &mut self,
+        target_year: u64,
+    ) -> Result<Option<StopReason>, SpatialLandscapeError> {
         if let Some(stop_reason) = self.terminal_stop_reason {
             return Ok(Some(stop_reason));
         }
@@ -640,6 +645,12 @@ pub fn validate_spatial_landscape_recorded_run(
     if run.manifest.core_manifest.experiment != run.checkpoint.core_checkpoint.experiment
         || run.manifest.core_manifest.state_digest64 != run.checkpoint.core_checkpoint.state_digest64
         || run.manifest.core_manifest.world.digest64 != format!("{:016x}", world.digest64())
+        || run.manifest.core_manifest.stop_reason
+            != run
+                .checkpoint
+                .core_checkpoint
+                .terminal_stop_reason
+                .unwrap_or(StopReason::DurationReached)
     {
         return Err(SpatialLandscapeError::CrossArtifactCoreMismatch);
     }
@@ -681,11 +692,12 @@ fn reconstruct_world(
     mechanisms: &SpatialMechanismConfig,
 ) -> Result<World, SpatialLandscapeError> {
     let overlay = transform_landscape(landscape, mechanisms)?;
-    let world = World::generate(config.world, RngFactory::new(config.seed))?.with_model_field_overlay(
-        overlay.movement_cost.as_deref(),
-        overlay.water_access.as_deref(),
-        overlay.base_productivity.as_deref(),
-    )?;
+    let world = World::generate(config.world, RngFactory::new(config.seed))?
+        .with_model_field_overlay(
+            overlay.movement_cost.as_deref(),
+            overlay.water_access.as_deref(),
+            overlay.base_productivity.as_deref(),
+        )?;
     Ok(world)
 }
 
@@ -739,7 +751,9 @@ fn validate_core_checkpoint_header(
         });
     }
     if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
-        return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch { artifact: "events" });
+        return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch {
+            artifact: "events",
+        });
     }
     if checkpoint.metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION {
         return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch {
@@ -769,7 +783,9 @@ fn validate_terminal_checkpoint_state(
         return Ok(());
     };
     let matches_state = match stop_reason {
-        StopReason::DurationReached => checkpoint.completed_years == checkpoint.experiment.duration_years,
+        StopReason::DurationReached => {
+            checkpoint.completed_years == checkpoint.experiment.duration_years
+        }
         StopReason::PopulationExtinct => checkpoint.population.living_count() == 0,
         StopReason::PersonRecordLimitReached => {
             checkpoint.population.summary().person_records
@@ -786,6 +802,8 @@ fn validate_terminal_checkpoint_state(
 pub enum SpatialLandscapeError {
     #[error(transparent)]
     LandscapeBinding(#[from] LandscapeBindingError),
+    #[error(transparent)]
+    Landscape(#[from] crate::LandscapeError),
     #[error(transparent)]
     Evidence(#[from] crate::EvidenceError),
     #[error(transparent)]
@@ -808,9 +826,13 @@ pub enum SpatialLandscapeError {
     UnsupportedExperimentSchema { found: u32, supported: u32 },
     #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSpatialBindingSchema { found: u32, supported: u32 },
-    #[error("spatial landscape manifest schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "spatial landscape manifest schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedManifestWrapperSchema { found: u32, supported: u32 },
-    #[error("spatial landscape checkpoint schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "spatial landscape checkpoint schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedCheckpointWrapperSchema { found: u32, supported: u32 },
     #[error("core checkpoint schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedCoreCheckpointSchema { found: u32, supported: u32 },
@@ -830,7 +852,9 @@ pub enum SpatialLandscapeError {
     CheckpointArtifactSchemaMismatch { artifact: &'static str },
     #[error("checkpoint day {day} is not a completed annual boundary")]
     UnsupportedCheckpointBoundary { day: u64 },
-    #[error("checkpoint completed year {completed_years} exceeds experiment duration {duration_years}")]
+    #[error(
+        "checkpoint completed year {completed_years} exceeds experiment duration {duration_years}"
+    )]
     CheckpointBeyondDuration {
         completed_years: u64,
         duration_years: u64,
@@ -839,20 +863,26 @@ pub enum SpatialLandscapeError {
     CheckpointTerminalStateMismatch { stop_reason: StopReason },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]
     CheckpointStateDigestMismatch { expected: u64, actual: u64 },
-    #[error("simulation grid {world_width}x{world_height} does not match landscape {landscape_width}x{landscape_height}")]
+    #[error(
+        "simulation grid {world_width}x{world_height} does not match landscape {landscape_width}x{landscape_height}"
+    )]
     GridMismatch {
         world_width: u32,
         world_height: u32,
         landscape_width: u32,
         landscape_height: u32,
     },
-    #[error("checkpoint target year {target_year} is outside current year {current_year}..={duration_years}")]
+    #[error(
+        "checkpoint target year {target_year} is outside current year {current_year}..={duration_years}"
+    )]
     InvalidCheckpointTarget {
         current_year: u64,
         target_year: u64,
         duration_years: u64,
     },
-    #[error("checkpoint target year {target_year} was not reached: stopped at day {stopped_day} because {stop_reason:?}")]
+    #[error(
+        "checkpoint target year {target_year} was not reached: stopped at day {stopped_day} because {stop_reason:?}"
+    )]
     CheckpointTargetUnreachable {
         target_year: u64,
         stop_reason: StopReason,
