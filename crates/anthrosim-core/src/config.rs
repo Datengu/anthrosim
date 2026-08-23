@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::evidence::EvidenceCatalog;
+
 pub const PROBABILITY_PER_MILLION: u32 = 1_000_000;
 
 /// Versioned input that fully defines an AnthroSim experiment.
@@ -14,6 +16,12 @@ pub struct ExperimentConfig {
     pub demography: DemographyConfig,
     pub resources: ResourceConfig,
     pub migration: MigrationConfig,
+    /// Optional machine-readable evidence catalogue. Empty synthetic-validation
+    /// experiments omit this field entirely, preserving the existing v0.1
+    /// serialized identity. Evidence-grounded experiments include it in their
+    /// ordinary serialized configuration and therefore in experiment identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<EvidenceCatalog>,
 }
 
 impl ExperimentConfig {
@@ -30,6 +38,7 @@ impl ExperimentConfig {
             demography: DemographyConfig::synthetic_validation_v1(),
             resources: ResourceConfig::synthetic_validation_v1(),
             migration: MigrationConfig::synthetic_validation_v1(),
+            evidence: None,
         }
     }
 
@@ -60,6 +69,12 @@ impl ExperimentConfig {
     #[must_use]
     pub fn with_migration(mut self, migration: MigrationConfig) -> Self {
         self.migration = migration;
+        self
+    }
+
+    #[must_use]
+    pub fn with_evidence(mut self, evidence: EvidenceCatalog) -> Self {
+        self.evidence = Some(evidence);
         self
     }
 }

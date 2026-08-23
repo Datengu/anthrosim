@@ -7,6 +7,7 @@ pub mod checkpoint;
 pub mod config;
 pub mod demography;
 pub mod events;
+pub mod evidence;
 pub mod ids;
 pub mod invariants;
 pub mod manifest;
@@ -29,6 +30,10 @@ pub use demography::{
     DemographyConfigError, annual_probability_for_age, validate_demography_config,
 };
 pub use events::{DeathCause, EventKind, EventLog, EventProvenance, EventRecord};
+pub use evidence::{
+    EvidenceCatalog, EvidenceError, EvidenceRecord, EvidenceSource, EvidenceTransformation,
+    EvidenceUncertainty, ExternalInputEvidence, ParameterEvidenceLink, validate_evidence_catalog,
+};
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
     validate_recorded_run_invariants,
