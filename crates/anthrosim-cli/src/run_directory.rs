@@ -1,6 +1,5 @@
 use std::{
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -289,7 +288,11 @@ mod tests {
         fs::write(target.join("spatial-observability.json"), "stale\n").unwrap();
 
         let transaction = RunDirectoryTransaction::replace_verified(&target).unwrap();
-        fs::write(transaction.staging_dir().join("checkpoint.json"), "new-checkpoint\n").unwrap();
+        fs::write(
+            transaction.staging_dir().join("checkpoint.json"),
+            "new-checkpoint\n",
+        )
+        .unwrap();
         transaction.commit().unwrap();
 
         assert_eq!(
@@ -307,7 +310,11 @@ mod tests {
         fs::write(target.join("checkpoint.json"), "old\n").unwrap();
         {
             let transaction = RunDirectoryTransaction::replace_verified(&target).unwrap();
-            fs::write(transaction.staging_dir().join("checkpoint.json"), "partial\n").unwrap();
+            fs::write(
+                transaction.staging_dir().join("checkpoint.json"),
+                "partial\n",
+            )
+            .unwrap();
         }
 
         assert_eq!(
