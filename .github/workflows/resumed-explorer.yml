@@ -1,0 +1,109 @@
+name: Resumed Explorer compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  resumed-explorer:
+    name: New-directory resume Explorer compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build resume runners
+        env:
+          ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
+        run: cargo build --locked --release -p anthrosim-cli --bin anthrosim --bin anthrosim-landscape
+
+      - name: Verify core new-directory resume opens in Explorer
+        run: |
+          rm -rf /tmp/anthrosim-core-resume-source /tmp/anthrosim-core-resumed
+          target/release/anthrosim run \
+            --seed 9201 \
+            --years 4 \
+            --world-width 8 \
+            --world-height 8 \
+            --population 80 \
+            --max-person-records 1000 \
+            --run-dir /tmp/anthrosim-core-resume-source \
+            --checkpoint-year 2
+          target/release/anthrosim resume \
+            --checkpoint /tmp/anthrosim-core-resume-source/checkpoint.json \
+            --run-dir /tmp/anthrosim-core-resumed
+
+          test -f /tmp/anthrosim-core-resumed/initial-population.json
+          test -f /tmp/anthrosim-core-resumed/resume-start-population.json
+          cmp /tmp/anthrosim-core-resume-source/initial-population.json /tmp/anthrosim-core-resumed/initial-population.json
+          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-core-resumed
+
+          python3 scripts/serve-explorer.py /tmp/anthrosim-core-resumed --no-browser --port 8890 >/tmp/core-resumed-explorer.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8890/ >/tmp/core-resumed-index.html; then
+              break
+            fi
+            sleep 0.2
+          done
+          test -s /tmp/core-resumed-index.html
+          curl -fsS http://127.0.0.1:8890/run/initial-population.json | cmp - /tmp/anthrosim-core-resumed/initial-population.json
+          curl -fsS http://127.0.0.1:8890/run/resume-start-population.json | cmp - /tmp/anthrosim-core-resumed/resume-start-population.json
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8890/run/resume-start-population.json)
+          test "$status" = "405"
+          kill "$server_pid"
+          wait "$server_pid" 2>/dev/null || true
+          trap - EXIT
+
+      - name: Verify transformed-spatial new-directory resume opens in Explorer
+        run: |
+          rm -rf /tmp/anthrosim-spatial-resume-source /tmp/anthrosim-spatial-resumed
+          target/release/anthrosim-landscape run \
+            --landscape examples/landscape-loading/landscape.json \
+            --mechanisms examples/landscape-loading/spatial-mechanisms.json \
+            --seed 9202 \
+            --years 4 \
+            --population 40 \
+            --max-person-records 1000 \
+            --run-dir /tmp/anthrosim-spatial-resume-source \
+            --checkpoint-year 2
+          target/release/anthrosim-landscape resume \
+            --checkpoint /tmp/anthrosim-spatial-resume-source/landscape-checkpoint.json \
+            --landscape examples/landscape-loading/landscape.json \
+            --run-dir /tmp/anthrosim-spatial-resumed
+
+          test -f /tmp/anthrosim-spatial-resumed/initial-population.json
+          test -f /tmp/anthrosim-spatial-resumed/resume-start-population.json
+          cmp /tmp/anthrosim-spatial-resume-source/initial-population.json /tmp/anthrosim-spatial-resumed/initial-population.json
+          node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-spatial-resumed
+
+          python3 scripts/serve-explorer.py /tmp/anthrosim-spatial-resumed --no-browser --port 8891 >/tmp/spatial-resumed-explorer.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8891/ >/tmp/spatial-resumed-index.html; then
+              break
+            fi
+            sleep 0.2
+          done
+          test -s /tmp/spatial-resumed-index.html
+          curl -fsS http://127.0.0.1:8891/run/initial-population.json | cmp - /tmp/anthrosim-spatial-resumed/initial-population.json
+          curl -fsS http://127.0.0.1:8891/run/resume-start-population.json | cmp - /tmp/anthrosim-spatial-resumed/resume-start-population.json
+          kill "$server_pid"
+          wait "$server_pid" 2>/dev/null || true
+          trap - EXIT
