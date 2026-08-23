@@ -97,6 +97,53 @@ fn config(seed: u64) -> ExperimentConfig {
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
 }
 
+fn directional_config(seed: u64, water_weight: u16, travel_weight: u16) -> ExperimentConfig {
+    let mut resources = ResourceConfig::synthetic_validation_v1();
+    resources.annual_need_units_per_person = 100;
+    resources.annual_regeneration_units_per_productivity = 0;
+    resources.condition_recovery_per_period = 0;
+    resources.max_condition_loss_per_period = 0;
+    resources.max_scarcity_mortality_probability_per_million = 0;
+
+    let mut migration = MigrationConfig::synthetic_validation_v1();
+    migration.enabled = true;
+    migration.candidate_radius_cells = 2;
+    migration.condition_pressure_threshold_permille = 1_000;
+    migration.resource_pressure_threshold_permille = 1_000;
+    migration.minimum_utility_improvement = 0;
+    migration.resource_weight = 0;
+    migration.water_security_weight = water_weight;
+    migration.kin_weight = 0;
+    migration.travel_cost_weight = travel_weight;
+    migration.max_uncertainty_penalty_permille = 0;
+    migration.relocation_risk_base_penalty_permille = 0;
+    migration.relocation_risk_per_cell_permille = 0;
+    migration.travel_condition_cost_per_cell = 0;
+    migration.max_recorded_decision_traces = 1_000;
+
+    ExperimentConfig::new(seed, 1)
+        .with_world(WorldConfig::new(3, 1))
+        .with_population(PopulationConfig::new(60).with_max_person_records(10_000))
+        .with_resources(resources)
+        .with_migration(migration)
+}
+
+fn directional_mechanisms(
+    movement_min: u16,
+    movement_max: u16,
+    water_min: u16,
+    water_max: u16,
+) -> SpatialMechanismConfig {
+    let mut result = mechanisms();
+    result.transforms[0].target_min = movement_min;
+    result.transforms[0].target_max = movement_max;
+    result.transforms[1].target_min = water_min;
+    result.transforms[1].target_max = water_max;
+    result.transforms[2].target_min = 0;
+    result.transforms[2].target_max = 0;
+    result
+}
+
 #[test]
 fn transformed_world_uses_declared_model_facing_fields() {
     let source = fixture();
@@ -130,6 +177,56 @@ fn transformed_world_uses_declared_model_facing_fields() {
         simulation.resources().cell_food_stock(CellId::new(3)),
         Some(10_000)
     );
+}
+
+#[test]
+fn transformed_water_access_changes_migration_utility_in_declared_direction() {
+    let mut traces = Vec::new();
+    for seed in 9_100..9_120 {
+        let run = SpatialLandscapeSimulation::new(
+            directional_config(seed, 1, 0),
+            fixture(),
+            directional_mechanisms(1_000, 1_000, 0, 1_000),
+        )
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+        traces.extend(run.core_manifest().migration.recorded_decision_traces.clone());
+        if !traces.is_empty() {
+            break;
+        }
+    }
+
+    assert!(!traces.is_empty(), "controlled fixture should produce water-seeking moves");
+    assert!(traces.iter().all(|trace| {
+        trace.destination_utility.water_security_score_permille
+            > trace.origin_utility.water_security_score_permille
+    }));
+}
+
+#[test]
+fn transformed_movement_cost_changes_migration_utility_in_declared_direction() {
+    let mut traces = Vec::new();
+    for seed in 9_200..9_220 {
+        let run = SpatialLandscapeSimulation::new(
+            directional_config(seed, 1, 1),
+            fixture(),
+            directional_mechanisms(1_000, 3_000, 1_000, 1_000),
+        )
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+        traces.extend(run.core_manifest().migration.recorded_decision_traces.clone());
+        if !traces.is_empty() {
+            break;
+        }
+    }
+
+    assert!(!traces.is_empty(), "controlled fixture should produce lower-cost moves");
+    assert!(traces.iter().all(|trace| {
+        trace.destination_utility.travel_penalty_permille
+            < trace.origin_utility.travel_penalty_permille
+    }));
 }
 
 #[test]
