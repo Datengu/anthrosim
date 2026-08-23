@@ -1,0 +1,108 @@
+name: M8.6 evidence-grounded spatial benchmark
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-cli/src/main.rs"
+      - "crates/anthrosim-cli/src/ensemble.rs"
+      - "crates/anthrosim-cli/src/sweep.rs"
+      - "crates/anthrosim-core/src/evidence.rs"
+      - "crates/anthrosim-core/src/landscape.rs"
+      - "crates/anthrosim-core/src/landscape_binding.rs"
+      - "crates/anthrosim-core/src/spatial_mechanisms.rs"
+      - "crates/anthrosim-core/src/spatial_observability.rs"
+      - "scripts/aggregate-m8-spatial-benchmark.py"
+      - "examples/m8-first-evidence-grounded-benchmark/**"
+      - ".github/workflows/m8-spatial-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Execute predeclared terrain null-model benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Validate benchmark analysis source
+        run: python3 -m py_compile scripts/aggregate-m8-spatial-benchmark.py
+
+      - name: Build release binaries
+        env:
+          ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
+        run: cargo build --locked --workspace --release
+
+      - name: Execute four predeclared M7 spatial ensembles
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf m8-benchmark-runs m8-benchmark-output
+          mkdir -p m8-benchmark-runs m8-benchmark-output
+          : > m8-benchmark-output/ensemble-exit-codes.txt
+          for arm in flat weak moderate strong; do
+            set +e
+            target/release/anthrosim ensemble \
+              --seeds 8601,8602,8603,8604,8605,8606,8607,8608 \
+              --years 100 \
+              --world-width 16 \
+              --world-height 16 \
+              --population 1000 \
+              --household-size 5 \
+              --max-person-records 100000 \
+              --resource-productivity-scale-permille 1000 \
+              --resource-seasonality-scale-permille 1000 \
+              --annual-food-need 100 \
+              --migration-radius 3 \
+              --landscape examples/m8-first-evidence-grounded-benchmark/landscape.json \
+              --mechanisms examples/m8-first-evidence-grounded-benchmark/spatial-mechanisms-${arm}.json \
+              --evidence examples/m8-first-evidence-grounded-benchmark/evidence.json \
+              --run-dir m8-benchmark-runs/${arm}
+            rc=$?
+            set -e
+            printf '%s=%s\n' "$arm" "$rc" | tee -a m8-benchmark-output/ensemble-exit-codes.txt
+          done
+
+      - name: Derive M8.5 observability for every completed run
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > m8-benchmark-output/observability-exit-codes.txt
+          for arm in flat weak moderate strong; do
+            set +e
+            target/release/anthrosim-spatial-observability tree \
+              --root m8-benchmark-runs/${arm}
+            rc=$?
+            set -e
+            printf '%s=%s\n' "$arm" "$rc" | tee -a m8-benchmark-output/observability-exit-codes.txt
+          done
+
+      - name: Aggregate paired effects and predeclared classification
+        run: |
+          python3 scripts/aggregate-m8-spatial-benchmark.py \
+            --root m8-benchmark-runs \
+            --output m8-benchmark-output/benchmark-summary.json \
+            --markdown m8-benchmark-output/benchmark-summary.md
+          cat m8-benchmark-output/benchmark-summary.md
+
+      - name: Upload benchmark result and complete run archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: m8-evidence-grounded-benchmark
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            m8-benchmark-output/
+            m8-benchmark-runs/
