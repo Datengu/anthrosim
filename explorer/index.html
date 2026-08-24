@@ -101,6 +101,24 @@
       <div id="spatial-cell-details" class="inspector-content"></div>
     </section>
 
+    <section id="temporary-m9" class="panel" aria-labelledby="temporary-heading" hidden>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">M9.6 / TEMPORARY MOBILITY</p>
+          <h2 id="temporary-heading">Temporary presence observability</h2>
+        </div>
+        <span class="badge derived">Derived report</span>
+      </div>
+      <p id="temporary-provenance" class="provenance-note"></p>
+      <div id="temporary-summary" class="summary-grid"></div>
+      <h3>Mobility provenance</h3>
+      <dl id="temporary-metadata"></dl>
+      <details class="raw-details">
+        <summary>Trace this panel to temporary-observability.json</summary>
+        <pre id="temporary-raw"></pre>
+      </details>
+    </section>
+
     <section class="panel inspector-panel" aria-labelledby="inspector-heading">
       <div class="panel-heading">
         <div>
@@ -135,6 +153,11 @@
           <option value="birth">Births</option>
           <option value="death">Deaths</option>
           <option value="householdMigration">Household migrations</option>
+          <option value="temporaryJourneyNotStarted">Temporary journeys not started</option>
+          <option value="temporaryJourneyDeparted">Temporary departures</option>
+          <option value="temporaryJourneyArrived">Temporary arrivals</option>
+          <option value="temporaryReturnDeparted">Temporary return departures</option>
+          <option value="temporaryJourneyCompleted">Temporary journey completions</option>
         </select>
         <input id="event-filter" type="search" placeholder="person:123, household:59, cell:643" aria-label="Filter events by entity">
         <label class="checkbox-label"><input id="event-through-time" type="checkbox" checked> Up to selected time</label>

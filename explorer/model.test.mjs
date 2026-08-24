@@ -105,6 +105,48 @@ function fixture() {
   };
 }
 
+function withTemporaryObservability(bundle = fixture()) {
+  bundle.checkpoint.modelSemanticsId = "anthrosim-model-semantics-v5";
+  bundle.checkpoint.gitCommit = null;
+  bundle.checkpoint.worldDigest64 = "777";
+  bundle.temporaryObservability = {
+    schemaVersion: 1,
+    provenance: "derived",
+    source: {
+      modelVersion: bundle.checkpoint.modelVersion,
+      modelSemanticsId: bundle.checkpoint.modelSemanticsId,
+      gitCommit: null,
+      seed: bundle.checkpoint.experiment.seed,
+      endDay: bundle.checkpoint.time,
+      runStateDigest64: bundle.checkpoint.stateDigest64,
+      worldDigest64: bundle.checkpoint.worldDigest64,
+      temporaryMobilityConfigIdentity: "temporary-config-test",
+      temporaryMobilityProgramIdentity: "temporary-program-test",
+      regionId: "temporary-test-region",
+      regionIdentity: "temporary-region-test",
+      travelModelIdentity: "temporary-travel-test",
+    },
+    summary: {
+      provenance: "derived",
+      observationDurationDays: bundle.checkpoint.time,
+      totalLivingPersonDays: "100",
+      persistentResidencePersonDays: "100",
+      atResidencePersonDays: "70",
+      visitorPersonDays: "20",
+      outboundTransitPersonDays: "5",
+      returnTransitPersonDays: "5",
+      transitPersonDays: "10",
+      journeysStarted: 2,
+      notStartedTotal: 1,
+      arrivals: 2,
+      journeysCompleted: 2,
+      peakVisitors: 3,
+      meanVisitorsMillipersons: 18,
+    },
+  };
+  return bundle;
+}
+
 function pausedFixture() {
   const bundle = fixture();
   bundle.manifest = null;
@@ -125,6 +167,27 @@ test("completed bundle validation reconciles manifest, events, metrics and schem
   assert.deepEqual(result.eventCounts, { birth: 1, death: 1, householdMigration: 1 });
   assert.equal(result.durationYears, 3);
   assert.equal(result.personRecords, 3);
+});
+
+test("optional temporary observability validates its provenance and person-day partition", () => {
+  const bundle = withTemporaryObservability();
+  const result = validateBundle(bundle);
+  assert.equal(result.hasTemporaryObservability, true);
+
+  bundle.temporaryObservability.summary.visitorPersonDays = "21";
+  assert.throws(() => validateBundle(bundle), /physical person-day partition does not reconcile/);
+});
+
+test("temporary observability preserves unsafe person-day integers exactly", () => {
+  const bundle = withTemporaryObservability();
+  bundle.temporaryObservability.summary.totalLivingPersonDays = "18446744073709551615";
+  bundle.temporaryObservability.summary.persistentResidencePersonDays = "18446744073709551615";
+  bundle.temporaryObservability.summary.atResidencePersonDays = "18446744073709551605";
+  bundle.temporaryObservability.summary.visitorPersonDays = "0";
+  bundle.temporaryObservability.summary.outboundTransitPersonDays = "5";
+  bundle.temporaryObservability.summary.returnTransitPersonDays = "5";
+  bundle.temporaryObservability.summary.transitPersonDays = "10";
+  assert.equal(validateBundle(bundle).hasTemporaryObservability, true);
 });
 
 test("paused bundle validation uses checkpoint as the authoritative boundary without a manifest", () => {

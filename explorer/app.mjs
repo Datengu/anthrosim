@@ -38,6 +38,7 @@ async function loadBundle() {
   return {
     ...Object.fromEntries(entries),
     manifest: await fetchArtifact("manifest.json", { optional: true }),
+    temporaryObservability: await fetchArtifact("temporary-observability.json", { optional: true }),
   };
 }
 
@@ -133,6 +134,49 @@ function colorFor(value, min, max, overlay) {
   const light = 14 + ratio * 52;
   const hue = overlay === "movement" ? 38 - ratio * 22 : 215 - ratio * 35;
   return `hsl(${hue} 68% ${light}%)`;
+}
+
+function renderTemporaryMobility() {
+  const panel = byId("temporary-m9");
+  const report = bundle.temporaryObservability;
+  if (!report) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const summary = report.summary;
+  const cards = byId("temporary-summary");
+  cards.replaceChildren();
+  const meanVisitors = summary.meanVisitorsMillipersons === null || summary.meanVisitorsMillipersons === undefined
+    ? "—"
+    : (Number(summary.meanVisitorsMillipersons) / 1000).toLocaleString(undefined, { maximumFractionDigits: 3 });
+  const values = [
+    ["Journeys started", summary.journeysStarted],
+    ["Not started", summary.notStartedTotal],
+    ["Arrivals", summary.arrivals],
+    ["Completed", summary.journeysCompleted],
+    ["Visitor person-days", summary.visitorPersonDays],
+    ["Transit person-days", summary.transitPersonDays],
+    ["Peak visitors", summary.peakVisitors],
+    ["Mean visitors", meanVisitors],
+  ];
+  for (const [label, value] of values) {
+    const card = create("div", null, "summary-card");
+    card.append(create("span", label, "label"), create("strong", formatNumber(value), "value"));
+    cards.append(card);
+  }
+
+  const metadata = byId("temporary-metadata");
+  metadata.replaceChildren();
+  addDefinition(metadata, "Focal region", report.source.regionId);
+  addDefinition(metadata, "Region identity", report.source.regionIdentity);
+  addDefinition(metadata, "Program identity", report.source.temporaryMobilityProgramIdentity);
+  addDefinition(metadata, "Travel model", report.source.travelModelIdentity ?? "not available");
+  addDefinition(metadata, "Observation boundary", `day ${formatNumber(report.source.endDay)}`);
+  addDefinition(metadata, "Run state digest", report.source.runStateDigest64);
+  byId("temporary-provenance").textContent =
+    "Derived from authoritative events/checkpoint state. Persistent residence, visiting and transit remain separate; transit has no invented map cell.";
+  byId("temporary-raw").textContent = JSON.stringify(report, null, 2);
 }
 
 function renderMap() {
@@ -290,6 +334,21 @@ function eventSummary(record) {
     const peopleMoved = event.people_moved ?? event.peopleMoved;
     return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${peopleMoved} people`;
   }
+  if (event.type === "temporaryJourneyNotStarted") {
+    return `temporary journey not started · household ${event.household} · ${event.reason}`;
+  }
+  if (event.type === "temporaryJourneyDeparted") {
+    return `temporary departure · household ${event.household} · ${event.residence} → ${event.destination}`;
+  }
+  if (event.type === "temporaryJourneyArrived") {
+    return `temporary arrival · household ${event.household} · destination ${event.destination}`;
+  }
+  if (event.type === "temporaryReturnDeparted") {
+    return `temporary return departure · household ${event.household} · destination ${event.destination} → residence ${event.residence}`;
+  }
+  if (event.type === "temporaryJourneyCompleted") {
+    return `temporary journey completed · household ${event.household} · residence ${event.residence}`;
+  }
   return event.type;
 }
 
@@ -397,6 +456,7 @@ async function start() {
     bindInteractions();
     renderTimeline();
     renderMap();
+    renderTemporaryMobility();
     renderEvents();
     inspect("cell", 1);
   } catch (error) {

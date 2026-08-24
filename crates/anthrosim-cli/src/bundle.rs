@@ -10,9 +10,11 @@ use anthrosim_core::{
     EventLog, EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
     LandscapeRunManifest, MetricSeries, Population, RecordedRun, RunManifest, SimulationCheckpoint,
     SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest,
-    SpatialMechanismBinding, SpatialMechanismConfig, SpatialObservabilityReport, World,
-    derive_spatial_observability, rng::RngFactory, validate_landscape_recorded_run_invariants,
-    validate_recorded_run_invariants, validate_spatial_landscape_recorded_run,
+    SpatialMechanismBinding, SpatialMechanismConfig, SpatialObservabilityReport,
+    TemporaryMobilityObservabilityReport, World, derive_spatial_observability,
+    derive_temporary_mobility_observability, rng::RngFactory,
+    validate_landscape_recorded_run_invariants, validate_recorded_run_invariants,
+    validate_spatial_landscape_recorded_run,
 };
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -36,6 +38,7 @@ pub(crate) const OPTIONAL_JSON: &[&str] = &[
     "landscape.json",
     "spatial-mechanisms.json",
     "spatial-observability.json",
+    "temporary-observability.json",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,7 +176,7 @@ fn validate_semantics(
             initial_population = Some(population);
         }
     }
-    if initial_population.is_none() && has_landscape {
+    if initial_population.is_none() {
         initial_population = Some(reconstruct_initial_population(&checkpoint, &world)?);
     }
 
@@ -193,10 +196,12 @@ fn validate_semantics(
     validate_optional_evidence(run_dir, &checkpoint)?;
     validate_optional_completion(run_dir, &checkpoint)?;
 
+    let initial_population = initial_population
+        .as_ref()
+        .ok_or_else(|| invalid("run bundle has no resolvable original founder population"))?;
+    validate_optional_temporary_observability(run_dir, &world, initial_population, &checkpoint)?;
+
     if let Some(landscape) = landscape.as_ref() {
-        let initial_population = initial_population.as_ref().ok_or_else(|| {
-            invalid("landscape-bound run has no resolvable original founder population")
-        })?;
         validate_optional_spatial_observability(
             run_dir,
             landscape,
@@ -375,6 +380,56 @@ fn validate_optional_completion(
     Ok(())
 }
 
+fn validate_optional_temporary_observability(
+    run_dir: &Path,
+    world: &World,
+    initial_population: &Population,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), BundleValidationError> {
+    let path = run_dir.join("temporary-observability.json");
+    if !path.is_file() {
+        return Ok(());
+    }
+    let report: TemporaryMobilityObservabilityReport = read_json(&path)?;
+    let program = checkpoint
+        .temporary_mobility
+        .program()
+        .ok_or_else(|| invalid(
+            "temporary-observability.json is present but checkpoint.json has no configured temporary-mobility program",
+        ))?;
+    if report.schema_version != TemporaryMobilityObservabilityReport::CURRENT_SCHEMA_VERSION
+        || report.source.model_version != checkpoint.model_version
+        || report.source.model_semantics_id != checkpoint.model_semantics_id
+        || report.source.git_commit != checkpoint.git_commit
+        || report.source.seed != checkpoint.experiment.seed
+        || report.source.end_day != checkpoint.time.days()
+        || report.source.run_state_digest64 != checkpoint.state_digest64
+        || report.source.world_digest64 != world.digest64()
+        || report.source.temporary_mobility_program_identity != program.identity()
+        || report.source.region_id != program.region.region_id
+        || report.source.region_identity != program.region.identity()
+    {
+        return Err(invalid(
+            "temporary-observability.json provenance does not match the run bundle",
+        ));
+    }
+
+    let regenerated =
+        derive_temporary_mobility_observability(world, initial_population, checkpoint).map_err(
+            |error| {
+                invalid(format!(
+                    "temporary-observability.json could not be regenerated: {error}"
+                ))
+            },
+        )?;
+    if regenerated != report {
+        return Err(invalid(
+            "temporary-observability.json does not match deterministic regeneration",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_optional_spatial_observability(
     run_dir: &Path,
     landscape: &LandscapeBundle,
@@ -464,7 +519,11 @@ mod tests {
         sync::atomic::{AtomicU64, Ordering},
     };
 
-    use anthrosim_core::{ExperimentConfig, PopulationConfig, Simulation, WorldConfig};
+    use anthrosim_core::{
+        ExperimentConfig, FocalRegion, FocalRegionSource, PopulationConfig, Simulation,
+        TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
+        TemporaryTriggerTiming, WorldConfig, ids::CellId,
+    };
 
     use super::*;
 
@@ -478,6 +537,34 @@ mod tests {
         let files = validated_bundle_files(&root).unwrap();
         assert!(files.iter().any(|(name, _)| name == "manifest.json"));
         assert!(files.iter().any(|(name, _)| name == "checkpoint.json"));
+        cleanup(&root);
+    }
+
+    #[test]
+    fn temporary_observability_is_validated_and_packed() {
+        let root = test_dir("temporary-observability-valid");
+        write_real_temporary_bundle(&root);
+
+        let files = validated_bundle_files(&root).unwrap();
+        assert!(
+            files
+                .iter()
+                .any(|(name, _)| name == "temporary-observability.json")
+        );
+        cleanup(&root);
+    }
+
+    #[test]
+    fn tampered_temporary_observability_is_rejected() {
+        let root = test_dir("temporary-observability-tampered");
+        write_real_temporary_bundle(&root);
+        let path = root.join("temporary-observability.json");
+        let mut report: TemporaryMobilityObservabilityReport = read_json(&path).unwrap();
+        report.summary.trigger_outcomes += 1;
+        write_json(&path, &report);
+
+        let error = validated_bundle_files(&root).unwrap_err().to_string();
+        assert!(error.contains("does not match deterministic regeneration"));
         cleanup(&root);
     }
 
@@ -518,6 +605,55 @@ mod tests {
 
         let reconstructed = reconstruct_initial_population(&checkpoint, &world).unwrap();
         assert_eq!(reconstructed, expected);
+    }
+
+    fn write_real_temporary_bundle(root: &Path) {
+        let region = FocalRegion::new(
+            "bundle-temporary-region",
+            FocalRegionSource::Synthetic,
+            vec![CellId::new(16)],
+        )
+        .unwrap();
+        let schedule = TemporaryMobilitySchedule::new(
+            "bundle-temporary-schedule",
+            TemporaryTriggerTiming::DepartureDay,
+            vec![10],
+            5,
+        )
+        .unwrap();
+        let temporary = TemporaryMobilityConfig::new(
+            region,
+            schedule,
+            TemporaryTravelModel::synthetic_validation_v1(),
+        )
+        .unwrap();
+        let config = ExperimentConfig::new(79, 1)
+            .with_world(WorldConfig::new(4, 4))
+            .with_population(
+                PopulationConfig::new(8)
+                    .with_target_household_size(2)
+                    .with_max_person_records(64),
+            )
+            .with_temporary_mobility(temporary);
+        let simulation = Simulation::new(config).unwrap();
+        let world = simulation.world().clone();
+        let initial_population = simulation.population().clone();
+        let recorded = simulation.run_recorded().unwrap();
+        let report = derive_temporary_mobility_observability(
+            &world,
+            &initial_population,
+            &recorded.checkpoint,
+        )
+        .unwrap();
+
+        fs::create_dir_all(root).unwrap();
+        write_json(&root.join("world.json"), &world);
+        write_json(&root.join("initial-population.json"), &initial_population);
+        write_json(&root.join("manifest.json"), &recorded.manifest);
+        write_json(&root.join("events.json"), recorded.events());
+        write_json(&root.join("metrics.json"), recorded.metrics());
+        write_json(&root.join("checkpoint.json"), &recorded.checkpoint);
+        write_json(&root.join("temporary-observability.json"), &report);
     }
 
     fn write_real_completed_bundle(root: &Path) {
