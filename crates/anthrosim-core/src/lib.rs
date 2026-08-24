@@ -23,6 +23,7 @@ pub mod simulation;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
 pub mod spatial_simulation;
+pub mod temporary_mobility;
 pub mod time;
 pub mod world;
 
@@ -88,6 +89,10 @@ pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
     validate_spatial_landscape_recorded_run,
+};
+pub use temporary_mobility::{
+    HouseholdPresence, TemporaryMobilityError, TemporaryMobilityState,
+    TemporaryMobilityValidationError,
 };
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};

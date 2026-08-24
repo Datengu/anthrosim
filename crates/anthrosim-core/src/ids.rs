@@ -22,3 +22,4 @@ macro_rules! define_id {
 define_id!(PersonId);
 define_id!(HouseholdId);
 define_id!(CellId);
+define_id!(TemporaryJourneyId);
