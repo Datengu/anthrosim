@@ -128,7 +128,9 @@ fn validate_checkpoint_invariants_for_context(
         &migration_summary,
     )?;
     validate_temporary_mobility_history(&world, checkpoint).map_err(|error| {
-        InvariantError::Violation(format!("temporary mobility event history is invalid: {error}"))
+        InvariantError::Violation(format!(
+            "temporary mobility event history is invalid: {error}"
+        ))
     })?;
     validate_metrics(
         &checkpoint.metrics,
