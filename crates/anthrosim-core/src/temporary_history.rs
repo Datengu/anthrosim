@@ -98,7 +98,11 @@ pub fn validate_temporary_mobility_history(
                     expected_region_id,
                     &expected_region_identity,
                 )?;
-                validate_trigger(program.schedule.trigger_days.as_slice(), *trigger_index, *trigger_day)?;
+                validate_trigger(
+                    program.schedule.trigger_days.as_slice(),
+                    *trigger_index,
+                    *trigger_day,
+                )?;
                 record_trigger_outcome(&mut trigger_outcomes, *trigger_index, *household)?;
             }
             EventKind::TemporaryJourneyDeparted {
@@ -118,7 +122,11 @@ pub fn validate_temporary_mobility_history(
                     expected_region_id,
                     &expected_region_identity,
                 )?;
-                validate_trigger(program.schedule.trigger_days.as_slice(), *trigger_index, *trigger_day)?;
+                validate_trigger(
+                    program.schedule.trigger_days.as_slice(),
+                    *trigger_index,
+                    *trigger_day,
+                )?;
                 record_trigger_outcome(&mut trigger_outcomes, *trigger_index, *household)?;
                 if record.day != *departure_day {
                     return Err(invalid(
@@ -164,7 +172,9 @@ pub fn validate_temporary_mobility_history(
                     ));
                 }
             }
-            EventKind::Birth { .. } | EventKind::Death { .. } | EventKind::HouseholdMigration { .. } => {}
+            EventKind::Birth { .. }
+            | EventKind::Death { .. }
+            | EventKind::HouseholdMigration { .. } => {}
         }
     }
 
@@ -233,8 +243,10 @@ fn require_journey<'a>(
     journeys: &BTreeMap<u64, &'a TemporaryJourneyObservability>,
     journey: TemporaryJourneyId,
 ) -> Result<&'a TemporaryJourneyObservability, TemporaryMobilityHistoryError> {
-    journeys
-        .get(&journey.0)
-        .copied()
-        .ok_or_else(|| invalid(format!("temporary event references unknown journey {}", journey.0)))
+    journeys.get(&journey.0).copied().ok_or_else(|| {
+        invalid(format!(
+            "temporary event references unknown journey {}",
+            journey.0
+        ))
+    })
 }
