@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use crate::{
     InvariantError, LandscapeBundle, SpatialLandscapeError, SpatialLandscapeRecordedRun, World,
-    RngFactory, transform_landscape, validate_run_artifacts_with_world,
+    rng::RngFactory, transform_landscape, validate_run_artifacts_with_world,
 };
 
 #[derive(Debug, Error)]
