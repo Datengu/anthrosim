@@ -127,14 +127,8 @@ mod tests {
         let temporary_mobility = TemporaryMobilityState::at_residence(&population);
 
         let legacy = state_digest64(365, 11, 22, 33, 44);
-        let extended = state_digest64_with_temporary_mobility(
-            365,
-            11,
-            22,
-            33,
-            44,
-            &temporary_mobility,
-        );
+        let extended =
+            state_digest64_with_temporary_mobility(365, 11, 22, 33, 44, &temporary_mobility);
         assert_eq!(extended, legacy);
     }
 }
