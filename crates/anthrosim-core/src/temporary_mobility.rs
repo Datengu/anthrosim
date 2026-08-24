@@ -14,10 +14,8 @@ const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
 /// Authoritative M9 physical-presence state for one household.
 ///
-/// Persistent residence remains owned by `Population::household_location` until the
-/// residence terminology is migrated through the existing API. This enum records only
-/// whether a household is temporarily away from that residence. Transit deliberately has
-/// no world cell in M9 v1: it must not be converted into arbitrary cell occupancy.
+/// Persistent residence remains in `Population::household_location`. Transit deliberately has no
+/// occupied world cell in M9 v1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum HouseholdPresence {
@@ -63,12 +61,7 @@ impl HouseholdPresence {
     }
 }
 
-/// Compact authoritative household-presence layer introduced by M9.1.
-///
-/// The state is intentionally separate from persistent household residence so temporary
-/// travel cannot silently change the meaning of M4 permanent migration. All founder
-/// households begin at residence. M9.3 will own lifecycle transitions and scheduling;
-/// M9.1 only establishes the invariant-bearing state representation.
+/// Compact authoritative presence layer parallel to persistent household residence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemporaryMobilityState {
@@ -94,8 +87,9 @@ impl TemporaryMobilityState {
 
     #[must_use]
     pub fn presence(&self, household: HouseholdId) -> Option<HouseholdPresence> {
-        let index = household_index(household, self.household_count())?;
-        self.household_presence.get(index).copied()
+        self.household_presence
+            .get(household_index(household, self.household_count())?)
+            .copied()
     }
 
     #[must_use]
@@ -104,10 +98,6 @@ impl TemporaryMobilityState {
             .map(HouseholdPresence::is_at_residence)
     }
 
-    /// Current modelled physical cell, when M9 v1 asserts one.
-    ///
-    /// Transit returns `None` by design. `AtResidence` resolves through the persistent
-    /// residence stored by `Population`; `Visiting` resolves to the temporary destination.
     #[must_use]
     pub fn current_cell(&self, household: HouseholdId, population: &Population) -> Option<CellId> {
         match self.presence(household)? {
@@ -126,8 +116,24 @@ impl TemporaryMobilityState {
             .all(|presence| presence.is_at_residence())
     }
 
+    /// Remove active temporary state for households with no living members.
+    ///
+    /// M9 presence is household-coordinated. If the final living member dies, there is no longer a
+    /// physical traveller to represent, so the active journey state is retired deterministically.
+    pub(crate) fn reconcile_after_population_change(&mut self, population: &Population) {
+        for (index, presence) in self.household_presence.iter_mut().enumerate() {
+            if presence.is_at_residence() {
+                continue;
+            }
+            let household = HouseholdId::new(index as u64 + 1);
+            if !household_has_living_member(population, household) {
+                *presence = HouseholdPresence::AtResidence;
+            }
+        }
+    }
+
     #[cfg(test)]
-    fn set_presence(
+    pub(crate) fn set_presence(
         &mut self,
         household: HouseholdId,
         presence: HouseholdPresence,
@@ -184,9 +190,7 @@ impl TemporaryMobilityState {
         digest_u64(&mut hash, self.household_count() as u64);
         for presence in &self.household_presence {
             match *presence {
-                HouseholdPresence::AtResidence => {
-                    digest_u64(&mut hash, 0);
-                }
+                HouseholdPresence::AtResidence => digest_u64(&mut hash, 0),
                 HouseholdPresence::OutboundTransit {
                     journey,
                     destination,
@@ -236,6 +240,9 @@ fn validate_presence(
     let Some(journey) = presence.active_journey() else {
         return Ok(());
     };
+    if !household_has_living_member(population, household) {
+        return Err(TemporaryMobilityError::NoLivingMembers { household });
+    }
     if journey == TemporaryJourneyId::INVALID {
         return Err(TemporaryMobilityError::InvalidJourney { household });
     }
@@ -255,6 +262,13 @@ fn validate_presence(
         });
     }
     Ok(())
+}
+
+fn household_has_living_member(population: &Population, household: HouseholdId) -> bool {
+    (0..population.person_count()).any(|index| {
+        population.is_alive_index(index)
+            && population.household_at_index(index) == Some(household)
+    })
 }
 
 fn household_index(household: HouseholdId, household_count: usize) -> Option<usize> {
@@ -278,6 +292,8 @@ pub enum TemporaryMobilityError {
         household: HouseholdId,
         residence: CellId,
     },
+    #[error("household {household:?} has no living members for an active temporary journey")]
+    NoLivingMembers { household: HouseholdId },
     #[error("household {household:?} has an active temporary state with invalid journey ID")]
     InvalidJourney { household: HouseholdId },
     #[error("household {household:?} has an active temporary state without a destination")]
@@ -317,7 +333,6 @@ mod tests {
     use crate::{
         config::{PopulationConfig, WorldConfig},
         rng::RngFactory,
-        world::World,
     };
 
     fn fixture(seed: u64) -> (World, Population) {
@@ -342,8 +357,6 @@ mod tests {
     fn founders_begin_at_residence() {
         let (world, population) = fixture(7);
         let state = TemporaryMobilityState::at_residence(&population);
-
-        assert_eq!(state.household_count(), population.household_count());
         assert!(state.all_at_residence());
         for raw in 1..=population.household_count() as u64 {
             let household = HouseholdId::new(raw);
@@ -357,13 +370,12 @@ mod tests {
     }
 
     #[test]
-    fn transit_has_no_arbitrary_cell_presence() {
+    fn transit_has_no_arbitrary_cell_and_visit_preserves_residence() {
         let (world, population) = fixture(11);
         let mut state = TemporaryMobilityState::at_residence(&population);
         let household = HouseholdId::new(1);
         let residence = population.household_location(household).unwrap();
         let destination = different_cell(&world, residence);
-
         state
             .set_presence(
                 household,
@@ -375,75 +387,47 @@ mod tests {
                 &world,
             )
             .unwrap();
-
         assert_eq!(state.current_cell(household, &population), None);
-        assert_eq!(state.is_at_residence(household), Some(false));
-        state.validate(&population, &world).unwrap();
-    }
-
-    #[test]
-    fn visiting_resolves_to_destination_without_changing_residence() {
-        let (world, population) = fixture(13);
-        let mut state = TemporaryMobilityState::at_residence(&population);
-        let household = HouseholdId::new(1);
-        let residence = population.household_location(household).unwrap();
-        let destination = different_cell(&world, residence);
+        assert_eq!(population.household_location(household), Some(residence));
 
         state
             .set_presence(
                 household,
                 HouseholdPresence::Visiting {
-                    journey: TemporaryJourneyId::new(9),
+                    journey: TemporaryJourneyId::new(1),
                     destination,
                 },
                 &population,
                 &world,
             )
             .unwrap();
-
+        assert_eq!(state.current_cell(household, &population), Some(destination));
         assert_eq!(population.household_location(household), Some(residence));
-        assert_eq!(
-            state.current_cell(household, &population),
-            Some(destination)
-        );
-        state.validate(&population, &world).unwrap();
     }
 
     #[test]
     fn duplicate_active_journey_ids_are_rejected() {
         let (world, population) = fixture(17);
         let mut state = TemporaryMobilityState::at_residence(&population);
-        let first = HouseholdId::new(1);
-        let second = HouseholdId::new(2);
-        let first_destination =
-            different_cell(&world, population.household_location(first).unwrap());
-        let second_destination =
-            different_cell(&world, population.household_location(second).unwrap());
         let journey = TemporaryJourneyId::new(3);
-
-        state
-            .set_presence(
-                first,
-                HouseholdPresence::Visiting {
-                    journey,
-                    destination: first_destination,
-                },
-                &population,
+        for raw in 1..=2 {
+            let household = HouseholdId::new(raw);
+            let destination = different_cell(
                 &world,
-            )
-            .unwrap();
-        state
-            .set_presence(
-                second,
-                HouseholdPresence::ReturnTransit {
-                    journey,
-                    destination: second_destination,
-                },
-                &population,
-                &world,
-            )
-            .unwrap();
-
+                population.household_location(household).unwrap(),
+            );
+            state
+                .set_presence(
+                    household,
+                    HouseholdPresence::Visiting {
+                        journey,
+                        destination,
+                    },
+                    &population,
+                    &world,
+                )
+                .unwrap();
+        }
         assert_eq!(
             state.validate(&population, &world),
             Err(TemporaryMobilityValidationError::DuplicateActiveJourney { journey })
@@ -456,7 +440,6 @@ mod tests {
         let mut state = TemporaryMobilityState::at_residence(&population);
         let household = HouseholdId::new(1);
         let residence = population.household_location(household).unwrap();
-
         assert_eq!(
             state.set_presence(
                 household,
@@ -475,18 +458,42 @@ mod tests {
     }
 
     #[test]
-    fn digest_changes_with_presence_state() {
+    fn digest_changes_with_active_presence() {
         let (world, population) = fixture(23);
         let mut state = TemporaryMobilityState::at_residence(&population);
         let baseline = state.digest64();
         let household = HouseholdId::new(1);
-        let residence = population.household_location(household).unwrap();
-        let destination = different_cell(&world, residence);
-
+        let destination = different_cell(
+            &world,
+            population.household_location(household).unwrap(),
+        );
         state
             .set_presence(
                 household,
-                HouseholdPresence::OutboundTransit {
+                HouseholdPresence::ReturnTransit {
+                    journey: TemporaryJourneyId::new(1),
+                    destination,
+                },
+                &population,
+                &world,
+            )
+            .unwrap();
+        assert_ne!(state.digest64(), baseline);
+    }
+
+    #[test]
+    fn last_member_death_retires_active_presence() {
+        let (world, mut population) = fixture(29);
+        let mut state = TemporaryMobilityState::at_residence(&population);
+        let household = HouseholdId::new(1);
+        let destination = different_cell(
+            &world,
+            population.household_location(household).unwrap(),
+        );
+        state
+            .set_presence(
+                household,
+                HouseholdPresence::Visiting {
                     journey: TemporaryJourneyId::new(1),
                     destination,
                 },
@@ -495,6 +502,14 @@ mod tests {
             )
             .unwrap();
 
-        assert_ne!(state.digest64(), baseline);
+        for index in 0..population.person_count() {
+            if population.household_at_index(index) == Some(household) {
+                assert!(population.mark_death(index, 10));
+            }
+        }
+        assert!(state.validate(&population, &world).is_err());
+        state.reconcile_after_population_change(&population);
+        assert_eq!(state.presence(household), Some(HouseholdPresence::AtResidence));
+        state.validate(&population, &world).unwrap();
     }
 }

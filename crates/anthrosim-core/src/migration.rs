@@ -10,6 +10,7 @@ use crate::{
     population::{Population, PopulationError},
     resources::ResourceSystem,
     rng::{RngFactory, RngStreamPosition},
+    temporary_mobility::TemporaryMobilityState,
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
 };
 
@@ -255,6 +256,17 @@ impl MigrationSystem {
         rngs: &mut MigrationRngs,
         events: &mut EventLog,
     ) -> Result<(), MigrationError> {
+        self.process_boundary_recorded_with_presence(population, context, rngs, events, None)
+    }
+
+    pub(crate) fn process_boundary_recorded_with_presence(
+        &mut self,
+        population: &mut Population,
+        context: &MigrationBoundaryContext<'_>,
+        rngs: &mut MigrationRngs,
+        events: &mut EventLog,
+        temporary_mobility: Option<&TemporaryMobilityState>,
+    ) -> Result<(), MigrationError> {
         let MigrationBoundaryContext {
             world,
             resources,
@@ -284,11 +296,22 @@ impl MigrationSystem {
             if members == 0 {
                 continue;
             }
+            let household = HouseholdId::new(household_index as u64 + 1);
+            if let Some(temporary_mobility) = temporary_mobility {
+                match temporary_mobility.is_at_residence(household) {
+                    Some(true) => {}
+                    Some(false) => continue,
+                    None => {
+                        return Err(MigrationError::InternalInvariant(
+                            "temporary mobility is missing household state",
+                        ));
+                    }
+                }
+            }
             self.households_evaluated = self
                 .households_evaluated
                 .checked_add(1)
                 .ok_or(MigrationError::AccountingOverflow)?;
-            let household = HouseholdId::new(household_index as u64 + 1);
             let origin = population.household_location(household).ok_or(
                 MigrationError::InternalInvariant("household has no location"),
             )?;
