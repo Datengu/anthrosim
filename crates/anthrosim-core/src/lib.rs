@@ -24,6 +24,7 @@ pub mod simulation;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
 pub mod spatial_simulation;
+pub mod temporary_history;
 // M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
 // boundary. Keep the argument-count exception local to this module rather than weakening Clippy
 // across the workspace; the public API remains compact and typed.
@@ -103,6 +104,9 @@ pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
     validate_spatial_landscape_recorded_run,
+};
+pub use temporary_history::{
+    TemporaryMobilityHistoryError, validate_temporary_mobility_history,
 };
 pub use temporary_mobility::{
     ActiveTemporaryJourney, HouseholdPresence, TemporaryJourneySkip, TemporaryMobilityConfig,
