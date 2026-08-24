@@ -177,6 +177,8 @@ cargo run --release -p anthrosim-cli --bin anthrosim -- sweep \
 
 Supported sweep dimensions include founder population, target household size, M3 productivity scale, M3 seasonal-amplitude scale, annual food need, migration enabled/disabled, migration radius and the M8 spatial execution path. A control that is not explicitly swept uses its ordinary base command value.
 
+A fresh sweep writes immutable `sweep-manifest.json` before point execution. It records the exact base settings, declared dimension values, seed definition, model identity and every expanded parameter point. Each point then lives under `experiments/point-XXXXXX/` as a normal M7 experiment, with its own immutable `experiment-manifest.json`, status files, retries and completed bundles. Retrying a sweep requires the exact same definition plus `--retry`; a changed grid, seed set or base control is rejected before child execution.
+
 The sweep root also contains a deliberately separate `analysis/` directory:
 
 ```text
