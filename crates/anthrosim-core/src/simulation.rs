@@ -373,7 +373,10 @@ impl Simulation {
                     .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
                 self.process_temporary_boundaries_before(day)?;
                 self.time = SimTime::from_days(day);
-                let outcome = self.resources.process_period_recorded(
+                let temporary_resource_period = self
+                    .temporary_mobility
+                    .resource_period_snapshot(day, &self.world)?;
+                let outcome = self.resources.process_period_recorded_with_presence(
                     &mut self.population,
                     &ResourcePeriodContext {
                         world: &self.world,
@@ -383,7 +386,9 @@ impl Simulation {
                     },
                     &mut self.resource_rngs.scarcity_mortality,
                     &mut self.events,
+                    temporary_resource_period.as_ref(),
                 )?;
+                self.temporary_mobility.complete_resource_period(day)?;
                 self.temporary_mobility
                     .reconcile_after_population_change(&self.population);
                 if outcome == ResourceStepOutcome::PopulationExtinct {
