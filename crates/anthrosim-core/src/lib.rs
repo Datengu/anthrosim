@@ -41,9 +41,7 @@ pub use evidence::{
     EvidenceCatalog, EvidenceError, EvidenceRecord, EvidenceSource, EvidenceTransformation,
     EvidenceUncertainty, ExternalInputEvidence, ParameterEvidenceLink, validate_evidence_catalog,
 };
-pub use focal_region::{
-    FocalRegion, FocalRegionBindingError, FocalRegionError, FocalRegionSource,
-};
+pub use focal_region::{FocalRegion, FocalRegionBindingError, FocalRegionError, FocalRegionSource};
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
     validate_recorded_run_invariants,
