@@ -23,11 +23,13 @@ jobs:
           rustup default 1.97.1
       - name: Apply guarded M9.5 integration patch
         run: python3 scripts/m9_5_integrate.py
+      - name: Apply guarded M9.5 acceptance patch
+        run: python3 scripts/m9_5_acceptance_patch.py
       - name: Format Rust
         run: cargo fmt --all
-      - name: Test core M9.5 integration
+      - name: Test core M9.5 integration and acceptance
         run: cargo test --locked -p anthrosim-core
-      - name: Commit integrated M9.5 code
+      - name: Commit integrated M9.5 code and tests
         run: |
           if git diff --quiet; then
             exit 0
@@ -41,8 +43,9 @@ jobs:
             crates/anthrosim-core/src/simulation.rs \
             crates/anthrosim-core/src/provenance.rs \
             crates/anthrosim-core/src/checkpoint.rs \
-            crates/anthrosim-core/src/temporary_resource.rs
-          git commit -m "Implement duration-aware temporary resource accounting"
+            crates/anthrosim-core/src/temporary_resource.rs \
+            crates/anthrosim-core/tests/m9_5_resources.rs
+          git commit -m "Add M9.5 duration-aware resource acceptance coverage"
           git push origin HEAD:m9/m9-5-duration-aware-resources
 
 # Temporary integration machinery; remove before PR completion.
