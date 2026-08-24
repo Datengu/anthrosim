@@ -27,6 +27,7 @@ The following workflow families remain separate from the main CI graph because e
 - **Source provenance** (`source-provenance.yml`) — checks clean/dirty/override source identities and the exact-binary provenance preflight used by versioned research sweeps.
 - **M8 benchmark data** (`m8-benchmark-data.yml`) — validates the committed benchmark input/data provenance contract independently of simulation output.
 - **M8.6 evidence-grounded spatial benchmark** (`m8-spatial-benchmark.yml`) — executes and checks the declared evidence-grounded reference benchmark/reproduction path.
+- **M9.7 controlled aggregation benchmark** (`m9-aggregation-benchmark.yml`) — reruns the frozen paired continuous-residence/intermittent-aggregation benchmark, verifies the preserved scientific reference, independently replays focal-region occupancy from authoritative events, proves exact duplicate replay, checks active-journey annual checkpoint/resume equivalence, and rejects deliberate reference tampering.
 
 These workflows complement rather than replace semantic validation inside the binaries. A green workflow shows that the corresponding contract passed in CI; artifact readers and research commands still validate the artifacts they consume.
 
