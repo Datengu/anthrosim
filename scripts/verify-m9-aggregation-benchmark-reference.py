@@ -31,7 +31,10 @@ def verify(actual, reference):
         require(key, actual.get(key), reference.get(key))
     for arm in ("continuous","intermittent"):
         a=actual["arms"][arm]; r=reference["arms"][arm]
-        for key in ("experimentId","configCanonicalSha256","stateDigests"):
+        # Experiment IDs intentionally include build/source identity and therefore change across
+        # commits. Preserve them in the reference as provenance, but compare only scientific
+        # configuration identity and authoritative terminal state digests here.
+        for key in ("configCanonicalSha256","stateDigests"):
             require(f"{arm}.{key}", a.get(key), r.get(key))
     require("pairs", [project_pair(p) for p in actual["pairs"]], reference["pairs"])
 
