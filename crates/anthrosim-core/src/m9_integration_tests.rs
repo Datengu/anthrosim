@@ -32,7 +32,10 @@ fn active_checkpoint(seed: u64, duration_years: u64) -> crate::SimulationCheckpo
         .with_population(PopulationConfig::new(20).with_target_household_size(5))
         .with_demography(stable_demography())
         .with_resources(stable_resources());
-    let mut checkpoint = Simulation::new(config).unwrap().checkpoint_at_year(0).unwrap();
+    let mut checkpoint = Simulation::new(config)
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
     let world = World::generate(
         checkpoint.experiment.world,
         RngFactory::new(checkpoint.experiment.seed),
