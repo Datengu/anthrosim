@@ -79,12 +79,8 @@ fn m8_movement_transform_changes_m9_4_cost_and_duration_through_public_boundary(
         .unwrap()
         .with_model_field_overlay(overlay.movement_cost.as_deref(), None, None)
         .unwrap();
-    let base_region = FocalRegion::new(
-        "target",
-        FocalRegionSource::Synthetic,
-        vec![CellId::new(3)],
-    )
-    .unwrap();
+    let base_region =
+        FocalRegion::new("target", FocalRegionSource::Synthetic, vec![CellId::new(3)]).unwrap();
     let transformed_region = base_region.clone();
     let model = TemporaryTravelModel::new(
         "m9_4_public_boundary",
@@ -99,7 +95,10 @@ fn m8_movement_transform_changes_m9_4_cost_and_duration_through_public_boundary(
         .derive_table(&transformed_region, &transformed)
         .unwrap();
 
-    assert_eq!(base_table.accumulated_cost_units(CellId::new(1)), Some(2_000));
+    assert_eq!(
+        base_table.accumulated_cost_units(CellId::new(1)),
+        Some(2_000)
+    );
     assert_eq!(
         transformed_table.accumulated_cost_units(CellId::new(1)),
         Some(6_000)

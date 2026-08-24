@@ -971,9 +971,19 @@ impl TemporaryMobilityState {
                         let expected_model_identity =
                             program.travel.travel_model().map(|model| model.identity());
                         let expected_cost = program.travel.accumulated_cost_units(active.residence);
+                        let resolution_matches = matches!(
+                            program.travel.resolution(active.residence),
+                            Some(TemporaryTravelResolution::Reachable {
+                                destination,
+                                outbound_travel_days,
+                                return_travel_days,
+                            }) if destination == active.destination
+                                && outbound_travel_days == active.outbound_travel_days
+                                && return_travel_days == active.return_travel_days
+                        );
                         if active.region_id != program.region.region_id
                             || active.region_identity != program.region.identity()
-                            || !program.region.contains(active.destination)
+                            || !resolution_matches
                             || active.travel_model_identity != expected_model_identity
                             || active.accumulated_travel_cost_units != expected_cost
                         {
@@ -2157,6 +2167,41 @@ mod tests {
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::AtResidence)
         );
+    }
+
+    #[test]
+    fn active_journey_must_match_program_travel_resolution_exactly() {
+        let (world, population) = fixture(23);
+        let program = program(
+            &world,
+            &population,
+            TemporaryTriggerTiming::DepartureDay,
+            vec![5],
+            2,
+        );
+        let mut state = TemporaryMobilityState::with_program(&population, program, &world).unwrap();
+        let mut events = EventLog::new();
+        state
+            .process_day(5, &population, &world, &mut events)
+            .unwrap();
+
+        let active = state.active_journeys[0]
+            .as_mut()
+            .expect("household 1 should have an active journey");
+        active.outbound_travel_days = active.outbound_travel_days.saturating_add(1);
+        active.arrival_day = active
+            .departure_day
+            .saturating_add(u64::from(active.outbound_travel_days));
+        active.return_departure_day = active.arrival_day.saturating_add(3);
+        active.completion_day = active
+            .return_departure_day
+            .saturating_add(u64::from(active.return_travel_days));
+
+        assert!(matches!(
+            state.validate(&population, &world),
+            Err(TemporaryMobilityValidationError::ActiveJourneyProgramMismatch { household })
+                if household == HouseholdId::new(1)
+        ));
     }
 
     #[test]
