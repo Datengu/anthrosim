@@ -38,6 +38,8 @@ jobs:
             --max-person-records 1 \
             --seed 80 \
             --output /tmp/anthrosim-clean-provenance.json
+          cp target/debug/anthrosim /tmp/anthrosim-clean
+          /tmp/anthrosim-clean provenance > /tmp/anthrosim-clean-binary-provenance.json
           python3 - <<'PY'
           import json
           import subprocess
@@ -47,7 +49,11 @@ jobs:
               ['git', 'rev-parse', 'HEAD'], text=True
           ).strip()
           manifest = json.loads(Path('/tmp/anthrosim-clean-provenance.json').read_text())
+          binary = json.loads(Path('/tmp/anthrosim-clean-binary-provenance.json').read_text())
           assert manifest['gitCommit'] == expected, (manifest['gitCommit'], expected)
+          assert binary['gitCommit'] == expected, (binary['gitCommit'], expected)
+          assert binary['modelVersion'] == manifest['modelVersion']
+          assert binary['modelSemanticsId']
           PY
 
       - name: Verify different tracked dirty trees get different exact identities
@@ -64,6 +70,7 @@ jobs:
             --max-person-records 1 \
             --seed 80 \
             --output /tmp/anthrosim-dirty-a-provenance.json
+          cp target/debug/anthrosim /tmp/anthrosim-dirty
 
           git checkout -- README.md
           printf '\n<!-- source provenance dirty-tree probe B -->\n' >> README.md
@@ -110,10 +117,104 @@ jobs:
             --max-person-records 1 \
             --seed 80 \
             --output /tmp/anthrosim-override-provenance.json
+          cp target/debug/anthrosim /tmp/anthrosim-override
           python3 - <<'PY'
           import json
           from pathlib import Path
 
           manifest = json.loads(Path('/tmp/anthrosim-override-provenance.json').read_text())
           assert manifest['gitCommit'] == 'controlled-source-revision'
+          PY
+
+      - name: Build binary with unavailable Git metadata
+        run: |
+          unset ANTHROSIM_GIT_COMMIT
+          rm -rf /tmp/anthrosim-missing-git
+          mkdir -p /tmp/anthrosim-missing-git
+          touch crates/anthrosim-core/build.rs crates/anthrosim-cli/build.rs
+          GIT_DIR=/tmp/anthrosim-missing-git \
+            cargo build --locked -p anthrosim-cli --bin anthrosim
+          cp target/debug/anthrosim /tmp/anthrosim-missing
+          /tmp/anthrosim-missing provenance > /tmp/anthrosim-missing-provenance.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          provenance = json.loads(Path('/tmp/anthrosim-missing-provenance.json').read_text())
+          assert provenance['gitCommit'] is None
+          PY
+
+      - name: Preflight exact binaries before versioned sweep execution
+        run: |
+          cat > /tmp/anthrosim-provenance-preflight-definition.json <<'JSON'
+          {
+            "schemaVersion": 1,
+            "definitionId": "ci-source-provenance-preflight",
+            "scientificStatus": "synthetic_validation",
+            "seeds": [9401],
+            "base": {
+              "years": 0,
+              "worldWidth": 1,
+              "worldHeight": 1,
+              "population": 1,
+              "householdSize": 1,
+              "maxPersonRecords": 1
+            },
+            "dimensions": {
+              "annualFoodNeed": [100]
+            }
+          }
+          JSON
+
+          rm -rf /tmp/anthrosim-preflight-clean /tmp/anthrosim-preflight-dirty \
+            /tmp/anthrosim-preflight-missing /tmp/anthrosim-preflight-override
+
+          python3 scripts/run-versioned-sweep.py \
+            /tmp/anthrosim-provenance-preflight-definition.json \
+            --binary /tmp/anthrosim-clean \
+            --run-dir /tmp/anthrosim-preflight-clean
+          test -f /tmp/anthrosim-preflight-clean/reproduction-record.json
+
+          if python3 scripts/run-versioned-sweep.py \
+            /tmp/anthrosim-provenance-preflight-definition.json \
+            --binary /tmp/anthrosim-dirty \
+            --run-dir /tmp/anthrosim-preflight-dirty; then
+            echo 'dirty binary unexpectedly passed versioned-sweep preflight' >&2
+            exit 1
+          fi
+          test ! -e /tmp/anthrosim-preflight-dirty
+
+          if python3 scripts/run-versioned-sweep.py \
+            /tmp/anthrosim-provenance-preflight-definition.json \
+            --binary /tmp/anthrosim-missing \
+            --run-dir /tmp/anthrosim-preflight-missing; then
+            echo 'missing-provenance binary unexpectedly passed versioned-sweep preflight' >&2
+            exit 1
+          fi
+          test ! -e /tmp/anthrosim-preflight-missing
+
+          python3 scripts/run-versioned-sweep.py \
+            /tmp/anthrosim-provenance-preflight-definition.json \
+            --binary /tmp/anthrosim-override \
+            --run-dir /tmp/anthrosim-preflight-override
+          test -f /tmp/anthrosim-preflight-override/reproduction-record.json
+
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          for label in ('clean', 'override'):
+              provenance = json.loads(subprocess.check_output(
+                  [f'/tmp/anthrosim-{label}', 'provenance'], text=True
+              ))
+              record = json.loads(Path(
+                  f'/tmp/anthrosim-preflight-{label}/reproduction-record.json'
+              ).read_text())
+              manifest = json.loads(Path(
+                  f'/tmp/anthrosim-preflight-{label}/sweep-manifest.json'
+              ).read_text())
+              assert record['gitCommit'] == provenance['gitCommit']
+              assert manifest['gitCommit'] == provenance['gitCommit']
+              assert manifest['modelVersion'] == provenance['modelVersion']
           PY
