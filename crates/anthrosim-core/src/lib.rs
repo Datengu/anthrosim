@@ -104,11 +104,11 @@ pub use spatial_simulation::{
     validate_spatial_landscape_recorded_run,
 };
 pub use temporary_mobility::{
-    ActiveTemporaryJourney, HouseholdPresence, TemporaryJourneySkip, TemporaryMobilityDayOutcome,
-    TemporaryMobilityError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
-    TemporaryMobilityProgramError, TemporaryMobilitySchedule, TemporaryMobilityState,
-    TemporaryMobilityValidationError, TemporaryTravelResolution, TemporaryTravelTable,
-    TemporaryTriggerTiming,
+    ActiveTemporaryJourney, HouseholdPresence, TemporaryJourneySkip, TemporaryMobilityConfig,
+    TemporaryMobilityConfigError, TemporaryMobilityDayOutcome, TemporaryMobilityError,
+    TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
+    TemporaryMobilitySchedule, TemporaryMobilityState, TemporaryMobilityValidationError,
+    TemporaryTravelResolution, TemporaryTravelTable, TemporaryTriggerTiming,
 };
 pub use temporary_resource::{
     TemporaryResourceAccountingError, TemporaryResourcePeriod, TemporaryResourcePresenceDays,

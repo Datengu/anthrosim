@@ -26,8 +26,8 @@ use crate::{
     },
     rng::RngFactory,
     temporary_mobility::{
-        TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
-        TemporaryMobilityState, TemporaryMobilityValidationError,
+        TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
+        TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
     },
     time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
@@ -92,9 +92,19 @@ impl Simulation {
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
         let population = Population::initialize(config.population, &world, rng_factory)?;
-        let temporary_mobility = match program {
-            Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
-            None => TemporaryMobilityState::at_residence(&population),
+        let configured_program = config
+            .temporary_mobility
+            .as_ref()
+            .map(|definition| definition.derive_program(&world))
+            .transpose()?;
+        let temporary_mobility = match (program, configured_program) {
+            (Some(_), Some(_)) => {
+                return Err(SimulationError::AmbiguousTemporaryMobilityConfiguration);
+            }
+            (Some(program), None) | (None, Some(program)) => {
+                TemporaryMobilityState::with_program(&population, program, &world)?
+            }
+            (None, None) => TemporaryMobilityState::at_residence(&population),
         };
         temporary_mobility.validate_at_day(0, &population, &world)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
@@ -180,6 +190,11 @@ impl Simulation {
                 actual: world.digest64(),
             });
         }
+        validate_configured_temporary_mobility(
+            &checkpoint.experiment,
+            &checkpoint.temporary_mobility,
+            &world,
+        )?;
 
         checkpoint
             .population
@@ -620,8 +635,32 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
+    if let Some(temporary_mobility) = &config.temporary_mobility {
+        temporary_mobility.validate_evidence_context(config.evidence.as_ref())?;
+    }
     if let Some(evidence) = &config.evidence {
         evidence.validate()?;
+    }
+    Ok(())
+}
+
+fn validate_configured_temporary_mobility(
+    config: &ExperimentConfig,
+    state: &TemporaryMobilityState,
+    world: &World,
+) -> Result<(), SimulationError> {
+    let Some(definition) = &config.temporary_mobility else {
+        // Explicit `new_with_temporary_mobility` remains available for isolated lifecycle tests.
+        // Ordinary experiment execution records a definition in ExperimentConfig and is checked
+        // below.
+        return Ok(());
+    };
+    let expected = definition.derive_program(world)?;
+    if state.program() != Some(&expected) {
+        return Err(SimulationError::ConfiguredTemporaryMobilityMismatch {
+            expected: expected.identity(),
+            actual: state.program().map(TemporaryMobilityProgram::identity),
+        });
     }
     Ok(())
 }
@@ -712,6 +751,17 @@ pub enum SimulationError {
     World(#[from] WorldError),
     #[error(transparent)]
     Population(#[from] PopulationError),
+    #[error("both ExperimentConfig and an explicit constructor supplied temporary mobility")]
+    AmbiguousTemporaryMobilityConfiguration,
+    #[error(
+        "configured temporary-mobility program mismatch: expected {expected}, found {actual:?}"
+    )]
+    ConfiguredTemporaryMobilityMismatch {
+        expected: String,
+        actual: Option<String>,
+    },
+    #[error(transparent)]
+    TemporaryMobilityConfig(#[from] TemporaryMobilityConfigError),
     #[error(transparent)]
     TemporaryMobility(#[from] TemporaryMobilityValidationError),
     #[error(transparent)]
