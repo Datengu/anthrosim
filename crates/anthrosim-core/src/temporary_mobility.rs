@@ -115,11 +115,7 @@ impl TemporaryMobilitySchedule {
         if self.trigger_days.is_empty() {
             return Err(TemporaryMobilityProgramError::EmptyTriggerSchedule);
         }
-        if self
-            .trigger_days
-            .windows(2)
-            .any(|pair| pair[0] >= pair[1])
-        {
+        if self.trigger_days.windows(2).any(|pair| pair[0] >= pair[1]) {
             return Err(TemporaryMobilityProgramError::NonCanonicalTriggerDays);
         }
         if self.stay_duration_days == 0 {
@@ -196,10 +192,12 @@ impl TemporaryTravelTable {
         world: &World,
     ) -> Result<(), TemporaryMobilityProgramError> {
         if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
-            return Err(TemporaryMobilityProgramError::UnsupportedTravelTableSchema {
-                found: self.schema_version,
-                supported: Self::CURRENT_SCHEMA_VERSION,
-            });
+            return Err(
+                TemporaryMobilityProgramError::UnsupportedTravelTableSchema {
+                    found: self.schema_version,
+                    supported: Self::CURRENT_SCHEMA_VERSION,
+                },
+            );
         }
         if self.resolutions.len() != world.cell_count() {
             return Err(TemporaryMobilityProgramError::TravelTableShapeMismatch {
@@ -211,16 +209,20 @@ impl TemporaryTravelTable {
             let origin = CellId::new(index as u64 + 1);
             if let TemporaryTravelResolution::Reachable { destination, .. } = resolution {
                 if world.cell(*destination).is_none() {
-                    return Err(TemporaryMobilityProgramError::TravelDestinationOutsideWorld {
-                        origin,
-                        destination: *destination,
-                    });
+                    return Err(
+                        TemporaryMobilityProgramError::TravelDestinationOutsideWorld {
+                            origin,
+                            destination: *destination,
+                        },
+                    );
                 }
                 if !region.contains(*destination) {
-                    return Err(TemporaryMobilityProgramError::TravelDestinationOutsideRegion {
-                        origin,
-                        destination: *destination,
-                    });
+                    return Err(
+                        TemporaryMobilityProgramError::TravelDestinationOutsideRegion {
+                            origin,
+                            destination: *destination,
+                        },
+                    );
                 }
                 if !region.contains(origin) && *destination == origin {
                     return Err(TemporaryMobilityProgramError::TravelDestinationIsOrigin {
@@ -337,17 +339,21 @@ pub struct ActiveTemporaryJourney {
 }
 
 impl ActiveTemporaryJourney {
-    fn validate(&self, population: &Population, world: &World) -> Result<(), TemporaryMobilityError> {
+    fn validate(
+        &self,
+        population: &Population,
+        world: &World,
+    ) -> Result<(), TemporaryMobilityError> {
         if self.journey == TemporaryJourneyId::INVALID {
             return Err(TemporaryMobilityError::InvalidJourney {
                 household: self.household,
             });
         }
-        let residence = population
-            .household_location(self.household)
-            .ok_or(TemporaryMobilityError::InvalidHousehold {
+        let residence = population.household_location(self.household).ok_or(
+            TemporaryMobilityError::InvalidHousehold {
                 household: self.household,
-            })?;
+            },
+        )?;
         if residence != self.residence {
             return Err(TemporaryMobilityError::ResidenceChangedDuringJourney {
                 household: self.household,
@@ -367,7 +373,10 @@ impl ActiveTemporaryJourney {
                 residence,
             });
         }
-        if self.arrival_day != self.departure_day.saturating_add(u64::from(self.outbound_travel_days))
+        if self.arrival_day
+            != self
+                .departure_day
+                .saturating_add(u64::from(self.outbound_travel_days))
             || self.return_departure_day <= self.arrival_day
             || self.completion_day
                 != self
@@ -678,7 +687,8 @@ impl TemporaryMobilityState {
         };
 
         // New departures are last. Trigger index then household ID defines stable ordering.
-        for (trigger_index_usize, &trigger_day) in program.schedule.trigger_days.iter().enumerate() {
+        for (trigger_index_usize, &trigger_day) in program.schedule.trigger_days.iter().enumerate()
+        {
             let trigger_index = u32::try_from(trigger_index_usize)
                 .map_err(|_| TemporaryMobilityExecutionError::TooManyTriggers)?;
             for raw in 1..=self.household_count() as u64 {
@@ -686,13 +696,8 @@ impl TemporaryMobilityState {
                 if self.trigger_processed(trigger_index, household) {
                     continue;
                 }
-                let evaluation_day = trigger_evaluation_day(
-                    &program,
-                    trigger_day,
-                    household,
-                    population,
-                    day,
-                )?;
+                let evaluation_day =
+                    trigger_evaluation_day(&program, trigger_day, household, population, day)?;
                 if evaluation_day != day {
                     continue;
                 }
@@ -707,7 +712,9 @@ impl TemporaryMobilityState {
                     world,
                     events,
                 )? {
-                    TriggerEvaluation::Departed { arrived_immediately } => {
+                    TriggerEvaluation::Departed {
+                        arrived_immediately,
+                    } => {
                         outcome.departed = outcome.departed.saturating_add(1);
                         if arrived_immediately {
                             outcome.arrived = outcome.arrived.saturating_add(1);
@@ -753,11 +760,11 @@ impl TemporaryMobilityState {
             return Err(TemporaryMobilityValidationError::InvalidNextJourneyId);
         }
         if let Some(program) = &self.program {
-            program
-                .validate(world)
-                .map_err(|error| TemporaryMobilityValidationError::InvalidProgram {
+            program.validate(world).map_err(|error| {
+                TemporaryMobilityValidationError::InvalidProgram {
                     reason: error.to_string(),
-                })?;
+                }
+            })?;
         } else if !self.processed_triggers.is_empty() {
             return Err(TemporaryMobilityValidationError::ProcessedTriggersWithoutProgram);
         }
@@ -781,7 +788,10 @@ impl TemporaryMobilityState {
                 }
             })?;
 
-            match (presence.active_journey(), self.active_journeys[index].as_ref()) {
+            match (
+                presence.active_journey(),
+                self.active_journeys[index].as_ref(),
+            ) {
                 (None, None) => {}
                 (Some(journey), Some(active)) => {
                     active.validate(population, world).map_err(|error| {
@@ -803,9 +813,11 @@ impl TemporaryMobilityState {
                             || active.region_identity != program.region.identity()
                             || !program.region.contains(active.destination))
                     {
-                        return Err(TemporaryMobilityValidationError::ActiveJourneyProgramMismatch {
-                            household,
-                        });
+                        return Err(
+                            TemporaryMobilityValidationError::ActiveJourneyProgramMismatch {
+                                household,
+                            },
+                        );
                     }
                     if !active_journeys.insert(journey) {
                         return Err(TemporaryMobilityValidationError::DuplicateActiveJourney {
@@ -996,12 +1008,13 @@ impl TemporaryMobilityState {
             return Ok(TriggerEvaluation::Skipped(reason));
         }
 
-        let residence = population.household_location(household).ok_or(
-            TemporaryMobilityExecutionError::InvalidHousehold { household },
-        )?;
-        let resolution = program.travel.resolution(residence).ok_or(
-            TemporaryMobilityExecutionError::MissingTravelResolution { residence },
-        )?;
+        let residence = population
+            .household_location(household)
+            .ok_or(TemporaryMobilityExecutionError::InvalidHousehold { household })?;
+        let resolution = program
+            .travel
+            .resolution(residence)
+            .ok_or(TemporaryMobilityExecutionError::MissingTravelResolution { residence })?;
         let TemporaryTravelResolution::Reachable {
             destination,
             outbound_travel_days,
@@ -1024,7 +1037,8 @@ impl TemporaryMobilityState {
         let departure_day = match program.schedule.trigger_timing {
             TemporaryTriggerTiming::DepartureDay => trigger_day,
             TemporaryTriggerTiming::TargetArrivalDay => {
-                let Some(departure) = trigger_day.checked_sub(u64::from(outbound_travel_days)) else {
+                let Some(departure) = trigger_day.checked_sub(u64::from(outbound_travel_days))
+                else {
                     let reason = TemporaryJourneyIneligibility::DepartureBeforeSimulationStart;
                     self.record_skip(
                         program,
@@ -1054,18 +1068,21 @@ impl TemporaryMobilityState {
             return Ok(TriggerEvaluation::Skipped(reason));
         }
         if departure_day != day {
-            return Err(TemporaryMobilityExecutionError::TriggerEvaluatedOnWrongDay {
-                household,
-                trigger_index,
-                expected: departure_day,
-                actual: day,
-            });
+            return Err(
+                TemporaryMobilityExecutionError::TriggerEvaluatedOnWrongDay {
+                    household,
+                    trigger_index,
+                    expected: departure_day,
+                    actual: day,
+                },
+            );
         }
 
         let journey = TemporaryJourneyId::new(self.next_journey_id);
-        self.next_journey_id = self.next_journey_id.checked_add(1).ok_or(
-            TemporaryMobilityExecutionError::JourneyIdExhausted,
-        )?;
+        self.next_journey_id = self
+            .next_journey_id
+            .checked_add(1)
+            .ok_or(TemporaryMobilityExecutionError::JourneyIdExhausted)?;
         let arrival_day = departure_day
             .checked_add(u64::from(outbound_travel_days))
             .ok_or(TemporaryMobilityExecutionError::JourneyTimeOverflow)?;
@@ -1298,9 +1315,9 @@ impl TemporaryMobilityState {
                 destination,
                 population,
                 0,
-                u64::MAX - 3,
-                u64::MAX - 2,
-                u64::MAX - 1,
+                999_998,
+                999_999,
+                1_000_000,
             )),
             HouseholdPresence::Visiting {
                 journey,
@@ -1312,8 +1329,8 @@ impl TemporaryMobilityState {
                 population,
                 0,
                 0,
-                u64::MAX - 2,
-                u64::MAX - 1,
+                999_999,
+                1_000_000,
             )),
             HouseholdPresence::ReturnTransit {
                 journey,
@@ -1325,8 +1342,8 @@ impl TemporaryMobilityState {
                 population,
                 0,
                 0,
-                0,
-                u64::MAX - 1,
+                1,
+                1_000_000,
             )),
         };
         if let Some(active) = &self.active_journeys[index] {
@@ -1385,9 +1402,10 @@ fn trigger_evaluation_day(
     let residence = population
         .household_location(household)
         .ok_or(TemporaryMobilityExecutionError::InvalidHousehold { household })?;
-    let resolution = program.travel.resolution(residence).ok_or(
-        TemporaryMobilityExecutionError::MissingTravelResolution { residence },
-    )?;
+    let resolution = program
+        .travel
+        .resolution(residence)
+        .ok_or(TemporaryMobilityExecutionError::MissingTravelResolution { residence })?;
     match program.schedule.trigger_timing {
         TemporaryTriggerTiming::DepartureDay => Ok(trigger_day),
         TemporaryTriggerTiming::TargetArrivalDay => {
@@ -1398,7 +1416,8 @@ fn trigger_evaluation_day(
             else {
                 return Ok(trigger_day);
             };
-            let Some(departure_day) = trigger_day.checked_sub(u64::from(outbound_travel_days)) else {
+            let Some(departure_day) = trigger_day.checked_sub(u64::from(outbound_travel_days))
+            else {
                 return Ok(0);
             };
             if departure_day < current_day && trigger_day >= current_day {
@@ -1508,11 +1527,17 @@ enum TriggerEvaluation {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum TemporaryMobilityProgramError {
-    #[error("temporary mobility program schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "temporary mobility program schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedProgramSchema { found: u32, supported: u32 },
-    #[error("temporary mobility schedule schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "temporary mobility schedule schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedScheduleSchema { found: u32, supported: u32 },
-    #[error("temporary travel-table schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "temporary travel-table schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedTravelTableSchema { found: u32, supported: u32 },
     #[error("temporary mobility schedule identifier is empty")]
     EmptyScheduleId,
@@ -1524,16 +1549,14 @@ pub enum TemporaryMobilityProgramError {
     ZeroStayDuration,
     #[error("temporary travel table has {table} entries but world has {world} cells")]
     TravelTableShapeMismatch { table: usize, world: usize },
-    #[error("temporary travel from {origin:?} resolves destination {destination:?} outside the world")]
-    TravelDestinationOutsideWorld {
-        origin: CellId,
-        destination: CellId,
-    },
-    #[error("temporary travel from {origin:?} resolves destination {destination:?} outside the focal region")]
-    TravelDestinationOutsideRegion {
-        origin: CellId,
-        destination: CellId,
-    },
+    #[error(
+        "temporary travel from {origin:?} resolves destination {destination:?} outside the world"
+    )]
+    TravelDestinationOutsideWorld { origin: CellId, destination: CellId },
+    #[error(
+        "temporary travel from {origin:?} resolves destination {destination:?} outside the focal region"
+    )]
+    TravelDestinationOutsideRegion { origin: CellId, destination: CellId },
     #[error("temporary travel from {origin:?} resolves to the same non-region origin")]
     TravelDestinationIsOrigin { origin: CellId },
     #[error("temporary mobility program is already initialized or state is already active")]
@@ -1569,7 +1592,9 @@ pub enum TemporaryMobilityError {
         household: HouseholdId,
         residence: CellId,
     },
-    #[error("household {household:?} residence changed during active journey: expected {expected:?}, found {actual:?}")]
+    #[error(
+        "household {household:?} residence changed during active journey: expected {expected:?}, found {actual:?}"
+    )]
     ResidenceChangedDuringJourney {
         household: HouseholdId,
         expected: CellId,
@@ -1591,7 +1616,9 @@ pub enum TemporaryMobilityError {
 pub enum TemporaryMobilityValidationError {
     #[error("temporary mobility schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
-    #[error("temporary mobility has {presence} presence states and {journeys} journey slots but population has {population} households")]
+    #[error(
+        "temporary mobility has {presence} presence states and {journeys} journey slots but population has {population} households"
+    )]
     HouseholdCountMismatch {
         presence: usize,
         journeys: usize,
@@ -1607,7 +1634,9 @@ pub enum TemporaryMobilityValidationError {
     InvalidProcessedTrigger,
     #[error("temporary mobility next journey ID is invalid")]
     InvalidNextJourneyId,
-    #[error("temporary mobility next journey ID {next} is not greater than active maximum {active_max}")]
+    #[error(
+        "temporary mobility next journey ID {next} is not greater than active maximum {active_max}"
+    )]
     NextJourneyIdNotAhead { next: u64, active_max: u64 },
     #[error("household {household:?} has invalid temporary presence: {reason}")]
     InvalidPresence {
@@ -1621,11 +1650,15 @@ pub enum TemporaryMobilityValidationError {
     },
     #[error("household {household:?} presence does not match its active journey record")]
     PresenceJourneyMismatch { household: HouseholdId },
-    #[error("household {household:?} active journey does not match the configured temporary mobility program")]
+    #[error(
+        "household {household:?} active journey does not match the configured temporary mobility program"
+    )]
     ActiveJourneyProgramMismatch { household: HouseholdId },
     #[error("temporary journey {journey:?} is active for more than one household")]
     DuplicateActiveJourney { journey: TemporaryJourneyId },
-    #[error("household {household:?} journey {journey:?} presence is inconsistent with checkpoint day {day}")]
+    #[error(
+        "household {household:?} journey {journey:?} presence is inconsistent with checkpoint day {day}"
+    )]
     PresenceTimingMismatch {
         household: HouseholdId,
         journey: TemporaryJourneyId,
@@ -1657,21 +1690,27 @@ pub enum TemporaryMobilityExecutionError {
         expected: u64,
         actual: u64,
     },
-    #[error("household {household:?} journey {journey:?} has overdue transition day {due} before current day {current_day}")]
+    #[error(
+        "household {household:?} journey {journey:?} has overdue transition day {due} before current day {current_day}"
+    )]
     OverdueActiveTransition {
         household: HouseholdId,
         journey: TemporaryJourneyId,
         due: u64,
         current_day: u64,
     },
-    #[error("household {household:?} trigger {trigger_index} has overdue evaluation day {evaluation_day} before current day {current_day}")]
+    #[error(
+        "household {household:?} trigger {trigger_index} has overdue evaluation day {evaluation_day} before current day {current_day}"
+    )]
     OverdueTrigger {
         household: HouseholdId,
         trigger_index: u32,
         evaluation_day: u64,
         current_day: u64,
     },
-    #[error("household {household:?} trigger {trigger_index} evaluated on day {actual}, expected {expected}")]
+    #[error(
+        "household {household:?} trigger {trigger_index} evaluated on day {actual}, expected {expected}"
+    )]
     TriggerEvaluatedOnWrongDay {
         household: HouseholdId,
         trigger_index: u32,
@@ -1735,13 +1774,8 @@ mod tests {
         let travel = TemporaryTravelTable::new(resolutions, &region, world).unwrap();
         TemporaryMobilityProgram::new(
             region,
-            TemporaryMobilitySchedule::new(
-                "test-schedule",
-                trigger_timing,
-                trigger_days,
-                3,
-            )
-            .unwrap(),
+            TemporaryMobilitySchedule::new("test-schedule", trigger_timing, trigger_days, 3)
+                .unwrap(),
             travel,
             world,
         )
@@ -1781,23 +1815,34 @@ mod tests {
         let mut state = TemporaryMobilityState::with_program(&population, program, &world).unwrap();
         let mut events = EventLog::new();
 
-        assert_eq!(state.next_boundary_day(0, 20, &population).unwrap(), Some(8));
-        state.process_day(8, &population, &world, &mut events).unwrap();
+        assert_eq!(
+            state.next_boundary_day(0, 20, &population).unwrap(),
+            Some(8)
+        );
+        state
+            .process_day(8, &population, &world, &mut events)
+            .unwrap();
         assert!(matches!(
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::OutboundTransit { .. })
         ));
-        state.process_day(10, &population, &world, &mut events).unwrap();
+        state
+            .process_day(10, &population, &world, &mut events)
+            .unwrap();
         assert!(matches!(
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::Visiting { .. })
         ));
-        state.process_day(13, &population, &world, &mut events).unwrap();
+        state
+            .process_day(13, &population, &world, &mut events)
+            .unwrap();
         assert!(matches!(
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::ReturnTransit { .. })
         ));
-        state.process_day(15, &population, &world, &mut events).unwrap();
+        state
+            .process_day(15, &population, &world, &mut events)
+            .unwrap();
         assert_eq!(
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::AtResidence)
@@ -1823,14 +1868,15 @@ mod tests {
             .iter()
             .filter_map(|record| match record.event {
                 EventKind::TemporaryJourneyDeparted {
-                    household,
-                    journey,
-                    ..
+                    household, journey, ..
                 } if household == HouseholdId::new(1) => Some(journey),
                 _ => None,
             })
             .collect();
-        assert_eq!(departed, vec![TemporaryJourneyId::new(1), TemporaryJourneyId::new(5)]);
+        assert_eq!(
+            departed,
+            vec![TemporaryJourneyId::new(1), TemporaryJourneyId::new(5)]
+        );
         assert!(state.all_at_residence());
     }
 
@@ -1865,7 +1911,9 @@ mod tests {
         .unwrap();
         let mut state = TemporaryMobilityState::with_program(&population, program, &world).unwrap();
         let mut events = EventLog::new();
-        let outcome = state.process_day(5, &population, &world, &mut events).unwrap();
+        let outcome = state
+            .process_day(5, &population, &world, &mut events)
+            .unwrap();
         assert!(outcome.skipped.iter().any(|skip| {
             skip.household == HouseholdId::new(1)
                 && skip.reason == TemporaryJourneyIneligibility::ResidenceInRegion
@@ -1884,12 +1932,16 @@ mod tests {
         );
         let mut state = TemporaryMobilityState::with_program(&population, program, &world).unwrap();
         let mut events = EventLog::new();
-        state.process_day(5, &population, &world, &mut events).unwrap();
+        state
+            .process_day(5, &population, &world, &mut events)
+            .unwrap();
         assert!(matches!(
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::Visiting { .. })
         ));
-        state.process_day(8, &population, &world, &mut events).unwrap();
+        state
+            .process_day(8, &population, &world, &mut events)
+            .unwrap();
         assert_eq!(
             state.presence(HouseholdId::new(1)),
             Some(HouseholdPresence::AtResidence)
