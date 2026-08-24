@@ -1,0 +1,37 @@
+name: M9.3 Clippy development helper
+
+on:
+  push:
+    branches:
+      - m9/m9-3-journey-lifecycle
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: true
+      - name: Install pinned formatter
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Apply guarded refactor
+        run: python3 scripts/m9_3_clippy_patch.py
+      - name: Format Rust
+        run: cargo fmt --all
+      - name: Commit source changes when present
+        run: |
+          if git diff --quiet -- crates/anthrosim-core/src; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src
+          git commit -m "Refactor M9.3 scheduler contexts"
+          git push origin HEAD:m9/m9-3-journey-lifecycle
