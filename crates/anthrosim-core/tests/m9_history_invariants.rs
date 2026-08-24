@@ -39,11 +39,7 @@ fn recorded_m9_run() -> RecordedRun {
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
     let probe = Simulation::new(config.clone()).unwrap();
     let residences = (1..=probe.population().household_count() as u64)
-        .filter_map(|raw| {
-            probe
-                .population()
-                .household_location(HouseholdId::new(raw))
-        })
+        .filter_map(|raw| probe.population().household_location(HouseholdId::new(raw)))
         .collect::<BTreeSet<_>>();
     let destination = (1..=probe.world().cell_count() as u64)
         .map(CellId::new)
