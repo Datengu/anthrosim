@@ -142,7 +142,7 @@ M8 does not by itself:
 
 ## M9 — Temporary mobility and aggregation experiments
 
-**Status:** planned. The milestone definition is derived from a post-M8 capability audit rather than a predeclared feature sequence. See `docs/research/m9-temporary-mobility-capability-audit.md`.
+**Status:** in progress. M9.0 has frozen the temporary-mobility scientific/software semantics; implementation proceeds through M9.1-M9.7. The authoritative M9 semantics contract is `docs/research/temporary-mobility-v1.md`; the capability audit that motivated it is `docs/research/m9-temporary-mobility-capability-audit.md`.
 
 ### Goal
 
@@ -172,19 +172,21 @@ External GIS/scientific tooling should continue to own real-world polygon/raster
 
 Permanent M4 migration remains a separate causal process. M9 must not silently reinterpret `HouseholdMigration` as temporary travel or overload a single location field with incompatible meanings.
 
-### Planned M9 slices
+### M9 implementation slices
 
-#### M9.0 — Temporary-mobility research and semantics contract
+#### M9.0 — Temporary-mobility research and semantics contract — complete
 
-Freeze the minimum generic experiment semantics before implementation:
+`docs/research/temporary-mobility-v1.md` freezes the minimum generic experiment semantics before authoritative implementation, including:
 
 - persistent residence versus current physical presence;
 - permanent relocation versus temporary travel;
 - focal-region identity and provenance;
 - departure, arrival, stay and return semantics;
-- travel-time/cost assumptions;
-- resource-accounting assumptions during temporary absence/presence;
-- observables and benchmark acceptance criteria;
+- travel-time/cost assumptions and routing boundaries;
+- duration-aware resource-accounting assumptions during temporary absence/presence;
+- interaction with M4 migration and M2 demography;
+- authoritative events, checkpoint/resume and observability requirements;
+- the M9.7 benchmark acceptance criteria;
 - explicit interpretation limits.
 
 #### M9.1 — Residence/presence state separation
