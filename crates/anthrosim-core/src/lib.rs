@@ -29,6 +29,7 @@ pub mod spatial_simulation;
 // across the workspace; the public API remains compact and typed.
 #[allow(clippy::too_many_arguments)]
 pub mod temporary_mobility;
+pub mod temporary_observability;
 pub mod temporary_resource;
 pub mod temporary_travel;
 pub mod time;
@@ -109,6 +110,13 @@ pub use temporary_mobility::{
     TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
     TemporaryMobilitySchedule, TemporaryMobilityState, TemporaryMobilityValidationError,
     TemporaryTravelResolution, TemporaryTravelTable, TemporaryTriggerTiming,
+};
+pub use temporary_observability::{
+    TemporaryJourneyObservability, TemporaryJourneyObservedStatus,
+    TemporaryMobilityCellObservability, TemporaryMobilityObservabilityError,
+    TemporaryMobilityObservabilityReport, TemporaryMobilityObservabilitySource,
+    TemporaryMobilityObservabilitySummary, TemporaryOriginCatchment, TemporaryVisitDurationBin,
+    derive_temporary_mobility_observability,
 };
 pub use temporary_resource::{
     TemporaryResourceAccountingError, TemporaryResourcePeriod, TemporaryResourcePresenceDays,
