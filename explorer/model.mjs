@@ -30,6 +30,14 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function asBigInt(value, label) {
+  try {
+    return BigInt(value);
+  } catch {
+    throw new Error(`${label} is not an exact integer`);
+  }
+}
+
 function exactJsonEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -97,7 +105,7 @@ export function validateBundle(bundle) {
     assert(bundle?.[name], `missing ${name} artifact`);
   }
 
-  const { manifest, world, initialPopulation, events, metrics, checkpoint } = bundle;
+  const { manifest, world, initialPopulation, events, metrics, checkpoint, temporaryObservability } = bundle;
   const kind = manifest ? "completed" : "paused";
   const endTime = runEndTime(bundle);
   assert(checkpoint.completedYears * 365 === checkpoint.time,
@@ -161,6 +169,8 @@ export function validateBundle(bundle) {
     assert(snapshot.provenance === "derived", `metric snapshot at day ${snapshot.day} is not marked derived`);
   }
 
+  if (temporaryObservability) validateTemporaryObservability(bundle, endTime);
+
   const personRecords = manifest?.population.personRecords ?? checkpoint.population.birthDays.length;
   const livingPopulation = manifest?.population.livingPopulation ??
     initialPopulation.initialPopulation + expectedBirths - expectedDeaths;
@@ -211,7 +221,52 @@ export function validateBundle(bundle) {
     finalFoodStock,
     stateDigest64: manifest?.stateDigest64 ?? checkpoint.stateDigest64,
     eventCounts: counts,
+    hasTemporaryObservability: Boolean(temporaryObservability),
   };
+}
+
+export function validateTemporaryObservability(bundle, endTime = runEndTime(bundle)) {
+  const report = bundle.temporaryObservability;
+  assert(report, "missing temporary observability report");
+  const { checkpoint } = bundle;
+  assert(report.schemaVersion === 1, `unsupported temporary observability schema ${report.schemaVersion}`);
+  assert(report.provenance === "derived", "temporary observability report is not marked derived");
+  assert(report.source?.modelVersion === checkpoint.modelVersion,
+    "temporary observability model version disagrees with checkpoint");
+  assert(report.source?.modelSemanticsId === checkpoint.modelSemanticsId,
+    "temporary observability model semantics disagree with checkpoint");
+  assert((report.source?.gitCommit ?? null) === (checkpoint.gitCommit ?? null),
+    "temporary observability Git identity disagrees with checkpoint");
+  assert(report.source?.seed === checkpoint.experiment.seed,
+    "temporary observability seed disagrees with checkpoint");
+  assert(report.source?.endDay === endTime,
+    "temporary observability end day disagrees with run boundary");
+  assert(report.source?.runStateDigest64 === checkpoint.stateDigest64,
+    "temporary observability state digest disagrees with checkpoint");
+  assert(report.source?.worldDigest64 === checkpoint.worldDigest64,
+    "temporary observability world digest disagrees with checkpoint");
+  assert(report.summary?.provenance === "derived",
+    "temporary observability summary is not marked derived");
+  assert(report.summary?.observationDurationDays === endTime,
+    "temporary observability duration disagrees with run boundary");
+
+  const total = asBigInt(report.summary.totalLivingPersonDays, "total living person-days");
+  const persistent = asBigInt(report.summary.persistentResidencePersonDays,
+    "persistent residence person-days");
+  const atResidence = asBigInt(report.summary.atResidencePersonDays, "at-residence person-days");
+  const visitors = asBigInt(report.summary.visitorPersonDays, "visitor person-days");
+  const outbound = asBigInt(report.summary.outboundTransitPersonDays,
+    "outbound transit person-days");
+  const returning = asBigInt(report.summary.returnTransitPersonDays,
+    "return transit person-days");
+  const transit = asBigInt(report.summary.transitPersonDays, "transit person-days");
+  assert(persistent === total,
+    "temporary observability persistent-residence person-days do not equal total living person-days");
+  assert(outbound + returning === transit,
+    "temporary observability transit partition does not reconcile");
+  assert(atResidence + visitors + transit === total,
+    "temporary observability physical person-day partition does not reconcile");
+  return report;
 }
 
 export function countEvents(records) {
