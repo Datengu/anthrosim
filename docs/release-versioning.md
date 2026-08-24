@@ -47,6 +47,22 @@ The roadmap records M8 as completed. Current audit/remediation work should there
 
 After `v0.2.0` is released, compatible defects discovered in that released baseline should normally be fixed in patch releases such as `v0.2.1`, `v0.2.2`, and so on. A later substantial capability release may become `v0.3.0` even if it does not map one-to-one to a roadmap milestone.
 
+## Preserving named release commits
+
+A named release is not complete until its exact Git commit is preserved by an immutable-intent SemVer tag such as `v0.2.0`.
+
+Use the `Preserve named release tag` workflow only after the release candidate has passed its required verification and the intended release commit is known exactly. Supply both the SemVer tag and the full 40-character commit SHA. The workflow:
+
+- accepts only `vMAJOR.MINOR.PATCH` tags and exact lowercase commit SHAs;
+- verifies that the target commit exists in this repository;
+- creates a lightweight `refs/tags/<version>` reference when none exists;
+- succeeds without changing anything when the tag already resolves to the requested commit;
+- fails closed if the release tag already exists at a different commit, rather than moving or rewriting a published release identity.
+
+The workflow has a one-time push bootstrap for `v0.2.0` because the audited M8 release candidate was merged before repository-side tag preservation tooling existed. Future named releases should use the explicit manual workflow input path after their release PR is merged and verified.
+
+Creating or preserving a release tag does not change `MODEL_SEMANTICS_ID`, package contents, or simulation semantics. It only preserves the exact source identity of the named software release.
+
 ## Agent and contributor rule
 
 Agents and contributors must not opportunistically change the package version while implementing ordinary issues. A version bump should be an explicit release decision or part of a task that specifically calls for a named release. When uncertain, leave the package version unchanged and preserve exact provenance through the Git commit identity.
