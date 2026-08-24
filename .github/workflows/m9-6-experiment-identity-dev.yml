@@ -20,6 +20,35 @@ jobs:
           ref: m9/m9-6-experiment-identity
           fetch-depth: 0
 
+      - name: Normalize final M9.6 spatial validator shape
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('crates/anthrosim-core/src/spatial_simulation.rs')
+          text = p.read_text()
+          compact = '''    checkpoint
+              .temporary_mobility
+              .validate_at_day(checkpoint.time.days(), &checkpoint.population, world)
+              .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
+                  reason: error.to_string(),
+              })?;
+          '''
+          expanded = '''    checkpoint
+              .temporary_mobility
+              .validate_at_day(
+                  checkpoint.time.days(),
+                  &checkpoint.population,
+                  world,
+              )
+              .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
+                  reason: error.to_string(),
+              })?;
+          '''
+          if text.count(compact) != 1:
+              raise SystemExit(f'expected one compact spatial temporary validator, found {text.count(compact)}')
+          p.write_text(text.replace(compact, expanded, 1))
+          PY
+
       - name: Apply M9.6 experiment-identity patch
         run: python scripts/apply_m9_6_experiment_identity.py
 
