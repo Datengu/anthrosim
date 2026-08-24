@@ -25,7 +25,11 @@ jobs:
           rustup toolchain install 1.97.1 --component rustfmt
           rustup default 1.97.1
       - name: Apply guarded M9.4 integration
-        run: python3 scripts/m9_4_integrate.py
+        run: |
+          python3 scripts/m9_4_integrate.py
+          sed -i 's/region\.cells()/region.member_cells()/g' \
+            crates/anthrosim-core/src/temporary_mobility.rs \
+            crates/anthrosim-core/src/temporary_travel.rs
       - name: Format Rust
         run: cargo fmt --all
       - name: Compile and run M9.4 travel tests
