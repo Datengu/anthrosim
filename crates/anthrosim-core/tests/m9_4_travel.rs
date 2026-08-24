@@ -1,13 +1,15 @@
 use anthrosim_core::{
     DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, GridGeometry,
-    HouseholdId, LandscapeBundle, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
-    MigrationConfig, NoDataPolicy, ParameterProvenance, PopulationConfig, ResourceConfig,
-    Simulation, SpatialFieldTransform, SpatialMechanismConfig, SpatialTargetField,
-    TemporaryMobilityProgram, TemporaryMobilitySchedule, TemporaryTravelModel,
-    TemporaryTravelResolution, TemporaryTriggerTiming, TransformDirection, World, WorldConfig,
-    transform_landscape,
+    LandscapeBundle, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, MigrationConfig,
+    NoDataPolicy, ParameterProvenance, PopulationConfig, ResourceConfig, Simulation,
+    SpatialFieldTransform, SpatialMechanismConfig, SpatialTargetField, TemporaryMobilityProgram,
+    TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTravelResolution,
+    TemporaryTriggerTiming, TransformDirection, World, WorldConfig, transform_landscape,
 };
-use anthrosim_core::{ids::CellId, rng::RngFactory};
+use anthrosim_core::{
+    ids::{CellId, HouseholdId},
+    rng::RngFactory,
+};
 
 fn no_event_demography() -> DemographyConfig {
     let mut config = DemographyConfig::synthetic_validation_v1();
