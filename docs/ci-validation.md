@@ -30,6 +30,8 @@ The following workflow families remain separate from the main CI graph because e
 
 These workflows complement rather than replace semantic validation inside the binaries. A green workflow shows that the corresponding contract passed in CI; artifact readers and research commands still validate the artifacts they consume.
 
+When a new independent workflow becomes part of the research-integrity or artifact contract, update this topology in the same change so the documented gate set does not drift from `.github/workflows/` again.
+
 ## Supply-chain rule
 
 Every third-party GitHub Action is pinned to an immutable full commit SHA with a human-readable release comment. Updates follow the reviewed process in `CONTRIBUTING.md`; mutable tags and branches are not accepted as CI dependencies.
