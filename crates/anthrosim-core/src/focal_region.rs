@@ -112,7 +112,11 @@ impl FocalRegion {
 
     #[must_use]
     pub fn identity(&self) -> String {
-        format!("focal-region-v{}-{:016x}", self.schema_version, self.digest64())
+        format!(
+            "focal-region-v{}-{:016x}",
+            self.schema_version,
+            self.digest64()
+        )
     }
 
     fn validate_structure(&self) -> Result<(), FocalRegionError> {
@@ -128,11 +132,7 @@ impl FocalRegion {
         if self.member_cells.is_empty() {
             return Err(FocalRegionError::EmptyRegion);
         }
-        if self
-            .member_cells
-            .windows(2)
-            .any(|pair| pair[0] >= pair[1])
-        {
+        if self.member_cells.windows(2).any(|pair| pair[0] >= pair[1]) {
             return Err(FocalRegionError::NonCanonicalCells);
         }
         match &self.source {
@@ -203,7 +203,12 @@ mod tests {
         let region = FocalRegion::new(
             "gathering-area",
             FocalRegionSource::Synthetic,
-            vec![CellId::new(4), CellId::new(2), CellId::new(4), CellId::new(3)],
+            vec![
+                CellId::new(4),
+                CellId::new(2),
+                CellId::new(4),
+                CellId::new(3),
+            ],
         )
         .unwrap();
 
@@ -225,7 +230,12 @@ mod tests {
         let second = FocalRegion::new(
             "region-a",
             FocalRegionSource::Synthetic,
-            vec![CellId::new(4), CellId::new(2), CellId::new(1), CellId::new(2)],
+            vec![
+                CellId::new(4),
+                CellId::new(2),
+                CellId::new(1),
+                CellId::new(2),
+            ],
         )
         .unwrap();
 
@@ -237,12 +247,8 @@ mod tests {
     #[test]
     fn different_provenance_changes_identity() {
         let cells = vec![CellId::new(1), CellId::new(2)];
-        let synthetic = FocalRegion::new(
-            "region-a",
-            FocalRegionSource::Synthetic,
-            cells.clone(),
-        )
-        .unwrap();
+        let synthetic =
+            FocalRegion::new("region-a", FocalRegionSource::Synthetic, cells.clone()).unwrap();
         let evidence_bound = FocalRegion::new(
             "region-a",
             FocalRegionSource::LandscapeMask {
