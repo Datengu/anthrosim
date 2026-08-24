@@ -1,0 +1,49 @@
+name: M9.6 experiment evidence guard development integration
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ github.head_ref == 'm9/m9-6-experiment-identity' && github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          ref: m9/m9-6-experiment-identity
+          fetch-depth: 0
+
+      - name: Apply M9.6 evidence-context guard
+        run: python scripts/apply_m9_6_experiment_evidence_guard.py
+
+      - name: Format
+        run: cargo fmt --all
+
+      - name: Test focused experiment identity and evidence guard
+        run: cargo test --locked -p anthrosim-core --test temporary_mobility_experiment_identity
+
+      - name: Test workspace
+        run: cargo test --locked --workspace --all-features
+
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+      - name: Remove development helper
+        run: |
+          rm scripts/apply_m9_6_experiment_evidence_guard.py
+          rm .github/workflows/m9-6-experiment-evidence-guard-dev.yml
+
+      - name: Commit integrated M9.6 evidence guard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "M9.6: validate focal-region evidence context"
+          git push origin HEAD:m9/m9-6-experiment-identity
