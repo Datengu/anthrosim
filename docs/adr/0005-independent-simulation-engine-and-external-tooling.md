@@ -1,4 +1,4 @@
-# ADR 0001: Keep AnthroSim as an independent simulation engine and integrate mature external scientific tooling
+# ADR 0005: Keep AnthroSim as an independent simulation engine and integrate mature external scientific tooling
 
 - **Status:** Accepted
 - **Date:** 2026-08-22

@@ -149,7 +149,9 @@ M5 introduces three explicit artifact classes:
 - derived annual/terminal metric snapshots that reconcile against authoritative state;
 - deterministic annual-boundary checkpoints containing dynamic state, history and exact named-RNG stream positions.
 
-A completed controlled run directory contains a manifest, generated world, founder population, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains world, founder population, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.
+A fresh completed controlled run directory contains a manifest, generated world, the day-zero founder population in `initial-population.json`, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains the same day-zero founder artifact plus world, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.
+
+A run resumed into a different directory also retains `resume-start-population.json` as the population snapshot at the resume boundary. That boundary snapshot is provenance, **not** a replacement for the founders. Before the resumed bundle is promoted, AnthroSim deterministically materializes the true day-zero `initial-population.json` from the checkpoint's immutable population configuration, seed and authoritative world. An in-place resume preserves the original founder artifact. Full-history reconstruction therefore always begins from `initial-population.json`; treating `resume-start-population.json` as founders would double-apply the pre-resume event history.
 
 Checkpoint restoration reconstructs the immutable synthetic world from experiment configuration + seed and verifies its digest, restores full population/resource state, reconstructs migration scratch buffers from persistent migration state, and restores all seven named ChaCha8 streams from stable stream labels plus their recorded word positions. A composite state digest is checked before execution continues.
 
@@ -161,7 +163,7 @@ Migration still retains a bounded summary sample of detailed decision traces for
 
 M6 is intentionally **artifact-first and read-only**.
 
-`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus the five run files common to completed and paused M5 bundles. `manifest.json` is additionally exposed only when it actually exists. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.
+`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus an explicit allowlist of run artifacts. The required M5 reconstruction inputs are `world.json`, `initial-population.json`, `events.json`, `metrics.json` and `checkpoint.json`; `manifest.json` is exposed only when it exists. A resumed bundle may additionally expose `resume-start-population.json` as boundary provenance, while M8 landscape/spatial artifacts remain optional allowlisted extensions. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.
 
 For completed bundles, the manifest is the terminal summary and schema catalogue. For paused bundles, the checkpoint itself is the authoritative current boundary; M6 does not manufacture a completed manifest. Separately written events/metrics are checked against the history embedded in the checkpoint.
 
