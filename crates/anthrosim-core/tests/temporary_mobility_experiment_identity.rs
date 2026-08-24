@@ -1,7 +1,8 @@
 use anthrosim_core::ids::CellId;
 use anthrosim_core::{
-    DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, MigrationConfig,
-    PopulationConfig, ResourceConfig, Simulation, SimulationError, TemporaryMobilityConfig,
+    DemographyConfig, EventKind, EvidenceCatalog, ExperimentConfig, ExternalInputEvidence,
+    FocalRegion, FocalRegionSource, MigrationConfig, PopulationConfig, ResourceConfig, Simulation,
+    SimulationError, TemporaryMobilityConfig, TemporaryMobilityConfigError,
     TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTriggerTiming, WorldConfig,
 };
 
@@ -127,5 +128,67 @@ fn explicit_program_and_config_definition_are_rejected_as_ambiguous() {
     assert!(matches!(
         Simulation::new_with_temporary_mobility(configured, program),
         Err(SimulationError::AmbiguousTemporaryMobilityConfiguration)
+    ));
+}
+
+fn landscape_mask_definition(input_id: &str) -> TemporaryMobilityConfig {
+    let region = FocalRegion::new(
+        "evidence-bound-experiment-region",
+        FocalRegionSource::LandscapeMask {
+            layer_id: "aggregation-mask".to_owned(),
+            evidence_input_id: input_id.to_owned(),
+        },
+        vec![CellId::new(4)],
+    )
+    .expect("evidence-bound region");
+    let schedule = TemporaryMobilitySchedule::new(
+        "evidence-bound-schedule",
+        TemporaryTriggerTiming::DepartureDay,
+        vec![100],
+        5,
+    )
+    .expect("schedule");
+    TemporaryMobilityConfig::new(
+        region,
+        schedule,
+        TemporaryTravelModel::synthetic_validation_v1(),
+    )
+    .expect("temporary mobility definition")
+}
+
+#[test]
+fn landscape_mask_region_requires_an_evidence_catalog() {
+    let configured = ExperimentConfig::new(96_106, 0)
+        .with_world(WorldConfig::new(4, 1))
+        .with_temporary_mobility(landscape_mask_definition("aggregation-mask-input"));
+
+    assert!(matches!(
+        Simulation::new(configured),
+        Err(SimulationError::TemporaryMobilityConfig(
+            TemporaryMobilityConfigError::MissingEvidenceCatalog { input_id }
+        )) if input_id == "aggregation-mask-input"
+    ));
+}
+
+#[test]
+fn landscape_mask_region_rejects_unknown_evidence_external_input() {
+    let catalog =
+        EvidenceCatalog::new(Vec::new()).with_external_inputs(vec![ExternalInputEvidence {
+            input_id: "different-input".to_owned(),
+            evidence_id: "unused-in-this-preflight".to_owned(),
+            format: "normalized-binary-mask".to_owned(),
+            spatial_reference: None,
+            content_digest: None,
+        }]);
+    let configured = ExperimentConfig::new(96_107, 0)
+        .with_world(WorldConfig::new(4, 1))
+        .with_temporary_mobility(landscape_mask_definition("aggregation-mask-input"))
+        .with_evidence(catalog);
+
+    assert!(matches!(
+        Simulation::new(configured),
+        Err(SimulationError::TemporaryMobilityConfig(
+            TemporaryMobilityConfigError::UnknownEvidenceInput { input_id }
+        )) if input_id == "aggregation-mask-input"
     ));
 }

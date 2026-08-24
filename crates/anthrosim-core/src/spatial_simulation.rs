@@ -852,7 +852,7 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
     if let Some(temporary_mobility) = &config.temporary_mobility {
-        temporary_mobility.validate()?;
+        temporary_mobility.validate_evidence_context(config.evidence.as_ref())?;
     }
     if let Some(evidence) = &config.evidence {
         evidence.validate()?;

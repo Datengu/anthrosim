@@ -5,7 +5,8 @@ use thiserror::Error;
 
 use crate::{
     events::{EventKind, EventLog, TemporaryJourneyIneligibility},
-    focal_region::{FocalRegion, FocalRegionError},
+    evidence::EvidenceCatalog,
+    focal_region::{FocalRegion, FocalRegionError, FocalRegionSource},
     ids::{CellId, HouseholdId, TemporaryJourneyId},
     population::Population,
     temporary_resource::{
@@ -191,6 +192,38 @@ impl TemporaryMobilityConfig {
         Ok(())
     }
 
+    /// Validate evidence provenance claimed by an evidence-bound focal-region source.
+    ///
+    /// A serialized M9 definition must not be able to claim that its region came from a
+    /// landscape mask while referring to an external evidence input that is absent from the
+    /// experiment catalogue. Synthetic regions do not require an evidence catalogue.
+    pub fn validate_evidence_context(
+        &self,
+        catalog: Option<&EvidenceCatalog>,
+    ) -> Result<(), TemporaryMobilityConfigError> {
+        self.validate()?;
+        let FocalRegionSource::LandscapeMask {
+            evidence_input_id, ..
+        } = &self.region.source
+        else {
+            return Ok(());
+        };
+        let catalog =
+            catalog.ok_or_else(|| TemporaryMobilityConfigError::MissingEvidenceCatalog {
+                input_id: evidence_input_id.clone(),
+            })?;
+        if !catalog
+            .external_inputs
+            .iter()
+            .any(|input| input.input_id == *evidence_input_id)
+        {
+            return Err(TemporaryMobilityConfigError::UnknownEvidenceInput {
+                input_id: evidence_input_id.clone(),
+            });
+        }
+        Ok(())
+    }
+
     pub fn derive_program(
         &self,
         world: &World,
@@ -232,6 +265,14 @@ pub enum TemporaryMobilityConfigError {
         "temporary-mobility configuration schema {found} is unsupported; supported schema is {supported}"
     )]
     UnsupportedSchema { found: u32, supported: u32 },
+    #[error(
+        "temporary-mobility focal region references evidence external input {input_id}, but no evidence catalogue was supplied"
+    )]
+    MissingEvidenceCatalog { input_id: String },
+    #[error(
+        "temporary-mobility focal region references unknown evidence external input {input_id}"
+    )]
+    UnknownEvidenceInput { input_id: String },
     #[error(transparent)]
     Region(#[from] FocalRegionError),
     #[error(transparent)]
