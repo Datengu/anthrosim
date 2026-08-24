@@ -105,9 +105,7 @@ pub use spatial_simulation::{
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
     validate_spatial_landscape_recorded_run,
 };
-pub use temporary_history::{
-    TemporaryMobilityHistoryError, validate_temporary_mobility_history,
-};
+pub use temporary_history::{TemporaryMobilityHistoryError, validate_temporary_mobility_history};
 pub use temporary_mobility::{
     ActiveTemporaryJourney, HouseholdPresence, TemporaryJourneySkip, TemporaryMobilityConfig,
     TemporaryMobilityConfigError, TemporaryMobilityDayOutcome, TemporaryMobilityError,
