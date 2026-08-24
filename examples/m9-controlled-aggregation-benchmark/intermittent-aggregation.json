@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "region": {
+    "schemaVersion": 1,
+    "regionId": "m9_7_controlled_focal_region_v1",
+    "source": {"kind": "synthetic"},
+    "memberCells": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70]
+  },
+  "schedule": {
+    "schemaVersion": 1,
+    "scheduleId": "m9_7_intermittent_aggregation_v1",
+    "triggerTiming": "target_arrival_day",
+    "triggerDays": [350,715,1080,1445,1810,2175,2540,2905,3270],
+    "stayDurationDays": 30
+  },
+  "travelModel": {
+    "schemaVersion": 1,
+    "modelId": "m9_7_synthetic_travel_v1",
+    "provenance": "synthetic_validation",
+    "travelCapacityCostUnitsPerDay": 3000,
+    "maximumTraversableMovementCost": 65535
+  }
+}

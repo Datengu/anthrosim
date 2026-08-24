@@ -142,27 +142,27 @@ M8 does not by itself:
 
 ## M9 — Temporary mobility and aggregation experiments
 
-**Status:** in progress. M9.0-M9.6 are complete; M9.7, the controlled aggregation benchmark, remains before milestone acceptance. The authoritative M9 semantics contract is `docs/research/temporary-mobility-v1.md`; the capability audit that motivated it is `docs/research/m9-temporary-mobility-capability-audit.md`.
+**Status:** completed. M9.0-M9.7 establish the generic temporary-mobility and controlled aggregation capability. The authoritative M9 semantics contract is `docs/research/temporary-mobility-v1.md`; the capability audit that motivated it is `docs/research/m9-temporary-mobility-capability-audit.md`.
 
 ### Goal
 
 Allow households with persistent residences to undertake reproducible, bounded temporary journeys to declared focal regions, remain away for explicit durations and return home, while keeping temporary presence scientifically distinct from permanent migration.
 
-M9 should make controlled experiments possible that compare continuous residence with intermittent aggregation on synthetic or evidence-grounded landscapes. It does not assume why people aggregate; the initial mechanism is a null-model mobility capability, not a model of trade, ritual, refuge, politics or any named archaeological interpretation.
+M9 makes controlled experiments possible that compare continuous residence with intermittent aggregation on synthetic or evidence-grounded landscapes. It does not assume why people aggregate; the initial mechanism is a null-model mobility capability, not a model of trade, ritual, refuge, politics or any named archaeological interpretation.
 
-### Why M9 is the next missing capability
+### Why M9 was the next missing capability
 
-The v0.2.0 model cannot currently represent the required experiment without changing the meaning of existing state:
+The v0.2.0 model could not represent the required experiment without changing the meaning of existing state:
 
-- a household has one authoritative location that functions simultaneously as residence and current presence;
-- every living household member is required to occupy that same location;
-- M4 migration permanently overwrites the household and living-member locations;
-- migration journeys are atomic and have no journey duration, arrival/stay/return lifecycle or en-route state;
-- no model-facing focal-region binding currently tells a temporary-mobility mechanism where a declared aggregation area is;
-- resource demand is charged to the household's single location for an entire resource period, which would misrepresent short visits;
-- M8.5 can reconstruct person-days and occupancy from authoritative events, but it currently only understands permanent migration as a movement event.
+- a household had one authoritative location that functioned simultaneously as residence and current presence;
+- every living household member was required to occupy that same location;
+- M4 migration permanently overwrote the household and living-member locations;
+- migration journeys were atomic and had no journey duration, arrival/stay/return lifecycle or en-route state;
+- no model-facing focal-region binding told a temporary-mobility mechanism where a declared aggregation area was;
+- resource demand was charged to the household's single location for an entire resource period, which would misrepresent short visits;
+- M8.5 could reconstruct person-days and occupancy from authoritative events, but only understood permanent migration as a movement event.
 
-These are model/software capability gaps rather than missing archaeological data or missing GIS functionality.
+M9 addresses these as model/software capability gaps rather than treating them as missing archaeological data or missing GIS functionality.
 
 ### Architectural boundary
 
@@ -248,13 +248,15 @@ Completed bundles can carry the derived report and fail closed if it cannot be r
 
 See `docs/research/temporary-mobility-observability-v1.md` and `docs/research/m9-6-integration-audit.md`.
 
-#### M9.7 — Controlled aggregation benchmark
+#### M9.7 — Controlled aggregation benchmark — complete
 
-Complete M9 with a reproducible benchmark that compares a continuous-residence regime with an intermittent-aggregation regime under otherwise controlled conditions.
+The frozen M9.7 benchmark compares paired continuous-residence and intermittent-aggregation regimes across seeds 9701-9708 in the same controlled 10×10 synthetic worlds and 70-cell focal region. Its assumptions and acceptance thresholds were committed before first result inspection.
 
-The benchmark should deliberately include at least one pair of regimes with similar aggregate person-days but materially different temporal occupancy structure, and verify that authoritative events and derived observables preserve that distinction across replay/checkpoint/resume and ordinary ensemble machinery.
+The first execution classified **`capability_distinguished`**. All 8/8 paired seeds met the predeclared criteria: total focal-region person-days remained within 5% between arms while the intermittent arm produced a materially concentrated visitor signal above the declared peak threshold. Authoritative event replay reconciled with machine-readable M9.6 observability, duplicate execution was exact, and an annual checkpoint captured active journeys and resumed to the same terminal authoritative state and observability as uninterrupted execution.
 
-This benchmark validates the capability and its observability. It does not validate any archaeological interpretation.
+The first-observation result is preserved as a machine-readable reference and protected by a tamper-rejecting CI verifier. See `docs/research/m9-controlled-aggregation-benchmark-v1.md`, `docs/research/m9-controlled-aggregation-benchmark-result.md` and `examples/m9-controlled-aggregation-benchmark/reference-result.json`.
+
+This benchmark validates the M9 capability and its observability only. It does not validate any archaeological interpretation or claim that intermittent aggregation or continuous residence explains a real site.
 
 ### M9 non-goals
 
@@ -275,7 +277,7 @@ Those capabilities should be considered only when a later controlled research qu
 
 No fixed M10 feature list is declared yet.
 
-M9 is intended to make the first serious temporary-use/aggregation null-model experiments possible. Their results should determine the next missing capability rather than assuming in advance that the project next needs settlement formation, livestock, social networks, exchange, conflict or archaeological observation modelling.
+With M9 complete, the immediate project step is audit/hardening and re-verification of the completed capability before the planned `v0.3.0` release. The first real research uses of temporary mobility/aggregation should then help determine the next missing capability rather than assuming in advance that the project next needs settlement formation, livestock, social networks, exchange, conflict or archaeological observation modelling.
 
 Candidate directions remain valid only when justified by experimental need, including:
 
