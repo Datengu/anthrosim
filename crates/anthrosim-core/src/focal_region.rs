@@ -4,9 +4,7 @@ use thiserror::Error;
 use crate::{
     evidence::EvidenceCatalog,
     ids::{CellId, HouseholdId},
-    landscape::{
-        LandscapeBundle, LandscapeError, LandscapeLayerRole, LandscapeValueDomain,
-    },
+    landscape::{LandscapeBundle, LandscapeError, LandscapeLayerRole, LandscapeValueDomain},
     population::Population,
     world::World,
 };
@@ -88,11 +86,12 @@ impl FocalRegion {
             });
         }
 
-        let layer = landscape
-            .layer(layer_id)
-            .ok_or_else(|| FocalRegionBindingError::MissingLayer {
-                layer_id: layer_id.to_owned(),
-            })?;
+        let layer =
+            landscape
+                .layer(layer_id)
+                .ok_or_else(|| FocalRegionBindingError::MissingLayer {
+                    layer_id: layer_id.to_owned(),
+                })?;
         if layer.role != LandscapeLayerRole::Auxiliary {
             return Err(FocalRegionBindingError::MaskLayerNotAuxiliary {
                 layer_id: layer.layer_id.clone(),
@@ -108,12 +107,11 @@ impl FocalRegion {
             });
         }
 
-        let evidence_input_id = layer
-            .evidence_input_id
-            .clone()
-            .ok_or_else(|| FocalRegionBindingError::MissingEvidenceInput {
+        let evidence_input_id = layer.evidence_input_id.clone().ok_or_else(|| {
+            FocalRegionBindingError::MissingEvidenceInput {
                 layer_id: layer.layer_id.clone(),
-            })?;
+            }
+        })?;
         if !evidence
             .external_inputs
             .iter()
@@ -239,7 +237,11 @@ impl FocalRegion {
         if self.member_cells.is_empty() {
             return Err(FocalRegionError::EmptyRegion);
         }
-        if self.member_cells.iter().any(|cell| *cell == CellId::INVALID) {
+        if self
+            .member_cells
+            .iter()
+            .any(|cell| *cell == CellId::INVALID)
+        {
             return Err(FocalRegionError::InvalidCellId);
         }
         if self.member_cells.windows(2).any(|pair| pair[0] >= pair[1]) {
@@ -332,10 +334,7 @@ pub enum FocalRegionBindingError {
     #[error("focal-region mask layer {layer_id} references unknown evidence input {input_id}")]
     UnknownEvidenceInput { layer_id: String, input_id: String },
     #[error("focal-region mask layer {layer_id} has nodata at cell index {cell_index}")]
-    MaskContainsNoData {
-        layer_id: String,
-        cell_index: u64,
-    },
+    MaskContainsNoData { layer_id: String, cell_index: u64 },
     #[error(
         "focal-region mask layer {layer_id} has non-binary value {value} at cell index {cell_index}"
     )]
@@ -519,10 +518,7 @@ mod tests {
                 &evidence_catalog(),
                 &world(),
             ),
-            Err(FocalRegionBindingError::MaskContainsNoData {
-                cell_index: 3,
-                ..
-            })
+            Err(FocalRegionBindingError::MaskContainsNoData { cell_index: 3, .. })
         ));
 
         let mut nonbinary = vec![Some(0); 16];
@@ -548,7 +544,9 @@ mod tests {
                 &evidence_catalog(),
                 &world(),
             ),
-            Err(FocalRegionBindingError::Region(FocalRegionError::EmptyRegion))
+            Err(FocalRegionBindingError::Region(
+                FocalRegionError::EmptyRegion
+            ))
         );
     }
 
@@ -584,7 +582,10 @@ mod tests {
         let region =
             FocalRegion::new("home-region", FocalRegionSource::Synthetic, vec![residence]).unwrap();
 
-        assert_eq!(region.contains_residence(household, &population), Some(true));
+        assert_eq!(
+            region.contains_residence(household, &population),
+            Some(true)
+        );
     }
 
     #[test]
