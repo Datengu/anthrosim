@@ -1,0 +1,197 @@
+name: M9.7 controlled aggregation benchmark
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "build/**"
+      - "crates/anthrosim-core/**"
+      - "crates/anthrosim-cli/**"
+      - "scripts/aggregate-m9-aggregation-benchmark.py"
+      - "examples/m9-controlled-aggregation-benchmark/**"
+      - "docs/research/m9-controlled-aggregation-benchmark-v1.md"
+      - ".github/workflows/m9-aggregation-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Execute predeclared M9.7 aggregation benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Validate predeclared benchmark sources
+        run: |
+          python3 -m py_compile scripts/aggregate-m9-aggregation-benchmark.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("examples/m9-controlled-aggregation-benchmark")
+          for name in ("benchmark-definition.json", "continuous-residence.json", "intermittent-aggregation.json"):
+              json.loads((root / name).read_text(encoding="utf-8"))
+          PY
+
+      - name: Build release binaries
+        env:
+          ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
+        run: cargo build --locked --workspace --release
+
+      - name: Execute paired M7 ensembles
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf m9-benchmark-runs m9-benchmark-output m9-replay-check m9-resume-check
+          mkdir -p m9-benchmark-runs m9-benchmark-output
+          for arm in continuous intermittent; do
+            if [ "$arm" = continuous ]; then
+              config=examples/m9-controlled-aggregation-benchmark/continuous-residence.json
+            else
+              config=examples/m9-controlled-aggregation-benchmark/intermittent-aggregation.json
+            fi
+            target/release/anthrosim ensemble \
+              --seeds 9701,9702,9703,9704,9705,9706,9707,9708 \
+              --years 10 \
+              --world-width 10 \
+              --world-height 10 \
+              --population 2000 \
+              --household-size 5 \
+              --max-person-records 20000 \
+              --resource-productivity-scale-permille 1000 \
+              --resource-seasonality-scale-permille 0 \
+              --annual-food-need 1 \
+              --disable-migration \
+              --migration-radius 3 \
+              --temporary-mobility "$config" \
+              --run-dir "m9-benchmark-runs/$arm"
+          done
+
+      - name: Derive M9.6 observability for every paired run
+        run: |
+          target/release/anthrosim-temporary-observability tree --root m9-benchmark-runs/continuous
+          target/release/anthrosim-temporary-observability tree --root m9-benchmark-runs/intermittent
+
+      - name: Prove identical intermittent replay is exact
+        shell: bash
+        run: |
+          set -euo pipefail
+          config=examples/m9-controlled-aggregation-benchmark/intermittent-aggregation.json
+          for copy in a b; do
+            target/release/anthrosim run \
+              --seed 9701 \
+              --years 10 \
+              --world-width 10 \
+              --world-height 10 \
+              --population 2000 \
+              --household-size 5 \
+              --max-person-records 20000 \
+              --resource-productivity-scale-permille 1000 \
+              --resource-seasonality-scale-permille 0 \
+              --annual-food-need 1 \
+              --disable-migration \
+              --migration-radius 3 \
+              --temporary-mobility "$config" \
+              --run-dir "m9-replay-check/$copy"
+            target/release/anthrosim-temporary-observability run --run-dir "m9-replay-check/$copy"
+          done
+          cmp m9-replay-check/a/checkpoint.json m9-replay-check/b/checkpoint.json
+          cmp m9-replay-check/a/events.json m9-replay-check/b/events.json
+          cmp m9-replay-check/a/temporary-observability.json m9-replay-check/b/temporary-observability.json
+
+      - name: Prove active annual checkpoint resumes exactly
+        shell: bash
+        run: |
+          set -euo pipefail
+          config=examples/m9-controlled-aggregation-benchmark/intermittent-aggregation.json
+          target/release/anthrosim run \
+            --seed 9701 \
+            --years 10 \
+            --world-width 10 \
+            --world-height 10 \
+            --population 2000 \
+            --household-size 5 \
+            --max-person-records 20000 \
+            --resource-productivity-scale-permille 1000 \
+            --resource-seasonality-scale-permille 0 \
+            --annual-food-need 1 \
+            --disable-migration \
+            --migration-radius 3 \
+            --temporary-mobility "$config" \
+            --run-dir m9-resume-check/paused \
+            --checkpoint-year 1
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          checkpoint = json.loads(Path("m9-resume-check/paused/checkpoint.json").read_text(encoding="utf-8"))
+          if checkpoint["time"] != 365:
+              raise SystemExit("M9.7 checkpoint is not at day 365")
+          temporary = checkpoint["temporaryMobility"]
+          active_presence = [row for row in temporary["householdPresence"] if row.get("state") != "at_residence"]
+          active_journeys = [row for row in temporary["activeJourneys"] if row is not None]
+          if not active_presence or not active_journeys:
+              raise SystemExit("M9.7 year-1 checkpoint did not capture an active temporary journey")
+          if not all(row.get("state") == "visiting" for row in active_presence):
+              raise SystemExit("M9.7 target-arrival window should be visiting at day 365")
+          print(f"active temporary households at day 365: {len(active_presence)}")
+          PY
+
+          target/release/anthrosim resume \
+            --checkpoint m9-resume-check/paused/checkpoint.json \
+            --run-dir m9-resume-check/resumed
+          target/release/anthrosim-temporary-observability run --run-dir m9-resume-check/resumed
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          seed_run = "seed-00000000000000009701"
+          uninterrupted_dir = Path("m9-benchmark-runs/intermittent/runs") / seed_run
+          resumed_dir = Path("m9-resume-check/resumed")
+          uninterrupted = json.loads((uninterrupted_dir / "checkpoint.json").read_text(encoding="utf-8"))
+          resumed = json.loads((resumed_dir / "checkpoint.json").read_text(encoding="utf-8"))
+          keys = ["time","completedYears","terminalStopReason","worldDigest64","stateDigest64","population","temporaryMobility","resources","migration","rng","events","metrics"]
+          for key in keys:
+              if uninterrupted[key] != resumed[key]:
+                  raise SystemExit(f"resumed M9.7 checkpoint differs from uninterrupted run at {key}")
+          a = json.loads((uninterrupted_dir / "temporary-observability.json").read_text(encoding="utf-8"))
+          b = json.loads((resumed_dir / "temporary-observability.json").read_text(encoding="utf-8"))
+          if a != b:
+              raise SystemExit("resumed M9.7 observability differs from uninterrupted regeneration")
+          print("active-journey checkpoint/resume exactly matches uninterrupted state and observability")
+          PY
+
+      - name: Aggregate the predeclared paired result
+        run: |
+          python3 scripts/aggregate-m9-aggregation-benchmark.py \
+            --root m9-benchmark-runs \
+            --definition examples/m9-controlled-aggregation-benchmark/benchmark-definition.json \
+            --output m9-benchmark-output/benchmark-summary.json \
+            --markdown m9-benchmark-output/benchmark-summary.md
+          cat m9-benchmark-output/benchmark-summary.md
+
+      - name: Upload first-observation result and run archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: m9-controlled-aggregation-benchmark
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            m9-benchmark-output/
+            m9-benchmark-runs/
+            m9-replay-check/
+            m9-resume-check/
