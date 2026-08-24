@@ -14,7 +14,7 @@ use crate::{
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 1;
+const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 2;
 
 /// Authoritative M9 physical-presence state for one household.
 ///
@@ -458,6 +458,10 @@ pub struct ActiveTemporaryJourney {
     pub trigger_day: u64,
     pub residence: CellId,
     pub destination: CellId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub travel_model_identity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accumulated_travel_cost_units: Option<u64>,
     pub departure_day: u64,
     pub arrival_day: u64,
     pub return_departure_day: u64,
@@ -522,6 +526,19 @@ impl ActiveTemporaryJourney {
                 journey: self.journey,
             });
         }
+        match (
+            self.travel_model_identity.as_deref(),
+            self.accumulated_travel_cost_units,
+        ) {
+            (None, None) => {}
+            (Some(identity), Some(_)) if !identity.trim().is_empty() => {}
+            _ => {
+                return Err(TemporaryMobilityError::InvalidTravelMetadata {
+                    household: self.household,
+                    journey: self.journey,
+                });
+            }
+        }
         Ok(())
     }
 
@@ -534,6 +551,20 @@ impl ActiveTemporaryJourney {
         digest_u64(hash, self.trigger_day);
         digest_u64(hash, self.residence.0);
         digest_u64(hash, self.destination.0);
+        match &self.travel_model_identity {
+            None => digest_u64(hash, 0),
+            Some(identity) => {
+                digest_u64(hash, 1);
+                digest_str(hash, identity);
+            }
+        }
+        match self.accumulated_travel_cost_units {
+            None => digest_u64(hash, 0),
+            Some(cost) => {
+                digest_u64(hash, 1);
+                digest_u64(hash, cost);
+            }
+        }
         digest_u64(hash, self.departure_day);
         digest_u64(hash, self.arrival_day);
         digest_u64(hash, self.return_departure_day);
@@ -936,16 +967,22 @@ impl TemporaryMobilityState {
                             household,
                         });
                     }
-                    if let Some(program) = &self.program
-                        && (active.region_id != program.region.region_id
+                    if let Some(program) = &self.program {
+                        let expected_model_identity =
+                            program.travel.travel_model().map(|model| model.identity());
+                        let expected_cost = program.travel.accumulated_cost_units(active.residence);
+                        if active.region_id != program.region.region_id
                             || active.region_identity != program.region.identity()
-                            || !program.region.contains(active.destination))
-                    {
-                        return Err(
-                            TemporaryMobilityValidationError::ActiveJourneyProgramMismatch {
-                                household,
-                            },
-                        );
+                            || !program.region.contains(active.destination)
+                            || active.travel_model_identity != expected_model_identity
+                            || active.accumulated_travel_cost_units != expected_cost
+                        {
+                            return Err(
+                                TemporaryMobilityValidationError::ActiveJourneyProgramMismatch {
+                                    household,
+                                },
+                            );
+                        }
                     }
                     if !active_journeys.insert(journey) {
                         return Err(TemporaryMobilityValidationError::DuplicateActiveJourney {
@@ -1162,6 +1199,18 @@ impl TemporaryMobilityState {
             return Ok(TriggerEvaluation::Skipped(reason));
         };
 
+        let travel_model_identity = program.travel.travel_model().map(|model| model.identity());
+        let accumulated_travel_cost_units = if travel_model_identity.is_some() {
+            Some(
+                program
+                    .travel
+                    .accumulated_cost_units(residence)
+                    .ok_or(TemporaryMobilityExecutionError::MissingTravelCost { residence })?,
+            )
+        } else {
+            None
+        };
+
         let departure_day = match program.schedule.trigger_timing {
             TemporaryTriggerTiming::DepartureDay => trigger_day,
             TemporaryTriggerTiming::TargetArrivalDay => {
@@ -1229,6 +1278,8 @@ impl TemporaryMobilityState {
             trigger_day,
             residence,
             destination,
+            travel_model_identity: travel_model_identity.clone(),
+            accumulated_travel_cost_units,
             departure_day,
             arrival_day,
             return_departure_day,
@@ -1258,6 +1309,8 @@ impl TemporaryMobilityState {
                 region_identity: active.region_identity.clone(),
                 residence,
                 destination,
+                travel_model_identity,
+                accumulated_travel_cost_units,
                 people_affected,
                 trigger_index,
                 trigger_day,
@@ -1501,6 +1554,8 @@ fn test_active_journey(
         trigger_day: departure_day,
         residence: population.household_location(household).unwrap(),
         destination,
+        travel_model_identity: None,
+        accumulated_travel_cost_units: None,
         departure_day,
         arrival_day,
         return_departure_day,
@@ -1757,6 +1812,11 @@ pub enum TemporaryMobilityError {
         household: HouseholdId,
         journey: TemporaryJourneyId,
     },
+    #[error("household {household:?} journey {journey:?} has invalid travel metadata")]
+    InvalidTravelMetadata {
+        household: HouseholdId,
+        journey: TemporaryJourneyId,
+    },
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -1823,6 +1883,10 @@ pub enum TemporaryMobilityExecutionError {
     InvalidHousehold { household: HouseholdId },
     #[error("temporary mobility travel table has no entry for residence {residence:?}")]
     MissingTravelResolution { residence: CellId },
+    #[error(
+        "temporary mobility M9.4 table has no travel cost for reachable residence {residence:?}"
+    )]
+    MissingTravelCost { residence: CellId },
     #[error("temporary mobility trigger count exceeds supported u32 identity")]
     TooManyTriggers,
     #[error("temporary journey ID space exhausted")]
