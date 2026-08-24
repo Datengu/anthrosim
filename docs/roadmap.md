@@ -221,7 +221,7 @@ Define the minimum deterministic travel-duration/cost calculation required for t
 
 This capability must remain inspectable and provenance-bearing. It should not grow into a general GIS route-planning product; mature external GIS remains responsible for generic routing/cartographic analysis not required by authoritative simulated behaviour.
 
-#### M9.5 — Duration-aware resource/presence accounting
+#### M9.5 — Duration-aware resource/presence accounting — complete
 
 Ensure short visits cannot be silently treated as whole resource periods at the destination or disappear entirely when they occur between current resource boundaries.
 
