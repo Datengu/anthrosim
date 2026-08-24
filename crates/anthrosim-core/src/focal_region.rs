@@ -201,7 +201,7 @@ impl FocalRegion {
         )
     }
 
-    fn validate_structure(&self) -> Result<(), FocalRegionError> {
+    pub(crate) fn validate_structure(&self) -> Result<(), FocalRegionError> {
         if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
             return Err(FocalRegionError::UnsupportedSchema {
                 found: self.schema_version,

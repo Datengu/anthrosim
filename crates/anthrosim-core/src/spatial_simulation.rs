@@ -32,8 +32,8 @@ use crate::{
         transform_landscape,
     },
     temporary_mobility::{
-        TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
-        TemporaryMobilityState, TemporaryMobilityValidationError,
+        TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
+        TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
     },
     time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
@@ -212,9 +212,19 @@ impl SpatialLandscapeSimulation {
         let spatial_binding = SpatialMechanismBinding::new(mechanisms, &world)?;
         let rng_factory = RngFactory::new(config.seed);
         let population = Population::initialize(config.population, &world, rng_factory)?;
-        let temporary_mobility = match program {
-            Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
-            None => TemporaryMobilityState::at_residence(&population),
+        let configured_program = config
+            .temporary_mobility
+            .as_ref()
+            .map(|definition| definition.derive_program(&world))
+            .transpose()?;
+        let temporary_mobility = match (program, configured_program) {
+            (Some(_), Some(_)) => {
+                return Err(SpatialLandscapeError::AmbiguousTemporaryMobilityConfiguration);
+            }
+            (Some(program), None) | (None, Some(program)) => {
+                TemporaryMobilityState::with_program(&population, program, &world)?
+            }
+            (None, None) => TemporaryMobilityState::at_residence(&population),
         };
         temporary_mobility.validate_at_day(0, &population, &world)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
@@ -841,6 +851,9 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
+    if let Some(temporary_mobility) = &config.temporary_mobility {
+        temporary_mobility.validate_evidence_context(config.evidence.as_ref())?;
+    }
     if let Some(evidence) = &config.evidence {
         evidence.validate()?;
     }
@@ -915,6 +928,18 @@ fn validate_spatial_temporary_mobility(
         .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
             reason: error.to_string(),
         })?;
+    if let Some(definition) = &checkpoint.experiment.temporary_mobility {
+        let expected = definition.derive_program(world)?;
+        if checkpoint.temporary_mobility.program() != Some(&expected) {
+            return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {
+                expected: expected.identity(),
+                actual: checkpoint
+                    .temporary_mobility
+                    .program()
+                    .map(TemporaryMobilityProgram::identity),
+            });
+        }
+    }
     Ok(())
 }
 
@@ -1005,6 +1030,17 @@ pub enum SpatialLandscapeError {
     },
     #[error("spatial checkpoint temporary mobility state is invalid: {reason}")]
     TemporaryMobilityInvalid { reason: String },
+    #[error("both ExperimentConfig and an explicit constructor supplied temporary mobility")]
+    AmbiguousTemporaryMobilityConfiguration,
+    #[error(
+        "configured temporary-mobility program mismatch: expected {expected}, found {actual:?}"
+    )]
+    ConfiguredTemporaryMobilityMismatch {
+        expected: String,
+        actual: Option<String>,
+    },
+    #[error(transparent)]
+    TemporaryMobilityConfig(#[from] TemporaryMobilityConfigError),
     #[error(transparent)]
     TemporaryMobility(#[from] TemporaryMobilityValidationError),
     #[error(transparent)]
