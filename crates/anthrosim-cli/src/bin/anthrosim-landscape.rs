@@ -8,8 +8,8 @@ use anthrosim_core::{
     EventLog, EvidenceCatalog, ExperimentConfig, LandscapeBundle, LandscapeCheckpoint,
     LandscapeRecordedRun, LandscapeSimulation, MetricSeries, MigrationConfig, Population,
     PopulationConfig, ResourceConfig, SimulationCheckpoint, SpatialLandscapeCheckpoint,
-    SpatialLandscapeRecordedRun, SpatialLandscapeSimulation, SpatialMechanismConfig, World,
-    WorldConfig, validate_landscape_recorded_run_invariants,
+    SpatialLandscapeRecordedRun, SpatialLandscapeSimulation, SpatialMechanismConfig,
+    TemporaryMobilityConfig, World, WorldConfig, validate_landscape_recorded_run_invariants,
     validate_spatial_landscape_recorded_run,
 };
 use clap::{Parser, Subcommand};
@@ -68,6 +68,9 @@ enum Command {
         disable_migration: bool,
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
+        /// Optional versioned M9 temporary-mobility definition JSON.
+        #[arg(long)]
+        temporary_mobility: Option<PathBuf>,
         /// Controlled output directory containing core and landscape-bound artifacts.
         #[arg(long)]
         run_dir: PathBuf,
@@ -116,6 +119,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             annual_food_need,
             disable_migration,
             migration_radius,
+            temporary_mobility,
             run_dir,
             checkpoint_year,
         } => {
@@ -125,6 +129,13 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .as_deref()
                 .map(read_json::<EvidenceCatalog>)
                 .transpose()?;
+            let temporary_mobility = temporary_mobility
+                .as_deref()
+                .map(read_json::<TemporaryMobilityConfig>)
+                .transpose()?;
+            if let Some(definition) = &temporary_mobility {
+                definition.validate()?;
+            }
             let config = experiment_config(
                 seed,
                 years,
@@ -139,6 +150,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 disable_migration,
                 migration_radius,
                 evidence,
+                temporary_mobility,
             );
             let transaction = RunDirectoryTransaction::fresh(&run_dir)?;
 
@@ -295,6 +307,7 @@ fn experiment_config(
     disable_migration: bool,
     migration_radius: u16,
     evidence: Option<EvidenceCatalog>,
+    temporary_mobility: Option<TemporaryMobilityConfig>,
 ) -> ExperimentConfig {
     let resources = ResourceConfig::synthetic_validation_v1()
         .with_productivity_scale_permille(productivity_scale)
@@ -303,7 +316,7 @@ fn experiment_config(
     let migration = MigrationConfig::synthetic_validation_v1()
         .with_enabled(!disable_migration)
         .with_candidate_radius_cells(migration_radius);
-    let config = ExperimentConfig::new(seed, years)
+    let mut config = ExperimentConfig::new(seed, years)
         .with_world(WorldConfig::new(width, height))
         .with_population(
             PopulationConfig::new(population)
@@ -312,7 +325,13 @@ fn experiment_config(
         )
         .with_resources(resources)
         .with_migration(migration);
-    evidence.map_or(config.clone(), |catalog| config.with_evidence(catalog))
+    if let Some(temporary_mobility) = temporary_mobility {
+        config = config.with_temporary_mobility(temporary_mobility);
+    }
+    if let Some(catalog) = evidence {
+        config = config.with_evidence(catalog);
+    }
+    config
 }
 
 fn prepare_landscape_resume_transaction(
@@ -804,6 +823,7 @@ mod tests {
             false,
             1,
             Some(evidence),
+            None,
         );
 
         assert!(SpatialLandscapeSimulation::new(config, landscape, mechanisms).is_ok());
@@ -825,7 +845,9 @@ mod tests {
                 NoDataPolicy::Reject,
             )],
         );
-        let config = experiment_config(78, 0, 1, 1, 1, 1, 16, 1_000, 1_000, 100, false, 1, None);
+        let config = experiment_config(
+            78, 0, 1, 1, 1, 1, 16, 1_000, 1_000, 100, false, 1, None, None,
+        );
 
         assert!(SpatialLandscapeSimulation::new(config, landscape, mechanisms).is_err());
     }

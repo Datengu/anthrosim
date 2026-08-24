@@ -4,7 +4,7 @@ use anthrosim_core::RunManifest;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ensemble::{EnsembleRunSettings, execute_ensemble},
+    ensemble::{EnsembleRunSettings, execute_ensemble, validate_temporary_mobility_settings},
     read_json, write_json,
 };
 
@@ -166,6 +166,7 @@ pub(crate) fn execute_sweep(
     dimensions: SweepDimensions,
     retry: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    validate_temporary_mobility_settings(&base_settings)?;
     let expected = build_sweep_manifest(base_settings, seeds, dimensions)?;
     let manifest = if retry {
         load_matching_sweep_manifest(directory, &expected)?
@@ -935,6 +936,7 @@ mod tests {
             annual_food_need: 100,
             disable_migration: false,
             migration_radius: 3,
+            temporary_mobility: None,
             spatial: None,
         }
     }
@@ -1172,5 +1174,50 @@ mod tests {
         let after = fs::read(root.join("sweep-manifest.json")).expect("manifest");
         assert_eq!(before, after);
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn temporary_mobility_is_preserved_across_points_and_changes_sweep_identity() {
+        use anthrosim_core::{
+            FocalRegion, FocalRegionSource, TemporaryMobilityConfig, TemporaryMobilitySchedule,
+            TemporaryTravelModel, TemporaryTriggerTiming, ids::CellId,
+        };
+
+        let definition = TemporaryMobilityConfig::new(
+            FocalRegion::new(
+                "sweep-temporary-region",
+                FocalRegionSource::Synthetic,
+                vec![CellId::new(4)],
+            )
+            .expect("region"),
+            TemporaryMobilitySchedule::new(
+                "sweep-temporary-schedule",
+                TemporaryTriggerTiming::DepartureDay,
+                vec![100],
+                5,
+            )
+            .expect("schedule"),
+            TemporaryTravelModel::synthetic_validation_v1(),
+        )
+        .expect("temporary mobility");
+        let mut settings = small_settings();
+        settings.temporary_mobility = Some(definition.clone());
+        let first =
+            build_sweep_manifest(settings.clone(), vec![3, 7], dimensions()).expect("sweep");
+        assert!(
+            first
+                .points
+                .iter()
+                .all(|point| point.settings.temporary_mobility.as_ref() == Some(&definition))
+        );
+
+        settings
+            .temporary_mobility
+            .as_mut()
+            .expect("temporary mobility")
+            .schedule
+            .stay_duration_days += 1;
+        let changed = build_sweep_manifest(settings, vec![3, 7], dimensions()).expect("sweep");
+        assert_ne!(first.sweep_id, changed.sweep_id);
     }
 }

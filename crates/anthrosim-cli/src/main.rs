@@ -17,7 +17,7 @@ mod sweep;
 
 use ensemble::{
     EnsembleRunSettings, execute_ensemble, experiment_config, load_spatial_run_settings,
-    resolve_ensemble_seeds,
+    load_temporary_mobility_config, resolve_ensemble_seeds,
 };
 use run_directory::{RunDirectoryTransaction, same_existing_path, target_is_nonempty_directory};
 use sweep::{SweepDimensions, execute_sweep};
@@ -87,6 +87,10 @@ enum Command {
         /// Manhattan-radius local knowledge used for migration destination discovery.
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
+
+        /// Optional versioned M9 temporary-mobility definition JSON.
+        #[arg(long)]
+        temporary_mobility: Option<PathBuf>,
 
         /// Optional path to write the JSON run manifest (legacy single-file mode).
         #[arg(long)]
@@ -172,6 +176,10 @@ enum Command {
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
 
+        /// Optional versioned M9 temporary-mobility definition JSON shared by every run.
+        #[arg(long)]
+        temporary_mobility: Option<PathBuf>,
+
         /// Optional normalized M8.1 LandscapeBundle JSON; requires --mechanisms.
         #[arg(long, requires = "mechanisms")]
         landscape: Option<PathBuf>,
@@ -255,6 +263,10 @@ enum Command {
         /// Base migration radius when its sweep dimension is not supplied.
         #[arg(long, default_value_t = 3)]
         migration_radius: u16,
+
+        /// Optional versioned M9 temporary-mobility definition JSON shared by every point/run.
+        #[arg(long)]
+        temporary_mobility: Option<PathBuf>,
 
         /// Optional normalized M8.1 LandscapeBundle JSON shared by every point; requires --mechanisms.
         #[arg(long, requires = "mechanisms")]
@@ -355,12 +367,17 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             annual_food_need,
             disable_migration,
             migration_radius,
+            temporary_mobility,
             output,
             run_dir,
             checkpoint_year,
             world_output,
             population_output,
         } => {
+            let temporary_mobility = temporary_mobility
+                .as_deref()
+                .map(load_temporary_mobility_config)
+                .transpose()?;
             let settings = EnsembleRunSettings {
                 years,
                 world_width,
@@ -373,6 +390,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                temporary_mobility,
                 spatial: None,
             };
             let config = experiment_config(seed, &settings);
@@ -449,6 +467,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             annual_food_need,
             disable_migration,
             migration_radius,
+            temporary_mobility,
             landscape,
             mechanisms,
             evidence,
@@ -465,6 +484,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 (None, None) => None,
                 _ => unreachable!("clap requires landscape and mechanisms together"),
             };
+            let temporary_mobility = temporary_mobility
+                .as_deref()
+                .map(load_temporary_mobility_config)
+                .transpose()?;
             let settings = EnsembleRunSettings {
                 years,
                 world_width,
@@ -477,6 +500,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                temporary_mobility,
                 spatial,
             };
             execute_ensemble(&run_dir, settings, seeds, retry)?;
@@ -496,6 +520,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             annual_food_need,
             disable_migration,
             migration_radius,
+            temporary_mobility,
             landscape,
             mechanisms,
             evidence,
@@ -519,6 +544,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 (None, None) => None,
                 _ => unreachable!("clap requires landscape and mechanisms together"),
             };
+            let temporary_mobility = temporary_mobility
+                .as_deref()
+                .map(load_temporary_mobility_config)
+                .transpose()?;
             let settings = EnsembleRunSettings {
                 years,
                 world_width,
@@ -531,6 +560,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 annual_food_need,
                 disable_migration,
                 migration_radius,
+                temporary_mobility,
                 spatial,
             };
             let dimensions = SweepDimensions {
