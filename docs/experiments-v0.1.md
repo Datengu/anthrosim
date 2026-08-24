@@ -30,7 +30,7 @@ Before any child simulation starts, a fresh ensemble writes `experiment-manifest
 - every planned run ID and stable output path;
 - the complete exact `ExperimentConfig` for every child, including its seed.
 
-Ordinary builds from a Git checkout resolve the source revision automatically. A clean tracked tree records the exact commit SHA; staged or unstaged tracked modifications record `<sha>-dirty`; builds outside Git record `null` rather than fabricating an identity. A controlled build can still set `ANTHROSIM_GIT_COMMIT` explicitly. See [`source-provenance.md`](source-provenance.md) for the full policy.
+Ordinary builds from a Git checkout resolve the source revision automatically. A clean tracked tree records the exact commit SHA; staged or unstaged tracked modifications record `<sha>-dirty-<working-tree-digest>`; builds outside Git record `null` rather than fabricating an identity. A controlled build can still set `ANTHROSIM_GIT_COMMIT` explicitly. See [`source-provenance.md`](source-provenance.md) for the full policy.
 
 The experiment ID is a stable FNV-1a fingerprint of the versioned identity payload. It is an identifier and accidental-change detector, not a cryptographic signature. Retry safety does not rely on the fingerprint alone: AnthroSim deserializes the stored manifest and requires exact structural equality with the experiment definition requested by the retry command.
 
@@ -100,7 +100,7 @@ A batch continues to later planned seeds after one child fails, so unattended en
 Retry uses the same ensemble command and exact original definition plus `--retry`:
 
 ```text
-cargo run --release -p anthrosim-cli -- ensemble \
+cargo run --release -p anthrosim-cli --bin anthrosim -- ensemble \
   --years 100 \
   --population 10000 \
   --seeds 1,2,3,4,5 \
@@ -145,7 +145,7 @@ A dimension that is not supplied uses its ordinary base command value. Supplying
 For example:
 
 ```text
-cargo run --release -p anthrosim-cli -- sweep \
+cargo run --release -p anthrosim-cli --bin anthrosim -- sweep \
   --years 100 \
   --population 10000 \
   --seeds 1,2,3,4 \
@@ -269,7 +269,7 @@ cargo build --locked --workspace --release
 python scripts/run-versioned-sweep.py experiments/v0.1-resource-variability.json --binary target/release/anthrosim.exe --run-dir runs/v0.1-resource-variability
 ```
 
-No manual revision environment variable is required for the ordinary path. A clean tracked checkout records the exact SHA. A tracked modification produces a `-dirty` source identity and build warning. If Git metadata is unavailable, the build records `gitCommit: null`. `scripts/run-versioned-sweep.py` deliberately refuses both missing identity and automatically detected dirty source state so a formal versioned result cannot silently claim an unreproducible source tree. Controlled build systems may still set a non-empty `ANTHROSIM_GIT_COMMIT` override deliberately. See [`source-provenance.md`](source-provenance.md).
+No manual revision environment variable is required for the ordinary path. A clean tracked checkout records the exact SHA. A tracked modification produces a `-dirty-<working-tree-digest>` source identity and build warning. If Git metadata is unavailable, the build records `gitCommit: null`. `scripts/run-versioned-sweep.py` deliberately refuses both missing identity and automatically detected dirty source state so a formal versioned result cannot silently claim an unreproducible source tree. Controlled build systems may still set a non-empty `ANTHROSIM_GIT_COMMIT` override deliberately. See [`source-provenance.md`](source-provenance.md).
 
 A successful versioned run copies the exact input to `source-definition.json` and writes `reproduction-record.json`. That record contains the SHA-256 of the source definition, model/package version, required build source revision, immutable sweep ID and paths to the authoritative sweep manifest and derived analysis directory. The immutable sweep manifest remains authoritative for the fully expanded point/run identity.
 
@@ -294,7 +294,7 @@ The sweep analysis layer consumes that boundary rather than weakening it. Run-le
 ## Example fresh ensemble
 
 ```text
-cargo run --release -p anthrosim-cli -- ensemble \
+cargo run --release -p anthrosim-cli --bin anthrosim -- ensemble \
   --years 100 \
   --world-width 64 \
   --world-height 64 \

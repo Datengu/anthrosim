@@ -43,7 +43,7 @@ The postprocessor requires the preserved normalized landscape, authoritative tra
 - `initial-population.json` is the original day-zero founder population used as the baseline for full-history event replay;
 - `resume-start-population.json` is the authoritative population at the checkpoint boundary from which a resumed execution continued.
 
-A new-directory resume may legitimately contain only `resume-start-population.json`. The checkpoint still preserves the immutable experiment seed and population initialization configuration, while `world.json` preserves the exact authoritative world used by the resumed run. Under the same compatible model semantics, M8.5 deterministically regenerates the original founders from those inputs and uses that regenerated population as day zero.
+Current AnthroSim new-directory resumes contain both artifacts: `resume-start-population.json` preserves the resume-boundary state, while the producer deterministically materializes the true original `initial-population.json` from the checkpoint's immutable experiment seed/population configuration and `world.json`. M8.5 still retains deterministic founder reconstruction for supported legacy resumed bundles created before producer-level founder materialization, but current bundles do not rely on that fallback.
 
 The resume-boundary population is validated as a population artifact but is **never** substituted for founders. Doing so would replay pre-resume births, deaths and migrations on top of an already-evolved population and corrupt full-history occupancy/person-day accounting.
 
@@ -70,7 +70,7 @@ These source fields apply to every derived row in the report. M8.6 aggregation m
 
 M8.5 does not add an authoritative historical state archive. Instead, occupancy statistics are derived from data that already exist:
 
-1. resolve the original day-zero founders from `initial-population.json`, or deterministically reconstruct them for a supported resumed bundle;
+1. resolve the original day-zero founders from `initial-population.json` (or deterministically reconstruct them only for a supported legacy resumed bundle);
 2. initialize living counts from that founder population;
 3. replay authoritative events in sequence order;
 4. births add one living person to their recorded cell;
