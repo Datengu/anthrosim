@@ -22,8 +22,9 @@ pub mod resources;
 pub mod rng;
 pub mod simulation;
 pub mod spatial_mechanisms;
+mod spatial_invariants;
 pub mod spatial_observability;
-pub mod spatial_simulation;
+mod spatial_simulation;
 pub mod temporary_history;
 // M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
 // boundary. Keep the argument-count exception local to this module rather than weakening Clippy
@@ -90,6 +91,7 @@ pub use resources::{
 };
 pub use rng::RngStreamPosition;
 pub use simulation::{RecordedRun, Simulation, SimulationError};
+pub use spatial_invariants::{SpatialInvariantError, validate_spatial_landscape_recorded_run};
 pub use spatial_mechanisms::{
     NoDataPolicy, SPATIAL_MODEL_SEMANTICS_ID, SpatialFieldTransform, SpatialMechanismConfig,
     SpatialMechanismError, SpatialMechanismOverlay, SpatialTargetField, TransformDirection,
@@ -104,7 +106,6 @@ pub use spatial_observability::{
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
-    validate_spatial_landscape_recorded_run,
 };
 pub use temporary_history::{TemporaryMobilityHistoryError, validate_temporary_mobility_history};
 pub use temporary_mobility::{
