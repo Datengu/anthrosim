@@ -170,6 +170,31 @@ def is_dirty_source_identity(revision: str) -> bool:
     return revision.endswith("-dirty") or "-dirty-" in revision
 
 
+def inspect_binary_provenance(binary: Path) -> dict:
+    completed = subprocess.run(
+        [str(binary), "provenance"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "no diagnostic output"
+        raise SystemExit(
+            f"could not inspect AnthroSim binary provenance before sweep execution: {detail}"
+        )
+    try:
+        provenance = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise SystemExit(
+            "AnthroSim binary provenance command did not return valid JSON"
+        ) from error
+    if not isinstance(provenance, dict):
+        raise SystemExit("AnthroSim binary provenance command returned a non-object JSON value")
+    if not provenance.get("modelVersion") or not provenance.get("modelSemanticsId"):
+        raise SystemExit("AnthroSim binary provenance is missing model identity fields")
+    return provenance
+
+
 def require_reproducible_source_identity(manifest: dict) -> str:
     revision = manifest.get("gitCommit")
     if not revision:
@@ -191,13 +216,24 @@ def main() -> int:
     if not binary.is_file():
         raise SystemExit(f"AnthroSim binary not found: {binary}")
 
+    binary_provenance = inspect_binary_provenance(binary)
+    source_revision = require_reproducible_source_identity(binary_provenance)
+
     command = build_command(definition, binary, args.run_dir, args.retry)
     completed = subprocess.run(command, check=False)
     if completed.returncode != 0:
         return completed.returncode
 
     manifest = verify_manifest(definition, args.run_dir)
-    source_revision = require_reproducible_source_identity(manifest)
+    manifest_revision = require_reproducible_source_identity(manifest)
+    if manifest.get("modelVersion") != binary_provenance["modelVersion"]:
+        raise SystemExit(
+            "completed sweep manifest modelVersion does not match the preflighted AnthroSim binary"
+        )
+    if manifest_revision != source_revision:
+        raise SystemExit(
+            "completed sweep manifest gitCommit does not match the preflighted AnthroSim binary"
+        )
     source_hash = hashlib.sha256(raw).hexdigest()
     source_copy = args.run_dir / "source-definition.json"
     if args.retry and source_copy.is_file():
