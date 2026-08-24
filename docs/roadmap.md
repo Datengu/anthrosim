@@ -140,23 +140,144 @@ M8 does not by itself:
 - turn explorer visualisation into authoritative simulation input;
 - collapse uncertainty in environmental reconstruction into a single supposedly true landscape.
 
-## Direction after M8
+## M9 — Temporary mobility and aggregation experiments
 
-No fixed M9 feature list is declared yet.
+**Status:** planned. The milestone definition is derived from a post-M8 capability audit rather than a predeclared feature sequence. See `docs/research/m9-temporary-mobility-capability-audit.md`.
 
-The first evidence-grounded spatial benchmark shows that real-world-derived terrain can materially perturb individual simulated histories while the direction of the tested migration/concentration effects remains seed-sensitive. That result should shape the next question rather than be tuned away.
+### Goal
 
-Candidate directions already consistent with the project vision include:
+Allow households with persistent residences to undertake reproducible, bounded temporary journeys to declared focal regions, remain away for explicit durations and return home, while keeping temporary presence scientifically distinct from permanent migration.
 
-- alternative demographic, household or mobility assumptions where they are required by a concrete comparison;
-- richer kinship/social-interaction mechanisms;
+M9 should make controlled experiments possible that compare continuous residence with intermittent aggregation on synthetic or evidence-grounded landscapes. It does not assume why people aggregate; the initial mechanism is a null-model mobility capability, not a model of trade, ritual, refuge, politics or any named archaeological interpretation.
+
+### Why M9 is the next missing capability
+
+The v0.2.0 model cannot currently represent the required experiment without changing the meaning of existing state:
+
+- a household has one authoritative location that functions simultaneously as residence and current presence;
+- every living household member is required to occupy that same location;
+- M4 migration permanently overwrites the household and living-member locations;
+- migration journeys are atomic and have no journey duration, arrival/stay/return lifecycle or en-route state;
+- no model-facing focal-region binding currently tells a temporary-mobility mechanism where a declared aggregation area is;
+- resource demand is charged to the household's single location for an entire resource period, which would misrepresent short visits;
+- M8.5 can reconstruct person-days and occupancy from authoritative events, but it currently only understands permanent migration as a movement event.
+
+These are model/software capability gaps rather than missing archaeological data or missing GIS functionality.
+
+### Architectural boundary
+
+M9 extends AnthroSim's human-mobility semantics; it does not make AnthroSim a GIS or general routing application.
+
+External GIS/scientific tooling should continue to own real-world polygon/raster editing, reprojection and preparation. AnthroSim may consume an externally prepared normalized mask or other declared region representation and give that input an explicit model-facing identity and role.
+
+Permanent M4 migration remains a separate causal process. M9 must not silently reinterpret `HouseholdMigration` as temporary travel or overload a single location field with incompatible meanings.
+
+### Planned M9 slices
+
+#### M9.0 — Temporary-mobility research and semantics contract
+
+Freeze the minimum generic experiment semantics before implementation:
+
+- persistent residence versus current physical presence;
+- permanent relocation versus temporary travel;
+- focal-region identity and provenance;
+- departure, arrival, stay and return semantics;
+- travel-time/cost assumptions;
+- resource-accounting assumptions during temporary absence/presence;
+- observables and benchmark acceptance criteria;
+- explicit interpretation limits.
+
+#### M9.1 — Residence/presence state separation
+
+Introduce authoritative state that can preserve a household's persistent residence while its living members are temporarily elsewhere or in transit. Invariants must make the relationship between household membership, residence and physical presence explicit rather than ambiguous.
+
+Existing permanent migration must update residence under its own semantics; temporary travel must not.
+
+#### M9.2 — Generic focal-region binding
+
+Add an identity-bearing experimental region contract that temporary mobility can target. Real region geometry should normally be prepared outside AnthroSim and supplied through the existing normalized landscape boundary, for example through a declared auxiliary mask or equivalent versioned representation.
+
+The engine owns validation and scientific meaning of the binding, not GIS editing.
+
+#### M9.3 — Deterministic temporary journey lifecycle
+
+Add a temporary-mobility process capable of deterministic/reproducible:
+
+- departure from residence;
+- travel/arrival timing;
+- bounded stay duration;
+- return travel;
+- restoration of presence at the persistent residence.
+
+Triggers should initially be generic and experiment-configured. A temporary journey need not claim a real social motive.
+
+#### M9.4 — Travel-time and cost semantics
+
+Define the minimum deterministic travel-duration/cost calculation required for temporary journeys, using existing model-facing movement-cost information where appropriate.
+
+This capability must remain inspectable and provenance-bearing. It should not grow into a general GIS route-planning product; mature external GIS remains responsible for generic routing/cartographic analysis not required by authoritative simulated behaviour.
+
+#### M9.5 — Duration-aware resource/presence accounting
+
+Ensure short visits cannot be silently treated as whole resource periods at the destination or disappear entirely when they occur between current resource boundaries.
+
+The implemented approximation must explicitly account for how household need/resource pressure is attributed across residence, travel and temporary presence, preserve exact deterministic accounting, and expose the assumption as model semantics rather than hiding it in scheduling code.
+
+#### M9.6 — Temporary-mobility observability and experiment integration
+
+Extend checkpoints, run bundles, events, invariants, ensemble/sweep execution and downstream spatial observability for the new process.
+
+Machine-readable outputs should make it possible to distinguish at least:
+
+- permanent residents;
+- temporary visitors;
+- arrivals and returns;
+- visit counts and duration;
+- peak and mean presence in a focal region;
+- living person-days by residence/presence regime;
+- journey distance/time/cost and origin catchment;
+- permanent migration from temporary movement.
+
+#### M9.7 — Controlled aggregation benchmark
+
+Complete M9 with a reproducible benchmark that compares a continuous-residence regime with an intermittent-aggregation regime under otherwise controlled conditions.
+
+The benchmark should deliberately include at least one pair of regimes with similar aggregate person-days but materially different temporal occupancy structure, and verify that authoritative events and derived observables preserve that distinction across replay/checkpoint/resume and ordinary ensemble machinery.
+
+This benchmark validates the capability and its observability. It does not validate any archaeological interpretation.
+
+### M9 non-goals
+
+M9 does not by itself add or establish:
+
+- a named archaeological site or case-study-specific rules in the public core;
+- trade, ritual, feasting, religion or political institutions as causes of aggregation;
+- detailed combat, attackers or warfare;
+- livestock/herd simulation;
+- settlement formation as a higher-level institution;
+- archaeological preservation, detection or observation models;
+- empirical calibration of temporary mobility for a real prehistoric population;
+- a general-purpose GIS or route-planning suite.
+
+Those capabilities should be considered only when a later controlled research question demonstrates that they are required.
+
+## Direction after M9
+
+No fixed M10 feature list is declared yet.
+
+M9 is intended to make the first serious temporary-use/aggregation null-model experiments possible. Their results should determine the next missing capability rather than assuming in advance that the project next needs settlement formation, livestock, social networks, exchange, conflict or archaeological observation modelling.
+
+Candidate directions remain valid only when justified by experimental need, including:
+
+- evidence-grounded or alternative demographic/household initialization where a concrete comparison requires it;
 - settlement formation and persistence mechanisms;
+- livestock or managed-herd behaviour;
+- richer kinship/social-interaction mechanisms;
+- collective labour and construction costs;
 - exchange or cultural-transmission models;
-- calibration and comparison against independent evidence;
 - archaeological observation models that transform simulated past behaviour into material remains, preservation, detection and sampling;
+- calibration and comparison against independent evidence;
 - reproduction of published models on an independent implementation for validation.
-
-The ordering should be justified by experimental need rather than by which mechanism is easiest or most visually impressive to implement.
 
 ## Scientific interpretation boundary
 
