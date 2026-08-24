@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     config::ExperimentConfig, events::EventLog, manifest::StopReason, metrics::MetricSeries,
     migration::MigrationCheckpointState, population::Population, provenance::ResumeLineage,
-    resources::ResourceSystem, rng::RngStreamPosition, time::SimTime,
+    resources::ResourceSystem, rng::RngStreamPosition, temporary_mobility::TemporaryMobilityState,
+    time::SimTime,
 };
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
@@ -36,6 +37,7 @@ pub struct SimulationCheckpoint {
     pub terminal_stop_reason: Option<StopReason>,
     pub world_digest64: u64,
     pub population: Population,
+    pub temporary_mobility: TemporaryMobilityState,
     pub resources: ResourceSystem,
     pub migration: MigrationCheckpointState,
     pub rng: RngCheckpoint,
@@ -46,7 +48,8 @@ pub struct SimulationCheckpoint {
 
 impl SimulationCheckpoint {
     pub const PRE_LINEAGE_SCHEMA_VERSION: u32 = 4;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
+    pub const PRE_TEMPORARY_MOBILITY_SCHEMA_VERSION: u32 = 5;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 6;
 }
 
 #[must_use]
@@ -65,10 +68,67 @@ pub fn state_digest64(
         resource_digest64,
         migration_digest64,
     ] {
-        for byte in value.to_le_bytes() {
-            hash ^= u64::from(byte);
-            hash = hash.wrapping_mul(FNV_PRIME);
-        }
+        digest_u64(&mut hash, value);
     }
     hash
+}
+
+/// Extend the legacy authoritative digest with M9 temporary-presence state only when that state is
+/// active. All-at-residence runs deliberately retain their pre-M9 digest so disabled-M9 reference
+/// experiments remain exactly comparable while active temporary mobility is still integrity-bound.
+#[must_use]
+pub fn state_digest64_with_temporary_mobility(
+    day: u64,
+    world_digest64: u64,
+    population_digest64: u64,
+    resource_digest64: u64,
+    migration_digest64: u64,
+    temporary_mobility: &TemporaryMobilityState,
+) -> u64 {
+    let legacy = state_digest64(
+        day,
+        world_digest64,
+        population_digest64,
+        resource_digest64,
+        migration_digest64,
+    );
+    if temporary_mobility.all_at_residence() {
+        return legacy;
+    }
+
+    let mut hash = FNV_OFFSET_BASIS;
+    digest_u64(&mut hash, legacy);
+    digest_u64(&mut hash, temporary_mobility.digest64());
+    hash
+}
+
+fn digest_u64(hash: &mut u64, value: u64) {
+    for byte in value.to_le_bytes() {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{PopulationConfig, WorldConfig},
+        population::Population,
+        rng::RngFactory,
+        world::World,
+    };
+
+    #[test]
+    fn all_at_residence_preserves_legacy_state_digest() {
+        let factory = RngFactory::new(9);
+        let world = World::generate(WorldConfig::new(2, 2), factory).unwrap();
+        let population = Population::initialize(PopulationConfig::new(8), &world, factory).unwrap();
+        let temporary_mobility = TemporaryMobilityState::at_residence(&population);
+
+        let legacy = state_digest64(365, 11, 22, 33, 44);
+        let extended =
+            state_digest64_with_temporary_mobility(365, 11, 22, 33, 44, &temporary_mobility);
+        assert_eq!(extended, legacy);
+    }
 }

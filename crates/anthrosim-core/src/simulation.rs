@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64},
+    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility},
     config::ExperimentConfig,
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
@@ -25,6 +25,7 @@ use crate::{
         ResourceStepOutcome, ResourceSystem, validate_resource_config,
     },
     rng::RngFactory,
+    temporary_mobility::{TemporaryMobilityState, TemporaryMobilityValidationError},
     time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
 };
@@ -56,6 +57,7 @@ pub struct Simulation {
     resume_lineage: ResumeLineage,
     world: World,
     population: Population,
+    temporary_mobility: TemporaryMobilityState,
     resources: ResourceSystem,
     migration: MigrationSystem,
     demography_rngs: DemographyRngs,
@@ -72,6 +74,8 @@ impl Simulation {
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
         let population = Population::initialize(config.population, &world, rng_factory)?;
+        let temporary_mobility = TemporaryMobilityState::at_residence(&population);
+        temporary_mobility.validate(&population, &world)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
         let migration = MigrationSystem::initialize(&population, &world, &config.migration)?;
 
@@ -85,6 +89,7 @@ impl Simulation {
             resume_lineage: ResumeLineage::new(),
             world,
             population,
+            temporary_mobility,
             resources,
             migration,
             events: EventLog::new(),
@@ -93,11 +98,7 @@ impl Simulation {
     }
 
     pub fn from_checkpoint(checkpoint: SimulationCheckpoint) -> Result<Self, SimulationError> {
-        let pre_lineage_schema =
-            checkpoint.schema_version == SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION;
-        if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION
-            && !pre_lineage_schema
-        {
+        if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
             return Err(SimulationError::UnsupportedCheckpointSchema {
                 found: checkpoint.schema_version,
                 supported: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
@@ -143,21 +144,12 @@ impl Simulation {
             model_semantics_id: checkpoint.model_semantics_id.clone(),
             git_commit: checkpoint.git_commit.clone(),
         };
-        if pre_lineage_schema {
-            if !checkpoint.resume_lineage.boundaries.is_empty() {
-                return Err(SimulationError::CheckpointResumeLineageInvalid {
-                    reason: "pre-lineage checkpoint schema unexpectedly contains resume boundaries"
-                        .to_owned(),
-                });
-            }
-        } else {
-            checkpoint
-                .resume_lineage
-                .validate_for_artifact(checkpoint.time.days(), &source_identity)
-                .map_err(|error| SimulationError::CheckpointResumeLineageInvalid {
-                    reason: error.to_string(),
-                })?;
-        }
+        checkpoint
+            .resume_lineage
+            .validate_for_artifact(checkpoint.time.days(), &source_identity)
+            .map_err(|error| SimulationError::CheckpointResumeLineageInvalid {
+                reason: error.to_string(),
+            })?;
 
         let rng_factory = RngFactory::new(checkpoint.experiment.seed);
         let world = World::generate(checkpoint.experiment.world, rng_factory)?;
@@ -172,6 +164,9 @@ impl Simulation {
             .population
             .validate(&world)
             .map_err(PopulationError::from)?;
+        checkpoint
+            .temporary_mobility
+            .validate(&checkpoint.population, &world)?;
         checkpoint
             .resources
             .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
@@ -219,6 +214,7 @@ impl Simulation {
             resume_lineage,
             world,
             population: checkpoint.population,
+            temporary_mobility: checkpoint.temporary_mobility,
             resources: checkpoint.resources,
             migration,
             demography_rngs,
@@ -255,6 +251,11 @@ impl Simulation {
     #[must_use]
     pub const fn population(&self) -> &Population {
         &self.population
+    }
+
+    #[must_use]
+    pub const fn temporary_mobility(&self) -> &TemporaryMobilityState {
+        &self.temporary_mobility
     }
 
     #[must_use]
@@ -359,12 +360,14 @@ impl Simulation {
                     &mut self.resource_rngs.scarcity_mortality,
                     &mut self.events,
                 )?;
+                self.temporary_mobility
+                    .reconcile_after_population_change(&self.population);
                 if outcome == ResourceStepOutcome::PopulationExtinct {
                     self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
                     self.record_metric_snapshot();
                     return Ok(self.terminal_stop_reason);
                 }
-                self.migration.process_boundary_recorded(
+                self.migration.process_boundary_recorded_with_presence(
                     &mut self.population,
                     &MigrationBoundaryContext {
                         world: &self.world,
@@ -376,6 +379,7 @@ impl Simulation {
                     },
                     &mut self.migration_rngs,
                     &mut self.events,
+                    Some(&self.temporary_mobility),
                 )?;
             }
 
@@ -388,6 +392,8 @@ impl Simulation {
                 &mut self.demography_rngs,
                 &mut self.events,
             )?;
+            self.temporary_mobility
+                .reconcile_after_population_change(&self.population);
             self.record_metric_snapshot();
 
             match outcome {
@@ -450,12 +456,13 @@ impl Simulation {
     }
 
     fn state_digest64(&self) -> u64 {
-        state_digest64(
+        state_digest64_with_temporary_mobility(
             self.time.days(),
             self.world.digest64(),
             self.population.digest64(),
             self.resources.digest64(),
             self.migration.digest64(),
+            &self.temporary_mobility,
         )
     }
 
@@ -463,6 +470,8 @@ impl Simulation {
         self.population
             .validate(&self.world)
             .map_err(PopulationError::from)?;
+        self.temporary_mobility
+            .validate(&self.population, &self.world)?;
         self.resources
             .validate_checkpoint_state(&self.world, &self.config.resources)?;
         Ok(())
@@ -527,6 +536,7 @@ impl Simulation {
             terminal_stop_reason: self.terminal_stop_reason,
             world_digest64: self.world.digest64(),
             population: self.population,
+            temporary_mobility: self.temporary_mobility,
             resources: self.resources,
             migration: self.migration.checkpoint_state(),
             rng,
@@ -630,15 +640,17 @@ pub enum SimulationError {
     #[error(transparent)]
     ResourceConfig(#[from] ResourceConfigError),
     #[error(transparent)]
-    MigrationConfig(#[from] MigrationConfigError),
-    #[error(transparent)]
     Resources(#[from] ResourceError),
+    #[error(transparent)]
+    MigrationConfig(#[from] MigrationConfigError),
     #[error(transparent)]
     Migration(#[from] MigrationError),
     #[error(transparent)]
     World(#[from] WorldError),
     #[error(transparent)]
     Population(#[from] PopulationError),
+    #[error(transparent)]
+    TemporaryMobility(#[from] TemporaryMobilityValidationError),
 }
 
 #[cfg(test)]
@@ -822,6 +834,10 @@ mod tests {
             uninterrupted.checkpoint.population
         );
         assert_eq!(
+            resumed.checkpoint.temporary_mobility,
+            uninterrupted.checkpoint.temporary_mobility
+        );
+        assert_eq!(
             resumed.checkpoint.resources,
             uninterrupted.checkpoint.resources
         );
@@ -958,26 +974,28 @@ mod tests {
     }
 
     #[test]
-    fn pre_lineage_checkpoint_schema_can_be_resumed_and_is_upgraded() {
+    fn pre_temporary_mobility_checkpoint_schemas_are_rejected_fail_closed() {
         let config = ExperimentConfig::new(2038, 3)
             .with_world(WorldConfig::new(4, 4))
             .with_population(PopulationConfig::new(32));
-        let mut checkpoint = Simulation::new(config)
+        let checkpoint = Simulation::new(config)
             .unwrap()
             .checkpoint_at_year(1)
             .unwrap();
-        checkpoint.schema_version = SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION;
-        checkpoint.resume_lineage = ResumeLineage::new();
 
-        let resumed = Simulation::from_checkpoint(checkpoint)
-            .unwrap()
-            .checkpoint_at_year(2)
-            .unwrap();
-        assert_eq!(
-            resumed.schema_version,
-            SimulationCheckpoint::CURRENT_SCHEMA_VERSION
-        );
-        assert_eq!(resumed.resume_lineage.boundaries.len(), 1);
+        for schema_version in [
+            SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION,
+            SimulationCheckpoint::PRE_TEMPORARY_MOBILITY_SCHEMA_VERSION,
+        ] {
+            let mut old = checkpoint.clone();
+            old.schema_version = schema_version;
+            assert!(matches!(
+                Simulation::from_checkpoint(old),
+                Err(SimulationError::UnsupportedCheckpointSchema { found, supported })
+                    if found == schema_version
+                        && supported == SimulationCheckpoint::CURRENT_SCHEMA_VERSION
+            ));
+        }
     }
 
     #[test]
@@ -1091,6 +1109,10 @@ mod tests {
         assert_eq!(resumed.manifest.end_time, SimTime::from_years(1));
         assert_eq!(resumed.checkpoint.state_digest64, checkpoint.state_digest64);
         assert_eq!(resumed.checkpoint.population, checkpoint.population);
+        assert_eq!(
+            resumed.checkpoint.temporary_mobility,
+            checkpoint.temporary_mobility
+        );
         assert_eq!(resumed.checkpoint.resources, checkpoint.resources);
         assert_eq!(resumed.checkpoint.migration, checkpoint.migration);
         assert_eq!(resumed.checkpoint.events, checkpoint.events);
