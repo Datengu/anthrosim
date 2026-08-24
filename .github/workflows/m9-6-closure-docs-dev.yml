@@ -1,0 +1,44 @@
+name: M9.6 closure documentation development
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ github.head_ref == 'm9/m9-6-observability-integration' && github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          ref: m9/m9-6-observability-integration
+          fetch-depth: 0
+
+      - name: Apply closure documentation
+        run: python scripts/apply_m9_6_closure_docs.py
+
+      - name: Verify documented files exist
+        run: |
+          test -f docs/research/temporary-mobility-observability-v1.md
+          test -f docs/research/m9-6-integration-audit.md
+          grep -q 'M9.6 — Temporary-mobility observability and experiment integration — complete' docs/roadmap.md
+          grep -q '## M9.6 acceptance reconciliation' docs/research/m9-6-integration-audit.md
+
+      - name: Remove development helper
+        run: |
+          rm scripts/apply_m9_6_closure_docs.py
+          rm .github/workflows/m9-6-closure-docs-dev.yml
+
+      - name: Commit M9.6 closure documentation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Document M9.6 acceptance completion"
+          git push origin HEAD:m9/m9-6-observability-integration
