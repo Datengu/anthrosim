@@ -1021,4 +1021,106 @@ mod tests {
             Err(ResourceConfigError::InvalidSeasonalityScale { .. })
         ));
     }
+
+    #[test]
+    fn duration_weighting_conserves_one_and_five_day_visits_and_treats_transit_as_home() {
+        let one_day = TemporaryResourcePresenceDays {
+            at_residence_days: 88,
+            outbound_transit_days: 1,
+            visiting_days: 1,
+            return_transit_days: 1,
+            visitor_destination: Some(crate::ids::CellId::new(2)),
+        };
+        assert_eq!(one_day.total_days().unwrap(), 91);
+        assert_eq!(duration_weighted_needs(91, &one_day).unwrap(), (90, 1));
+
+        let five_days = TemporaryResourcePresenceDays {
+            at_residence_days: 84,
+            outbound_transit_days: 1,
+            visiting_days: 5,
+            return_transit_days: 1,
+            visitor_destination: Some(crate::ids::CellId::new(2)),
+        };
+        assert_eq!(five_days.home_provisioning_days().unwrap(), 86);
+        assert_eq!(five_days.total_days().unwrap(), 91);
+        assert_eq!(duration_weighted_needs(91, &five_days).unwrap(), (86, 5));
+
+        let tie = TemporaryResourcePresenceDays {
+            at_residence_days: 1,
+            visiting_days: 1,
+            visitor_destination: Some(crate::ids::CellId::new(2)),
+            ..TemporaryResourcePresenceDays::default()
+        };
+        assert_eq!(duration_weighted_needs(1, &tie).unwrap(), (1, 0));
+    }
+
+    #[test]
+    fn mixed_cell_supply_reconciles_to_one_household_satisfaction_without_losing_need() {
+        let world = World::generate(WorldConfig::new(2, 1), RngFactory::new(119)).unwrap();
+        let mut population = Population::initialize(
+            PopulationConfig::new(1).with_target_household_size(1),
+            &world,
+            RngFactory::new(119),
+        )
+        .unwrap();
+        let household = HouseholdId::new(1);
+        let residence = population.household_location(household).unwrap();
+        let destination = if residence == crate::ids::CellId::new(1) {
+            crate::ids::CellId::new(2)
+        } else {
+            crate::ids::CellId::new(1)
+        };
+        let residence_index = cell_index_for(&world, residence).unwrap();
+        let destination_index = cell_index_for(&world, destination).unwrap();
+
+        let mut config = ResourceConfig::synthetic_validation_v1();
+        config.periods_per_year = 1;
+        config.annual_need_units_per_person = 100;
+        config.annual_regeneration_units_per_productivity = 0;
+        config.max_scarcity_mortality_probability_per_million = 0;
+        let mut system = ResourceSystem::initialize(&world, &config).unwrap();
+        system.cell_food_stock.fill(0);
+        system.cell_food_stock[destination_index] = 100;
+        system.initial_food_stock = 100;
+
+        let presence = TemporaryResourcePresenceDays {
+            at_residence_days: 183,
+            visiting_days: 182,
+            visitor_destination: Some(destination),
+            ..TemporaryResourcePresenceDays::default()
+        };
+        assert_eq!(duration_weighted_needs(100, &presence).unwrap(), (50, 50));
+        let period = TemporaryResourcePeriod {
+            schema_version: TemporaryResourcePeriod::CURRENT_SCHEMA_VERSION,
+            start_day: 0,
+            end_day: 365,
+            households: vec![presence],
+        };
+        let before_condition = population.condition_at_index(0).unwrap();
+        let mut rngs = ResourceRngs::new(RngFactory::new(119));
+        let mut events = EventLog::new();
+
+        system
+            .process_period_recorded_with_presence(
+                &mut population,
+                &ResourcePeriodContext {
+                    world: &world,
+                    config: &config,
+                    period_index_in_year: 0,
+                    day: 365,
+                },
+                &mut rngs.scarcity_mortality,
+                &mut events,
+                Some(&period),
+            )
+            .unwrap();
+
+        assert_eq!(system.cell_food_stock[residence_index], 0);
+        assert_eq!(system.cell_food_stock[destination_index], 50);
+        assert_eq!(system.harvested_food, 50);
+        assert_eq!(system.unmet_need, 50);
+        assert_eq!(system.harvested_food + system.unmet_need, 100);
+        assert!(population.condition_at_index(0).unwrap() < before_condition);
+        system.validate_accounting().unwrap();
+    }
 }

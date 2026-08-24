@@ -1,9 +1,9 @@
+use anthrosim_core::ids::{CellId, HouseholdId};
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, FocalRegion, FocalRegionSource, MigrationConfig,
     ParameterProvenance, PopulationConfig, ResourceConfig, Simulation, TemporaryMobilityProgram,
     TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTriggerTiming, WorldConfig,
 };
-use anthrosim_core::ids::{CellId, HouseholdId};
 
 fn no_event_demography() -> DemographyConfig {
     let mut config = DemographyConfig::synthetic_validation_v1();

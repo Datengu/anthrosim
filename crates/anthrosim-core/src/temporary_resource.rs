@@ -465,4 +465,43 @@ mod tests {
             TemporaryResourceAccountingError::VisitorDestinationChanged { .. }
         ));
     }
+
+    #[test]
+    fn visit_crossing_resource_boundary_is_split_without_double_counting() {
+        use crate::{WorldConfig, rng::RngFactory};
+
+        let world = World::generate(WorldConfig::new(2, 1), RngFactory::new(95)).unwrap();
+        let journey = TemporaryJourneyId::new(1);
+        let destination = CellId::new(2);
+        let visiting = HouseholdPresence::Visiting {
+            journey,
+            destination,
+        };
+
+        let mut ledger = TemporaryResourceLedger::new(1, 0);
+        ledger
+            .accrue_until(90, &[HouseholdPresence::AtResidence])
+            .unwrap();
+        ledger.accrue_until(91, &[visiting]).unwrap();
+        let first = ledger.snapshot_period(91, &[visiting], &world).unwrap();
+        assert_eq!(first.households[0].at_residence_days, 90);
+        assert_eq!(first.households[0].visiting_days, 1);
+        assert_eq!(first.households[0].total_days().unwrap(), 91);
+
+        ledger.reset_after_settlement(91).unwrap();
+        ledger.accrue_until(95, &[visiting]).unwrap();
+        ledger
+            .accrue_until(182, &[HouseholdPresence::AtResidence])
+            .unwrap();
+        let second = ledger
+            .snapshot_period(182, &[HouseholdPresence::AtResidence], &world)
+            .unwrap();
+        assert_eq!(second.households[0].visiting_days, 4);
+        assert_eq!(second.households[0].at_residence_days, 87);
+        assert_eq!(second.households[0].total_days().unwrap(), 91);
+        assert_eq!(
+            first.households[0].visiting_days + second.households[0].visiting_days,
+            5
+        );
+    }
 }
