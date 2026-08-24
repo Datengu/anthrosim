@@ -1,4 +1,4 @@
-name: M9.4 resolution invariant helper
+name: M9.4 cleanup helper
 
 on:
   pull_request:
@@ -9,35 +9,24 @@ permissions:
   contents: write
 
 jobs:
-  integrate:
+  cleanup:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v5.0.0
         with:
           persist-credentials: true
           ref: ${{ github.head_ref }}
-      - name: Install pinned Rust toolchain
+      - name: Remove temporary M9.4 development helpers
         run: |
-          rustup set profile minimal
-          rustup toolchain install 1.97.1 --component rustfmt
-          rustup default 1.97.1
-      - name: Apply guarded exact-resolution invariant patch
-        run: python3 scripts/m9_4_resolution_invariant_patch.py
-      - name: Format Rust
-        run: cargo fmt --all
-      - name: Test core M9.4 integration
-        run: cargo test --locked -p anthrosim-core
-      - name: Commit exact-resolution invariant when present
+          rm -f \
+            .github/workflows/m9-4-integration-helper.yml \
+            scripts/m9_4_integrate.py \
+            scripts/m9_4_journey_cost_patch.py \
+            scripts/m9_4_resolution_invariant_patch.py
+      - name: Commit cleanup
         run: |
-          if git diff --quiet; then
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            crates/anthrosim-core/src/temporary_mobility.rs \
-            crates/anthrosim-core/tests/m9_4_travel.rs
-          git commit -m "Validate exact M9.4 travel resolution"
+          git add -A
+          git commit -m "Remove temporary M9.4 integration helpers"
           git push origin HEAD:m9/m9-4-travel-semantics
-
-# Removed after this guarded integration commit lands.
