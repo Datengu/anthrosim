@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::evidence::EvidenceCatalog;
+use crate::{evidence::EvidenceCatalog, temporary_mobility::TemporaryMobilityConfig};
 
 pub const PROBABILITY_PER_MILLION: u32 = 1_000_000;
 
@@ -16,6 +16,10 @@ pub struct ExperimentConfig {
     pub demography: DemographyConfig,
     pub resources: ResourceConfig,
     pub migration: MigrationConfig,
+    /// Optional world-independent M9 definition. The authoritative resolved travel table is
+    /// derived from each run's actual world rather than copied across seeds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary_mobility: Option<TemporaryMobilityConfig>,
     /// Optional machine-readable evidence catalogue. Empty synthetic-validation
     /// experiments omit this field entirely, preserving the existing v0.1
     /// serialized identity. Evidence-grounded experiments include it in their
@@ -25,7 +29,7 @@ pub struct ExperimentConfig {
 }
 
 impl ExperimentConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 7;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 8;
 
     #[must_use]
     pub fn new(seed: u64, duration_years: u64) -> Self {
@@ -38,6 +42,7 @@ impl ExperimentConfig {
             demography: DemographyConfig::synthetic_validation_v1(),
             resources: ResourceConfig::synthetic_validation_v1(),
             migration: MigrationConfig::synthetic_validation_v1(),
+            temporary_mobility: None,
             evidence: None,
         }
     }
@@ -69,6 +74,12 @@ impl ExperimentConfig {
     #[must_use]
     pub fn with_migration(mut self, migration: MigrationConfig) -> Self {
         self.migration = migration;
+        self
+    }
+
+    #[must_use]
+    pub fn with_temporary_mobility(mut self, temporary_mobility: TemporaryMobilityConfig) -> Self {
+        self.temporary_mobility = Some(temporary_mobility);
         self
     }
 

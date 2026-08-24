@@ -11,7 +11,7 @@ use crate::{
     temporary_resource::{
         TemporaryResourceAccountingError, TemporaryResourceLedger, TemporaryResourcePeriod,
     },
-    temporary_travel::TemporaryTravelModel,
+    temporary_travel::{TemporaryTravelModel, TemporaryTravelModelError},
     world::World,
 };
 
@@ -144,6 +144,100 @@ impl TemporaryMobilitySchedule {
         }
         digest_u64(hash, u64::from(self.stay_duration_days));
     }
+}
+
+/// World-independent immutable M9 experiment definition.
+///
+/// The focal region and schedule are fixed experiment inputs, while M9.4 routing is deliberately
+/// resolved from each run's authoritative world. This prevents a travel table derived from one
+/// synthetic seed from being silently reused against another seed's movement-cost field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporaryMobilityConfig {
+    pub schema_version: u32,
+    pub region: FocalRegion,
+    pub schedule: TemporaryMobilitySchedule,
+    pub travel_model: TemporaryTravelModel,
+}
+
+impl TemporaryMobilityConfig {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    pub fn new(
+        region: FocalRegion,
+        schedule: TemporaryMobilitySchedule,
+        travel_model: TemporaryTravelModel,
+    ) -> Result<Self, TemporaryMobilityConfigError> {
+        let config = Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            region,
+            schedule,
+            travel_model,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    pub fn validate(&self) -> Result<(), TemporaryMobilityConfigError> {
+        if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
+            return Err(TemporaryMobilityConfigError::UnsupportedSchema {
+                found: self.schema_version,
+                supported: Self::CURRENT_SCHEMA_VERSION,
+            });
+        }
+        self.region.validate_structure()?;
+        self.schedule.validate()?;
+        self.travel_model.validate()?;
+        Ok(())
+    }
+
+    pub fn derive_program(
+        &self,
+        world: &World,
+    ) -> Result<TemporaryMobilityProgram, TemporaryMobilityConfigError> {
+        self.validate()?;
+        self.region.validate(world)?;
+        let travel = self.travel_model.derive_table(&self.region, world)?;
+        Ok(TemporaryMobilityProgram::new(
+            self.region.clone(),
+            self.schedule.clone(),
+            travel,
+            world,
+        )?)
+    }
+
+    #[must_use]
+    pub fn digest64(&self) -> u64 {
+        let mut hash = FNV_OFFSET_BASIS;
+        digest_u64(&mut hash, u64::from(self.schema_version));
+        digest_u64(&mut hash, self.region.digest64());
+        self.schedule.digest_into(&mut hash);
+        digest_str(&mut hash, &self.travel_model.identity());
+        hash
+    }
+
+    #[must_use]
+    pub fn identity(&self) -> String {
+        format!(
+            "temporary-mobility-config-v{}-{:016x}",
+            self.schema_version,
+            self.digest64()
+        )
+    }
+}
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum TemporaryMobilityConfigError {
+    #[error(
+        "temporary-mobility configuration schema {found} is unsupported; supported schema is {supported}"
+    )]
+    UnsupportedSchema { found: u32, supported: u32 },
+    #[error(transparent)]
+    Region(#[from] FocalRegionError),
+    #[error(transparent)]
+    Program(#[from] TemporaryMobilityProgramError),
+    #[error(transparent)]
+    TravelModel(#[from] TemporaryTravelModelError),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
