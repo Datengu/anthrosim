@@ -1,7 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::BinaryHeap,
-};
+use std::{cmp::Ordering, collections::BinaryHeap};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -107,18 +104,18 @@ impl TemporaryTravelModel {
             &mut hash,
             u64::from(self.travel_capacity_cost_units_per_day),
         );
-        digest_u64(
-            &mut hash,
-            u64::from(self.maximum_traversable_movement_cost),
-        );
-        format!("temporary-travel-model-v{}-{:016x}", self.schema_version, hash)
+        digest_u64(&mut hash, u64::from(self.maximum_traversable_movement_cost));
+        format!(
+            "temporary-travel-model-v{}-{:016x}",
+            self.schema_version, hash
+        )
     }
 
     #[must_use]
     pub fn is_traversable(&self, world: &World, cell: CellId) -> bool {
-        world.cell(cell).is_some_and(|cell| {
-            cell.movement_cost <= self.maximum_traversable_movement_cost
-        })
+        world
+            .cell(cell)
+            .is_some_and(|cell| cell.movement_cost <= self.maximum_traversable_movement_cost)
     }
 
     pub fn travel_days(&self, accumulated_cost: u64) -> Result<u32, TemporaryTravelModelError> {
@@ -142,7 +139,7 @@ impl TemporaryTravelModel {
     ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
         self.validate()?;
         region.validate(world)?;
-        for &cell in region.cells() {
+        for &cell in region.member_cells() {
             if !self.is_traversable(world, cell) {
                 return Err(TemporaryTravelModelError::RegionCellImpassable { cell });
             }
@@ -167,14 +164,8 @@ impl TemporaryTravelModel {
             accumulated_costs.push(Some(label.cost));
         }
 
-        TemporaryTravelTable::new_m9_4(
-            resolutions,
-            accumulated_costs,
-            self.clone(),
-            region,
-            world,
-        )
-        .map_err(TemporaryTravelModelError::TravelTable)
+        TemporaryTravelTable::new_m9_4(resolutions, accumulated_costs, self.clone(), region, world)
+            .map_err(TemporaryTravelModelError::TravelTable)
     }
 }
 
@@ -196,7 +187,12 @@ pub fn temporary_travel_edge_cost(
     let b_cell = world
         .cell(b)
         .ok_or(TemporaryTravelModelError::InvalidCell { cell: b })?;
-    if !world.neighbours4(a).into_iter().flatten().any(|cell| cell == b) {
+    if !world
+        .neighbours4(a)
+        .into_iter()
+        .flatten()
+        .any(|cell| cell == b)
+    {
         return Err(TemporaryTravelModelError::CellsNotAdjacent { a, b });
     }
     let sum = u64::from(a_cell.movement_cost) + u64::from(b_cell.movement_cost);
@@ -239,7 +235,7 @@ fn minimum_cost_labels(
     let mut labels = vec![None; world.cell_count()];
     let mut queue = BinaryHeap::new();
 
-    for &destination in region.cells() {
+    for &destination in region.member_cells() {
         let index = cell_index(destination, world)?;
         let label = RouteLabel {
             cost: 0,
@@ -314,7 +310,9 @@ fn digest_u64(hash: &mut u64, value: u64) {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum TemporaryTravelModelError {
-    #[error("temporary travel model schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "temporary travel model schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedSchema { found: u32, supported: u32 },
     #[error("temporary travel model identifier is empty")]
     EmptyModelId,
@@ -348,11 +346,7 @@ pub enum TemporaryTravelModelError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        config::WorldConfig,
-        focal_region::FocalRegionSource,
-        rng::RngFactory,
-    };
+    use crate::{config::WorldConfig, focal_region::FocalRegionSource, rng::RngFactory};
 
     fn world(width: u32, height: u32, movement_cost: &[u16]) -> World {
         World::generate(WorldConfig::new(width, height), RngFactory::new(77))
@@ -398,8 +392,14 @@ mod tests {
             .derive_table(&transformed_target, &transformed)
             .unwrap();
 
-        assert_eq!(baseline_table.accumulated_cost_units(CellId::new(1)), Some(2_000));
-        assert_eq!(transformed_table.accumulated_cost_units(CellId::new(1)), Some(6_000));
+        assert_eq!(
+            baseline_table.accumulated_cost_units(CellId::new(1)),
+            Some(2_000)
+        );
+        assert_eq!(
+            transformed_table.accumulated_cost_units(CellId::new(1)),
+            Some(6_000)
+        );
         assert!(matches!(
             baseline_table.resolution(CellId::new(1)),
             Some(TemporaryTravelResolution::Reachable {
@@ -440,9 +440,7 @@ mod tests {
             3,
             3,
             &[
-                1_000, 2_000, 1_000,
-                1_000, 2_000, 1_000,
-                1_000, 2_000, 1_000,
+                1_000, 2_000, 1_000, 1_000, 2_000, 1_000, 1_000, 2_000, 1_000,
             ],
         );
         let region = region(&world, vec![CellId::new(3)]);

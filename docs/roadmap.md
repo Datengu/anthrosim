@@ -189,19 +189,19 @@ Permanent M4 migration remains a separate causal process. M9 must not silently r
 - the M9.7 benchmark acceptance criteria;
 - explicit interpretation limits.
 
-#### M9.1 — Residence/presence state separation
+#### M9.1 — Residence/presence state separation — complete
 
 Introduce authoritative state that can preserve a household's persistent residence while its living members are temporarily elsewhere or in transit. Invariants must make the relationship between household membership, residence and physical presence explicit rather than ambiguous.
 
 Existing permanent migration must update residence under its own semantics; temporary travel must not.
 
-#### M9.2 — Generic focal-region binding
+#### M9.2 — Generic focal-region binding — complete
 
 Add an identity-bearing experimental region contract that temporary mobility can target. Real region geometry should normally be prepared outside AnthroSim and supplied through the existing normalized landscape boundary, for example through a declared auxiliary mask or equivalent versioned representation.
 
 The engine owns validation and scientific meaning of the binding, not GIS editing.
 
-#### M9.3 — Deterministic temporary journey lifecycle
+#### M9.3 — Deterministic temporary journey lifecycle — complete
 
 Add a temporary-mobility process capable of deterministic/reproducible:
 
@@ -214,6 +214,8 @@ Add a temporary-mobility process capable of deterministic/reproducible:
 Triggers should initially be generic and experiment-configured. A temporary journey need not claim a real social motive.
 
 #### M9.4 — Travel-time and cost semantics
+
+`docs/research/m9-temporary-travel-semantics-v1.md` freezes the M9.4 integer edge-cost, reachability, destination tie-break and travel-capacity semantics before authoritative implementation is merged.
 
 Define the minimum deterministic travel-duration/cost calculation required for temporary journeys, using existing model-facing movement-cost information where appropriate.
 
