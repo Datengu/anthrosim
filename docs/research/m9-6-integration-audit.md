@@ -58,20 +58,40 @@ The lower-level explicit-program constructors remain available for isolated life
 
 Evidence provenance is also fail-closed at this boundary. If a focal region claims `LandscapeMask` provenance, its `evidence_input_id` must identify an external input in the experiment's attached evidence catalogue. A synthetic focal region does not require a catalogue.
 
-This separation means ensemble and sweep provenance should preserve the world-independent definition, not a seed-specific resolved table. Their existing identities already serialize full run/settings definitions, so subsequent CLI wiring can reuse the ordinary provenance machinery rather than introducing an M9-specific identity system.
+This separation means ensemble and sweep provenance preserve the world-independent definition, not a seed-specific resolved table. Their existing identities already serialize full run/settings definitions, so subsequent CLI wiring can reuse the ordinary provenance machinery rather than introducing an M9-specific identity system.
 
-## Remaining work after the second slice
+This slice was merged in PR #135.
 
-M9.6 still requires:
+## Third implementation slice: ordinary runner integration
 
-- user-facing Run/Ensemble/Sweep loading of the versioned temporary-mobility definition;
+The ordinary user-facing runner interface uses one versioned file input rather than distributing M9 assumptions across independent CLI flags:
+
+- `anthrosim run --temporary-mobility <json>`;
+- `anthrosim ensemble --temporary-mobility <json>`;
+- `anthrosim sweep --temporary-mobility <json>`;
+- `anthrosim-landscape run --temporary-mobility <json>`.
+
+The file contains the same world-independent `TemporaryMobilityConfig` that is embedded in `ExperimentConfig`. `EnsembleRunSettings` therefore carries the definition directly, and the existing immutable experiment/sweep identity machinery automatically includes it. Changing the M9 definition changes retry identity rather than being treated as an out-of-band runtime option.
+
+Ensemble execution validates the definition before creating run outputs and then lets each seed derive its own resolved travel program from its stored authoritative world. Acceptance coverage reads completed two-seed run bundles back, rederives the program separately from each `world.json`, and requires equality with the program persisted in that run's checkpoint. Sweep coverage requires every Cartesian point to preserve the definition and verifies that changing it changes the sweep identity.
+
+The dedicated landscape runner exposes the same file input so evidence-bound single runs do not require an ensemble/sweep wrapper merely to exercise M9.
+
+## Remaining work after the runner slice
+
+M9.6 still requires the scientifically important downstream half of the capability:
+
 - deterministic temporary-presence observability derived from authoritative event/checkpoint artifacts;
-- bundle and derived-analysis integration for those observables;
-- end-to-end M9.6 acceptance demonstrating ordinary reproducible experiment execution and replay.
+- explicit resident/visitor/transit accounting without assigning transit to arbitrary world cells;
+- visit, arrival/return, duration, peak/mean presence, travel burden, origin-catchment and non-participation/unreachable observables;
+- bundle validation and derived-analysis integration for the new machine-readable report;
+- end-to-end M9.6 acceptance demonstrating exact regeneration for uninterrupted and resumed runs.
+
+The temporary-mobility report should remain downstream/derived. It must not become a second authoritative movement state, and existing M4 permanent-migration observables must remain a separate category.
 
 ## Scientific identity decision
 
-The first two M9.6 slices do not introduce a new temporary-mobility mechanism. They expose the existing M9 v1 semantics through the transformed-landscape host and immutable experiment/provenance machinery using the same authoritative ordering, travel model, state and event vocabulary already represented by `anthrosim-model-semantics-v5`.
+The first three M9.6 slices do not introduce a new temporary-mobility mechanism. They expose the existing M9 v1 semantics through the transformed-landscape host, immutable experiment/provenance machinery and ordinary runners using the same authoritative ordering, travel model, state and event vocabulary already represented by `anthrosim-model-semantics-v5`.
 
 Accordingly, these slices do not by themselves require another `MODEL_SEMANTICS_ID` change. They also do not change the M8 landscape-to-model transformation semantics, so `SPATIAL_MODEL_SEMANTICS_ID` remains unchanged. The package version remains on the current released line during ordinary M9 implementation.
 
