@@ -5,7 +5,8 @@ use std::{
 };
 
 use anthrosim_core::{
-    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint, World,
+    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint,
+    SourceRevisionIdentity, World,
 };
 use clap::{Parser, Subcommand};
 
@@ -304,6 +305,9 @@ enum Command {
         retry: bool,
     },
 
+    /// Print exact build/source provenance embedded in this executable.
+    Provenance,
+
     /// Resume a deterministic M5 annual-boundary checkpoint to its configured duration.
     Resume {
         /// Checkpoint JSON previously written by AnthroSim M5.
@@ -332,6 +336,12 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
+        Command::Provenance => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&SourceRevisionIdentity::current())?
+            );
+        }
         Command::Run {
             seed,
             years,
