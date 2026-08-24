@@ -9,6 +9,9 @@ use crate::{
     ids::HouseholdId,
     population::{Population, PopulationError},
     rng::{RngFactory, RngStreamPosition},
+    temporary_resource::{
+        TemporaryResourceAccountingError, TemporaryResourcePeriod, TemporaryResourcePresenceDays,
+    },
     world::{PERMILLE_MAX, World},
 };
 
@@ -66,6 +69,13 @@ pub(crate) struct ResourcePeriodContext<'a> {
     pub config: &'a ResourceConfig,
     pub period_index_in_year: u16,
     pub day: u64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ResourceDemandClaim {
+    household_index: usize,
+    cell_index: usize,
+    need: u64,
 }
 
 impl ResourceSystem {
@@ -190,6 +200,17 @@ impl ResourceSystem {
         scarcity_rng: &mut ChaCha8Rng,
         events: &mut EventLog,
     ) -> Result<ResourceStepOutcome, ResourceError> {
+        self.process_period_recorded_with_presence(population, context, scarcity_rng, events, None)
+    }
+
+    pub(crate) fn process_period_recorded_with_presence(
+        &mut self,
+        population: &mut Population,
+        context: &ResourcePeriodContext<'_>,
+        scarcity_rng: &mut ChaCha8Rng,
+        events: &mut EventLog,
+        temporary_presence: Option<&TemporaryResourcePeriod>,
+    ) -> Result<ResourceStepOutcome, ResourceError> {
         let ResourcePeriodContext {
             world,
             config,
@@ -211,6 +232,16 @@ impl ResourceSystem {
         let regenerated = self.regenerate(world, config, day)?;
 
         let household_count = population.household_count();
+        if let Some(period) = temporary_presence {
+            validate_temporary_resource_period(
+                period,
+                household_count,
+                world,
+                config.periods_per_year,
+                period_index_in_year,
+                day,
+            )?;
+        }
         let mut living_members = vec![0_u64; household_count];
         for person_index in 0..population.person_count() {
             if !population.is_alive_index(person_index) {
@@ -236,6 +267,7 @@ impl ResourceSystem {
         let mut household_need = vec![0_u64; household_count];
         let mut cell_need = vec![0_u64; world.cell_count()];
         let mut total_need = 0_u64;
+        let mut claims = Vec::with_capacity(household_count.saturating_mul(2));
         for household_index_value in 0..household_count {
             let need = living_members[household_index_value]
                 .checked_mul(per_person_need)
@@ -248,23 +280,54 @@ impl ResourceSystem {
                 continue;
             }
             let household = HouseholdId::new(household_index_value as u64 + 1);
-            let location = population.household_location(household).ok_or(
+            let residence = population.household_location(household).ok_or(
                 ResourceError::InternalInvariant("household has no location"),
             )?;
-            let cell_index = usize::try_from(
-                location
-                    .0
-                    .checked_sub(1)
-                    .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
-            )
-            .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
-            let slot = cell_need
-                .get_mut(cell_index)
-                .ok_or(ResourceError::InternalInvariant(
-                    "household location is outside world",
-                ))?;
-            *slot = slot
-                .checked_add(need)
+            let residence_index = cell_index_for(world, residence)?;
+
+            if let Some(period) = temporary_presence {
+                let presence = period.households.get(household_index_value).ok_or(
+                    ResourceError::InternalInvariant("temporary period household is missing"),
+                )?;
+                let (home_need, visiting_need) = duration_weighted_needs(need, presence)?;
+                if home_need > 0 {
+                    claims.push(ResourceDemandClaim {
+                        household_index: household_index_value,
+                        cell_index: residence_index,
+                        need: home_need,
+                    });
+                }
+                if visiting_need > 0 {
+                    let destination =
+                        presence
+                            .visitor_destination
+                            .ok_or(ResourceError::InternalInvariant(
+                                "visiting demand has no destination",
+                            ))?;
+                    let destination_index = cell_index_for(world, destination)?;
+                    if destination_index == residence_index {
+                        return Err(ResourceError::InternalInvariant(
+                            "temporary visitor destination equals residence",
+                        ));
+                    }
+                    claims.push(ResourceDemandClaim {
+                        household_index: household_index_value,
+                        cell_index: destination_index,
+                        need: visiting_need,
+                    });
+                }
+            } else {
+                claims.push(ResourceDemandClaim {
+                    household_index: household_index_value,
+                    cell_index: residence_index,
+                    need,
+                });
+            }
+        }
+
+        for claim in &claims {
+            cell_need[claim.cell_index] = cell_need[claim.cell_index]
+                .checked_add(claim.need)
                 .ok_or(ResourceError::AccountingOverflow)?;
         }
 
@@ -274,58 +337,39 @@ impl ResourceSystem {
         }
 
         let mut household_harvest = vec![0_u64; household_count];
+        let mut claim_harvest = vec![0_u64; claims.len()];
         let mut cell_allocated = vec![0_u64; world.cell_count()];
-        for household_index_value in 0..household_count {
-            let need = household_need[household_index_value];
-            if need == 0 {
-                continue;
-            }
-            let household = HouseholdId::new(household_index_value as u64 + 1);
-            let location = population.household_location(household).ok_or(
-                ResourceError::InternalInvariant("household has no location"),
-            )?;
-            let cell_index = usize::try_from(
-                location
-                    .0
-                    .checked_sub(1)
-                    .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
-            )
-            .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
-            let demand = cell_need[cell_index];
-            let target = cell_target[cell_index];
+        for (claim_index, claim) in claims.iter().enumerate() {
+            let demand = cell_need[claim.cell_index];
+            let target = cell_target[claim.cell_index];
             let allocation = if demand == 0 {
                 0
             } else {
-                u64::try_from(u128::from(target) * u128::from(need) / u128::from(demand))
+                u64::try_from(u128::from(target) * u128::from(claim.need) / u128::from(demand))
                     .map_err(|_| ResourceError::AccountingOverflow)?
             };
-            household_harvest[household_index_value] = allocation;
-            cell_allocated[cell_index] = cell_allocated[cell_index]
+            claim_harvest[claim_index] = allocation;
+            household_harvest[claim.household_index] = household_harvest[claim.household_index]
+                .checked_add(allocation)
+                .ok_or(ResourceError::AccountingOverflow)?;
+            cell_allocated[claim.cell_index] = cell_allocated[claim.cell_index]
                 .checked_add(allocation)
                 .ok_or(ResourceError::AccountingOverflow)?;
         }
 
-        // Integer proportional allocation can leave fewer than one unit per
-        // competing household undistributed. Resolve that bounded remainder in
-        // stable household-ID order without creating a cell->household graph.
-        for household_index_value in 0..household_count {
-            if household_harvest[household_index_value] >= household_need[household_index_value] {
+        // Integer proportional allocation can leave fewer than one unit per competing claim
+        // undistributed. Claims are stable by household ID, then home before visitor, so the
+        // bounded remainder remains deterministic while disabled M9 retains the legacy order.
+        for (claim_index, claim) in claims.iter().enumerate() {
+            if claim_harvest[claim_index] >= claim.need {
                 continue;
             }
-            let household = HouseholdId::new(household_index_value as u64 + 1);
-            let location = population.household_location(household).ok_or(
-                ResourceError::InternalInvariant("household has no location"),
-            )?;
-            let cell_index = usize::try_from(
-                location
-                    .0
-                    .checked_sub(1)
-                    .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
-            )
-            .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
-            if cell_allocated[cell_index] < cell_target[cell_index] {
-                household_harvest[household_index_value] += 1;
-                cell_allocated[cell_index] += 1;
+            if cell_allocated[claim.cell_index] < cell_target[claim.cell_index] {
+                claim_harvest[claim_index] += 1;
+                household_harvest[claim.household_index] = household_harvest[claim.household_index]
+                    .checked_add(1)
+                    .ok_or(ResourceError::AccountingOverflow)?;
+                cell_allocated[claim.cell_index] += 1;
             }
         }
 
@@ -615,6 +659,124 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
     Ok(())
 }
 
+fn validate_temporary_resource_period(
+    period: &TemporaryResourcePeriod,
+    household_count: usize,
+    world: &World,
+    periods_per_year: u16,
+    period_index_in_year: u16,
+    day: u64,
+) -> Result<(), ResourceError> {
+    period.validate(household_count, world)?;
+    let periods = u64::from(periods_per_year);
+    let current_offset =
+        (u64::from(period_index_in_year) + 1).saturating_mul(DAYS_PER_YEAR) / periods;
+    let previous_offset = u64::from(period_index_in_year).saturating_mul(DAYS_PER_YEAR) / periods;
+    let year_start =
+        day.checked_sub(current_offset)
+            .ok_or(ResourceError::TemporaryPeriodBoundaryMismatch {
+                expected_start: 0,
+                expected_end: current_offset,
+                actual_start: period.start_day,
+                actual_end: period.end_day,
+            })?;
+    let expected_start = year_start
+        .checked_add(previous_offset)
+        .ok_or(ResourceError::AccountingOverflow)?;
+    if period.start_day != expected_start || period.end_day != day {
+        return Err(ResourceError::TemporaryPeriodBoundaryMismatch {
+            expected_start,
+            expected_end: day,
+            actual_start: period.start_day,
+            actual_end: period.end_day,
+        });
+    }
+    Ok(())
+}
+
+pub(crate) fn duration_weighted_needs(
+    need: u64,
+    presence: &TemporaryResourcePresenceDays,
+) -> Result<(u64, u64), ResourceError> {
+    let duration = presence.total_days()?;
+    if duration == 0 {
+        return Err(ResourceError::InternalInvariant(
+            "temporary resource duration is zero",
+        ));
+    }
+    let home_days = presence.home_provisioning_days()?;
+    let visiting_days = presence.visiting_days;
+    if home_days
+        .checked_add(visiting_days)
+        .ok_or(ResourceError::AccountingOverflow)?
+        != duration
+    {
+        return Err(ResourceError::InternalInvariant(
+            "temporary resource presence days do not reconcile",
+        ));
+    }
+
+    let denominator = u128::from(duration);
+    let home_numerator = u128::from(need)
+        .checked_mul(u128::from(home_days))
+        .ok_or(ResourceError::AccountingOverflow)?;
+    let visiting_numerator = u128::from(need)
+        .checked_mul(u128::from(visiting_days))
+        .ok_or(ResourceError::AccountingOverflow)?;
+    let mut home_need = u64::try_from(home_numerator / denominator)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+    let mut visiting_need = u64::try_from(visiting_numerator / denominator)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+    let assigned = home_need
+        .checked_add(visiting_need)
+        .ok_or(ResourceError::AccountingOverflow)?;
+    let remainder = need
+        .checked_sub(assigned)
+        .ok_or(ResourceError::AccountingOverflow)?;
+    if remainder > 1 {
+        return Err(ResourceError::InternalInvariant(
+            "duration-weighted need left more than one remainder unit",
+        ));
+    }
+    if remainder == 1 {
+        let home_fraction = home_numerator % denominator;
+        let visiting_fraction = visiting_numerator % denominator;
+        if visiting_fraction > home_fraction {
+            visiting_need = visiting_need
+                .checked_add(1)
+                .ok_or(ResourceError::AccountingOverflow)?;
+        } else {
+            // Exact fractional ties resolve to home provisioning first.
+            home_need = home_need
+                .checked_add(1)
+                .ok_or(ResourceError::AccountingOverflow)?;
+        }
+    }
+    if home_need
+        .checked_add(visiting_need)
+        .ok_or(ResourceError::AccountingOverflow)?
+        != need
+    {
+        return Err(ResourceError::InternalInvariant(
+            "duration-weighted household need did not conserve exactly",
+        ));
+    }
+    Ok((home_need, visiting_need))
+}
+
+fn cell_index_for(world: &World, cell: crate::ids::CellId) -> Result<usize, ResourceError> {
+    let index = usize::try_from(
+        cell.0
+            .checked_sub(1)
+            .ok_or(ResourceError::InternalInvariant("invalid cell ID"))?,
+    )
+    .map_err(|_| ResourceError::InternalInvariant("cell index does not fit usize"))?;
+    if index >= world.cell_count() {
+        return Err(ResourceError::InternalInvariant("cell is outside world"));
+    }
+    Ok(index)
+}
+
 fn household_index(id: HouseholdId, household_count: usize) -> Option<usize> {
     let index = usize::try_from(id.0.checked_sub(1)?).ok()?;
     (index < household_count).then_some(index)
@@ -677,6 +839,8 @@ pub enum ResourceError {
     Config(#[from] ResourceConfigError),
     #[error(transparent)]
     Population(#[from] PopulationError),
+    #[error(transparent)]
+    TemporaryResource(#[from] TemporaryResourceAccountingError),
     #[error("resource accounting overflowed")]
     AccountingOverflow,
     #[error("resource state does not match world cell count")]
@@ -685,6 +849,15 @@ pub enum ResourceError {
     InvalidPeriodIndex { index: u16, periods_per_year: u16 },
     #[error("resource accounting mismatch: expected stock {expected}, found {actual}")]
     ResourceAccountingMismatch { expected: u64, actual: u64 },
+    #[error(
+        "temporary resource period boundary mismatch: expected {expected_start}..{expected_end}, found {actual_start}..{actual_end}"
+    )]
+    TemporaryPeriodBoundaryMismatch {
+        expected_start: u64,
+        expected_end: u64,
+        actual_start: u64,
+        actual_end: u64,
+    },
     #[error("internal resource invariant failed: {0}")]
     InternalInvariant(&'static str),
 }

@@ -56,10 +56,12 @@ impl TemporaryResourcePresenceDays {
                     .visitor_destination
                     .is_some_and(|existing| existing != destination)
                 {
-                    return Err(TemporaryResourceAccountingError::VisitorDestinationChanged {
-                        previous: self.visitor_destination.expect("checked Some"),
-                        next: destination,
-                    });
+                    return Err(
+                        TemporaryResourceAccountingError::VisitorDestinationChanged {
+                            previous: self.visitor_destination.expect("checked Some"),
+                            next: destination,
+                        },
+                    );
                 }
                 self.visitor_destination = Some(destination);
                 self.visiting_days = self
@@ -122,11 +124,13 @@ impl TemporaryResourcePeriod {
         for (index, entry) in self.households.iter().enumerate() {
             let actual = entry.total_days()?;
             if actual != duration {
-                return Err(TemporaryResourceAccountingError::HouseholdDurationMismatch {
-                    household_index: index,
-                    expected: duration,
-                    actual,
-                });
+                return Err(
+                    TemporaryResourceAccountingError::HouseholdDurationMismatch {
+                        household_index: index,
+                        expected: duration,
+                        actual,
+                    },
+                );
             }
             validate_destination(index, entry, world)?;
         }
@@ -205,13 +209,16 @@ impl TemporaryResourceLedger {
         day: u64,
     ) -> Result<(), TemporaryResourceAccountingError> {
         if self.accounted_until_day != day {
-            return Err(TemporaryResourceAccountingError::ResetBeforeSettlementBoundary {
-                accounted_until_day: self.accounted_until_day,
-                settlement_day: day,
-            });
+            return Err(
+                TemporaryResourceAccountingError::ResetBeforeSettlementBoundary {
+                    accounted_until_day: self.accounted_until_day,
+                    settlement_day: day,
+                },
+            );
         }
         self.period_start_day = day;
-        self.households.fill(TemporaryResourcePresenceDays::default());
+        self.households
+            .fill(TemporaryResourcePresenceDays::default());
         Ok(())
     }
 
@@ -233,7 +240,8 @@ impl TemporaryResourceLedger {
                 expected: household_count,
             });
         }
-        if self.period_start_day > self.accounted_until_day || self.accounted_until_day != current_day
+        if self.period_start_day > self.accounted_until_day
+            || self.accounted_until_day != current_day
         {
             return Err(TemporaryResourceAccountingError::LedgerTimeMismatch {
                 period_start_day: self.period_start_day,
@@ -245,11 +253,13 @@ impl TemporaryResourceLedger {
         for (index, entry) in self.households.iter().enumerate() {
             let actual = entry.total_days()?;
             if actual != elapsed {
-                return Err(TemporaryResourceAccountingError::HouseholdDurationMismatch {
-                    household_index: index,
-                    expected: elapsed,
-                    actual,
-                });
+                return Err(
+                    TemporaryResourceAccountingError::HouseholdDurationMismatch {
+                        household_index: index,
+                        expected: elapsed,
+                        actual,
+                    },
+                );
             }
             validate_destination(index, entry, world)?;
         }
@@ -290,9 +300,9 @@ fn validate_destination(
                 destination,
             },
         ),
-        (_, None) => Err(TemporaryResourceAccountingError::MissingVisitorDestination {
-            household_index,
-        }),
+        (_, None) => {
+            Err(TemporaryResourceAccountingError::MissingVisitorDestination { household_index })
+        }
         (_, Some(destination)) if world.cell(destination).is_none() => Err(
             TemporaryResourceAccountingError::VisitorDestinationOutsideWorld {
                 household_index,
@@ -312,20 +322,28 @@ fn digest_u64(hash: &mut u64, value: u64) {
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum TemporaryResourceAccountingError {
-    #[error("temporary resource ledger schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "temporary resource ledger schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedLedgerSchema { found: u32, supported: u32 },
-    #[error("temporary resource period schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "temporary resource period schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedPeriodSchema { found: u32, supported: u32 },
     #[error("temporary resource ledger has {ledger} households but expected {expected}")]
     HouseholdCountMismatch { ledger: usize, expected: usize },
     #[error("temporary resource accounting duration overflowed")]
     DurationOverflow,
-    #[error("temporary resource ledger cannot move backward from day {accounted_until_day} to {requested_day}")]
+    #[error(
+        "temporary resource ledger cannot move backward from day {accounted_until_day} to {requested_day}"
+    )]
     TimeReversed {
         accounted_until_day: u64,
         requested_day: u64,
     },
-    #[error("temporary resource ledger time is inconsistent: start {period_start_day}, accounted {accounted_until_day}, current {current_day}")]
+    #[error(
+        "temporary resource ledger time is inconsistent: start {period_start_day}, accounted {accounted_until_day}, current {current_day}"
+    )]
     LedgerTimeMismatch {
         period_start_day: u64,
         accounted_until_day: u64,
@@ -333,27 +351,39 @@ pub enum TemporaryResourceAccountingError {
     },
     #[error("temporary resource period bounds are invalid: {start_day}..{end_day}")]
     InvalidPeriodBounds { start_day: u64, end_day: u64 },
-    #[error("temporary resource household {household_index} has {actual} accounted days; expected {expected}")]
+    #[error(
+        "temporary resource household {household_index} has {actual} accounted days; expected {expected}"
+    )]
     HouseholdDurationMismatch {
         household_index: usize,
         expected: u64,
         actual: u64,
     },
-    #[error("temporary resource visitor destination changed within one period: {previous:?} -> {next:?}")]
+    #[error(
+        "temporary resource visitor destination changed within one period: {previous:?} -> {next:?}"
+    )]
     VisitorDestinationChanged { previous: CellId, next: CellId },
-    #[error("temporary resource household {household_index} has visiting days without a destination")]
+    #[error(
+        "temporary resource household {household_index} has visiting days without a destination"
+    )]
     MissingVisitorDestination { household_index: usize },
-    #[error("temporary resource household {household_index} has destination {destination:?} but no visiting days")]
+    #[error(
+        "temporary resource household {household_index} has destination {destination:?} but no visiting days"
+    )]
     UnexpectedVisitorDestination {
         household_index: usize,
         destination: CellId,
     },
-    #[error("temporary resource household {household_index} visitor destination {destination:?} is outside the world")]
+    #[error(
+        "temporary resource household {household_index} visitor destination {destination:?} is outside the world"
+    )]
     VisitorDestinationOutsideWorld {
         household_index: usize,
         destination: CellId,
     },
-    #[error("temporary resource ledger cannot reset at day {settlement_day}; it is accounted only through {accounted_until_day}")]
+    #[error(
+        "temporary resource ledger cannot reset at day {settlement_day}; it is accounted only through {accounted_until_day}"
+    )]
     ResetBeforeSettlementBoundary {
         accounted_until_day: u64,
         settlement_day: u64,
