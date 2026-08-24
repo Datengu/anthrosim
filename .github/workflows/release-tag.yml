@@ -1,0 +1,159 @@
+name: Preserve named release tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Named SemVer tag to preserve (for example v0.2.1)
+        required: true
+        type: string
+      sha:
+        description: Exact 40-character Git commit SHA the tag must reference
+        required: true
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/release-tag.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: preserve-named-release-tag
+  cancel-in-progress: false
+
+jobs:
+  preserve-release-tag:
+    name: Preserve named release tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve requested release identity
+        id: target
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            # Bootstrap the already-audited v0.2.0 release that predates this
+            # repository-side tagging workflow. Future releases use dispatch.
+            tag="v0.2.0"
+            sha="1f5904064e62b6971e4316b845d8bec3857e97c0"
+          else
+            tag="$INPUT_TAG"
+            sha="$INPUT_SHA"
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must match vMAJOR.MINOR.PATCH; got: $tag" >&2
+            exit 1
+          fi
+
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Release SHA must be an exact lowercase 40-character commit SHA; got: $sha" >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Create or verify exact release tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ steps.target.outputs.tag }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          api="https://api.github.com/repos/${REPOSITORY}"
+          auth_header="Authorization: Bearer ${GH_TOKEN}"
+          version_header="X-GitHub-Api-Version: 2022-11-28"
+
+          # Refuse to manufacture a release ref to an unknown object.
+          curl --fail-with-body --silent --show-error \
+            -H "$auth_header" \
+            -H "$version_header" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/git/commits/${SHA}" >/dev/null
+
+          status="$(curl --silent --show-error \
+            -o existing-ref.json \
+            -w '%{http_code}' \
+            -H "$auth_header" \
+            -H "$version_header" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/git/ref/tags/${TAG}")"
+
+          if [[ "$status" == "200" ]]; then
+            existing_sha="$(python3 - <<'PY'
+          import json
+          with open('existing-ref.json', encoding='utf-8') as handle:
+              print(json.load(handle)['object']['sha'])
+          PY
+          )"
+            if [[ "$existing_sha" != "$SHA" ]]; then
+              echo "Ref ${TAG} already exists at ${existing_sha}; expected ${SHA}. Refusing to move a release tag." >&2
+              exit 1
+            fi
+            echo "Ref ${TAG} already preserves ${SHA}."
+            exit 0
+          fi
+
+          if [[ "$status" != "404" ]]; then
+            cat existing-ref.json >&2
+            echo "Unexpected status while reading refs/tags/${TAG}: ${status}" >&2
+            exit 1
+          fi
+
+          python3 - <<'PY' > create-ref.json
+          import json
+          import os
+          print(json.dumps({
+              'ref': f"refs/tags/{os.environ['TAG']}",
+              'sha': os.environ['SHA'],
+          }))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "$auth_header" \
+            -H "$version_header" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            --data-binary @create-ref.json \
+            "${api}/git/refs" >/dev/null
+
+          verify_status="$(curl --silent --show-error \
+            -o verified-ref.json \
+            -w '%{http_code}' \
+            -H "$auth_header" \
+            -H "$version_header" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/git/ref/tags/${TAG}")"
+
+          if [[ "$verify_status" != "200" ]]; then
+            cat verified-ref.json >&2
+            echo "Release tag verification failed with status ${verify_status}." >&2
+            exit 1
+          fi
+
+          verified_sha="$(python3 - <<'PY'
+          import json
+          with open('verified-ref.json', encoding='utf-8') as handle:
+              print(json.load(handle)['object']['sha'])
+          PY
+          )"
+
+          if [[ "$verified_sha" != "$SHA" ]]; then
+            echo "Created ${TAG}, but it resolves to ${verified_sha} instead of ${SHA}." >&2
+            exit 1
+          fi
+
+          echo "Preserved ${TAG} at ${SHA}."
