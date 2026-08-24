@@ -26,24 +26,26 @@ jobs:
           from pathlib import Path
           p = Path('crates/anthrosim-core/src/spatial_simulation.rs')
           text = p.read_text()
-          compact = '''    checkpoint
-              .temporary_mobility
-              .validate_at_day(checkpoint.time.days(), &checkpoint.population, world)
-              .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
-                  reason: error.to_string(),
-              })?;
-          '''
-          expanded = '''    checkpoint
-              .temporary_mobility
-              .validate_at_day(
-                  checkpoint.time.days(),
-                  &checkpoint.population,
-                  world,
-              )
-              .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
-                  reason: error.to_string(),
-              })?;
-          '''
+          compact = (
+              "    checkpoint\n"
+              "        .temporary_mobility\n"
+              "        .validate_at_day(checkpoint.time.days(), &checkpoint.population, world)\n"
+              "        .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {\n"
+              "            reason: error.to_string(),\n"
+              "        })?;\n"
+          )
+          expanded = (
+              "    checkpoint\n"
+              "        .temporary_mobility\n"
+              "        .validate_at_day(\n"
+              "            checkpoint.time.days(),\n"
+              "            &checkpoint.population,\n"
+              "            world,\n"
+              "        )\n"
+              "        .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {\n"
+              "            reason: error.to_string(),\n"
+              "        })?;\n"
+          )
           if text.count(compact) != 1:
               raise SystemExit(f'expected one compact spatial temporary validator, found {text.count(compact)}')
           p.write_text(text.replace(compact, expanded, 1))
