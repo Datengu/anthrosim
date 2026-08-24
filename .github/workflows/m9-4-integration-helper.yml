@@ -48,3 +48,5 @@ jobs:
             docs/roadmap.md
           git commit -m "Integrate M9.4 travel semantics"
           git push origin HEAD:m9/m9-4-travel-semantics
+
+# This branch-only helper is removed after the guarded integration commit lands.
