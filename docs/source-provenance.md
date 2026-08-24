@@ -56,14 +56,26 @@ The lineage does **not** make exact Git equality a resume requirement. Its purpo
 
 Semantic bundle validation requires the lineage in `manifest.json` and `checkpoint.json` to agree and checks boundary ordering/source continuity/final source identity. See `docs/adr/0004-model-semantics-compatibility-identity.md` for the compatibility decision.
 
+## Binary provenance inspection
+
+The main experiment runner exposes the exact provenance embedded in that executable without creating run artifacts:
+
+```text
+anthrosim provenance
+```
+
+The command emits the shared `SourceRevisionIdentity` JSON (`modelVersion`, `modelSemanticsId`, and `gitCommit`). Tooling should use this command when it must inspect the executable that will actually run an experiment rather than infer provenance from the caller's checkout.
+
 ## Research/reference policy
 
-`scripts/run-versioned-sweep.py` requires reproducible source identity. It fails after validating the generated immutable sweep manifest when:
+`scripts/run-versioned-sweep.py` requires reproducible source identity. Before constructing or executing the sweep command, it invokes `provenance` on the exact `--binary` path and fails immediately when:
 
 - `gitCommit` is absent/null; or
 - `gitCommit` carries an automatic dirty-tree marker (`-dirty` or `-dirty-<working-tree-digest>`).
 
-The legacy `-dirty` form remains recognized so older dirty builds cannot bypass this policy.
+This preflight does not create the requested experiment directory, so an invalid research binary cannot consume a long sweep before being rejected. The legacy `-dirty` form remains recognized so older dirty builds cannot bypass this policy.
+
+After the sweep finishes, the adapter still validates the immutable sweep manifest and requires its `modelVersion` and `gitCommit` to match the preflighted executable. This post-run reconciliation is retained as defense in depth.
 
 A versioned research sweep therefore requires either a clean Git build with automatic revision capture or a deliberate non-empty `ANTHROSIM_GIT_COMMIT` override supplied by a controlled build environment.
 
