@@ -120,34 +120,15 @@ impl TemporaryResourcePeriod {
         }
         let duration = self.duration_days()?;
         for (index, entry) in self.households.iter().enumerate() {
-            if entry.total_days()? != duration {
+            let actual = entry.total_days()?;
+            if actual != duration {
                 return Err(TemporaryResourceAccountingError::HouseholdDurationMismatch {
                     household_index: index,
                     expected: duration,
-                    actual: entry.total_days()?,
+                    actual,
                 });
             }
-            match (entry.visiting_days, entry.visitor_destination) {
-                (0, None) => {}
-                (0, Some(destination)) => {
-                    return Err(TemporaryResourceAccountingError::UnexpectedVisitorDestination {
-                        household_index: index,
-                        destination,
-                    });
-                }
-                (_, None) => {
-                    return Err(TemporaryResourceAccountingError::MissingVisitorDestination {
-                        household_index: index,
-                    });
-                }
-                (_, Some(destination)) if world.cell(destination).is_none() => {
-                    return Err(TemporaryResourceAccountingError::VisitorDestinationOutsideWorld {
-                        household_index: index,
-                        destination,
-                    });
-                }
-                (_, Some(_)) => {}
-            }
+            validate_destination(index, entry, world)?;
         }
         Ok(())
     }
@@ -202,7 +183,7 @@ impl TemporaryResourceLedger {
         Ok(())
     }
 
-    pub(crate) fn finish_period(
+    pub(crate) fn snapshot_period(
         &mut self,
         day: u64,
         presence: &[HouseholdPresence],
@@ -216,10 +197,22 @@ impl TemporaryResourceLedger {
             households: self.households.clone(),
         };
         period.validate(self.households.len(), world)?;
-        self.period_start_day = day;
-        self.accounted_until_day = day;
-        self.households.fill(TemporaryResourcePresenceDays::default());
         Ok(period)
+    }
+
+    pub(crate) fn reset_after_settlement(
+        &mut self,
+        day: u64,
+    ) -> Result<(), TemporaryResourceAccountingError> {
+        if self.accounted_until_day != day {
+            return Err(TemporaryResourceAccountingError::ResetBeforeSettlementBoundary {
+                accounted_until_day: self.accounted_until_day,
+                settlement_day: day,
+            });
+        }
+        self.period_start_day = day;
+        self.households.fill(TemporaryResourcePresenceDays::default());
+        Ok(())
     }
 
     pub(crate) fn validate(
@@ -250,34 +243,15 @@ impl TemporaryResourceLedger {
         }
         let elapsed = self.accounted_until_day - self.period_start_day;
         for (index, entry) in self.households.iter().enumerate() {
-            if entry.total_days()? != elapsed {
+            let actual = entry.total_days()?;
+            if actual != elapsed {
                 return Err(TemporaryResourceAccountingError::HouseholdDurationMismatch {
                     household_index: index,
                     expected: elapsed,
-                    actual: entry.total_days()?,
+                    actual,
                 });
             }
-            match (entry.visiting_days, entry.visitor_destination) {
-                (0, None) => {}
-                (0, Some(destination)) => {
-                    return Err(TemporaryResourceAccountingError::UnexpectedVisitorDestination {
-                        household_index: index,
-                        destination,
-                    });
-                }
-                (_, None) => {
-                    return Err(TemporaryResourceAccountingError::MissingVisitorDestination {
-                        household_index: index,
-                    });
-                }
-                (_, Some(destination)) if world.cell(destination).is_none() => {
-                    return Err(TemporaryResourceAccountingError::VisitorDestinationOutsideWorld {
-                        household_index: index,
-                        destination,
-                    });
-                }
-                (_, Some(_)) => {}
-            }
+            validate_destination(index, entry, world)?;
         }
         Ok(())
     }
@@ -300,6 +274,32 @@ impl TemporaryResourceLedger {
                 }
             }
         }
+    }
+}
+
+fn validate_destination(
+    household_index: usize,
+    entry: &TemporaryResourcePresenceDays,
+    world: &World,
+) -> Result<(), TemporaryResourceAccountingError> {
+    match (entry.visiting_days, entry.visitor_destination) {
+        (0, None) => Ok(()),
+        (0, Some(destination)) => Err(
+            TemporaryResourceAccountingError::UnexpectedVisitorDestination {
+                household_index,
+                destination,
+            },
+        ),
+        (_, None) => Err(TemporaryResourceAccountingError::MissingVisitorDestination {
+            household_index,
+        }),
+        (_, Some(destination)) if world.cell(destination).is_none() => Err(
+            TemporaryResourceAccountingError::VisitorDestinationOutsideWorld {
+                household_index,
+                destination,
+            },
+        ),
+        (_, Some(_)) => Ok(()),
     }
 }
 
@@ -352,6 +352,11 @@ pub enum TemporaryResourceAccountingError {
     VisitorDestinationOutsideWorld {
         household_index: usize,
         destination: CellId,
+    },
+    #[error("temporary resource ledger cannot reset at day {settlement_day}; it is accounted only through {accounted_until_day}")]
+    ResetBeforeSettlementBoundary {
+        accounted_until_day: u64,
+        settlement_day: u64,
     },
 }
 
