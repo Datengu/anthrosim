@@ -1,0 +1,49 @@
+name: Temporary issue 94 main patch
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.pull_request.head.ref == 'fix/94-versioned-sweep-provenance-preflight' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: fix/94-versioned-sweep-provenance-preflight
+      - name: Add exact-binary provenance command
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('crates/anthrosim-cli/src/main.rs')
+          text = path.read_text()
+
+          old = '''use anthrosim_core::{\n    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint, World,\n};'''
+          new = '''use anthrosim_core::{\n    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint,\n    SourceRevisionIdentity, World,\n};'''
+          if old not in text:
+              raise SystemExit('main.rs import anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    /// Resume a deterministic M5 annual-boundary checkpoint to its configured duration.\n    Resume {'''
+          new = '''    /// Print exact build/source provenance embedded in this executable.\n    Provenance,\n\n    /// Resume a deterministic M5 annual-boundary checkpoint to its configured duration.\n    Resume {'''
+          if old not in text:
+              raise SystemExit('main.rs command anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {\n    match cli.command {\n        Command::Run {'''
+          new = '''fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {\n    match cli.command {\n        Command::Provenance => {\n            println!(\n                "{}",\n                serde_json::to_string_pretty(&SourceRevisionIdentity::current())?\n            );\n        }\n        Command::Run {'''
+          if old not in text:
+              raise SystemExit('main.rs run-match anchor not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          cargo fmt --all
+          rm .github/workflows/zz-temp-issue-94-main-patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Expose embedded source provenance from anthrosim'
+          git push origin HEAD:fix/94-versioned-sweep-provenance-preflight
