@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{SimulationCheckpoint, state_digest64},
+    checkpoint::{SimulationCheckpoint, state_digest64_with_temporary_mobility},
     config::PROBABILITY_PER_MILLION,
     demography::{DemographyConfigError, validate_demography_config},
     events::{EventKind, EventLog, EventProvenance},
@@ -85,6 +85,12 @@ fn validate_checkpoint_invariants_for_context(
 
     checkpoint.population.validate(&world)?;
     checkpoint
+        .temporary_mobility
+        .validate(&checkpoint.population, &world)
+        .map_err(|error| {
+            InvariantError::Violation(format!("temporary mobility state is invalid: {error}"))
+        })?;
+    checkpoint
         .resources
         .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
     let migration = MigrationSystem::from_checkpoint_state(
@@ -129,12 +135,13 @@ fn validate_checkpoint_invariants_for_context(
         &migration_summary,
     )?;
 
-    let actual_digest = state_digest64(
+    let actual_digest = state_digest64_with_temporary_mobility(
         checkpoint.time.days(),
         world.digest64(),
         checkpoint.population.digest64(),
         checkpoint.resources.digest64(),
         migration.digest64(),
+        &checkpoint.temporary_mobility,
     );
     if actual_digest != checkpoint.state_digest64 {
         return violation(format!(
