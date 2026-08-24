@@ -10,7 +10,9 @@ on:
       - "crates/anthrosim-core/**"
       - "crates/anthrosim-cli/**"
       - "scripts/aggregate-m9-aggregation-benchmark.py"
+      - "scripts/verify-m9-aggregation-benchmark-reference.py"
       - "examples/m9-controlled-aggregation-benchmark/**"
+      - "docs/research/m9-controlled-aggregation-benchmark-result.md"
       - "docs/research/m9-controlled-aggregation-benchmark-v1.md"
       - ".github/workflows/m9-aggregation-benchmark.yml"
   workflow_dispatch:
@@ -39,11 +41,12 @@ jobs:
       - name: Validate predeclared benchmark sources
         run: |
           python3 -m py_compile scripts/aggregate-m9-aggregation-benchmark.py
+          python3 -m py_compile scripts/verify-m9-aggregation-benchmark-reference.py
           python3 - <<'PY'
           import json
           from pathlib import Path
           root = Path("examples/m9-controlled-aggregation-benchmark")
-          for name in ("benchmark-definition.json", "continuous-residence.json", "intermittent-aggregation.json"):
+          for name in ("benchmark-definition.json", "continuous-residence.json", "intermittent-aggregation.json", "reference-result.json"):
               json.loads((root / name).read_text(encoding="utf-8"))
           PY
 
@@ -85,6 +88,8 @@ jobs:
         run: |
           target/release/anthrosim-temporary-observability tree --root m9-benchmark-runs/continuous
           target/release/anthrosim-temporary-observability tree --root m9-benchmark-runs/intermittent
+          target/release/anthrosim-temporary-observability tree --root m9-benchmark-runs/continuous --check
+          target/release/anthrosim-temporary-observability tree --root m9-benchmark-runs/intermittent --check
 
       - name: Prove identical intermittent replay is exact
         shell: bash
@@ -142,12 +147,14 @@ jobs:
           if checkpoint["time"] != 365:
               raise SystemExit("M9.7 checkpoint is not at day 365")
           temporary = checkpoint["temporaryMobility"]
-          active_presence = [row for row in temporary["householdPresence"] if row.get("state") != "at_residence"]
-          active_journeys = [row for row in temporary["activeJourneys"] if row is not None]
+          presence = temporary["householdPresence"]
+          active = temporary["activeJourneys"]
+          active_presence = [row for row in presence if row.get("state") != "at_residence"]
+          active_journeys = [row for row in active if row is not None]
           if not active_presence or not active_journeys:
               raise SystemExit("M9.7 year-1 checkpoint did not capture an active temporary journey")
           if not all(row.get("state") == "visiting" for row in active_presence):
-              raise SystemExit("M9.7 target-arrival window should be visiting at day 365")
+              raise SystemExit("M9.7 target-arrival window should place active households in visiting state at day 365")
           print(f"active temporary households at day 365: {len(active_presence)}")
           PY
 
@@ -159,20 +166,26 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
+
           seed_run = "seed-00000000000000009701"
           uninterrupted_dir = Path("m9-benchmark-runs/intermittent/runs") / seed_run
           resumed_dir = Path("m9-resume-check/resumed")
           uninterrupted = json.loads((uninterrupted_dir / "checkpoint.json").read_text(encoding="utf-8"))
           resumed = json.loads((resumed_dir / "checkpoint.json").read_text(encoding="utf-8"))
-          keys = ["time","completedYears","terminalStopReason","worldDigest64","stateDigest64","population","temporaryMobility","resources","migration","rng","events","metrics"]
+
+          keys = [
+              "time", "completedYears", "terminalStopReason", "worldDigest64", "stateDigest64",
+              "population", "temporaryMobility", "resources", "migration", "rng", "events", "metrics",
+          ]
           for key in keys:
               if uninterrupted[key] != resumed[key]:
                   raise SystemExit(f"resumed M9.7 checkpoint differs from uninterrupted run at {key}")
-          a = json.loads((uninterrupted_dir / "temporary-observability.json").read_text(encoding="utf-8"))
-          b = json.loads((resumed_dir / "temporary-observability.json").read_text(encoding="utf-8"))
-          if a != b:
-              raise SystemExit("resumed M9.7 observability differs from uninterrupted regeneration")
-          print("active-journey checkpoint/resume exactly matches uninterrupted state and observability")
+
+          uninterrupted_report = json.loads((uninterrupted_dir / "temporary-observability.json").read_text(encoding="utf-8"))
+          resumed_report = json.loads((resumed_dir / "temporary-observability.json").read_text(encoding="utf-8"))
+          if uninterrupted_report != resumed_report:
+              raise SystemExit("resumed M9.7 temporary observability differs from uninterrupted regeneration")
+          print("active-journey checkpoint/resume exactly matches uninterrupted authoritative state and observability")
           PY
 
       - name: Aggregate the predeclared paired result
@@ -184,7 +197,33 @@ jobs:
             --markdown m9-benchmark-output/benchmark-summary.md
           cat m9-benchmark-output/benchmark-summary.md
 
-      - name: Upload first-observation result and run archive
+      - name: Require preserved M9.7 scientific reference
+        run: |
+          python3 scripts/verify-m9-aggregation-benchmark-reference.py \
+            --actual m9-benchmark-output/benchmark-summary.json \
+            --reference examples/m9-controlled-aggregation-benchmark/reference-result.json
+
+      - name: Prove M9.7 regression verifier rejects tampering
+        run: |
+          cp m9-benchmark-output/benchmark-summary.json /tmp/m9-tampered.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("/tmp/m9-tampered.json")
+          value = json.loads(path.read_text(encoding="utf-8"))
+          value["classification"]["benchmarkClass"] = "tampered"
+          path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+          PY
+          if python3 scripts/verify-m9-aggregation-benchmark-reference.py \
+            --actual /tmp/m9-tampered.json \
+            --reference examples/m9-controlled-aggregation-benchmark/reference-result.json >/tmp/m9-tamper.log 2>&1; then
+            cat /tmp/m9-tamper.log
+            echo "M9.7 verifier unexpectedly accepted tampered classification" >&2
+            exit 1
+          fi
+          grep -q "scientific regression mismatch" /tmp/m9-tamper.log
+
+      - name: Upload benchmark result and run archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: m9-controlled-aggregation-benchmark
