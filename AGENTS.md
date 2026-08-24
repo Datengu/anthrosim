@@ -14,10 +14,12 @@ Before making substantive changes, read:
 - `M#` labels are roadmap/capability milestones, not software versions.
 - Do **not** bump the AnthroSim package version for every commit, issue or pull request. Exact code identity is already preserved by run Git provenance.
 - Version bumps are explicit release decisions. Follow `docs/release-versioning.md`.
-- M8 is recorded as completed. Subsequent audit fixes are post-M8 hardening unless a finding proves that required M8 functionality was never implemented.
-- `v0.2.0` is reserved for the audited and reverified M8 baseline. Do not cut or label `v0.2.0` until material post-M8 audit findings are resolved and the relevant checks pass.
-- After a named release, compatible bug-fix releases may increment the patch version.
-- A change to authoritative scientific/model meaning may require a `MODEL_SEMANTICS_ID` change independently of the package version.
+- M8 is completed and its audited baseline is released and preserved as `v0.2.0`.
+- M9 is the planned temporary-mobility and aggregation capability milestone. Its target named release is `v0.3.0` after M9 completion, audit/hardening and release verification.
+- From M9 onward, a completed major roadmap milestone should normally culminate in the next minor software release, but milestone identity and release identity remain independent.
+- During ordinary milestone implementation, leave the package version unchanged unless the task explicitly concerns release preparation.
+- After a named release, compatible bug-fix releases may increment the patch version without creating a new milestone.
+- A change to authoritative scientific/model meaning may require a `MODEL_SEMANTICS_ID` change independently of the package version. Review this explicitly for milestone release candidates.
 
 ## Research integrity
 
