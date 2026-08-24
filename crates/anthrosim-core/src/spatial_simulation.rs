@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64},
+    checkpoint::{
+        RngCheckpoint, SimulationCheckpoint, state_digest64,
+        state_digest64_with_temporary_mobility,
+    },
     config::ExperimentConfig,
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
@@ -221,7 +224,7 @@ impl SpatialLandscapeSimulation {
             });
         }
         checkpoint.landscape.validate_bundle(&landscape)?;
-        validate_core_checkpoint_header(&checkpoint.core_checkpoint, true)?;
+        validate_core_checkpoint_header(&checkpoint.core_checkpoint)?;
         validate_experiment(&checkpoint.core_checkpoint.experiment)?;
         validate_grid_match(
             &checkpoint.core_checkpoint.experiment,
@@ -250,6 +253,7 @@ impl SpatialLandscapeSimulation {
             .population
             .validate(&world)
             .map_err(PopulationError::from)?;
+        validate_spatial_temporary_mobility(&checkpoint.core_checkpoint, &world)?;
         checkpoint
             .core_checkpoint
             .resources
@@ -651,7 +655,7 @@ pub fn validate_spatial_landscape_recorded_run(
         return Err(SpatialLandscapeError::CrossArtifactSpatialMismatch);
     }
     run.manifest.landscape.validate_bundle(landscape)?;
-    validate_core_checkpoint_header(&run.checkpoint.core_checkpoint, false)?;
+    validate_core_checkpoint_header(&run.checkpoint.core_checkpoint)?;
     validate_experiment(&run.checkpoint.core_checkpoint.experiment)?;
 
     let world = reconstruct_world(
@@ -687,6 +691,7 @@ pub fn validate_spatial_landscape_recorded_run(
         .population
         .validate(&world)
         .map_err(PopulationError::from)?;
+    validate_spatial_temporary_mobility(&run.checkpoint.core_checkpoint, &world)?;
     run.checkpoint
         .core_checkpoint
         .resources
@@ -697,12 +702,13 @@ pub fn validate_spatial_landscape_recorded_run(
         &run.checkpoint.core_checkpoint.experiment.migration,
         run.checkpoint.core_checkpoint.migration.clone(),
     )?;
-    let actual_state = state_digest64(
+    let actual_state = state_digest64_with_temporary_mobility(
         run.checkpoint.core_checkpoint.time.days(),
         world.digest64(),
         run.checkpoint.core_checkpoint.population.digest64(),
         run.checkpoint.core_checkpoint.resources.digest64(),
         migration.digest64(),
+        &run.checkpoint.core_checkpoint.temporary_mobility,
     );
     if actual_state != run.checkpoint.core_checkpoint.state_digest64 {
         return Err(SpatialLandscapeError::CheckpointStateDigestMismatch {
@@ -763,13 +769,8 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
 
 fn validate_core_checkpoint_header(
     checkpoint: &SimulationCheckpoint,
-    allow_pre_lineage_schema: bool,
 ) -> Result<(), SpatialLandscapeError> {
-    let pre_lineage_schema =
-        checkpoint.schema_version == SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION;
-    if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION
-        && !(allow_pre_lineage_schema && pre_lineage_schema)
-    {
+    if checkpoint.schema_version != SimulationCheckpoint::CURRENT_SCHEMA_VERSION {
         return Err(SpatialLandscapeError::UnsupportedCoreCheckpointSchema {
             found: checkpoint.schema_version,
             supported: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
@@ -792,23 +793,14 @@ fn validate_core_checkpoint_header(
         model_semantics_id: checkpoint.model_semantics_id.clone(),
         git_commit: checkpoint.git_commit.clone(),
     };
-    if pre_lineage_schema {
-        if !checkpoint.resume_lineage.boundaries.is_empty() {
-            return Err(SpatialLandscapeError::CheckpointResumeLineageInvalid {
-                reason: "pre-lineage checkpoint schema unexpectedly contains resume boundaries"
-                    .to_owned(),
-            });
-        }
-    } else {
-        checkpoint
-            .resume_lineage
-            .validate_for_artifact(checkpoint.time.days(), &source_identity)
-            .map_err(
-                |error| SpatialLandscapeError::CheckpointResumeLineageInvalid {
-                    reason: error.to_string(),
-                },
-            )?;
-    }
+    checkpoint
+        .resume_lineage
+        .validate_for_artifact(checkpoint.time.days(), &source_identity)
+        .map_err(
+            |error| SpatialLandscapeError::CheckpointResumeLineageInvalid {
+                reason: error.to_string(),
+            },
+        )?;
     if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
         return Err(SpatialLandscapeError::CheckpointArtifactSchemaMismatch { artifact: "events" });
     }
@@ -829,6 +821,22 @@ fn validate_core_checkpoint_header(
             completed_years: checkpoint.completed_years,
             duration_years: checkpoint.experiment.duration_years,
         });
+    }
+    Ok(())
+}
+
+fn validate_spatial_temporary_mobility(
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+) -> Result<(), SpatialLandscapeError> {
+    checkpoint
+        .temporary_mobility
+        .validate(&checkpoint.population, world)
+        .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
+            reason: error.to_string(),
+        })?;
+    if !checkpoint.temporary_mobility.all_at_residence() {
+        return Err(SpatialLandscapeError::ActiveTemporaryMobilityUnsupported);
     }
     Ok(())
 }
@@ -918,6 +926,10 @@ pub enum SpatialLandscapeError {
         completed_years: u64,
         duration_years: u64,
     },
+    #[error("spatial checkpoint temporary mobility state is invalid: {reason}")]
+    TemporaryMobilityInvalid { reason: String },
+    #[error("spatial landscape simulation does not support active temporary mobility")]
+    ActiveTemporaryMobilityUnsupported,
     #[error("checkpoint terminal stop reason {stop_reason:?} does not match checkpoint state")]
     CheckpointTerminalStateMismatch { stop_reason: StopReason },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]
