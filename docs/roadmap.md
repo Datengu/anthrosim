@@ -213,7 +213,7 @@ Add a temporary-mobility process capable of deterministic/reproducible:
 
 Triggers should initially be generic and experiment-configured. A temporary journey need not claim a real social motive.
 
-#### M9.4 — Travel-time and cost semantics
+#### M9.4 — Travel-time and cost semantics — complete
 
 `docs/research/m9-temporary-travel-semantics-v1.md` freezes the M9.4 integer edge-cost, reachability, destination tie-break and travel-capacity semantics before authoritative implementation is merged.
 
