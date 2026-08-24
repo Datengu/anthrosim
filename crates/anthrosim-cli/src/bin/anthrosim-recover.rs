@@ -2,6 +2,8 @@ use std::{path::PathBuf, process::ExitCode};
 
 use clap::Parser;
 
+// This standalone utility reuses the same transaction implementation as the
+// execution binaries so recovery rules cannot drift from commit semantics.
 #[allow(dead_code)]
 #[path = "../run_directory.rs"]
 mod run_directory;
