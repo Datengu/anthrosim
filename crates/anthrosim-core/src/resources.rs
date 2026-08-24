@@ -193,6 +193,7 @@ impl ResourceSystem {
         )
     }
 
+    #[cfg(test)]
     pub(crate) fn process_period_recorded(
         &mut self,
         population: &mut Population,
