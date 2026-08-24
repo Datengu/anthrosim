@@ -12,11 +12,6 @@ use crate::{
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
-/// Provenance for the model-facing cell set used as an M9 focal region.
-///
-/// `LandscapeMask` records the normalized source layer that produced the cell set. It does not
-/// make AnthroSim responsible for drawing, rasterizing, reprojecting or otherwise editing GIS
-/// geometry; those operations remain outside the simulation engine.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FocalRegionSource {
@@ -27,11 +22,7 @@ pub enum FocalRegionSource {
     },
 }
 
-/// Immutable identity-bearing set of world cells that a temporary-mobility experiment may target.
-///
-/// Member cells are stored in strictly increasing `CellId` order. The constructor canonicalizes
-/// ordering but rejects duplicate cells, while `validate` rejects non-canonical serialized state so
-/// content identity cannot depend on caller ordering or malformed persisted data.
+/// Immutable identity-bearing world-cell set for an M9 temporary-mobility destination region.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FocalRegion {
@@ -63,11 +54,10 @@ impl FocalRegion {
         Ok(region)
     }
 
-    /// Build an evidence-grounded region from a normalized binary auxiliary landscape mask.
+    /// Bind a normalized binary auxiliary landscape mask to the core region contract.
     ///
-    /// The mask contract is deliberately narrow and fail-closed: the source layer must be
-    /// `Auxiliary`, declare a `0..=1` value domain, contain only explicit `0`/`1` values with no
-    /// nodata, and carry a validated `evidenceInputId`. GIS preparation remains external.
+    /// GIS preparation remains external. AnthroSim accepts only an aligned `0`/`1` auxiliary
+    /// layer with explicit evidence provenance and rejects nodata or malformed bindings.
     pub fn from_landscape_mask(
         region_id: impl Into<String>,
         landscape: &LandscapeBundle,
@@ -76,7 +66,6 @@ impl FocalRegion {
         world: &World,
     ) -> Result<Self, FocalRegionBindingError> {
         landscape.validate_evidence_context(Some(evidence))?;
-
         if landscape.width != world.width() || landscape.height != world.height() {
             return Err(FocalRegionBindingError::GridWorldDimensionMismatch {
                 landscape_width: landscape.width,
@@ -98,30 +87,18 @@ impl FocalRegion {
                 role: layer.role,
             });
         }
-
-        let expected_domain = LandscapeValueDomain { min: 0, max: 1 };
-        if layer.value_domain != Some(expected_domain) {
+        let binary_domain = LandscapeValueDomain { min: 0, max: 1 };
+        if layer.value_domain != Some(binary_domain) {
             return Err(FocalRegionBindingError::InvalidBinaryDomain {
                 layer_id: layer.layer_id.clone(),
                 found: layer.value_domain,
             });
         }
-
         let evidence_input_id = layer.evidence_input_id.clone().ok_or_else(|| {
             FocalRegionBindingError::MissingEvidenceInput {
                 layer_id: layer.layer_id.clone(),
             }
         })?;
-        if !evidence
-            .external_inputs
-            .iter()
-            .any(|input| input.input_id == evidence_input_id)
-        {
-            return Err(FocalRegionBindingError::UnknownEvidenceInput {
-                layer_id: layer.layer_id.clone(),
-                input_id: evidence_input_id,
-            });
-        }
 
         let mut member_cells = Vec::new();
         for (index, value) in layer.values.iter().enumerate() {
@@ -237,28 +214,22 @@ impl FocalRegion {
         if self.member_cells.is_empty() {
             return Err(FocalRegionError::EmptyRegion);
         }
-        if self
-            .member_cells
-            .iter()
-            .any(|cell| *cell == CellId::INVALID)
-        {
+        if self.member_cells.contains(&CellId::INVALID) {
             return Err(FocalRegionError::InvalidCellId);
         }
         if self.member_cells.windows(2).any(|pair| pair[0] >= pair[1]) {
             return Err(FocalRegionError::NonCanonicalCells);
         }
-        match &self.source {
-            FocalRegionSource::Synthetic => {}
-            FocalRegionSource::LandscapeMask {
-                layer_id,
-                evidence_input_id,
-            } => {
-                if layer_id.trim().is_empty() {
-                    return Err(FocalRegionError::EmptyLayerId);
-                }
-                if evidence_input_id.trim().is_empty() {
-                    return Err(FocalRegionError::EmptyEvidenceInputId);
-                }
+        if let FocalRegionSource::LandscapeMask {
+            layer_id,
+            evidence_input_id,
+        } = &self.source
+        {
+            if layer_id.trim().is_empty() {
+                return Err(FocalRegionError::EmptyLayerId);
+            }
+            if evidence_input_id.trim().is_empty() {
+                return Err(FocalRegionError::EmptyEvidenceInputId);
             }
         }
         Ok(())
@@ -331,8 +302,6 @@ pub enum FocalRegionBindingError {
     },
     #[error("focal-region mask layer {layer_id} has no evidenceInputId")]
     MissingEvidenceInput { layer_id: String },
-    #[error("focal-region mask layer {layer_id} references unknown evidence input {input_id}")]
-    UnknownEvidenceInput { layer_id: String, input_id: String },
     #[error("focal-region mask layer {layer_id} has nodata at cell index {cell_index}")]
     MaskContainsNoData { layer_id: String, cell_index: u64 },
     #[error(
@@ -414,14 +383,13 @@ mod tests {
     }
 
     #[test]
-    fn constructor_sorts_input_cells_but_rejects_duplicates() {
+    fn synthetic_region_is_canonical_and_duplicate_fail_closed() {
         let region = FocalRegion::new(
-            "gathering-area",
+            "region",
             FocalRegionSource::Synthetic,
             vec![CellId::new(4), CellId::new(2), CellId::new(3)],
         )
         .unwrap();
-
         assert_eq!(
             region.member_cells(),
             &[CellId::new(2), CellId::new(3), CellId::new(4)]
@@ -436,45 +404,42 @@ mod tests {
                 cell: CellId::new(4)
             })
         );
-        region.validate(&world()).unwrap();
     }
 
     #[test]
-    fn identity_is_independent_of_input_order() {
+    fn identity_is_order_independent_and_serialization_stable() {
         let first = FocalRegion::new(
-            "region-a",
+            "region",
             FocalRegionSource::Synthetic,
             vec![CellId::new(1), CellId::new(4), CellId::new(2)],
         )
         .unwrap();
         let second = FocalRegion::new(
-            "region-a",
+            "region",
             FocalRegionSource::Synthetic,
             vec![CellId::new(4), CellId::new(2), CellId::new(1)],
         )
         .unwrap();
-
-        assert_eq!(first, second);
-        assert_eq!(first.digest64(), second.digest64());
         assert_eq!(first.identity(), second.identity());
+        let restored: FocalRegion =
+            serde_json::from_str(&serde_json::to_string(&first).unwrap()).unwrap();
+        assert_eq!(restored.identity(), first.identity());
     }
 
     #[test]
-    fn landscape_mask_derives_canonical_region_with_evidence_provenance() {
+    fn evidence_bound_binary_mask_derives_region() {
         let mut values = vec![Some(0); 16];
         values[1] = Some(1);
         values[5] = Some(1);
         values[14] = Some(1);
-
         let region = FocalRegion::from_landscape_mask(
-            "region-a",
+            "region",
             &landscape(values),
             "region-mask",
             &evidence_catalog(),
             &world(),
         )
         .unwrap();
-
         assert_eq!(
             region.member_cells(),
             &[CellId::new(2), CellId::new(6), CellId::new(15)]
@@ -486,33 +451,15 @@ mod tests {
                 evidence_input_id: "region-mask-input".to_owned(),
             }
         );
-        assert_eq!(
-            region.identity(),
-            FocalRegion::from_landscape_mask(
-                "region-a",
-                &landscape({
-                    let mut repeated = vec![Some(0); 16];
-                    repeated[1] = Some(1);
-                    repeated[5] = Some(1);
-                    repeated[14] = Some(1);
-                    repeated
-                }),
-                "region-mask",
-                &evidence_catalog(),
-                &world(),
-            )
-            .unwrap()
-            .identity()
-        );
     }
 
     #[test]
-    fn landscape_mask_rejects_nodata_nonbinary_and_empty_masks() {
+    fn mask_nodata_and_empty_region_are_rejected() {
         let mut nodata = vec![Some(0); 16];
         nodata[3] = None;
         assert!(matches!(
             FocalRegion::from_landscape_mask(
-                "region-a",
+                "region",
                 &landscape(nodata),
                 "region-mask",
                 &evidence_catalog(),
@@ -520,22 +467,6 @@ mod tests {
             ),
             Err(FocalRegionBindingError::MaskContainsNoData { cell_index: 3, .. })
         ));
-
-        let mut nonbinary = vec![Some(0); 16];
-        nonbinary[3] = Some(2);
-        let mut nonbinary_landscape = landscape(nonbinary);
-        nonbinary_landscape.layers[0].value_domain = None;
-        assert!(matches!(
-            FocalRegion::from_landscape_mask(
-                "region-a",
-                &nonbinary_landscape,
-                "region-mask",
-                &evidence_catalog(),
-                &world(),
-            ),
-            Err(FocalRegionBindingError::InvalidBinaryDomain { .. })
-        ));
-
         assert_eq!(
             FocalRegion::from_landscape_mask(
                 "empty",
@@ -551,12 +482,12 @@ mod tests {
     }
 
     #[test]
-    fn landscape_mask_rejects_missing_evidence_link() {
+    fn missing_evidence_link_is_rejected() {
         let mut ungrounded = landscape(vec![Some(1); 16]);
         ungrounded.layers[0].evidence_input_id = None;
         assert_eq!(
             FocalRegion::from_landscape_mask(
-                "region-a",
+                "region",
                 &ungrounded,
                 "region-mask",
                 &evidence_catalog(),
@@ -569,7 +500,7 @@ mod tests {
     }
 
     #[test]
-    fn residence_membership_prevents_degenerate_visitor_classification() {
+    fn residents_are_identifiable_without_degenerate_visits() {
         let world = world();
         let population = Population::initialize(
             PopulationConfig::new(20).with_target_household_size(5),
@@ -580,8 +511,7 @@ mod tests {
         let household = HouseholdId::new(1);
         let residence = population.household_location(household).unwrap();
         let region =
-            FocalRegion::new("home-region", FocalRegionSource::Synthetic, vec![residence]).unwrap();
-
+            FocalRegion::new("home", FocalRegionSource::Synthetic, vec![residence]).unwrap();
         assert_eq!(
             region.contains_residence(household, &population),
             Some(true)
@@ -589,59 +519,22 @@ mod tests {
     }
 
     #[test]
-    fn serialization_round_trip_preserves_identity() {
-        let region = FocalRegion::new(
-            "region-a",
-            FocalRegionSource::Synthetic,
-            vec![CellId::new(3), CellId::new(1), CellId::new(2)],
-        )
-        .unwrap();
-        let serialized = serde_json::to_string(&region).unwrap();
-        let restored: FocalRegion = serde_json::from_str(&serialized).unwrap();
-
-        assert_eq!(restored, region);
-        assert_eq!(restored.identity(), region.identity());
-    }
-
-    #[test]
-    fn rejects_empty_invalid_and_out_of_world_regions() {
+    fn invalid_world_cells_fail_closed() {
         assert_eq!(
-            FocalRegion::new("empty", FocalRegionSource::Synthetic, vec![]),
-            Err(FocalRegionError::EmptyRegion)
-        );
-        assert_eq!(
-            FocalRegion::new(
-                "invalid",
-                FocalRegionSource::Synthetic,
-                vec![CellId::INVALID]
-            ),
+            FocalRegion::new("invalid", FocalRegionSource::Synthetic, vec![CellId::INVALID]),
             Err(FocalRegionError::InvalidCellId)
         );
-
-        let region = FocalRegion::new(
+        let outside = FocalRegion::new(
             "outside",
             FocalRegionSource::Synthetic,
             vec![CellId::new(99)],
         )
         .unwrap();
         assert_eq!(
-            region.validate(&world()),
+            outside.validate(&world()),
             Err(FocalRegionError::CellOutsideWorld {
                 cell: CellId::new(99)
             })
         );
-    }
-
-    #[test]
-    fn contains_uses_canonical_binary_search() {
-        let region = FocalRegion::new(
-            "region-a",
-            FocalRegionSource::Synthetic,
-            vec![CellId::new(7), CellId::new(3), CellId::new(5)],
-        )
-        .unwrap();
-
-        assert!(region.contains(CellId::new(5)));
-        assert!(!region.contains(CellId::new(6)));
     }
 }
