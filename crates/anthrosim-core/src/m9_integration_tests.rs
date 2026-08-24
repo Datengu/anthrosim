@@ -65,7 +65,7 @@ fn m9_config(
         .with_population(
             PopulationConfig::new(initial_population)
                 .with_target_household_size(5)
-                .with_max_person_records(initial_population.saturating_mul(10)),
+                .with_max_person_records(u64::from(initial_population).saturating_mul(10)),
         )
         .with_demography(demography)
         .with_resources(no_pressure_resources())
