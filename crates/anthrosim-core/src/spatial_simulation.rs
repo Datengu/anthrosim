@@ -2,9 +2,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{
-        RngCheckpoint, SimulationCheckpoint, state_digest64, state_digest64_with_temporary_mobility,
-    },
+    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility},
     config::ExperimentConfig,
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
@@ -32,6 +30,10 @@ use crate::{
     spatial_mechanisms::{
         SPATIAL_MODEL_SEMANTICS_ID, SpatialMechanismConfig, SpatialMechanismError,
         transform_landscape,
+    },
+    temporary_mobility::{
+        TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
+        TemporaryMobilityState, TemporaryMobilityValidationError,
     },
     time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
@@ -162,6 +164,7 @@ pub struct SpatialLandscapeSimulation {
     spatial_binding: SpatialMechanismBinding,
     world: World,
     population: Population,
+    temporary_mobility: TemporaryMobilityState,
     resources: ResourceSystem,
     migration: MigrationSystem,
     demography_rngs: DemographyRngs,
@@ -177,6 +180,26 @@ impl SpatialLandscapeSimulation {
         landscape: LandscapeBundle,
         mechanisms: SpatialMechanismConfig,
     ) -> Result<Self, SpatialLandscapeError> {
+        Self::new_internal(config, landscape, mechanisms, None)
+    }
+
+    /// Construct a transformed-landscape simulation with the same authoritative M9 temporary-
+    /// mobility program supported by the core host.
+    pub fn new_with_temporary_mobility(
+        config: ExperimentConfig,
+        landscape: LandscapeBundle,
+        mechanisms: SpatialMechanismConfig,
+        program: TemporaryMobilityProgram,
+    ) -> Result<Self, SpatialLandscapeError> {
+        Self::new_internal(config, landscape, mechanisms, Some(program))
+    }
+
+    fn new_internal(
+        config: ExperimentConfig,
+        landscape: LandscapeBundle,
+        mechanisms: SpatialMechanismConfig,
+        program: Option<TemporaryMobilityProgram>,
+    ) -> Result<Self, SpatialLandscapeError> {
         validate_experiment(&config)?;
         let landscape_binding = LandscapeBinding::from_bundle(&landscape)?;
         validate_grid_match(&config, &landscape_binding)?;
@@ -189,6 +212,11 @@ impl SpatialLandscapeSimulation {
         let spatial_binding = SpatialMechanismBinding::new(mechanisms, &world)?;
         let rng_factory = RngFactory::new(config.seed);
         let population = Population::initialize(config.population, &world, rng_factory)?;
+        let temporary_mobility = match program {
+            Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
+            None => TemporaryMobilityState::at_residence(&population),
+        };
+        temporary_mobility.validate_at_day(0, &population, &world)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
         let migration = MigrationSystem::initialize(&population, &world, &config.migration)?;
 
@@ -202,6 +230,7 @@ impl SpatialLandscapeSimulation {
             spatial_binding,
             world,
             population,
+            temporary_mobility,
             resources,
             migration,
             demography_rngs: DemographyRngs::new(rng_factory),
@@ -305,6 +334,7 @@ impl SpatialLandscapeSimulation {
             spatial_binding: checkpoint.spatial,
             world,
             population: checkpoint.core_checkpoint.population,
+            temporary_mobility: checkpoint.core_checkpoint.temporary_mobility,
             resources: checkpoint.core_checkpoint.resources,
             migration,
             demography_rngs,
@@ -331,6 +361,11 @@ impl SpatialLandscapeSimulation {
     #[must_use]
     pub const fn population(&self) -> &Population {
         &self.population
+    }
+
+    #[must_use]
+    pub const fn temporary_mobility(&self) -> &TemporaryMobilityState {
+        &self.temporary_mobility
     }
 
     #[must_use]
@@ -439,8 +474,12 @@ impl SpatialLandscapeSimulation {
                 let period_number = u64::from(period_index) + 1;
                 let day = year_start_day
                     .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
+                self.process_temporary_boundaries_before(day)?;
                 self.time = SimTime::from_days(day);
-                let outcome = self.resources.process_period_recorded(
+                let temporary_resource_period = self
+                    .temporary_mobility
+                    .resource_period_snapshot(day, &self.world)?;
+                let outcome = self.resources.process_period_recorded_with_presence(
                     &mut self.population,
                     &ResourcePeriodContext {
                         world: &self.world,
@@ -450,13 +489,23 @@ impl SpatialLandscapeSimulation {
                     },
                     &mut self.resource_rngs.scarcity_mortality,
                     &mut self.events,
+                    temporary_resource_period.as_ref(),
                 )?;
+                self.temporary_mobility.complete_resource_period(day)?;
+                self.temporary_mobility
+                    .reconcile_after_population_change(&self.population);
                 if outcome == ResourceStepOutcome::PopulationExtinct {
                     self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
                     self.record_metric_snapshot();
                     return Ok(self.terminal_stop_reason);
                 }
-                self.migration.process_boundary_recorded(
+                self.temporary_mobility.process_day(
+                    day,
+                    &self.population,
+                    &self.world,
+                    &mut self.events,
+                )?;
+                self.migration.process_boundary_recorded_with_presence(
                     &mut self.population,
                     &MigrationBoundaryContext {
                         world: &self.world,
@@ -468,6 +517,7 @@ impl SpatialLandscapeSimulation {
                     },
                     &mut self.migration_rngs,
                     &mut self.events,
+                    Some(&self.temporary_mobility),
                 )?;
             }
 
@@ -480,6 +530,8 @@ impl SpatialLandscapeSimulation {
                 &mut self.demography_rngs,
                 &mut self.events,
             )?;
+            self.temporary_mobility
+                .reconcile_after_population_change(&self.population);
             self.record_metric_snapshot();
             match outcome {
                 DemographyStepOutcome::Continue => {}
@@ -494,6 +546,34 @@ impl SpatialLandscapeSimulation {
             }
         }
         Ok(None)
+    }
+
+    fn process_temporary_boundaries_before(
+        &mut self,
+        fixed_day: u64,
+    ) -> Result<(), SpatialLandscapeError> {
+        let Some(end_day) = fixed_day.checked_sub(1) else {
+            return Ok(());
+        };
+        loop {
+            let current_day = self.time.days();
+            let Some(day) = self.temporary_mobility.next_boundary_day(
+                current_day,
+                end_day,
+                &self.population,
+            )?
+            else {
+                break;
+            };
+            self.time = SimTime::from_days(day);
+            self.temporary_mobility.process_day(
+                day,
+                &self.population,
+                &self.world,
+                &mut self.events,
+            )?;
+        }
+        Ok(())
     }
 
     fn completed_years(&self) -> Result<u64, SpatialLandscapeError> {
@@ -541,12 +621,13 @@ impl SpatialLandscapeSimulation {
     }
 
     fn state_digest64(&self) -> u64 {
-        state_digest64(
+        state_digest64_with_temporary_mobility(
             self.time.days(),
             self.world.digest64(),
             self.population.digest64(),
             self.resources.digest64(),
             self.migration.digest64(),
+            &self.temporary_mobility,
         )
     }
 
@@ -554,6 +635,8 @@ impl SpatialLandscapeSimulation {
         self.population
             .validate(&self.world)
             .map_err(PopulationError::from)?;
+        self.temporary_mobility
+            .validate_at_day(self.time.days(), &self.population, &self.world)?;
         self.resources
             .validate_checkpoint_state(&self.world, &self.config.resources)?;
         Ok(())
@@ -606,8 +689,6 @@ impl SpatialLandscapeSimulation {
         let state_digest = self.state_digest64();
         let rng = self.rng_checkpoint();
         let completed_years = self.time.days() / DAYS_PER_YEAR;
-        let temporary_mobility =
-            crate::temporary_mobility::TemporaryMobilityState::at_residence(&self.population);
         SimulationCheckpoint {
             schema_version: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -620,7 +701,7 @@ impl SpatialLandscapeSimulation {
             terminal_stop_reason: self.terminal_stop_reason,
             world_digest64: self.world.digest64(),
             population: self.population,
-            temporary_mobility,
+            temporary_mobility: self.temporary_mobility,
             resources: self.resources,
             migration: self.migration.checkpoint_state(),
             rng,
@@ -834,9 +915,6 @@ fn validate_spatial_temporary_mobility(
         .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
             reason: error.to_string(),
         })?;
-    if !checkpoint.temporary_mobility.is_disabled() {
-        return Err(SpatialLandscapeError::ActiveTemporaryMobilityUnsupported);
-    }
     Ok(())
 }
 
@@ -927,8 +1005,12 @@ pub enum SpatialLandscapeError {
     },
     #[error("spatial checkpoint temporary mobility state is invalid: {reason}")]
     TemporaryMobilityInvalid { reason: String },
-    #[error("spatial landscape simulation does not support active temporary mobility")]
-    ActiveTemporaryMobilityUnsupported,
+    #[error(transparent)]
+    TemporaryMobility(#[from] TemporaryMobilityValidationError),
+    #[error(transparent)]
+    TemporaryMobilityProgram(#[from] TemporaryMobilityProgramError),
+    #[error(transparent)]
+    TemporaryMobilityExecution(#[from] TemporaryMobilityExecutionError),
     #[error("checkpoint terminal stop reason {stop_reason:?} does not match checkpoint state")]
     CheckpointTerminalStateMismatch { stop_reason: StopReason },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]

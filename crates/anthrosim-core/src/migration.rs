@@ -249,6 +249,7 @@ impl MigrationSystem {
         self.process_boundary_recorded(population, context, rngs, &mut events)
     }
 
+    #[cfg(test)]
     pub(crate) fn process_boundary_recorded(
         &mut self,
         population: &mut Population,
