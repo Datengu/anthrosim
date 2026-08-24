@@ -49,7 +49,8 @@ pub struct SimulationCheckpoint {
 impl SimulationCheckpoint {
     pub const PRE_LINEAGE_SCHEMA_VERSION: u32 = 4;
     pub const PRE_TEMPORARY_MOBILITY_SCHEMA_VERSION: u32 = 5;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 6;
+    pub const PRE_JOURNEY_LIFECYCLE_SCHEMA_VERSION: u32 = 6;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 7;
 }
 
 #[must_use]
@@ -73,9 +74,9 @@ pub fn state_digest64(
     hash
 }
 
-/// Extend the legacy authoritative digest with M9 temporary-presence state only when that state is
-/// active. All-at-residence runs deliberately retain their pre-M9 digest so disabled-M9 reference
-/// experiments remain exactly comparable while active temporary mobility is still integrity-bound.
+/// Extend the legacy authoritative digest with M9 temporary-mobility state whenever the mechanism
+/// is enabled or has execution history. The exact disabled state deliberately retains the pre-M9
+/// digest so established M1-M8 reference experiments remain directly comparable.
 #[must_use]
 pub fn state_digest64_with_temporary_mobility(
     day: u64,
@@ -92,7 +93,7 @@ pub fn state_digest64_with_temporary_mobility(
         resource_digest64,
         migration_digest64,
     );
-    if temporary_mobility.all_at_residence() {
+    if temporary_mobility.is_disabled() {
         return legacy;
     }
 
@@ -120,7 +121,7 @@ mod tests {
     };
 
     #[test]
-    fn all_at_residence_preserves_legacy_state_digest() {
+    fn disabled_temporary_mobility_preserves_legacy_state_digest() {
         let factory = RngFactory::new(9);
         let world = World::generate(WorldConfig::new(2, 2), factory).unwrap();
         let population = Population::initialize(PopulationConfig::new(8), &world, factory).unwrap();

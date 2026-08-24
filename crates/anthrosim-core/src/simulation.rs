@@ -25,7 +25,10 @@ use crate::{
         ResourceStepOutcome, ResourceSystem, validate_resource_config,
     },
     rng::RngFactory,
-    temporary_mobility::{TemporaryMobilityState, TemporaryMobilityValidationError},
+    temporary_mobility::{
+        TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
+        TemporaryMobilityState, TemporaryMobilityValidationError,
+    },
     time::{DAYS_PER_YEAR, SimTime},
     world::{World, WorldError},
 };
@@ -69,13 +72,31 @@ pub struct Simulation {
 
 impl Simulation {
     pub fn new(config: ExperimentConfig) -> Result<Self, SimulationError> {
+        Self::new_internal(config, None)
+    }
+
+    /// Construct a core simulation with an explicit M9 temporary-mobility program.
+    pub fn new_with_temporary_mobility(
+        config: ExperimentConfig,
+        program: TemporaryMobilityProgram,
+    ) -> Result<Self, SimulationError> {
+        Self::new_internal(config, Some(program))
+    }
+
+    fn new_internal(
+        config: ExperimentConfig,
+        program: Option<TemporaryMobilityProgram>,
+    ) -> Result<Self, SimulationError> {
         validate_experiment(&config)?;
 
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
         let population = Population::initialize(config.population, &world, rng_factory)?;
-        let temporary_mobility = TemporaryMobilityState::at_residence(&population);
-        temporary_mobility.validate(&population, &world)?;
+        let temporary_mobility = match program {
+            Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
+            None => TemporaryMobilityState::at_residence(&population),
+        };
+        temporary_mobility.validate_at_day(0, &population, &world)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
         let migration = MigrationSystem::initialize(&population, &world, &config.migration)?;
 
@@ -164,9 +185,11 @@ impl Simulation {
             .population
             .validate(&world)
             .map_err(PopulationError::from)?;
-        checkpoint
-            .temporary_mobility
-            .validate(&checkpoint.population, &world)?;
+        checkpoint.temporary_mobility.validate_at_day(
+            checkpoint.time.days(),
+            &checkpoint.population,
+            &world,
+        )?;
         checkpoint
             .resources
             .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
@@ -348,6 +371,7 @@ impl Simulation {
                 let period_number = u64::from(period_index) + 1;
                 let day = year_start_day
                     .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
+                self.process_temporary_boundaries_before(day)?;
                 self.time = SimTime::from_days(day);
                 let outcome = self.resources.process_period_recorded(
                     &mut self.population,
@@ -367,6 +391,12 @@ impl Simulation {
                     self.record_metric_snapshot();
                     return Ok(self.terminal_stop_reason);
                 }
+                self.temporary_mobility.process_day(
+                    day,
+                    &self.population,
+                    &self.world,
+                    &mut self.events,
+                )?;
                 self.migration.process_boundary_recorded_with_presence(
                     &mut self.population,
                     &MigrationBoundaryContext {
@@ -409,6 +439,34 @@ impl Simulation {
             }
         }
         Ok(None)
+    }
+
+    fn process_temporary_boundaries_before(
+        &mut self,
+        fixed_day: u64,
+    ) -> Result<(), SimulationError> {
+        let Some(end_day) = fixed_day.checked_sub(1) else {
+            return Ok(());
+        };
+        loop {
+            let current_day = self.time.days();
+            let Some(day) = self.temporary_mobility.next_boundary_day(
+                current_day,
+                end_day,
+                &self.population,
+            )?
+            else {
+                break;
+            };
+            self.time = SimTime::from_days(day);
+            self.temporary_mobility.process_day(
+                day,
+                &self.population,
+                &self.world,
+                &mut self.events,
+            )?;
+        }
+        Ok(())
     }
 
     fn completed_years(&self) -> Result<u64, SimulationError> {
@@ -471,7 +529,7 @@ impl Simulation {
             .validate(&self.world)
             .map_err(PopulationError::from)?;
         self.temporary_mobility
-            .validate(&self.population, &self.world)?;
+            .validate_at_day(self.time.days(), &self.population, &self.world)?;
         self.resources
             .validate_checkpoint_state(&self.world, &self.config.resources)?;
         Ok(())
@@ -651,6 +709,10 @@ pub enum SimulationError {
     Population(#[from] PopulationError),
     #[error(transparent)]
     TemporaryMobility(#[from] TemporaryMobilityValidationError),
+    #[error(transparent)]
+    TemporaryMobilityProgram(#[from] TemporaryMobilityProgramError),
+    #[error(transparent)]
+    TemporaryMobilityExecution(#[from] TemporaryMobilityExecutionError),
 }
 
 #[cfg(test)]
@@ -986,6 +1048,7 @@ mod tests {
         for schema_version in [
             SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION,
             SimulationCheckpoint::PRE_TEMPORARY_MOBILITY_SCHEMA_VERSION,
+            SimulationCheckpoint::PRE_JOURNEY_LIFECYCLE_SCHEMA_VERSION,
         ] {
             let mut old = checkpoint.clone();
             old.schema_version = schema_version;
