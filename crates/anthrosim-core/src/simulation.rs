@@ -1,9 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{
-        RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility,
-    },
+    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility},
     config::ExperimentConfig,
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
