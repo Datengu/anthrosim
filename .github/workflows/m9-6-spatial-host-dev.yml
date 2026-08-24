@@ -29,6 +29,32 @@ jobs:
       - name: Apply M9.6 spatial-host patch
         run: python scripts/apply_m9_6_spatial_host.py
 
+      - name: Correct validation fixture and test-only compatibility wrappers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          test = Path('crates/anthrosim-core/tests/spatial_temporary_mobility.rs')
+          text = test.read_text()
+          text = text.replace('    CellId, DemographyConfig,', '    DemographyConfig,', 1)
+          text = text.replace('    GridGeometry, HouseholdId, LandscapeBundle,', '    GridGeometry, LandscapeBundle,', 1)
+          marker = '};\n\nfn layer'
+          if marker not in text:
+              raise SystemExit('could not locate spatial temporary mobility import boundary')
+          text = text.replace(marker, '};\nuse anthrosim_core::ids::{CellId, HouseholdId};\n\nfn layer', 1)
+          test.write_text(text)
+
+          for path, needle in [
+              (Path('crates/anthrosim-core/src/migration.rs'), '    pub(crate) fn process_boundary_recorded('),
+              (Path('crates/anthrosim-core/src/resources.rs'), '    pub(crate) fn process_period_recorded('),
+          ]:
+              source = path.read_text()
+              if source.count(needle) != 1:
+                  raise SystemExit(f'expected one compatibility wrapper in {path}')
+              source = source.replace(needle, '    #[cfg(test)]\n' + needle, 1)
+              path.write_text(source)
+          PY
+
       - name: Format
         run: cargo fmt --all
 
