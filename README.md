@@ -2,7 +2,7 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, migration, kinship, cultural transmission, and long-run social emergence.
 
-**v0.1 establishes a deterministic synthetic population-simulation and experiment baseline.** M8 extends that baseline with evidence-grounded spatial inputs, explicit model-facing transformations, spatial observability and a first real-world-derived terrain null-model benchmark. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
+**v0.2.0 is the audited M8 evidence-grounded spatial experiment baseline.** It retains the deterministic synthetic population-simulation and experiment engine established through M1–M7, and adds provenance-tracked landscape inputs, explicit model-facing spatial transformations, evidence catalogues, spatial observability, real-world-derived terrain benchmarking, and the post-M8 research-integrity hardening required to preserve that baseline. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
 ## Core rule
 
