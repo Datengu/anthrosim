@@ -66,7 +66,7 @@ AnthroSim does not serialize opaque RNG implementation memory. Each named ChaCha
 - `migration/choice`
 - `migration/uncertainty`
 
-Regression tests require uninterrupted execution and checkpoint-resumed execution to produce identical final manifests, authoritative states, event logs, metric series and state digests.
+Regression tests require uninterrupted execution and checkpoint-resumed execution to produce identical authoritative final state, event history, metric series and state digests. Provenance-bearing manifest/checkpoint artifacts may differ because a resumed execution records explicit `resumeLineage` boundaries rather than pretending it was uninterrupted.
 
 ## Controlled offline run layout
 
@@ -90,13 +90,13 @@ A resumable intermediate run can be written with `--checkpoint-year N`. It write
 anthrosim resume --checkpoint <run-dir>/checkpoint.json --run-dir <run-dir>
 ```
 
-When the original run directory is reused, its initial-population artifact is retained. When resuming into a new directory, AnthroSim writes `resume-start-population.json` so the resumed artifact does not falsely present checkpoint-time state as founder state.
+When the original run directory is reused, its `initial-population.json` founder artifact is retained. When resuming into a new directory, AnthroSim retains `resume-start-population.json` as the checkpoint-boundary population **and** deterministically materializes the true original `initial-population.json` from immutable initialization provenance. The two files describe different moments: full-history replay always starts from `initial-population.json`.
 
 ## Compatibility and provenance
 
 The run manifest now reports the current schema versions for the manifest, events, metrics, checkpoint, world, population, resources and migration artifacts. Checkpoint loading rejects incompatible checkpoint/model/artifact versions, invalid annual boundaries, world-digest mismatch and state-digest mismatch.
 
-`gitCommit` remains optional in local builds unless the build environment supplies `ANTHROSIM_GIT_COMMIT`. Therefore a research archive should not rely on that field alone until automatic source-revision injection is implemented; repository revision/tag and locked dependency/toolchain provenance remain part of the external run record.
+Ordinary Git builds automatically embed source provenance in `gitCommit`: a clean tracked tree records the exact commit SHA and a tracked dirty tree records `<sha>-dirty-<working-tree-digest>`. Builds without resolvable Git metadata record `null`, while controlled build environments may override the value with `ANTHROSIM_GIT_COMMIT`. Formal versioned research sweeps preflight the exact supplied binary and reject missing or automatic dirty identities; see `docs/source-provenance.md`.
 
 ## Scope and limitations
 

@@ -17,7 +17,9 @@ A completed M5 run contains six JSON artifacts:
 - `metrics.json`;
 - `checkpoint.json`.
 
-A deliberately paused `--checkpoint-year` run contains the same artifacts **except `manifest.json`**, because it has not completed. M6 therefore requires world, founder population, events, metrics and checkpoint, while treating the manifest as optional. For a paused bundle the checkpoint is the authoritative current boundary; the explorer does not fabricate a completed manifest.
+A deliberately paused `--checkpoint-year` run contains the same artifacts **except `manifest.json`**, because it has not completed. M6 therefore requires world, the day-zero founder population, events, metrics and checkpoint, while treating the manifest as optional. For a paused bundle the checkpoint is the authoritative current boundary; the explorer does not fabricate a completed manifest.
+
+A current new-directory resume contains both `initial-population.json` and `resume-start-population.json`. The former is deterministically materialized as the true original day-zero founder state and remains the only baseline for full-history event replay. The latter records population state at the resume boundary for provenance/inspection and must never be substituted for founders. In-place resumes retain the original `initial-population.json`.
 
 For completed runs, the explorer checks the manifest's declared artifact schema versions against the files actually loaded and reconciles event/metric totals with the terminal manifest. For paused runs, it checks the experiment and state schemas carried by the checkpoint, requires separately written event/metric history to agree with the history embedded in the checkpoint, and reconciles counts against checkpoint state. Unknown or mismatched required schemas are rejected instead of being silently interpreted.
 
@@ -111,7 +113,7 @@ The default output is written beside the directory as `runs/my-run.zip`. A custo
 The packer:
 
 - requires a **completed** bundle, including `manifest.json`; paused checkpoint bundles are rejected;
-- requires the standard world/events/metrics/checkpoint artifacts plus either `initial-population.json` or `resume-start-population.json`;
+- requires the standard world/events/metrics/checkpoint artifacts and a resolvable day-zero founder population; current bundles carry `initial-population.json`, while semantic validation retains a reconstruction path for supported legacy resumed bundles that predate founder materialization;
 - validates included artifacts as JSON before writing the archive;
 - includes known landscape, spatial-mechanism, evidence, observability and ensemble-completion artifacts when they are present;
 - ignores unrelated files in the run directory rather than accidentally sharing them;
@@ -126,7 +128,7 @@ Packaging is a convenience layer only. It does not replace, rewrite or change th
 
 The server:
 
-- requires the five artifacts common to completed and paused M5 bundles and exposes `manifest.json` only when it exists;
+- requires the five standard M5 reconstruction artifacts (`world.json`, `initial-population.json`, `events.json`, `metrics.json`, `checkpoint.json`), exposes `manifest.json` only when it exists, and may serve `resume-start-population.json` as optional resume-boundary provenance;
 - exposes only the fixed M6 static assets;
 - provides GET/HEAD only;
 - rejects POST/PUT/DELETE;
