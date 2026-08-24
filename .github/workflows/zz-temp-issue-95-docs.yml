@@ -19,42 +19,119 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          # Main-CLI examples in the M7 experiment guide must select the main
-          # binary explicitly now that anthrosim-cli contains multiple binaries.
+          def replace_once(path: Path, old: str, new: str, label: str) -> None:
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'{label} anchor not found in {path}')
+              path.write_text(text.replace(old, new, 1))
+
+          # Main CLI examples: the package has multiple binaries, so explicit
+          # selection is required. The audit named experiments-v0.1 and the
+          # repository-wide check also found the M7 soak guide.
+          for path in (Path('docs/experiments-v0.1.md'), Path('docs/research/soak-v0.1.md')):
+              text = path.read_text()
+              for command in ('run', 'resume', 'ensemble', 'sweep', 'provenance'):
+                  text = text.replace(
+                      f'cargo run --release -p anthrosim-cli -- {command}',
+                      f'cargo run --release -p anthrosim-cli --bin anthrosim -- {command}',
+                  )
+                  text = text.replace(
+                      f'cargo run -p anthrosim-cli -- {command}',
+                      f'cargo run -p anthrosim-cli --bin anthrosim -- {command}',
+                  )
+              path.write_text(text)
+
           experiments = Path('docs/experiments-v0.1.md')
           text = experiments.read_text()
-          for command in ('run', 'resume', 'ensemble', 'sweep', 'provenance'):
-              text = text.replace(
-                  f'cargo run --release -p anthrosim-cli -- {command}',
-                  f'cargo run --release -p anthrosim-cli --bin anthrosim -- {command}',
-              )
-              text = text.replace(
-                  f'cargo run -p anthrosim-cli -- {command}',
-                  f'cargo run -p anthrosim-cli --bin anthrosim -- {command}',
-              )
+          text = text.replace(
+              'staged or unstaged tracked modifications record `<sha>-dirty`;',
+              'staged or unstaged tracked modifications record `<sha>-dirty-<working-tree-digest>`;',
+          )
+          text = text.replace(
+              'A tracked modification produces a `-dirty` source identity and build warning.',
+              'A tracked modification produces a `-dirty-<working-tree-digest>` source identity and build warning.',
+          )
           experiments.write_text(text)
 
           architecture = Path('docs/architecture.md')
-          text = architecture.read_text()
-          old = '''A completed controlled run directory contains a manifest, generated world, founder population, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains world, founder population, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.'''
-          new = '''A fresh completed controlled run directory contains a manifest, generated world, the day-zero founder population in `initial-population.json`, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains the same day-zero founder artifact plus world, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.\n\nA run resumed into a different directory also retains `resume-start-population.json` as the population snapshot at the resume boundary. That boundary snapshot is provenance, **not** a replacement for the founders. Before the resumed bundle is promoted, AnthroSim deterministically materializes the true day-zero `initial-population.json` from the checkpoint's immutable population configuration, seed and authoritative world. An in-place resume preserves the original founder artifact. Full-history reconstruction therefore always begins from `initial-population.json`; treating `resume-start-population.json` as founders would double-apply the pre-resume event history.'''
-          if old not in text:
-              raise SystemExit('architecture persistence paragraph anchor not found')
-          text = text.replace(old, new, 1)
-
-          old = '''`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus the five run files common to completed and paused M5 bundles. `manifest.json` is additionally exposed only when it actually exists. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.'''
-          new = '''`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus an explicit allowlist of run artifacts. The required M5 reconstruction inputs are `world.json`, `initial-population.json`, `events.json`, `metrics.json` and `checkpoint.json`; `manifest.json` is exposed only when it exists. A resumed bundle may additionally expose `resume-start-population.json` as boundary provenance, while M8 landscape/spatial artifacts remain optional allowlisted extensions. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.'''
-          if old not in text:
-              raise SystemExit('architecture explorer paragraph anchor not found')
-          architecture.write_text(text.replace(old, new, 1))
+          replace_once(
+              architecture,
+              'A completed controlled run directory contains a manifest, generated world, founder population, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains world, founder population, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.',
+              'A fresh completed controlled run directory contains a manifest, generated world, the day-zero founder population in `initial-population.json`, event log, metric series and checkpoint. A deliberately paused `--checkpoint-year` directory contains the same day-zero founder artifact plus world, event log, metric series and checkpoint but no completed-run manifest. The explorer and research tooling can inspect either form without a live database or simulation process.\n\nA run resumed into a different directory also retains `resume-start-population.json` as the population snapshot at the resume boundary. That boundary snapshot is provenance, **not** a replacement for the founders. Before the resumed bundle is promoted, AnthroSim deterministically materializes the true day-zero `initial-population.json` from the checkpoint\'s immutable population configuration, seed and authoritative world. An in-place resume preserves the original founder artifact. Full-history reconstruction therefore always begins from `initial-population.json`; treating `resume-start-population.json` as founders would double-apply the pre-resume event history.',
+              'architecture persistence paragraph',
+          )
+          replace_once(
+              architecture,
+              '`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus the five run files common to completed and paused M5 bundles. `manifest.json` is additionally exposed only when it actually exists. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.',
+              '`scripts/serve-explorer.py` binds to loopback by default and exposes only fixed explorer assets plus an explicit allowlist of run artifacts. The required M5 reconstruction inputs are `world.json`, `initial-population.json`, `events.json`, `metrics.json` and `checkpoint.json`; `manifest.json` is exposed only when it exists. A resumed bundle may additionally expose `resume-start-population.json` as boundary provenance, while M8 landscape/spatial artifacts remain optional allowlisted extensions. The server implements GET/HEAD only and rejects write methods. The browser application performs no API call that can mutate simulation or artifact state.',
+              'architecture explorer paragraph',
+          )
 
           readme = Path('README.md')
           text = readme.read_text()
-          anchor = '''cargo run --release -p anthrosim-cli --bin anthrosim -- resume --checkpoint runs/m5-resume/checkpoint.json --run-dir runs/m5-resume\n```\n'''
-          addition = '''cargo run --release -p anthrosim-cli --bin anthrosim -- resume --checkpoint runs/m5-resume/checkpoint.json --run-dir runs/m5-resume\n```\n\n`initial-population.json` is always the day-zero founder state used by the explorer for full-history reconstruction. If a checkpoint is resumed into a **different** output directory, the completed bundle also retains `resume-start-population.json` as the population at the resume boundary. AnthroSim deterministically reconstructs/writes the true original `initial-population.json` into that new bundle; `resume-start-population.json` is boundary provenance and must never be treated as the founders.\n'''
+          text = text.replace(
+              'A staged or unstaged tracked modification records `<sha>-dirty` and emits a build warning.',
+              'A staged or unstaged tracked modification records `<sha>-dirty-<working-tree-digest>` and emits a build warning.',
+          )
+          anchor = 'cargo run --release -p anthrosim-cli --bin anthrosim -- resume --checkpoint runs/m5-resume/checkpoint.json --run-dir runs/m5-resume\n```\n'
+          addition = anchor + '\n`initial-population.json` is always the day-zero founder state used by the explorer for full-history reconstruction. If a checkpoint is resumed into a **different** output directory, the completed bundle also retains `resume-start-population.json` as the population at the resume boundary. AnthroSim deterministically reconstructs/writes the true original `initial-population.json` into that new bundle; `resume-start-population.json` is boundary provenance and must never be treated as the founders.\n'
           if anchor not in text:
               raise SystemExit('README resume example anchor not found')
           readme.write_text(text.replace(anchor, addition, 1))
+
+          explorer = Path('docs/research/explorer-v0.1.md')
+          replace_once(
+              explorer,
+              'A deliberately paused `--checkpoint-year` run contains the same artifacts **except `manifest.json`**, because it has not completed. M6 therefore requires world, founder population, events, metrics and checkpoint, while treating the manifest as optional. For a paused bundle the checkpoint is the authoritative current boundary; the explorer does not fabricate a completed manifest.',
+              'A deliberately paused `--checkpoint-year` run contains the same artifacts **except `manifest.json`**, because it has not completed. M6 therefore requires world, the day-zero founder population, events, metrics and checkpoint, while treating the manifest as optional. For a paused bundle the checkpoint is the authoritative current boundary; the explorer does not fabricate a completed manifest.\n\nA current new-directory resume contains both `initial-population.json` and `resume-start-population.json`. The former is deterministically materialized as the true original day-zero founder state and remains the only baseline for full-history event replay. The latter records population state at the resume boundary for provenance/inspection and must never be substituted for founders. In-place resumes retain the original `initial-population.json`.',
+              'explorer run-bundle paragraph',
+          )
+          replace_once(
+              explorer,
+              '- requires the standard world/events/metrics/checkpoint artifacts plus either `initial-population.json` or `resume-start-population.json`;',
+              '- requires the standard world/events/metrics/checkpoint artifacts and a resolvable day-zero founder population; current bundles carry `initial-population.json`, while semantic validation retains a reconstruction path for supported legacy resumed bundles that predate founder materialization;',
+              'explorer packer population bullet',
+          )
+          replace_once(
+              explorer,
+              '- requires the five artifacts common to completed and paused M5 bundles and exposes `manifest.json` only when it exists;',
+              '- requires the five standard M5 reconstruction artifacts (`world.json`, `initial-population.json`, `events.json`, `metrics.json`, `checkpoint.json`), exposes `manifest.json` only when it exists, and may serve `resume-start-population.json` as optional resume-boundary provenance;',
+              'explorer server artifact bullet',
+          )
+
+          observability = Path('docs/research/observability-v0.1.md')
+          replace_once(
+              observability,
+              'Regression tests require uninterrupted execution and checkpoint-resumed execution to produce identical final manifests, authoritative states, event logs, metric series and state digests.',
+              'Regression tests require uninterrupted execution and checkpoint-resumed execution to produce identical authoritative final state, event history, metric series and state digests. Provenance-bearing manifest/checkpoint artifacts may differ because a resumed execution records explicit `resumeLineage` boundaries rather than pretending it was uninterrupted.',
+              'observability resume regression paragraph',
+          )
+          replace_once(
+              observability,
+              'When the original run directory is reused, its initial-population artifact is retained. When resuming into a new directory, AnthroSim writes `resume-start-population.json` so the resumed artifact does not falsely present checkpoint-time state as founder state.',
+              'When the original run directory is reused, its `initial-population.json` founder artifact is retained. When resuming into a new directory, AnthroSim retains `resume-start-population.json` as the checkpoint-boundary population **and** deterministically materializes the true original `initial-population.json` from immutable initialization provenance. The two files describe different moments: full-history replay always starts from `initial-population.json`.',
+              'observability resumed population paragraph',
+          )
+          replace_once(
+              observability,
+              '`gitCommit` remains optional in local builds unless the build environment supplies `ANTHROSIM_GIT_COMMIT`. Therefore a research archive should not rely on that field alone until automatic source-revision injection is implemented; repository revision/tag and locked dependency/toolchain provenance remain part of the external run record.',
+              'Ordinary Git builds automatically embed source provenance in `gitCommit`: a clean tracked tree records the exact commit SHA and a tracked dirty tree records `<sha>-dirty-<working-tree-digest>`. Builds without resolvable Git metadata record `null`, while controlled build environments may override the value with `ANTHROSIM_GIT_COMMIT`. Formal versioned research sweeps preflight the exact supplied binary and reject missing or automatic dirty identities; see `docs/source-provenance.md`.',
+              'observability git provenance paragraph',
+          )
+
+          spatial = Path('docs/research/spatial-observability-v1.md')
+          replace_once(
+              spatial,
+              'A new-directory resume may legitimately contain only `resume-start-population.json`. The checkpoint still preserves the immutable experiment seed and population initialization configuration, while `world.json` preserves the exact authoritative world used by the resumed run. Under the same compatible model semantics, M8.5 deterministically regenerates the original founders from those inputs and uses that regenerated population as day zero.',
+              'Current AnthroSim new-directory resumes contain both artifacts: `resume-start-population.json` preserves the resume-boundary state, while the producer deterministically materializes the true original `initial-population.json` from the checkpoint\'s immutable experiment seed/population configuration and `world.json`. M8.5 still retains deterministic founder reconstruction for supported legacy resumed bundles created before producer-level founder materialization, but current bundles do not rely on that fallback.',
+              'spatial observability resumed population paragraph',
+          )
+          replace_once(
+              spatial,
+              '1. resolve the original day-zero founders from `initial-population.json`, or deterministically reconstruct them for a supported resumed bundle;',
+              '1. resolve the original day-zero founders from `initial-population.json` (or deterministically reconstruct them only for a supported legacy resumed bundle);',
+              'spatial observability replay step',
+          )
 
           # Give the later independent-engine decision the next unused stable ADR
           # number rather than renumbering established ADRs 0001-0004.
@@ -67,8 +144,7 @@ jobs:
           new_adr.write_text(adr.replace(heading, heading.replace('0001', '0005'), 1))
           old_adr.unlink()
 
-          ci = Path('docs/ci-validation.md')
-          ci.write_text('''# CI validation topology\n\nAnthroSim separates validation by responsibility so cheap correctness failures are reported before expensive research and performance work consumes runner time. Workflow files are kept independent where a failure represents a distinct research-engineering contract; this document describes those responsibilities rather than duplicating their implementation steps.\n\n## Main CI workflow\n\nThe `CI` workflow (`.github/workflows/ci.yml`) owns the general Rust/application quality and scale gates:\n\n1. **Quality and tests** — locked dependency metadata, formatting, Clippy, and the full Rust workspace test suite.\n2. **Explorer and script validation** — JavaScript/Python syntax checks and explorer model tests.\n3. Once both cheap gates pass, **Core benchmarks** and **Release build** run independently.\n4. The release build is reused by the focused downstream gates for the 1000-run ensemble soak, performance/memory acceptance, the canonical M7.6 reference experiment, and M5/M6 bundle integration.\n\nThe dependency graph prevents formatting, lint, unit-test, or script failures from spending time on the expensive acceptance stages while keeping the release binary identical across downstream gates.\n\n## Independent reproducibility and research-artifact workflows\n\nThe following workflow families remain separate from the main CI graph because each protects a distinct contract:\n\n- **Cross-platform determinism** (`cross-platform-determinism.yml`) — requires normalized authoritative outputs from the compact golden fixture to agree across Ubuntu, Windows and macOS.\n- **Landscape preprocessing** (`landscape-preprocessing.yml`) — checks deterministic normalization/preprocessing of declared landscape inputs.\n- **Landscape loading determinism** (`landscape-loading.yml`) — verifies normalized landscape loading and landscape-bound execution remain deterministic and correctly bound.\n- **Spatial mechanism determinism** (`spatial-mechanisms.yml`) — validates versioned landscape-to-model transformations, mechanism identity and transformed spatial execution.\n- **Spatial observability** (`spatial-observability.yml`) — regenerates/validates downstream spatial observability, including resumed spatial histories and tamper rejection.\n- **Resumed Explorer compatibility** (`resumed-explorer.yml`) — proves new-directory resumed core and transformed-spatial bundles contain true day-zero founders, retain resume-boundary provenance, reconcile through M6, and are served read-only.\n- **Run bundle pack** (`run-bundle-pack.yml`) — validates semantic pack acceptance/rejection and deterministic canonical ZIP output for shareable completed run bundles.\n- **Source provenance** (`source-provenance.yml`) — checks clean/dirty/override source identities and the exact-binary provenance preflight used by versioned research sweeps.\n- **M8 benchmark data** (`m8-benchmark-data.yml`) — validates the committed benchmark input/data provenance contract independently of simulation output.\n- **M8.6 evidence-grounded spatial benchmark** (`m8-spatial-benchmark.yml`) — executes and checks the declared evidence-grounded reference benchmark/reproduction path.\n\nThese workflows complement rather than replace semantic validation inside the binaries. A green workflow shows that the corresponding contract passed in CI; artifact readers and research commands still validate the artifacts they consume.\n\n## Supply-chain rule\n\nEvery third-party GitHub Action is pinned to an immutable full commit SHA with a human-readable release comment. Updates follow the reviewed process in `CONTRIBUTING.md`; mutable tags and branches are not accepted as CI dependencies.\n''')
+          Path('docs/ci-validation.md').write_text('''# CI validation topology\n\nAnthroSim separates validation by responsibility so cheap correctness failures are reported before expensive research and performance work consumes runner time. Workflow files are kept independent where a failure represents a distinct research-engineering contract; this document describes those responsibilities rather than duplicating their implementation steps.\n\n## Main CI workflow\n\nThe `CI` workflow (`.github/workflows/ci.yml`) owns the general Rust/application quality and scale gates:\n\n1. **Quality and tests** — locked dependency metadata, formatting, Clippy, and the full Rust workspace test suite.\n2. **Explorer and script validation** — JavaScript/Python syntax checks and explorer model tests.\n3. Once both cheap gates pass, **Core benchmarks** and **Release build** run independently.\n4. The release build is reused by the focused downstream gates for the 1000-run ensemble soak, performance/memory acceptance, the canonical M7.6 reference experiment, and M5/M6 bundle integration.\n\nThe dependency graph prevents formatting, lint, unit-test, or script failures from spending time on the expensive acceptance stages while keeping the release binary identical across downstream gates.\n\n## Independent reproducibility and research-artifact workflows\n\nThe following workflow families remain separate from the main CI graph because each protects a distinct contract:\n\n- **Cross-platform determinism** (`cross-platform-determinism.yml`) — requires normalized authoritative outputs from the compact golden fixture to agree across Ubuntu, Windows and macOS.\n- **Landscape preprocessing** (`landscape-preprocessing.yml`) — checks deterministic normalization/preprocessing of declared landscape inputs.\n- **Landscape loading determinism** (`landscape-loading.yml`) — verifies normalized landscape loading and landscape-bound execution remain deterministic and correctly bound.\n- **Spatial mechanism determinism** (`spatial-mechanisms.yml`) — validates versioned landscape-to-model transformations, mechanism identity and transformed spatial execution.\n- **Spatial observability** (`spatial-observability.yml`) — regenerates/validates downstream spatial observability, including resumed spatial histories and tamper rejection.\n- **Resumed Explorer compatibility** (`resumed-explorer.yml`) — proves new-directory resumed core and transformed-spatial bundles contain true day-zero founders, retain resume-boundary provenance, reconcile through M6, and are served read-only.\n- **Run bundle pack** (`run-bundle-pack.yml`) — validates semantic pack acceptance/rejection and deterministic canonical ZIP output for shareable completed run bundles.\n- **Source provenance** (`source-provenance.yml`) — checks clean/dirty/override source identities and the exact-binary provenance preflight used by versioned research sweeps.\n- **M8 benchmark data** (`m8-benchmark-data.yml`) — validates the committed benchmark input/data provenance contract independently of simulation output.\n- **M8.6 evidence-grounded spatial benchmark** (`m8-spatial-benchmark.yml`) — executes and checks the declared evidence-grounded reference benchmark/reproduction path.\n\nThese workflows complement rather than replace semantic validation inside the binaries. A green workflow shows that the corresponding contract passed in CI; artifact readers and research commands still validate the artifacts they consume.\n\n## Supply-chain rule\n\nEvery third-party GitHub Action is pinned to an immutable full commit SHA with a human-readable release comment. Updates follow the reviewed process in `CONTRIBUTING.md`; mutable tags and branches are not accepted as CI dependencies.\n''')
           PY
 
           echo 'Population-artifact references after reconciliation:'
@@ -79,6 +155,23 @@ jobs:
             echo 'Found ambiguous main CLI examples that still omit --bin anthrosim' >&2
             exit 1
           fi
+
+          echo 'Checking for stale current-contract population wording:'
+          if git grep -n -E 'new-directory resume may legitimately contain only|When resuming into a new directory, AnthroSim writes `resume-start-population.json` so|plus either `initial-population.json` or `resume-start-population.json`' -- '*.md'; then
+            echo 'Found stale pre-#92 resumed-population wording' >&2
+            exit 1
+          fi
+
+          echo 'Checking ADR numeric prefixes are unique:'
+          python3 - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          prefixes = [path.name.split('-', 1)[0] for path in Path('docs/adr').glob('[0-9][0-9][0-9][0-9]-*.md')]
+          duplicates = sorted(prefix for prefix, count in Counter(prefixes).items() if count > 1)
+          if duplicates:
+              raise SystemExit(f'duplicate ADR numeric prefixes remain: {duplicates}')
+          print('ADR prefixes:', ', '.join(sorted(prefixes)))
+          PY
 
           rm .github/workflows/zz-temp-issue-95-docs.yml
           git config user.name 'github-actions[bot]'
