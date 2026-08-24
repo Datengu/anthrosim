@@ -25,6 +25,7 @@ struct ReplacementTransactionMarker {
     backup_name: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RecoveryOutcome {
     NoRecoveryNeeded,
@@ -242,6 +243,7 @@ impl Drop for RunDirectoryTransaction {
 /// resolved deterministically from the bound target/stage/backup paths. A
 /// narrow legacy path restores the old verified backup when the pre-marker
 /// implementation was interrupted after moving the canonical target aside.
+#[allow(dead_code)]
 pub(crate) fn recover_interrupted_replacement(target: &Path) -> io::Result<RecoveryOutcome> {
     let marker_path = transaction_marker_path(target);
     if marker_path.exists() {
@@ -259,6 +261,7 @@ pub(crate) fn same_existing_path(left: &Path, right: &Path) -> io::Result<bool> 
     Ok(fs::canonicalize(left)? == fs::canonicalize(right)?)
 }
 
+#[allow(dead_code)]
 fn recover_marked_transaction(target: &Path, marker_path: &Path) -> io::Result<RecoveryOutcome> {
     reject_symlink_target(marker_path)?;
     let marker: ReplacementTransactionMarker = read_json(marker_path)?;
@@ -314,6 +317,7 @@ fn recover_marked_transaction(target: &Path, marker_path: &Path) -> io::Result<R
     }
 }
 
+#[allow(dead_code)]
 fn recover_legacy_remnants(target: &Path) -> io::Result<RecoveryOutcome> {
     let (stages, backups) = legacy_remnants(target)?;
     if stages.is_empty() && backups.is_empty() {
@@ -360,6 +364,7 @@ fn require_no_unresolved_transaction(target: &Path) -> io::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn validate_marker(target: &Path, marker: &ReplacementTransactionMarker) -> io::Result<()> {
     if marker.schema_version != REPLACEMENT_TRANSACTION_SCHEMA_VERSION {
         return Err(io::Error::new(
@@ -394,6 +399,7 @@ fn validate_marker(target: &Path, marker: &ReplacementTransactionMarker) -> io::
     Ok(())
 }
 
+#[allow(dead_code)]
 fn checked_directory_exists(path: &Path, role: &str) -> io::Result<bool> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err(io::Error::new(
@@ -609,6 +615,7 @@ fn file_name_string(path: &Path) -> io::Result<String> {
         })
 }
 
+#[allow(dead_code)]
 fn is_safe_single_component(value: &str) -> bool {
     let path = Path::new(value);
     path.file_name().and_then(|name| name.to_str()) == Some(value)
