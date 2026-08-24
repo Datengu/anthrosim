@@ -157,7 +157,9 @@ fn mask_nodata_and_empty_region_are_rejected() {
             &evidence_catalog(),
             &world(),
         ),
-        Err(FocalRegionBindingError::Region(FocalRegionError::EmptyRegion))
+        Err(FocalRegionBindingError::Region(
+            FocalRegionError::EmptyRegion
+        ))
     );
 }
 
