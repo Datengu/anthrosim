@@ -2,7 +2,7 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, migration, kinship, cultural transmission, and long-run social emergence.
 
-**v0.1 establishes a deterministic synthetic population-simulation and experiment baseline.** M8 extends that baseline with evidence-grounded spatial inputs, explicit model-facing transformations, spatial observability and a first real-world-derived terrain null-model benchmark. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
+**v0.2.0 is the audited M8 evidence-grounded spatial experiment baseline.** It retains the deterministic synthetic population-simulation and experiment engine established through M1–M7, and adds provenance-tracked landscape inputs, explicit model-facing spatial transformations, evidence catalogues, spatial observability, real-world-derived terrain benchmarking, and the post-M8 research-integrity hardening required to preserve that baseline. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
 ## Core rule
 
@@ -176,8 +176,6 @@ cargo run --release -p anthrosim-cli --bin anthrosim -- sweep \
 ```
 
 Supported sweep dimensions include founder population, target household size, M3 productivity scale, M3 seasonal-amplitude scale, annual food need, migration enabled/disabled, migration radius and the M8 spatial execution path. A control that is not explicitly swept uses its ordinary base command value.
-
-A fresh sweep writes immutable `sweep-manifest.json` before point execution. It records the exact base settings, declared dimension values, seed definition, model identity and every expanded parameter point. Each point then lives under `experiments/point-XXXXXX/` as a normal M7 experiment, with its own immutable `experiment-manifest.json`, status files, retries and completed bundles. Retrying a sweep requires the exact same definition plus `--retry`; a changed grid, seed set or base control is rejected before child execution.
 
 The sweep root also contains a deliberately separate `analysis/` directory:
 
