@@ -8,6 +8,7 @@ pub mod config;
 pub mod demography;
 pub mod events;
 pub mod evidence;
+pub mod focal_region;
 pub mod ids;
 pub mod invariants;
 pub mod landscape;
@@ -40,6 +41,7 @@ pub use evidence::{
     EvidenceCatalog, EvidenceError, EvidenceRecord, EvidenceSource, EvidenceTransformation,
     EvidenceUncertainty, ExternalInputEvidence, ParameterEvidenceLink, validate_evidence_catalog,
 };
+pub use focal_region::{FocalRegion, FocalRegionError, FocalRegionSource};
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
     validate_recorded_run_invariants,
