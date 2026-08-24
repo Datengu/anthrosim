@@ -39,7 +39,9 @@ pub use config::{
 pub use demography::{
     DemographyConfigError, annual_probability_for_age, validate_demography_config,
 };
-pub use events::{DeathCause, EventKind, EventLog, EventProvenance, EventRecord};
+pub use events::{
+    DeathCause, EventKind, EventLog, EventProvenance, EventRecord, TemporaryJourneyIneligibility,
+};
 pub use evidence::{
     EvidenceCatalog, EvidenceError, EvidenceRecord, EvidenceSource, EvidenceTransformation,
     EvidenceUncertainty, ExternalInputEvidence, ParameterEvidenceLink, validate_evidence_catalog,
@@ -96,8 +98,11 @@ pub use spatial_simulation::{
     validate_spatial_landscape_recorded_run,
 };
 pub use temporary_mobility::{
-    HouseholdPresence, TemporaryMobilityError, TemporaryMobilityState,
-    TemporaryMobilityValidationError,
+    ActiveTemporaryJourney, HouseholdPresence, TemporaryJourneySkip, TemporaryMobilityDayOutcome,
+    TemporaryMobilityError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
+    TemporaryMobilityProgramError, TemporaryMobilitySchedule, TemporaryMobilityState,
+    TemporaryMobilityValidationError, TemporaryTravelResolution, TemporaryTravelTable,
+    TemporaryTriggerTiming,
 };
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};
