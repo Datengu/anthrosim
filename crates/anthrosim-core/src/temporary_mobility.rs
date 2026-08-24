@@ -100,7 +100,8 @@ impl TemporaryMobilityState {
 
     #[must_use]
     pub fn is_at_residence(&self, household: HouseholdId) -> Option<bool> {
-        self.presence(household).map(HouseholdPresence::is_at_residence)
+        self.presence(household)
+            .map(HouseholdPresence::is_at_residence)
     }
 
     /// Current modelled physical cell, when M9 v1 asserts one.
@@ -108,11 +109,7 @@ impl TemporaryMobilityState {
     /// Transit returns `None` by design. `AtResidence` resolves through the persistent
     /// residence stored by `Population`; `Visiting` resolves to the temporary destination.
     #[must_use]
-    pub fn current_cell(
-        &self,
-        household: HouseholdId,
-        population: &Population,
-    ) -> Option<CellId> {
+    pub fn current_cell(&self, household: HouseholdId, population: &Population) -> Option<CellId> {
         match self.presence(household)? {
             HouseholdPresence::AtResidence => population.household_location(household),
             HouseholdPresence::Visiting { destination, .. } => Some(destination),
@@ -316,7 +313,11 @@ pub enum TemporaryMobilityValidationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::{PopulationConfig, WorldConfig}, rng::RngFactory, world::World};
+    use crate::{
+        config::{PopulationConfig, WorldConfig},
+        rng::RngFactory,
+        world::World,
+    };
 
     fn fixture(seed: u64) -> (World, Population) {
         let world = World::generate(WorldConfig::new(8, 8), RngFactory::new(seed)).unwrap();
@@ -400,7 +401,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(population.household_location(household), Some(residence));
-        assert_eq!(state.current_cell(household, &population), Some(destination));
+        assert_eq!(
+            state.current_cell(household, &population),
+            Some(destination)
+        );
         state.validate(&population, &world).unwrap();
     }
 
@@ -410,8 +414,10 @@ mod tests {
         let mut state = TemporaryMobilityState::at_residence(&population);
         let first = HouseholdId::new(1);
         let second = HouseholdId::new(2);
-        let first_destination = different_cell(&world, population.household_location(first).unwrap());
-        let second_destination = different_cell(&world, population.household_location(second).unwrap());
+        let first_destination =
+            different_cell(&world, population.household_location(first).unwrap());
+        let second_destination =
+            different_cell(&world, population.household_location(second).unwrap());
         let journey = TemporaryJourneyId::new(3);
 
         state
