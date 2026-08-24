@@ -126,7 +126,8 @@ impl TemporaryMobilityState {
             .all(|presence| presence.is_at_residence())
     }
 
-    pub(crate) fn set_presence(
+    #[cfg(test)]
+    fn set_presence(
         &mut self,
         household: HouseholdId,
         presence: HouseholdPresence,
