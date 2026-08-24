@@ -603,6 +603,8 @@ impl SpatialLandscapeSimulation {
         let state_digest = self.state_digest64();
         let rng = self.rng_checkpoint();
         let completed_years = self.time.days() / DAYS_PER_YEAR;
+        let temporary_mobility =
+            crate::temporary_mobility::TemporaryMobilityState::at_residence(&self.population);
         SimulationCheckpoint {
             schema_version: SimulationCheckpoint::CURRENT_SCHEMA_VERSION,
             model_version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -615,6 +617,7 @@ impl SpatialLandscapeSimulation {
             terminal_stop_reason: self.terminal_stop_reason,
             world_digest64: self.world.digest64(),
             population: self.population,
+            temporary_mobility,
             resources: self.resources,
             migration: self.migration.checkpoint_state(),
             rng,
