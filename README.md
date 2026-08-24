@@ -71,7 +71,7 @@ No historical destination, route, settlement, tribe or migration outcome is scri
 
 AnthroSim uses the Rust toolchain pinned in `rust-toolchain.toml`. The CLI package contains multiple binaries, so local `cargo run` commands should explicitly select the main `anthrosim` binary.
 
-Builds made inside a Git checkout automatically capture source provenance; no manual environment variable is required. A clean tracked tree records the exact commit SHA in `gitCommit`. A staged or unstaged tracked modification records `<sha>-dirty` and emits a build warning. Outside a Git checkout AnthroSim does not invent a revision and records `gitCommit: null`. Controlled build environments may still supply `ANTHROSIM_GIT_COMMIT` explicitly. See [`docs/source-provenance.md`](docs/source-provenance.md).
+Builds made inside a Git checkout automatically capture source provenance; no manual environment variable is required. A clean tracked tree records the exact commit SHA in `gitCommit`. A staged or unstaged tracked modification records `<sha>-dirty-<working-tree-digest>` and emits a build warning. Outside a Git checkout AnthroSim does not invent a revision and records `gitCommit: null`. Controlled build environments may still supply `ANTHROSIM_GIT_COMMIT` explicitly. See [`docs/source-provenance.md`](docs/source-provenance.md).
 
 From the repository root, a small headless run can be executed with:
 
@@ -107,6 +107,8 @@ Resume later with:
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- resume --checkpoint runs/m5-resume/checkpoint.json --run-dir runs/m5-resume
 ```
+
+`initial-population.json` is always the day-zero founder state used by the explorer for full-history reconstruction. If a checkpoint is resumed into a **different** output directory, the completed bundle also retains `resume-start-population.json` as the population at the resume boundary. AnthroSim deterministically reconstructs/writes the true original `initial-population.json` into that new bundle; `resume-start-population.json` is boundary provenance and must never be treated as the founders.
 
 The CLI exposes synthetic experiment controls such as `--resource-productivity-scale-permille`, `--resource-seasonality-scale-permille`, `--annual-food-need`, `--migration-radius` and `--disable-migration`. These are model-validation controls, not empirical caloric, palaeoecological or mobility measurements.
 

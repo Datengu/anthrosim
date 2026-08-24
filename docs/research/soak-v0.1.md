@@ -63,7 +63,7 @@ cargo test --locked --workspace --all-targets --all-features
 M7.1–M7.3 can be used for larger unattended exploratory soaks without adding another simulation path. For example:
 
 ```text
-cargo run --release -p anthrosim-cli -- ensemble \
+cargo run --release -p anthrosim-cli --bin anthrosim -- ensemble \
   --years 1000 \
   --world-width 32 \
   --world-height 32 \
@@ -77,7 +77,7 @@ cargo run --release -p anthrosim-cli -- ensemble \
 Or deliberately combine stressful resource/migration settings through a sweep:
 
 ```text
-cargo run --release -p anthrosim-cli -- sweep \
+cargo run --release -p anthrosim-cli --bin anthrosim -- sweep \
   --years 500 \
   --world-width 32 \
   --world-height 32 \
