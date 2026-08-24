@@ -8,8 +8,8 @@ use anthrosim_core::{
     EvidenceCatalog, ExperimentConfig, LandscapeBinding, LandscapeBundle, MigrationConfig,
     Population, PopulationConfig, ResourceConfig, RunManifest, SPATIAL_MODEL_SEMANTICS_ID,
     Simulation, SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
-    SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismConfig, World,
-    WorldConfig, validate_spatial_landscape_recorded_run,
+    SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismConfig,
+    TemporaryMobilityConfig, World, WorldConfig, validate_spatial_landscape_recorded_run,
 };
 use serde::{Deserialize, Serialize};
 
@@ -58,6 +58,8 @@ pub(crate) struct EnsembleRunSettings {
     pub(crate) annual_food_need: u32,
     pub(crate) disable_migration: bool,
     pub(crate) migration_radius: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) temporary_mobility: Option<TemporaryMobilityConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) spatial: Option<SpatialRunSettings>,
 }
@@ -199,6 +201,27 @@ pub(crate) fn load_spatial_run_settings(
     })
 }
 
+pub(crate) fn load_temporary_mobility_config(
+    path: &Path,
+) -> Result<TemporaryMobilityConfig, Box<dyn std::error::Error>> {
+    let definition: TemporaryMobilityConfig = read_json(path)?;
+    definition.validate()?;
+    Ok(definition)
+}
+
+pub(crate) fn validate_temporary_mobility_settings(
+    settings: &EnsembleRunSettings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(definition) = &settings.temporary_mobility {
+        let evidence = settings
+            .spatial
+            .as_ref()
+            .and_then(|spatial| spatial.evidence.as_ref());
+        definition.validate_evidence_context(evidence)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> ExperimentConfig {
     let resources = ResourceConfig::synthetic_validation_v1()
         .with_productivity_scale_permille(settings.resource_productivity_scale_permille)
@@ -207,7 +230,7 @@ pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> Ex
     let migration = MigrationConfig::synthetic_validation_v1()
         .with_enabled(!settings.disable_migration)
         .with_candidate_radius_cells(settings.migration_radius);
-    let config = ExperimentConfig::new(seed, settings.years)
+    let mut config = ExperimentConfig::new(seed, settings.years)
         .with_world(WorldConfig::new(
             settings.world_width,
             settings.world_height,
@@ -219,14 +242,17 @@ pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> Ex
         )
         .with_resources(resources)
         .with_migration(migration);
-
-    settings
+    if let Some(temporary_mobility) = &settings.temporary_mobility {
+        config = config.with_temporary_mobility(temporary_mobility.clone());
+    }
+    if let Some(evidence) = settings
         .spatial
         .as_ref()
         .and_then(|spatial| spatial.evidence.as_ref())
-        .map_or(config.clone(), |evidence| {
-            config.with_evidence(evidence.clone())
-        })
+    {
+        config = config.with_evidence(evidence.clone());
+    }
+    config
 }
 
 pub(crate) fn resolve_ensemble_seeds(
@@ -397,6 +423,7 @@ pub(crate) fn execute_ensemble(
     seeds: Vec<u64>,
     retry: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    validate_temporary_mobility_settings(&settings)?;
     let runtime_landscape = load_runtime_landscape(directory, &settings)?;
     let plan = plan_ensemble(settings.clone(), seeds.clone())?;
     let expected_manifest = build_experiment_manifest(&settings, &seeds)?;
@@ -968,9 +995,10 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use anthrosim_core::{
-        EvidenceRecord, EvidenceSource, GridGeometry, LandscapeLayer, LandscapeLayerRole,
-        LandscapeValueDomain, NoDataPolicy, ParameterProvenance, SpatialFieldTransform,
-        SpatialTargetField, TransformDirection,
+        EvidenceRecord, EvidenceSource, FocalRegion, FocalRegionSource, GridGeometry,
+        LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, NoDataPolicy,
+        ParameterProvenance, SpatialFieldTransform, SpatialTargetField, TemporaryMobilitySchedule,
+        TemporaryTravelModel, TemporaryTriggerTiming, TransformDirection, ids::CellId,
     };
 
     use super::*;
@@ -988,6 +1016,7 @@ mod tests {
             annual_food_need: 100,
             disable_migration: false,
             migration_radius: 3,
+            temporary_mobility: None,
             spatial: None,
         }
     }
@@ -1396,6 +1425,62 @@ mod tests {
             fs::read_to_string(root.join("unrelated.txt")).expect("unrelated file"),
             "do not overwrite"
         );
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    fn temporary_mobility_definition() -> TemporaryMobilityConfig {
+        let region = FocalRegion::new(
+            "cli-ensemble-region",
+            FocalRegionSource::Synthetic,
+            vec![CellId::new(4)],
+        )
+        .expect("region");
+        let schedule = TemporaryMobilitySchedule::new(
+            "cli-ensemble-schedule",
+            TemporaryTriggerTiming::DepartureDay,
+            vec![100],
+            5,
+        )
+        .expect("schedule");
+        TemporaryMobilityConfig::new(
+            region,
+            schedule,
+            TemporaryTravelModel::synthetic_validation_v1(),
+        )
+        .expect("temporary mobility")
+    }
+
+    #[test]
+    fn ensemble_derives_configured_temporary_mobility_from_each_stored_world() {
+        let root = temp_path("m9-6-ensemble-temporary-mobility");
+        let definition = temporary_mobility_definition();
+        let mut settings = small_settings();
+        settings.years = 1;
+        settings.world_width = 4;
+        settings.world_height = 1;
+        settings.population = 24;
+        settings.annual_food_need = 0;
+        settings.disable_migration = true;
+        settings.temporary_mobility = Some(definition.clone());
+        let seeds = vec![96_201, 96_202];
+
+        execute_ensemble(&root, settings, seeds.clone(), false).expect("ensemble");
+
+        for seed in seeds {
+            let run_dir = root.join(run_relative_dir(seed));
+            let world: World = read_json(&run_dir.join("world.json")).expect("world");
+            let checkpoint: SimulationCheckpoint =
+                read_json(&run_dir.join("checkpoint.json")).expect("checkpoint");
+            assert_eq!(
+                checkpoint.experiment.temporary_mobility.as_ref(),
+                Some(&definition)
+            );
+            let expected = definition
+                .derive_program(&world)
+                .expect("program from this run world");
+            assert_eq!(checkpoint.temporary_mobility.program(), Some(&expected));
+        }
+
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
