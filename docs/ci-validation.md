@@ -32,6 +32,12 @@ These workflows complement rather than replace semantic validation inside the bi
 
 When a new independent workflow becomes part of the research-integrity or artifact contract, update this topology in the same change so the documented gate set does not drift from `.github/workflows/` again.
 
+## Protected `main` gate set
+
+Workflow existence and branch-protection enforcement are separate contracts. The exact status contexts that are intended to be required on `main`, the administrator-bypass policy and the deliberately non-required/path-filtered jobs are recorded in [`required-status-checks.md`](required-status-checks.md).
+
+Any change that adds, removes or renames an independent correctness, determinism, provenance, artifact-integrity or research-reproducibility job must review both this topology and the protected-main contract. The workspace test `required_status_checks_contract` checks that the documented required names still correspond to the current workflow job names and matrix operating systems; the live GitHub branch rule must additionally be verified after administrative changes.
+
 ## Supply-chain rule
 
 Every third-party GitHub Action is pinned to an immutable full commit SHA with a human-readable release comment. Updates follow the reviewed process in `CONTRIBUTING.md`; mutable tags and branches are not accepted as CI dependencies.
