@@ -4,8 +4,8 @@ title: "AnthroSim"
 type: software
 authors:
   - family-names: "Datengu"
-version: "0.1.0"
-date-released: 2026-08-22
+version: "0.2.0"
+date-released: 2026-08-24
 repository-code: "https://github.com/Datengu/anthrosim"
 url: "https://github.com/Datengu/anthrosim"
 license: "Apache-2.0"
@@ -19,6 +19,6 @@ keywords:
 abstract: >-
   AnthroSim is a reproducible agent-based simulation framework for exploring
   human demography, migration, kinship, cultural transmission, and long-run
-  social emergence. Version 0.1 establishes a deterministic synthetic
-  population-simulation and experiment baseline and is not an empirically
-  validated model of human prehistory.
+  social emergence. Version 0.2 is the audited M8 evidence-grounded spatial
+  experiment baseline, building on the deterministic synthetic v0.1 engine.
+  It is not an empirically validated model of human prehistory.
