@@ -222,3 +222,95 @@ fn write_json<T: serde::Serialize + ?Sized>(
     fs::write(path, format!("{json}\n"))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use anthrosim_core::{
+        ExperimentConfig, FocalRegion, FocalRegionSource, MigrationConfig, PopulationConfig,
+        ResourceConfig, Simulation, TemporaryMobilityConfig, TemporaryMobilitySchedule,
+        TemporaryTravelModel, TemporaryTriggerTiming, WorldConfig, ids::CellId,
+    };
+
+    use super::*;
+
+    static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn paused_run_with_resume_population_derives_and_verifies_exactly() {
+        let region = FocalRegion::new(
+            "paused-observability-region",
+            FocalRegionSource::Synthetic,
+            vec![CellId::new(4)],
+        )
+        .expect("region");
+        let schedule = TemporaryMobilitySchedule::new(
+            "paused-observability-schedule",
+            TemporaryTriggerTiming::DepartureDay,
+            vec![360],
+            10,
+        )
+        .expect("schedule");
+        let temporary = TemporaryMobilityConfig::new(
+            region,
+            schedule,
+            TemporaryTravelModel::synthetic_validation_v1(),
+        )
+        .expect("temporary mobility");
+        let config = ExperimentConfig::new(96_601, 2)
+            .with_world(WorldConfig::new(4, 1))
+            .with_population(
+                PopulationConfig::new(12)
+                    .with_target_household_size(2)
+                    .with_max_person_records(128),
+            )
+            .with_resources(ResourceConfig::synthetic_validation_v1())
+            .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
+            .with_temporary_mobility(temporary);
+        let simulation = Simulation::new(config).expect("simulation");
+        let world = simulation.world().clone();
+        let checkpoint = simulation.checkpoint_at_year(1).expect("paused checkpoint");
+        assert!(checkpoint.temporary_mobility.program().is_some());
+
+        let root = test_dir("paused");
+        fs::create_dir_all(&root).expect("create test directory");
+        write_json(&root.join("world.json"), &world).expect("world");
+        write_json(&root.join("checkpoint.json"), &checkpoint).expect("checkpoint");
+        write_json(&root.join("events.json"), &checkpoint.events).expect("events");
+        write_json(
+            &root.join("resume-start-population.json"),
+            &checkpoint.population,
+        )
+        .expect("resume population");
+
+        process_run(&root, false).expect("derive paused report");
+        assert!(root.join("temporary-observability.json").is_file());
+        process_run(&root, true).expect("verify paused report");
+
+        let report: TemporaryMobilityObservabilityReport =
+            read_json(&root.join("temporary-observability.json")).expect("report");
+        assert_eq!(report.source.end_day, checkpoint.time.days());
+        assert_eq!(report.source.run_state_digest64, checkpoint.state_digest64);
+        assert_eq!(
+            report.summary.persistent_residence_person_days,
+            report.summary.total_living_person_days
+        );
+        assert_eq!(
+            report.summary.at_residence_person_days
+                + report.summary.visitor_person_days
+                + report.summary.transit_person_days,
+            report.summary.total_living_person_days
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn test_dir(label: &str) -> PathBuf {
+        let id = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "anthrosim-temporary-observability-{label}-{}-{id}",
+            std::process::id()
+        ))
+    }
+}
