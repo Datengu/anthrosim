@@ -57,7 +57,8 @@ pub use evidence::{
 pub use focal_region::{FocalRegion, FocalRegionBindingError, FocalRegionError, FocalRegionSource};
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
-    validate_recorded_run_invariants,
+    validate_checkpoint_invariants_with_world, validate_recorded_run_invariants,
+    validate_run_artifacts_with_world,
 };
 pub use landscape::{
     GridGeometry, LandscapeBundle, LandscapeError, LandscapeLayer, LandscapeLayerRole,
