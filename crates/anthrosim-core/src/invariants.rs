@@ -19,6 +19,7 @@ use crate::{
     resources::{ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config},
     rng::RngFactory,
     simulation::RecordedRun,
+    temporary_history::validate_temporary_mobility_history,
     time::{DAYS_PER_YEAR, SimTime},
     world::{PERMILLE_MAX, World, WorldError},
 };
@@ -126,6 +127,9 @@ fn validate_checkpoint_invariants_for_context(
         &resources,
         &migration_summary,
     )?;
+    validate_temporary_mobility_history(&world, checkpoint).map_err(|error| {
+        InvariantError::Violation(format!("temporary mobility event history is invalid: {error}"))
+    })?;
     validate_metrics(
         &checkpoint.metrics,
         checkpoint.time.days(),
