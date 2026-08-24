@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ids::{CellId, HouseholdId, PersonId},
+    ids::{CellId, HouseholdId, PersonId, TemporaryJourneyId},
     migration::MigrationUtilityBreakdown,
     population::ReproductiveSex,
 };
@@ -18,6 +18,18 @@ pub enum EventProvenance {
 pub enum DeathCause {
     DemographicMortality,
     ResourceScarcity,
+}
+
+/// Explicit M9 reasons why a scheduled temporary journey did not start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemporaryJourneyIneligibility {
+    NoLivingMembers,
+    ActiveJourney,
+    ResidenceInRegion,
+    Unreachable,
+    DepartureBeforeSimulationStart,
+    DepartureWindowMissed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +66,61 @@ pub enum EventKind {
         total_move_weight: u64,
         choice_draw: u64,
         travel_condition_cost_per_person: u16,
+    },
+    TemporaryJourneyNotStarted {
+        event_schema_version: u32,
+        household: HouseholdId,
+        region_id: String,
+        region_identity: String,
+        trigger_index: u32,
+        trigger_day: u64,
+        reason: TemporaryJourneyIneligibility,
+    },
+    TemporaryJourneyDeparted {
+        event_schema_version: u32,
+        household: HouseholdId,
+        journey: TemporaryJourneyId,
+        region_id: String,
+        region_identity: String,
+        residence: CellId,
+        destination: CellId,
+        people_affected: u32,
+        trigger_index: u32,
+        trigger_day: u64,
+        departure_day: u64,
+        arrival_day: u64,
+        return_departure_day: u64,
+        completion_day: u64,
+        outbound_travel_days: u32,
+        return_travel_days: u32,
+    },
+    TemporaryJourneyArrived {
+        event_schema_version: u32,
+        household: HouseholdId,
+        journey: TemporaryJourneyId,
+        region_id: String,
+        region_identity: String,
+        destination: CellId,
+        people_affected: u32,
+    },
+    TemporaryReturnDeparted {
+        event_schema_version: u32,
+        household: HouseholdId,
+        journey: TemporaryJourneyId,
+        region_id: String,
+        region_identity: String,
+        destination: CellId,
+        residence: CellId,
+        people_affected: u32,
+    },
+    TemporaryJourneyCompleted {
+        event_schema_version: u32,
+        household: HouseholdId,
+        journey: TemporaryJourneyId,
+        region_id: String,
+        region_identity: String,
+        residence: CellId,
+        people_affected: u32,
     },
 }
 

@@ -86,7 +86,7 @@ fn validate_checkpoint_invariants_for_context(
     checkpoint.population.validate(&world)?;
     checkpoint
         .temporary_mobility
-        .validate(&checkpoint.population, &world)
+        .validate_at_day(checkpoint.time.days(), &checkpoint.population, &world)
         .map_err(|error| {
             InvariantError::Violation(format!("temporary mobility state is invalid: {error}"))
         })?;
@@ -562,6 +562,120 @@ fn validate_events(
                     || *choice_draw >= *total_move_weight
                 {
                     return violation("migration event accounting is invalid");
+                }
+            }
+            EventKind::TemporaryJourneyNotStarted {
+                event_schema_version,
+                household,
+                region_id,
+                region_identity,
+                ..
+            } => {
+                if *event_schema_version != 1
+                    || household.0 == 0
+                    || household.0 > population.household_count
+                    || region_id.trim().is_empty()
+                    || region_identity.trim().is_empty()
+                {
+                    return violation("temporary journey skip event is invalid");
+                }
+            }
+            EventKind::TemporaryJourneyDeparted {
+                event_schema_version,
+                household,
+                journey,
+                region_id,
+                region_identity,
+                residence,
+                destination,
+                departure_day,
+                arrival_day,
+                return_departure_day,
+                completion_day,
+                outbound_travel_days,
+                return_travel_days,
+                ..
+            } => {
+                if *event_schema_version != 1
+                    || household.0 == 0
+                    || household.0 > population.household_count
+                    || journey.0 == 0
+                    || region_id.trim().is_empty()
+                    || region_identity.trim().is_empty()
+                    || world.cell(*residence).is_none()
+                    || world.cell(*destination).is_none()
+                    || residence == destination
+                    || record.day != *departure_day
+                    || *arrival_day
+                        != departure_day.saturating_add(u64::from(*outbound_travel_days))
+                    || *return_departure_day <= *arrival_day
+                    || *completion_day
+                        != return_departure_day.saturating_add(u64::from(*return_travel_days))
+                {
+                    return violation("temporary journey departure event is invalid");
+                }
+            }
+            EventKind::TemporaryJourneyArrived {
+                event_schema_version,
+                household,
+                journey,
+                region_id,
+                region_identity,
+                destination,
+                ..
+            } => {
+                if *event_schema_version != 1
+                    || household.0 == 0
+                    || household.0 > population.household_count
+                    || journey.0 == 0
+                    || region_id.trim().is_empty()
+                    || region_identity.trim().is_empty()
+                    || world.cell(*destination).is_none()
+                {
+                    return violation("temporary journey arrival event is invalid");
+                }
+            }
+            EventKind::TemporaryReturnDeparted {
+                event_schema_version,
+                household,
+                journey,
+                region_id,
+                region_identity,
+                destination,
+                residence,
+                ..
+            } => {
+                if *event_schema_version != 1
+                    || household.0 == 0
+                    || household.0 > population.household_count
+                    || journey.0 == 0
+                    || region_id.trim().is_empty()
+                    || region_identity.trim().is_empty()
+                    || world.cell(*destination).is_none()
+                    || world.cell(*residence).is_none()
+                    || destination == residence
+                {
+                    return violation("temporary return-departure event is invalid");
+                }
+            }
+            EventKind::TemporaryJourneyCompleted {
+                event_schema_version,
+                household,
+                journey,
+                region_id,
+                region_identity,
+                residence,
+                ..
+            } => {
+                if *event_schema_version != 1
+                    || household.0 == 0
+                    || household.0 > population.household_count
+                    || journey.0 == 0
+                    || region_id.trim().is_empty()
+                    || region_identity.trim().is_empty()
+                    || world.cell(*residence).is_none()
+                {
+                    return violation("temporary journey completion event is invalid");
                 }
             }
         }

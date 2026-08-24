@@ -830,11 +830,11 @@ fn validate_spatial_temporary_mobility(
 ) -> Result<(), SpatialLandscapeError> {
     checkpoint
         .temporary_mobility
-        .validate(&checkpoint.population, world)
+        .validate_at_day(checkpoint.time.days(), &checkpoint.population, world)
         .map_err(|error| SpatialLandscapeError::TemporaryMobilityInvalid {
             reason: error.to_string(),
         })?;
-    if !checkpoint.temporary_mobility.all_at_residence() {
+    if !checkpoint.temporary_mobility.is_disabled() {
         return Err(SpatialLandscapeError::ActiveTemporaryMobilityUnsupported);
     }
     Ok(())

@@ -24,6 +24,10 @@ pub mod simulation;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
 pub mod spatial_simulation;
+// M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
+// boundary. Keep the argument-count exception local to this module rather than weakening Clippy
+// across the workspace; the public API remains compact and typed.
+#[allow(clippy::too_many_arguments)]
 pub mod temporary_mobility;
 pub mod time;
 pub mod world;
@@ -39,7 +43,9 @@ pub use config::{
 pub use demography::{
     DemographyConfigError, annual_probability_for_age, validate_demography_config,
 };
-pub use events::{DeathCause, EventKind, EventLog, EventProvenance, EventRecord};
+pub use events::{
+    DeathCause, EventKind, EventLog, EventProvenance, EventRecord, TemporaryJourneyIneligibility,
+};
 pub use evidence::{
     EvidenceCatalog, EvidenceError, EvidenceRecord, EvidenceSource, EvidenceTransformation,
     EvidenceUncertainty, ExternalInputEvidence, ParameterEvidenceLink, validate_evidence_catalog,
@@ -96,8 +102,11 @@ pub use spatial_simulation::{
     validate_spatial_landscape_recorded_run,
 };
 pub use temporary_mobility::{
-    HouseholdPresence, TemporaryMobilityError, TemporaryMobilityState,
-    TemporaryMobilityValidationError,
+    ActiveTemporaryJourney, HouseholdPresence, TemporaryJourneySkip, TemporaryMobilityDayOutcome,
+    TemporaryMobilityError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
+    TemporaryMobilityProgramError, TemporaryMobilitySchedule, TemporaryMobilityState,
+    TemporaryMobilityValidationError, TemporaryTravelResolution, TemporaryTravelTable,
+    TemporaryTriggerTiming,
 };
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};
