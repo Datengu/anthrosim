@@ -8,6 +8,9 @@ use crate::{
     focal_region::{FocalRegion, FocalRegionError},
     ids::{CellId, HouseholdId, TemporaryJourneyId},
     population::Population,
+    temporary_resource::{
+        TemporaryResourceAccountingError, TemporaryResourceLedger, TemporaryResourcePeriod,
+    },
     temporary_travel::TemporaryTravelModel,
     world::World,
 };
@@ -592,10 +595,12 @@ pub struct TemporaryMobilityState {
     program: Option<TemporaryMobilityProgram>,
     processed_triggers: Vec<ProcessedTemporaryTrigger>,
     next_journey_id: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    resource_ledger: Option<TemporaryResourceLedger>,
 }
 
 impl TemporaryMobilityState {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
     #[must_use]
     pub fn at_residence(population: &Population) -> Self {
@@ -606,6 +611,7 @@ impl TemporaryMobilityState {
             program: None,
             processed_triggers: Vec::new(),
             next_journey_id: 1,
+            resource_ledger: None,
         }
     }
 
@@ -617,6 +623,10 @@ impl TemporaryMobilityState {
         program.validate(world)?;
         let mut state = Self::at_residence(population);
         state.program = Some(program);
+        state.resource_ledger = Some(TemporaryResourceLedger::new(
+            population.household_count(),
+            0,
+        ));
         Ok(state)
     }
 
@@ -639,6 +649,10 @@ impl TemporaryMobilityState {
         }
         program.validate(world)?;
         self.program = Some(program);
+        self.resource_ledger = Some(TemporaryResourceLedger::new(
+            population.household_count(),
+            0,
+        ));
         Ok(())
     }
 
@@ -698,6 +712,32 @@ impl TemporaryMobilityState {
             && self.active_journeys.iter().all(Option::is_none)
             && self.processed_triggers.is_empty()
             && self.next_journey_id == 1
+            && self.resource_ledger.is_none()
+    }
+
+    pub(crate) fn resource_period_snapshot(
+        &mut self,
+        day: u64,
+        world: &World,
+    ) -> Result<Option<TemporaryResourcePeriod>, TemporaryMobilityExecutionError> {
+        let Some(ledger) = self.resource_ledger.as_mut() else {
+            return Ok(None);
+        };
+        Ok(Some(ledger.snapshot_period(
+            day,
+            &self.household_presence,
+            world,
+        )?))
+    }
+
+    pub(crate) fn complete_resource_period(
+        &mut self,
+        day: u64,
+    ) -> Result<(), TemporaryMobilityExecutionError> {
+        if let Some(ledger) = self.resource_ledger.as_mut() {
+            ledger.reset_after_settlement(day)?;
+        }
+        Ok(())
     }
 
     /// Remove active temporary state for households with no living members.
@@ -792,6 +832,9 @@ impl TemporaryMobilityState {
         world: &World,
         events: &mut EventLog,
     ) -> Result<TemporaryMobilityDayOutcome, TemporaryMobilityExecutionError> {
+        if let Some(ledger) = self.resource_ledger.as_mut() {
+            ledger.accrue_until(day, &self.household_presence)?;
+        }
         let mut outcome = TemporaryMobilityDayOutcome::default();
 
         // Complete return transit first, in stable household order.
@@ -918,6 +961,9 @@ impl TemporaryMobilityState {
         if self.next_journey_id == 0 {
             return Err(TemporaryMobilityValidationError::InvalidNextJourneyId);
         }
+        if self.program.is_some() != self.resource_ledger.is_some() {
+            return Err(TemporaryMobilityValidationError::ResourceLedgerProgramMismatch);
+        }
         if let Some(program) = &self.program {
             program.validate(world).map_err(|error| {
                 TemporaryMobilityValidationError::InvalidProgram {
@@ -1036,6 +1082,15 @@ impl TemporaryMobilityState {
         world: &World,
     ) -> Result<(), TemporaryMobilityValidationError> {
         self.validate(population, world)?;
+        if let Some(ledger) = &self.resource_ledger {
+            ledger
+                .validate(self.household_count(), world, day)
+                .map_err(
+                    |error| TemporaryMobilityValidationError::InvalidResourceLedger {
+                        reason: error.to_string(),
+                    },
+                )?;
+        }
         for index in 0..self.household_count() {
             let Some(active) = self.active_journeys[index].as_ref() else {
                 continue;
@@ -1120,6 +1175,13 @@ impl TemporaryMobilityState {
             digest_u64(&mut hash, processed.household.0);
         }
         digest_u64(&mut hash, self.next_journey_id);
+        match &self.resource_ledger {
+            None => digest_u64(&mut hash, 0),
+            Some(ledger) => {
+                digest_u64(&mut hash, 1);
+                ledger.digest_into(&mut hash);
+            }
+        }
         hash
     }
 
@@ -1851,6 +1913,10 @@ pub enum TemporaryMobilityValidationError {
     InvalidProcessedTrigger,
     #[error("temporary mobility next journey ID is invalid")]
     InvalidNextJourneyId,
+    #[error("temporary mobility program and M9.5 resource ledger are not enabled together")]
+    ResourceLedgerProgramMismatch,
+    #[error("temporary mobility resource ledger is invalid: {reason}")]
+    InvalidResourceLedger { reason: String },
     #[error(
         "temporary mobility next journey ID {next} is not greater than active maximum {active_max}"
     )]
@@ -1887,6 +1953,8 @@ pub enum TemporaryMobilityValidationError {
 pub enum TemporaryMobilityExecutionError {
     #[error(transparent)]
     InvalidState(TemporaryMobilityValidationError),
+    #[error(transparent)]
+    ResourceAccounting(#[from] TemporaryResourceAccountingError),
     #[error(transparent)]
     InvalidJourney(TemporaryMobilityError),
     #[error("temporary mobility references invalid household {household:?}")]

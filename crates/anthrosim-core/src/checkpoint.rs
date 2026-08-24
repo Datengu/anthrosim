@@ -51,7 +51,8 @@ impl SimulationCheckpoint {
     pub const PRE_TEMPORARY_MOBILITY_SCHEMA_VERSION: u32 = 5;
     pub const PRE_JOURNEY_LIFECYCLE_SCHEMA_VERSION: u32 = 6;
     pub const PRE_TRAVEL_SEMANTICS_SCHEMA_VERSION: u32 = 7;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 8;
+    pub const PRE_DURATION_AWARE_RESOURCE_SCHEMA_VERSION: u32 = 8;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 9;
 }
 
 #[must_use]
