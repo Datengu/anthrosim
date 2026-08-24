@@ -28,6 +28,9 @@ pub mod temporary_mobility;
 pub mod time;
 pub mod world;
 
+#[cfg(test)]
+mod m9_integration_tests;
+
 pub use checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64};
 pub use config::{
     AgeProbabilityBand, DemographyConfig, ExperimentConfig, MigrationConfig, ParameterProvenance,
