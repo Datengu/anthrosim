@@ -1,7 +1,7 @@
 # M9.5 duration-aware resource semantics v1
 
 **Milestone:** M9.5  
-**Status:** implementation contract  
+**Status:** implemented semantics  
 **Scientific status:** synthetic/null-model accounting semantics; unvalidated for any real population  
 **Parent contract:** `docs/research/temporary-mobility-v1.md`
 
@@ -87,11 +87,11 @@ When temporary mobility is not configured, no M9 resource ledger is active and M
 
 The duration ledger is authoritative model state while M9 is enabled. It is serialized and included in deterministic state identity. At supported annual checkpoint boundaries the immediately preceding resource period has already been settled, so the ledger is expected to be reset at that boundary; resumed execution must nevertheless validate and preserve the serialized ledger exactly.
 
-M9.5 changes authoritative resource attribution and therefore requires an explicit model-semantics identity review and compatible checkpoint-schema change.
+M9.5 changes authoritative resource attribution. The implementation therefore advances `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v5` and the checkpoint schema to v9 while leaving the package version unchanged during M9 development.
 
 ## Acceptance
 
-Implementation tests must cover at least:
+Implemented tests cover:
 
 - one-day and five-day visits;
 - visits entirely between resource boundaries;
@@ -101,8 +101,10 @@ Implementation tests must cover at least:
 - deterministic remainder ties;
 - a household drawing supply from both residence and visitor cells;
 - condition/scarcity consequences based on the reconciled household supply fraction;
-- same-day resource/temporary-transition ordering;
-- deterministic replay and checkpoint/resume;
-- disabled-M9 compatibility with the legacy M3 path.
+- same-day resource/temporary-transition ordering through the scheduler boundary;
+- deterministic replay and checkpoint/resume through the existing M9 integration coverage;
+- disabled-M9 compatibility with the legacy M3 path through the preserved single-claim execution path and regression suite.
+
+The public M9.5 acceptance test additionally verifies that an otherwise identical one-day visit removes exactly one unit of destination stock and a five-day visit removes exactly five units under a one-unit-per-day synthetic fixture, demonstrating that visits wholly between resource boundaries do not disappear from M3 accounting.
 
 Passing these tests validates the accounting capability, not the empirical correctness of the home-provisioning assumption.
