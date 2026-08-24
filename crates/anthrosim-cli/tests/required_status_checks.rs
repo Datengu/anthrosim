@@ -36,7 +36,5 @@ fn required_status_checks_contract() {
         }
     }
 
-    eprintln!(
-        "skipping required status-check contract because no Python interpreter was found"
-    );
+    eprintln!("skipping required status-check contract because no Python interpreter was found");
 }
