@@ -495,6 +495,14 @@ fn process_events(
                     .checked_add(people_moved)
                     .ok_or(SpatialObservabilityError::AccountingOverflow)?;
             }
+            EventKind::TemporaryJourneyNotStarted { .. }
+            | EventKind::TemporaryJourneyDeparted { .. }
+            | EventKind::TemporaryJourneyArrived { .. }
+            | EventKind::TemporaryReturnDeparted { .. }
+            | EventKind::TemporaryJourneyCompleted { .. } => {
+                // M8 observability remains residence/permanent-migration based. M9.6 adds
+                // temporary-presence observability rather than overloading these M8 metrics.
+            }
         }
     }
     Ok(())
