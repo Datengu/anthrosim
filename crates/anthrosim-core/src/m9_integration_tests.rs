@@ -74,7 +74,11 @@ fn m9_config(
 
 fn unoccupied_destination(simulation: &Simulation) -> CellId {
     let residences: BTreeSet<_> = (1..=simulation.population().household_count() as u64)
-        .filter_map(|raw| simulation.population().household_location(HouseholdId::new(raw)))
+        .filter_map(|raw| {
+            simulation
+                .population()
+                .household_location(HouseholdId::new(raw))
+        })
         .collect();
     (1..=simulation.world().cell_count() as u64)
         .map(CellId::new)
