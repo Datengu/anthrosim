@@ -1,0 +1,83 @@
+name: Temporary issue 42 integrity wiring
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'feat/42-research-integrity-manifest'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: feat/42-research-integrity-manifest
+
+      - name: Wire integrity tooling into required CI and docs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          ci = Path('.github/workflows/ci.yml')
+          text = ci.read_text()
+          old = '''          python3 -m py_compile scripts/benchmark-performance-acceptance.py
+          python3 -m py_compile scripts/run-versioned-sweep.py
+
+      - name: Test M6 explorer artifact model
+        run: node --test explorer/model.test.mjs
+'''
+          new = '''          python3 -m py_compile scripts/benchmark-performance-acceptance.py
+          python3 -m py_compile scripts/run-versioned-sweep.py
+          python3 -m py_compile scripts/research-integrity.py
+          python3 -m py_compile scripts/test-research-integrity.py
+
+      - name: Test M6 explorer artifact model
+        run: node --test explorer/model.test.mjs
+
+      - name: Test research archive integrity
+        run: python3 scripts/test-research-integrity.py
+'''
+          if old not in text:
+              raise SystemExit('CI script-validation anchor not found')
+          ci.write_text(text.replace(old, new, 1))
+
+          readme = Path('README.md')
+          text = readme.read_text()
+          anchor = '## Scientific status\n'
+          addition = '''## Preserving research archives
+
+For a stable research record, generate a deterministic SHA-256 manifest over the exact directory being preserved:
+
+```text
+python3 scripts/research-integrity.py create runs/my-study
+python3 scripts/research-integrity.py verify runs/my-study
+```
+
+This cryptographic file-integrity layer is deliberately separate from AnthroSim state digests and semantic bundle validation. It is intended for publication, transfer and long-term preservation rather than every temporary local run. See [`docs/research-integrity.md`](docs/research-integrity.md).
+
+'''
+          if anchor not in text:
+              raise SystemExit('README scientific-status anchor not found')
+          readme.write_text(text.replace(anchor, addition + anchor, 1))
+
+          topology = Path('docs/ci-validation.md')
+          text = topology.read_text()
+          anchor = 'The dependency graph prevents formatting, lint, unit-test, or script failures from spending time on the expensive acceptance stages while keeping the release binary identical across downstream gates.\n'
+          replacement = anchor + '\nThe required **Explorer and script validation** job also syntax-checks and tests the standard-library research-integrity tool. This keeps cryptographic archive-manifest generation/verification under an already-required merge gate without making archive hashing part of authoritative simulation state.\n'
+          if anchor not in text:
+              raise SystemExit('CI topology anchor not found')
+          topology.write_text(text.replace(anchor, replacement, 1))
+          PY
+
+          python3 -m py_compile scripts/research-integrity.py scripts/test-research-integrity.py
+          python3 scripts/test-research-integrity.py
+
+          rm .github/workflows/zz-temp-42-integrity-docs.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Wire research integrity tooling into CI and docs'
+          git push origin HEAD:feat/42-research-integrity-manifest
