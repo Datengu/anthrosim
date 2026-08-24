@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - m9/m9-4-travel-semantics
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -15,6 +18,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v5.0.0
         with:
           persist-credentials: true
+          ref: ${{ github.head_ref || github.ref_name }}
       - name: Install pinned Rust toolchain
         run: |
           rustup set profile minimal
@@ -49,4 +53,4 @@ jobs:
           git commit -m "Integrate M9.4 travel semantics"
           git push origin HEAD:m9/m9-4-travel-semantics
 
-# This branch-only helper is removed after the guarded integration commit lands.
+# Removed once the guarded integration commit lands.
