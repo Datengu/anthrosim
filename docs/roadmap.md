@@ -142,7 +142,7 @@ M8 does not by itself:
 
 ## M9 — Temporary mobility and aggregation experiments
 
-**Status:** in progress. M9.0 has frozen the temporary-mobility scientific/software semantics; implementation proceeds through M9.1-M9.7. The authoritative M9 semantics contract is `docs/research/temporary-mobility-v1.md`; the capability audit that motivated it is `docs/research/m9-temporary-mobility-capability-audit.md`.
+**Status:** in progress. M9.0-M9.6 are complete; M9.7, the controlled aggregation benchmark, remains before milestone acceptance. The authoritative M9 semantics contract is `docs/research/temporary-mobility-v1.md`; the capability audit that motivated it is `docs/research/m9-temporary-mobility-capability-audit.md`.
 
 ### Goal
 
@@ -227,20 +227,26 @@ Ensure short visits cannot be silently treated as whole resource periods at the 
 
 The implemented approximation must explicitly account for how household need/resource pressure is attributed across residence, travel and temporary presence, preserve exact deterministic accounting, and expose the assumption as model semantics rather than hiding it in scheduling code.
 
-#### M9.6 — Temporary-mobility observability and experiment integration
+#### M9.6 — Temporary-mobility observability and experiment integration — complete
 
-Extend checkpoints, run bundles, events, invariants, ensemble/sweep execution and downstream spatial observability for the new process.
+M9 temporary mobility now participates in ordinary transformed-spatial execution, immutable experiment identity, run/ensemble/sweep inputs, checkpoint/resume, completed/paused artifact workflows and deterministic downstream observability.
 
-Machine-readable outputs should make it possible to distinguish at least:
+The world-independent experiment definition preserves focal region, schedule and travel-model assumptions, while every run derives its resolved travel table from that run's own authoritative world. `anthrosim-temporary-observability` regenerates a separate machine-readable report from preserved authoritative artifacts rather than changing the meaning of M8 spatial observability.
 
-- permanent residents;
-- temporary visitors;
-- arrivals and returns;
-- visit counts and duration;
-- peak and mean presence in a focal region;
-- living person-days by residence/presence regime;
-- journey distance/time/cost and origin catchment;
-- permanent migration from temporary movement.
+The implemented report distinguishes:
+
+- persistent residence from physical temporary presence;
+- temporary visitors from focal-region residents;
+- outbound and return transit without assigning transit to arbitrary cells;
+- starts, explicit non-start outcomes, arrivals, return departures and completions;
+- visit-duration distributions and peak/mean visitor presence;
+- persistent-residence, at-residence, visitor and transit person-days with exact accounting identities;
+- journey time/cost, derived route edge distance where it reconciles to M9.4 routing, and origin catchment;
+- permanent M4 migration from temporary movement.
+
+Completed bundles can carry the derived report and fail closed if it cannot be regenerated exactly. Paused runs with resume-boundary population provenance can reconstruct the day-zero founder state deterministically and derive/verify the same report. The read-only Explorer can surface the derived summary and M9 event family without changing residence maps or inventing transit locations.
+
+See `docs/research/temporary-mobility-observability-v1.md` and `docs/research/m9-6-integration-audit.md`.
 
 #### M9.7 — Controlled aggregation benchmark
 
