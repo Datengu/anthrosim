@@ -266,8 +266,7 @@ fn validate_presence(
 
 fn household_has_living_member(population: &Population, household: HouseholdId) -> bool {
     (0..population.person_count()).any(|index| {
-        population.is_alive_index(index)
-            && population.household_at_index(index) == Some(household)
+        population.is_alive_index(index) && population.household_at_index(index) == Some(household)
     })
 }
 
@@ -401,7 +400,10 @@ mod tests {
                 &world,
             )
             .unwrap();
-        assert_eq!(state.current_cell(household, &population), Some(destination));
+        assert_eq!(
+            state.current_cell(household, &population),
+            Some(destination)
+        );
         assert_eq!(population.household_location(household), Some(residence));
     }
 
@@ -412,10 +414,8 @@ mod tests {
         let journey = TemporaryJourneyId::new(3);
         for raw in 1..=2 {
             let household = HouseholdId::new(raw);
-            let destination = different_cell(
-                &world,
-                population.household_location(household).unwrap(),
-            );
+            let destination =
+                different_cell(&world, population.household_location(household).unwrap());
             state
                 .set_presence(
                     household,
@@ -463,10 +463,7 @@ mod tests {
         let mut state = TemporaryMobilityState::at_residence(&population);
         let baseline = state.digest64();
         let household = HouseholdId::new(1);
-        let destination = different_cell(
-            &world,
-            population.household_location(household).unwrap(),
-        );
+        let destination = different_cell(&world, population.household_location(household).unwrap());
         state
             .set_presence(
                 household,
@@ -486,10 +483,7 @@ mod tests {
         let (world, mut population) = fixture(29);
         let mut state = TemporaryMobilityState::at_residence(&population);
         let household = HouseholdId::new(1);
-        let destination = different_cell(
-            &world,
-            population.household_location(household).unwrap(),
-        );
+        let destination = different_cell(&world, population.household_location(household).unwrap());
         state
             .set_presence(
                 household,
@@ -509,7 +503,10 @@ mod tests {
         }
         assert!(state.validate(&population, &world).is_err());
         state.reconcile_after_population_change(&population);
-        assert_eq!(state.presence(household), Some(HouseholdPresence::AtResidence));
+        assert_eq!(
+            state.presence(household),
+            Some(HouseholdPresence::AtResidence)
+        );
         state.validate(&population, &world).unwrap();
     }
 }
