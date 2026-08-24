@@ -29,6 +29,7 @@ pub mod spatial_simulation;
 // across the workspace; the public API remains compact and typed.
 #[allow(clippy::too_many_arguments)]
 pub mod temporary_mobility;
+pub mod temporary_travel;
 pub mod time;
 pub mod world;
 
@@ -107,6 +108,9 @@ pub use temporary_mobility::{
     TemporaryMobilityProgramError, TemporaryMobilitySchedule, TemporaryMobilityState,
     TemporaryMobilityValidationError, TemporaryTravelResolution, TemporaryTravelTable,
     TemporaryTriggerTiming,
+};
+pub use temporary_travel::{
+    TemporaryTravelModel, TemporaryTravelModelError, temporary_travel_edge_cost,
 };
 pub use time::SimTime;
 pub use world::{Cell, World, WorldError, WorldSummary, WorldValidationError};
