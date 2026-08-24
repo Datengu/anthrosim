@@ -24,6 +24,10 @@ pub mod simulation;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
 pub mod spatial_simulation;
+// M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
+// boundary. Keep the argument-count exception local to this module rather than weakening Clippy
+// across the workspace; the public API remains compact and typed.
+#[allow(clippy::too_many_arguments)]
 pub mod temporary_mobility;
 pub mod time;
 pub mod world;
