@@ -571,7 +571,7 @@ fn validate_events(
                 region_identity,
                 ..
             } => {
-                if *event_schema_version != 1
+                if *event_schema_version != 2
                     || household.0 == 0
                     || household.0 > population.household_count
                     || region_id.trim().is_empty()
@@ -594,9 +594,19 @@ fn validate_events(
                 completion_day,
                 outbound_travel_days,
                 return_travel_days,
+                travel_model_identity,
+                accumulated_travel_cost_units,
                 ..
             } => {
-                if *event_schema_version != 1
+                let travel_metadata_valid = match (
+                    travel_model_identity.as_deref(),
+                    accumulated_travel_cost_units,
+                ) {
+                    (None, None) => true,
+                    (Some(identity), Some(_)) => !identity.trim().is_empty(),
+                    _ => false,
+                };
+                if *event_schema_version != 2
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0
@@ -611,6 +621,7 @@ fn validate_events(
                     || *return_departure_day <= *arrival_day
                     || *completion_day
                         != return_departure_day.saturating_add(u64::from(*return_travel_days))
+                    || !travel_metadata_valid
                 {
                     return violation("temporary journey departure event is invalid");
                 }
@@ -624,7 +635,7 @@ fn validate_events(
                 destination,
                 ..
             } => {
-                if *event_schema_version != 1
+                if *event_schema_version != 2
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0
@@ -645,7 +656,7 @@ fn validate_events(
                 residence,
                 ..
             } => {
-                if *event_schema_version != 1
+                if *event_schema_version != 2
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0
@@ -667,7 +678,7 @@ fn validate_events(
                 residence,
                 ..
             } => {
-                if *event_schema_version != 1
+                if *event_schema_version != 2
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0

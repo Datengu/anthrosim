@@ -84,6 +84,10 @@ pub enum EventKind {
         region_identity: String,
         residence: CellId,
         destination: CellId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        travel_model_identity: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        accumulated_travel_cost_units: Option<u64>,
         people_affected: u32,
         trigger_index: u32,
         trigger_day: u64,
