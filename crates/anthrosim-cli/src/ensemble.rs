@@ -13,7 +13,7 @@ use anthrosim_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{read_json, write_completed_bundle, write_json};
+use crate::{bundle::validated_bundle_files, read_json, write_completed_bundle, write_json};
 
 const ENSEMBLE_PLAN_SCHEMA_VERSION: u32 = 1;
 const ENSEMBLE_COMPLETION_SCHEMA_VERSION: u32 = 1;
@@ -738,6 +738,16 @@ fn inspect_completed_bundle(
         return Ok(BundleInspection::AbsentOrIncomplete);
     }
 
+    validated_bundle_files(&run_directory).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "completed bundle semantic validation failed for {}: {error}",
+                spec.run_id
+            ),
+        )
+    })?;
+
     let completion: EnsembleRunCompletion = read_json(&run_directory.join("completion.json"))?;
     if completion.schema_version != ENSEMBLE_COMPLETION_SCHEMA_VERSION
         || completion.seed != spec.experiment.seed
@@ -880,6 +890,11 @@ fn execute_run_attempt(
             write_completed_bundle(&run_directory, &world, &initial_population, &recorded)?;
             recorded.manifest.state_digest64
         };
+
+        // The positive completion marker is not authoritative evidence that a child succeeded.
+        // First require the exact same semantic bundle validator used by pack/single-run paths.
+        validated_bundle_files(&run_directory)?;
+
         write_json(
             &run_directory.join("completion.json"),
             &EnsembleRunCompletion {
@@ -1484,3 +1499,7 @@ mod tests {
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
+
+#[cfg(test)]
+#[path = "ensemble_bundle_validation_tests.rs"]
+mod bundle_validation_tests;
