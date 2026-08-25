@@ -42,6 +42,16 @@ function exactJsonEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+export function inspectionTargetForEvent(event) {
+  if (!event || typeof event !== "object") return null;
+  if (Object.hasOwn(event, "person") && event.person !== null && event.person !== undefined) {
+    return { kind: "person", id: asNumber(event.person, "event person") };
+  }
+  if (Object.hasOwn(event, "household") && event.household !== null && event.household !== undefined) {
+    return { kind: "household", id: asNumber(event.household, "event household") };
+  }
+  return null;
+}
 function terminalSnapshot(metrics, endTime) {
   const terminal = metrics.snapshots?.at(-1) ?? null;
   if (terminal) assert(terminal.day === endTime, "terminal metric day disagrees with run boundary");
@@ -278,6 +288,8 @@ export function countEvents(records) {
   return counts;
 }
 
+// Reconstruct persistent residence only. M9 temporary visitor/transit presence is represented
+// separately by temporary-observability.json and must not be invented as ordinary cell occupancy.
 export function reconstructState(bundle, day) {
   const endTime = runEndTime(bundle);
   const targetDay = Math.max(0, Math.min(asNumber(day, "day"), endTime));
@@ -409,7 +421,10 @@ export function eventsForEntity(bundle, { person = null, household = null, cell 
     if (household !== null && Number(event.household) !== Number(household)) return false;
     if (cell !== null) {
       const cellId = Number(cell);
-      const touchesCell = Number(event.cell) === cellId || Number(event.origin) === cellId || Number(event.destination) === cellId;
+      const touchesCell = Number(event.cell) === cellId ||
+        Number(event.origin) === cellId ||
+        Number(event.destination) === cellId ||
+        Number(event.residence) === cellId;
       if (!touchesCell) return false;
     }
     return true;
