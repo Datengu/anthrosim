@@ -323,7 +323,8 @@ pub fn derive_demography_observability(
             summary.fertility_draw_successes = summary.fertility_draw_successes.saturating_add(1);
 
             if people.len() as u64 >= max_records {
-                fertility_bands[band_index].record_limit_blocked_births = fertility_bands[band_index]
+                fertility_bands[band_index].record_limit_blocked_births = fertility_bands
+                    [band_index]
                     .record_limit_blocked_births
                     .saturating_add(1);
                 summary.record_limit_blocked_births =
@@ -619,8 +620,11 @@ fn apply_demographic_deaths(
         else {
             continue;
         };
-        let index = replay_index(*person, people.len())
-            .ok_or_else(|| invalid(format!("M2 death references unknown {person:?} at day {day}")))?;
+        let index = replay_index(*person, people.len()).ok_or_else(|| {
+            invalid(format!(
+                "M2 death references unknown {person:?} at day {day}"
+            ))
+        })?;
         if !people[index].alive() {
             return Err(invalid(format!(
                 "M2 death references already-dead {person:?} at day {day}"
@@ -901,9 +905,12 @@ fn reconcile_final_population(
 }
 
 fn replay_age(person: &ReplayPerson, day: u64) -> Result<u64, DemographyObservabilityError> {
-    person
-        .age_days_at(day)
-        .ok_or_else(|| invalid(format!("age is not representable for {:?} at day {day}", person.id)))
+    person.age_days_at(day).ok_or_else(|| {
+        invalid(format!(
+            "age is not representable for {:?} at day {day}",
+            person.id
+        ))
+    })
 }
 
 fn schedule_band_index(
