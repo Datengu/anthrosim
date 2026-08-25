@@ -5,8 +5,8 @@ use std::{
 };
 
 use anthrosim_core::{
-    EventLog, MetricSeries, Population, RecordedRun, Simulation, SimulationCheckpoint,
-    SourceRevisionIdentity, World,
+    EventLog, FounderPopulationDefinition, MetricSeries, Population, RecordedRun, Simulation,
+    SimulationCheckpoint, SourceRevisionIdentity, World,
 };
 use clap::{Parser, Subcommand};
 
@@ -59,6 +59,10 @@ enum Command {
         /// Number of persistent synthetic founder records to initialize.
         #[arg(long, default_value_t = 10_000)]
         population: u32,
+
+        /// Optional versioned declared founder-state JSON. Its person count replaces --population.
+        #[arg(long)]
+        founder_population: Option<PathBuf>,
 
         /// Target number of co-resident founders per synthetic household.
         #[arg(long, default_value_t = 5)]
@@ -360,6 +364,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             world_width,
             world_height,
             population,
+            founder_population,
             household_size,
             max_person_records,
             resource_productivity_scale_permille,
@@ -378,11 +383,27 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .as_deref()
                 .map(load_temporary_mobility_config)
                 .transpose()?;
+            let founder_population = founder_population
+                .as_deref()
+                .map(read_json::<FounderPopulationDefinition>)
+                .transpose()?;
+            let configured_population = founder_population
+                .as_ref()
+                .map(|definition| {
+                    u32::try_from(definition.people.len()).map_err(|_| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "declared founder population exceeds the supported u32 initial-population range",
+                        )
+                    })
+                })
+                .transpose()?
+                .unwrap_or(population);
             let settings = EnsembleRunSettings {
                 years,
                 world_width,
                 world_height,
-                population,
+                population: configured_population,
                 household_size,
                 max_person_records,
                 resource_productivity_scale_permille,
@@ -393,7 +414,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 temporary_mobility,
                 spatial: None,
             };
-            let config = experiment_config(seed, &settings);
+            let mut config = experiment_config(seed, &settings);
+            if let Some(definition) = founder_population {
+                config = config.with_founder_population(definition);
+            }
             let simulation = Simulation::new(config)?;
 
             if let Some(path) = world_output {
