@@ -81,7 +81,8 @@ fn temporary_mobility_for_stay(
 
 fn destination_stock_shift(stay_duration_days: u32) -> (u64, u64) {
     let config = config(95_000 + u64::from(stay_duration_days));
-    let (temporary_mobility, destination) = temporary_mobility_for_stay(&config, stay_duration_days);
+    let (temporary_mobility, destination) =
+        temporary_mobility_for_stay(&config, stay_duration_days);
 
     let disabled = Simulation::new(config.clone())
         .unwrap()
