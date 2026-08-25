@@ -151,7 +151,7 @@ pub(crate) fn state_digest64_with_founder_population(
 fn founder_population_digest64(definition: &FounderPopulationDefinition) -> u64 {
     let mut hash = FNV_OFFSET_BASIS;
     digest_u64(&mut hash, u64::from(definition.schema_version));
-    digest_bytes(&mut hash, definition.initialization_id.as_bytes());
+    digest_sized_bytes(&mut hash, definition.initialization_id.as_bytes());
     digest_u64(
         &mut hash,
         match definition.provenance {
@@ -221,24 +221,20 @@ fn digest_optional_i64(hash: &mut u64, value: Option<i64>) {
 }
 
 fn digest_u64(hash: &mut u64, value: u64) {
-    digest_bytes(hash, &value.to_le_bytes());
+    digest_raw_bytes(hash, &value.to_le_bytes());
 }
 
 fn digest_i64(hash: &mut u64, value: i64) {
-    digest_bytes(hash, &value.to_le_bytes());
+    digest_raw_bytes(hash, &value.to_le_bytes());
 }
 
-fn digest_bytes(hash: &mut u64, bytes: &[u8]) {
-    digest_u64_length(hash, bytes.len());
+fn digest_sized_bytes(hash: &mut u64, bytes: &[u8]) {
+    digest_u64(hash, u64::try_from(bytes.len()).unwrap_or(u64::MAX));
+    digest_raw_bytes(hash, bytes);
+}
+
+fn digest_raw_bytes(hash: &mut u64, bytes: &[u8]) {
     for &byte in bytes {
-        *hash ^= u64::from(byte);
-        *hash = hash.wrapping_mul(FNV_PRIME);
-    }
-}
-
-fn digest_u64_length(hash: &mut u64, length: usize) {
-    let length = u64::try_from(length).unwrap_or(u64::MAX);
-    for byte in length.to_le_bytes() {
         *hash ^= u64::from(byte);
         *hash = hash.wrapping_mul(FNV_PRIME);
     }
