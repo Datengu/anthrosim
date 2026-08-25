@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{evidence::EvidenceCatalog, temporary_mobility::TemporaryMobilityConfig};
+use crate::{
+    evidence::EvidenceCatalog,
+    founder_initialization::FounderPopulationDefinition,
+    temporary_mobility::TemporaryMobilityConfig,
+};
 
 pub const PROBABILITY_PER_MILLION: u32 = 1_000_000;
 
@@ -54,7 +58,7 @@ impl ExperimentConfig {
     }
 
     #[must_use]
-    pub const fn with_population(mut self, population: PopulationConfig) -> Self {
+    pub fn with_population(mut self, population: PopulationConfig) -> Self {
         self.population = population;
         self
     }
@@ -131,26 +135,43 @@ impl Default for WorldConfig {
 
 /// Initialization rule used before the dynamic M2 demographic schedules run.
 ///
-/// The first mode is deliberately named synthetic: it is an engine-validation
-/// distribution, not a reconstruction of a prehistoric population.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// `SyntheticValidationV1` remains the frozen engineering/null-model preset and serializes to the
+/// same `synthetic_validation_v1` string used by earlier experiment identities. The declared mode
+/// carries the complete founder state inside immutable experiment configuration instead of silently
+/// reusing synthetic ages, sexes, reproductive history, or kin state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PopulationInitialization {
     SyntheticValidationV1,
+    DeclaredFounderStateV1(FounderPopulationDefinition),
 }
 
-/// Configuration for persistent people and synthetic co-resident households.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+impl PopulationInitialization {
+    #[must_use]
+    pub const fn declared_founders(&self) -> Option<&FounderPopulationDefinition> {
+        match self {
+            Self::SyntheticValidationV1 => None,
+            Self::DeclaredFounderStateV1(definition) => Some(definition),
+        }
+    }
+}
+
+/// Configuration for persistent people and co-resident households.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PopulationConfig {
     pub schema_version: u32,
     pub initial_population: u32,
+    /// Synthetic-validation target household size. Declared founder state supplies exact household
+    /// membership and does not reinterpret this value as a research assumption.
     pub target_household_size: u16,
     pub initialization: PopulationInitialization,
     /// Upper bound for the synthetic uniform founder age distribution.
-    /// This is an explicit validation parameter, not an empirical lifespan.
+    /// This is an explicit validation parameter, not an empirical lifespan, and is ignored by
+    /// declared founder-state initialization.
     pub synthetic_max_age_years: u16,
-    /// Male share of synthetic founders, expressed in permille.
+    /// Male share of synthetic founders, expressed in permille. Ignored by declared founder-state
+    /// initialization, which supplies reproductive sex person by person.
     pub synthetic_male_permille: u16,
     /// Operational safety ceiling for persistent person records. Reaching this
     /// stops a run; it is not a population-regulation mechanism.
@@ -176,6 +197,12 @@ impl PopulationConfig {
     #[must_use]
     pub const fn with_target_household_size(mut self, target_household_size: u16) -> Self {
         self.target_household_size = target_household_size;
+        self
+    }
+
+    #[must_use]
+    pub fn with_initialization(mut self, initialization: PopulationInitialization) -> Self {
+        self.initialization = initialization;
         self
     }
 
