@@ -129,9 +129,7 @@ impl ResumeLineage {
 pub enum ResumeLineageError {
     #[error("resume-lineage schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
-    #[error(
-        "resume-lineage boundary {index} has inconsistent annual boundary day {day} and completed years {completed_years}"
-    )]
+    #[error("resume-lineage boundary {index} has inconsistent annual boundary day {day} and completed years {completed_years}")]
     InvalidBoundaryTime {
         index: usize,
         day: u64,
