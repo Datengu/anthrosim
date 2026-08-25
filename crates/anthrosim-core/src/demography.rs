@@ -180,8 +180,9 @@ pub(crate) enum DemographyStepOutcome {
 /// records that existed at the start of the boundary, then fertility is
 /// evaluated among surviving female records. Newborns are not exposed to a
 /// mortality draw until a later annual boundary. M2 father selection is local
-/// to the mother's current cell and uniform among eligible living male records;
-/// it does not model marriage, pair bonds, kin avoidance, or social paternity.
+/// to the mother's persistent residence cell and uniform among eligible living male records;
+/// M9 temporary visitor co-presence does not change parent eligibility. It does not model
+/// marriage, pair bonds, kin avoidance, or social paternity.
 #[cfg(test)]
 pub(crate) fn process_demographic_year(
     population: &mut Population,

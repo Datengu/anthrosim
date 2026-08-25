@@ -2,7 +2,13 @@
 
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { parseLosslessJson, reconstructState, validateBundle } from "../explorer/model.mjs";
+import {
+  eventsForEntity,
+  inspectionTargetForEvent,
+  parseLosslessJson,
+  reconstructState,
+  validateBundle,
+} from "../explorer/model.mjs";
 
 const REQUIRED_FILES = {
   world: "world.json",
@@ -16,6 +22,25 @@ function fail(message) {
   throw new Error(message);
 }
 
+function validateEventInspectionSemantics() {
+  const birthTarget = inspectionTargetForEvent({ type: "birth", person: 17, household: 4 });
+  if (birthTarget?.kind !== "person" || birthTarget.id !== 17) fail("birth event does not route to its person inspector");
+
+  const migrationTarget = inspectionTargetForEvent({ type: "householdMigration", household: 4 });
+  if (migrationTarget?.kind !== "household" || migrationTarget.id !== 4) fail("permanent migration event does not route to its household inspector");
+
+  const temporaryTarget = inspectionTargetForEvent({ type: "temporaryJourneyDeparted", household: 9 });
+  if (temporaryTarget?.kind !== "household" || temporaryTarget.id !== 9) fail("temporary-mobility event does not route to its household inspector");
+
+  if (inspectionTargetForEvent({ type: "unknown" }) !== null) fail("entity-free event unexpectedly produced an inspector target");
+
+  const residenceFixture = {
+    events: { events: [
+      { event: { type: "temporaryJourneyCompleted", household: 9, residence: 23 } },
+    ] },
+  };
+  if (eventsForEntity(residenceFixture, { cell: 23 }).length !== 1) fail("M9 residence cell is not included in Explorer cell-event filtering");
+}
 async function readArtifact(path, { optional = false } = {}) {
   try {
     return parseLosslessJson(await readFile(path, "utf8"));
@@ -26,6 +51,7 @@ async function readArtifact(path, { optional = false } = {}) {
 }
 
 async function main() {
+  validateEventInspectionSemantics();
   const runDir = resolve(process.argv[2] ?? "");
   if (!process.argv[2]) fail("usage: node scripts/validate-explorer-bundle.mjs <run-dir>");
 

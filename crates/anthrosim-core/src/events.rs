@@ -40,6 +40,7 @@ pub enum EventKind {
         female_parent: PersonId,
         male_parent: PersonId,
         household: HouseholdId,
+        /// Persistent residence cell inherited from the household at birth.
         cell: CellId,
         reproductive_sex: ReproductiveSex,
     },
