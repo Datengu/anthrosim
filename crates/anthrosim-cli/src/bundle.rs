@@ -176,8 +176,15 @@ fn validate_semantics(
             initial_population = Some(population);
         }
     }
-    if initial_population.is_none() {
-        initial_population = Some(reconstruct_initial_population(&checkpoint, &world)?);
+    let reconstructed_initial_population = reconstruct_initial_population(&checkpoint, &world)?;
+    if let Some(recorded_initial_population) = initial_population.as_ref() {
+        if recorded_initial_population != &reconstructed_initial_population {
+            return Err(invalid(
+                "initial-population.json does not match deterministic founder reconstruction",
+            ));
+        }
+    } else {
+        initial_population = Some(reconstructed_initial_population);
     }
 
     let (landscape, spatial_binding) = if has_landscape {
