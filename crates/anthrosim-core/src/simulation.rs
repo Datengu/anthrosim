@@ -686,7 +686,8 @@ fn validate_founder_population_binding(config: &ExperimentConfig) -> Result<(), 
         (PopulationInitialization::DeclaredFounderStateV1, Some(definition)) => {
             if config.migration.enabled
                 && config.migration.kin_weight > 0
-                && definition.genealogy_status != FounderGenealogyStatus::CompleteLivingDirectParents
+                && definition.genealogy_status
+                    != FounderGenealogyStatus::CompleteLivingDirectParents
             {
                 return Err(SimulationError::FounderKinStateUnspecified);
             }
@@ -1058,10 +1059,7 @@ mod tests {
         let recent = declared_config(
             56,
             1,
-            declared_founder_definition(
-                FounderGenealogyStatus::Unspecified,
-                Some(-100),
-            ),
+            declared_founder_definition(FounderGenealogyStatus::Unspecified, Some(-100)),
         )
         .with_demography(demography.clone());
         let recent_run = Simulation::new(recent).unwrap().run_recorded().unwrap();
@@ -1070,10 +1068,7 @@ mod tests {
         let distant = declared_config(
             56,
             1,
-            declared_founder_definition(
-                FounderGenealogyStatus::Unspecified,
-                Some(-2_000),
-            ),
+            declared_founder_definition(FounderGenealogyStatus::Unspecified, Some(-2_000)),
         )
         .with_demography(demography);
         let distant_run = Simulation::new(distant).unwrap().run_recorded().unwrap();
@@ -1082,10 +1077,8 @@ mod tests {
 
     #[test]
     fn declared_founder_history_survives_checkpoint_resume_via_experiment_identity() {
-        let definition = declared_founder_definition(
-            FounderGenealogyStatus::Unspecified,
-            Some(-100),
-        );
+        let definition =
+            declared_founder_definition(FounderGenealogyStatus::Unspecified, Some(-100));
         let mut demography = no_event_demography();
         for band in &mut demography.fertility_bands {
             band.annual_probability_per_million = PROBABILITY_PER_MILLION;
@@ -1108,7 +1101,10 @@ mod tests {
             .run_recorded()
             .unwrap();
 
-        assert_eq!(resumed.checkpoint.population, uninterrupted.checkpoint.population);
+        assert_eq!(
+            resumed.checkpoint.population,
+            uninterrupted.checkpoint.population
+        );
         assert_eq!(resumed.checkpoint.events, uninterrupted.checkpoint.events);
         assert_eq!(
             resumed.checkpoint.state_digest64,
