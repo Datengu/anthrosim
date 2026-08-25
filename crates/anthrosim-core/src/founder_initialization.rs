@@ -172,16 +172,12 @@ impl FounderPopulationDefinition {
                     condition: person.condition_permille,
                 });
             }
-            let household_index = usize::try_from(
-                person
-                    .household
-                    .0
-                    .checked_sub(1)
-                    .ok_or(FounderPopulationError::InvalidHousehold {
-                        person: person.id,
-                        household: person.household,
-                    })?,
-            )
+            let household_index = usize::try_from(person.household.0.checked_sub(1).ok_or(
+                FounderPopulationError::InvalidHousehold {
+                    person: person.id,
+                    household: person.household,
+                },
+            )?)
             .map_err(|_| FounderPopulationError::InvalidHousehold {
                 person: person.id,
                 household: person.household,
@@ -274,7 +270,9 @@ pub enum FounderPopulationError {
     UnsupportedSchema { found: u32, supported: u32 },
     #[error("founder initialization ID must not be empty")]
     EmptyInitializationId,
-    #[error("declared founder count {declared} does not match configured initial population {expected}")]
+    #[error(
+        "declared founder count {declared} does not match configured initial population {expected}"
+    )]
     PopulationCountMismatch { declared: usize, expected: usize },
     #[error("declared founder count {declared} exceeds persistent record limit {limit}")]
     PopulationExceedsRecordLimit { declared: u64, limit: u64 },
