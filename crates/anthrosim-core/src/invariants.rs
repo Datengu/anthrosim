@@ -69,34 +69,82 @@ impl RecordedRun {
 pub fn validate_checkpoint_invariants(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<InvariantReport, InvariantError> {
-    validate_checkpoint_invariants_for_context(checkpoint, None)
+    let world = reconstruct_synthetic_world(checkpoint)?;
+    validate_checkpoint_invariants_for_world(checkpoint, None, &world)
 }
 
-fn validate_checkpoint_invariants_for_context(
+/// Validate a checkpoint against an already reconstructed authoritative world.
+///
+/// Synthetic execution normally uses [`validate_checkpoint_invariants`], which reconstructs the
+/// world from the experiment seed. Transformed spatial execution must instead validate against the
+/// authoritative overlaid world preserved by its landscape/mechanism binding.
+pub fn validate_checkpoint_invariants_with_world(
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+) -> Result<InvariantReport, InvariantError> {
+    validate_checkpoint_invariants_for_world(checkpoint, None, world)
+}
+
+pub fn validate_recorded_run_invariants(
+    run: &RecordedRun,
+) -> Result<InvariantReport, InvariantError> {
+    let world = reconstruct_synthetic_world(&run.checkpoint)?;
+    validate_run_artifacts_with_world(&run.manifest, &run.checkpoint, &world)
+}
+
+/// Apply the complete core recorded-run invariant suite to an explicit authoritative world.
+///
+/// This is the shared validation seam for non-synthetic hosts. The caller remains responsible for
+/// proving how the supplied world was derived (for example the M8 landscape/mechanism binding),
+/// while this function applies the same population/resource/migration/event/metric/M9-history and
+/// manifest reconciliation used by ordinary synthetic runs.
+pub fn validate_run_artifacts_with_world(
+    manifest: &RunManifest,
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+) -> Result<InvariantReport, InvariantError> {
+    let report =
+        validate_checkpoint_invariants_for_world(checkpoint, Some(manifest.stop_reason), world)?;
+    validate_manifest_against_checkpoint_with_world(manifest, checkpoint, world)?;
+    Ok(report)
+}
+
+fn reconstruct_synthetic_world(checkpoint: &SimulationCheckpoint) -> Result<World, InvariantError> {
+    Ok(World::generate(
+        checkpoint.experiment.world,
+        RngFactory::new(checkpoint.experiment.seed),
+    )?)
+}
+
+fn validate_checkpoint_invariants_for_world(
     checkpoint: &SimulationCheckpoint,
     recorded_stop_reason: Option<StopReason>,
+    world: &World,
 ) -> Result<InvariantReport, InvariantError> {
     validate_checkpoint_identity(checkpoint, recorded_stop_reason)?;
 
-    let rng_factory = RngFactory::new(checkpoint.experiment.seed);
-    let world = World::generate(checkpoint.experiment.world, rng_factory)?;
+    if world.width() != checkpoint.experiment.world.width
+        || world.height() != checkpoint.experiment.world.height
+    {
+        return violation("authoritative world dimensions do not match experiment configuration");
+    }
     if world.digest64() != checkpoint.world_digest64 {
-        return violation("world digest does not match deterministic reconstruction");
+        return violation("world digest does not match authoritative validation world");
     }
 
-    checkpoint.population.validate(&world)?;
+    checkpoint.population.validate(world)?;
     checkpoint
         .temporary_mobility
-        .validate_at_day(checkpoint.time.days(), &checkpoint.population, &world)
+        .validate_at_day(checkpoint.time.days(), &checkpoint.population, world)
         .map_err(|error| {
             InvariantError::Violation(format!("temporary mobility state is invalid: {error}"))
         })?;
     checkpoint
         .resources
-        .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
+        .validate_checkpoint_state(world, &checkpoint.experiment.resources)?;
     let migration = MigrationSystem::from_checkpoint_state(
         &checkpoint.population,
-        &world,
+        world,
         &checkpoint.experiment.migration,
         checkpoint.migration.clone(),
     )?;
@@ -114,20 +162,20 @@ fn validate_checkpoint_invariants_for_context(
         &checkpoint.migration,
         &migration_summary,
         &checkpoint.experiment.migration,
-        &world,
+        world,
         population.household_count,
         resources.periods_processed,
     )?;
     let counts = validate_events(
         &checkpoint.events,
         checkpoint.time.days(),
-        &world,
+        world,
         &checkpoint.population,
         &population,
         &resources,
         &migration_summary,
     )?;
-    validate_temporary_mobility_history(&world, checkpoint).map_err(|error| {
+    validate_temporary_mobility_history(world, checkpoint).map_err(|error| {
         InvariantError::Violation(format!(
             "temporary mobility event history is invalid: {error}"
         ))
@@ -164,17 +212,6 @@ fn validate_checkpoint_invariants_for_context(
         migration_moves: counts.migrations,
         resource_periods: resources.periods_processed,
     })
-}
-
-pub fn validate_recorded_run_invariants(
-    run: &RecordedRun,
-) -> Result<InvariantReport, InvariantError> {
-    let report = validate_checkpoint_invariants_for_context(
-        &run.checkpoint,
-        Some(run.manifest.stop_reason),
-    )?;
-    validate_manifest_against_checkpoint(&run.manifest, &run.checkpoint)?;
-    Ok(report)
 }
 
 fn validate_checkpoint_identity(
@@ -237,17 +274,16 @@ fn validate_checkpoint_identity(
     Ok(())
 }
 
-fn validate_manifest_against_checkpoint(
+fn validate_manifest_against_checkpoint_with_world(
     manifest: &RunManifest,
     checkpoint: &SimulationCheckpoint,
+    world: &World,
 ) -> Result<(), InvariantError> {
-    let rng_factory = RngFactory::new(checkpoint.experiment.seed);
-    let world = World::generate(checkpoint.experiment.world, rng_factory)?;
     let population = checkpoint.population.summary();
     let resources = checkpoint.resources.summary(&checkpoint.population);
     let migration = MigrationSystem::from_checkpoint_state(
         &checkpoint.population,
-        &world,
+        world,
         &checkpoint.experiment.migration,
         checkpoint.migration.clone(),
     )?
