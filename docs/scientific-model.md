@@ -1,121 +1,98 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** v0.1 working model specification  
+**Status:** working specification for current post-M9 `main`; latest released software remains v0.2.0  
 **Scientific status:** exploratory / unvalidated
 
-This document describes the scientific meaning of AnthroSim v0.1 separately from its software architecture. It follows the spirit of the ODD (Overview, Design concepts, Details) protocol used for agent-based models.
-
-The implementation is research-oriented, but the current executable demographic, resource and migration presets are still synthetic validation baselines. Verification of software behaviour is not empirical validation of human prehistory.
+This document began as the v0.1 ODD-oriented model specification and now records the scientific meaning of the implemented baseline through M9. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding and M9 adds a separate temporary-mobility layer. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
 
 ## 1. Purpose
 
-v0.1 asks a deliberately narrow methodological question:
+The original v0.1 methodological question remains part of the model:
 
-> Can a spatially explicit population of persistent individuals and households produce interpretable patterns of demographic growth, decline, fragmentation and migration when local resource conditions vary, without scripted destinations or higher-level social institutions?
+> Can a spatially explicit population of persistent individuals and households produce interpretable demographic and permanent-migration patterns from local resource conditions without scripted historical destinations or higher-level social institutions?
 
-v0.1 is not intended to reconstruct a particular prehistoric population or produce quantitative claims about real Homo sapiens.
+M8 extends that engine so externally derived spatial evidence can be normalized, provenance-bound and transformed through declared model assumptions. M9 adds a second mobility question:
 
-The implemented M1–M4 causal loop is:
+> Can persistent residence and intermittent temporary physical presence be represented as different causal histories, with deterministic travel/resource accounting and observability, without treating temporary aggregation as permanent settlement?
+
+M9 is a generic capability/null mechanism. It does not encode why real people gathered, whether a focal place was political/ritual/economic/defensive, or whether any archaeological site had a particular use. Current benchmark success means the implemented mechanisms are distinguishable under declared synthetic assumptions; it is not a historical reconstruction.
+
+The implemented causal layers are therefore:
 
 ```text
-synthetic environment
+baseline environment or declared M8 landscape
         ↓
-renewable local resources
+renewable local resources + declared spatial transformations
         ↓
-local household competition / sharing
+household competition / sharing and individual condition
         ↓
-individual condition and scarcity mortality
+M4 bounded permanent migration (changes residence)
         ↓
-local relocation pressure
+M9 temporary journeys (changes physical presence, not residence)
         ↓
-bounded household migration
-        ↓
-new local resource context
+duration-aware demand + separate residence/presence observability
 ```
 
-Baseline age-specific mortality, fertility and genealogy continue through the M2 annual demographic process.
+Baseline age-specific mortality, fertility and genealogy continue through the M2 annual demographic process and remain residence-based under M9.
 
 ## 2. Entities, state variables, and scales
 
 ### People
 
-Persistent individuals have stable identity, epoch-relative birth time/derived age, reproductive sex for the initial reproduction model, condition, location, household membership, parent references, birth-history state and death state. Dead individuals remain persistent records so genealogy references do not change when a person dies.
+Persistent individuals have stable identity, epoch-relative birth time/derived age, reproductive sex for the initial reproduction model, condition, household membership, parent references, birth-history state and death state. Dead individuals remain persistent records so genealogy references do not change when a person dies.
 
-Reproductive sex is a deliberately limited biological state variable for the v0.1 birth mechanism; it is not a model of social gender.
+A living person's **persistent residence** is distinct from M9 **physical presence**. When temporary mobility is disabled or the household is home, presence is at residence. With M9 enabled an away household can instead be in outbound transit, visiting a resolved focal-region destination, or in return transit. Transit deliberately has no authoritative per-day world cell. Only M4 permanent migration changes residence.
 
-Condition is an integer permille state from 0 to 1000. It is a synthetic energetic/health mediator: adequate household resource supply can recover condition, unmet need can reduce it, and completed migration can impose a distance-dependent condition cost. Condition is not BMI, body-fat percentage, a nutritional biomarker or a clinical health score.
+Reproductive sex remains a deliberately limited biological state variable for the current birth mechanism; it is not a model of social gender. Condition remains a synthetic 0..1000 permille energetic/health mediator rather than a clinical or directly empirical measure.
 
 ### Households
 
-A household is a co-resident resource-sharing and M4 relocation unit. It is not assumed to be a tribe, clan, lineage, settlement, marriage or universal nuclear-family structure. Parentage and household membership are separate relationships.
+A household is a persistent resource-sharing and mobility unit, not a tribe, clan, lineage, settlement, marriage or universal nuclear-family structure. Parentage and household membership are separate relationships.
 
-A newborn is assigned to the female parent's current household and cell. This is a transparent synthetic co-residence rule required to place a newborn into valid state; it is not an empirical claim about universal residence systems.
+Birth/fertility semantics remain residence-based under M9. A newborn joins the female parent's current household and inherits that household's persistent residence even if the household is temporarily away; temporary physical-presence bookkeeping is kept consistent separately. Parent eligibility likewise uses residence rather than visitor co-presence.
 
-Resource acquisition is accounted at household level after same-cell competition. All living members of a household receive the same resource-satisfaction fraction for that period. There is no within-household age, status, sex, bargaining, preferential feeding, storage, theft, exchange or food-waste model yet.
+M4 permanent migration relocates the living household and changes residence. M9 temporary mobility can move the household through transit/visiting states while preserving residence. A death while away removes the person from current physical-presence accounting, while demographic/spatial death attribution remains explicitly residence-based.
 
-In M4, all currently living members of a selected household relocate together. People who died before a later household move retain their location at death rather than being retroactively moved with the current household. Household-coordinated movement is an explicit v0.1 modelling choice, not a claim that all real mobility decisions occur at that social scale.
+Resource sharing remains household-level. M9 changes **where/when** household demand is charged across elapsed person-days; it does not add within-household bargaining, storage, theft, exchange, status or preferential feeding.
 
 ### World cells
 
-Cells contain movement cost, water accessibility, baseline food productivity, an M1 initial food-stock field, seasonality, environmental stress and occupancy/density context.
+The baseline engine uses cells containing movement cost, water accessibility, food productivity/stock fields, seasonality, environmental stress and occupancy context. Synthetic runs generate those fields deterministically.
 
-These values form a **synthetic engine-validation landscape**. Environmental ratios are dimensionless fixed-point permille values. Relative elevation, water access, productivity, movement cost and seasonality are spatially autocorrelated synthetic fields; they do not correspond to measured palaeoenvironmental units and must not be interpreted as empirical geography.
+M8 additionally supports versioned normalized landscapes derived from external spatial inputs. Those source values remain distinct from the deterministic model-facing transformations used by the simulation; loading real-world-derived terrain therefore does not make the resource, mobility or demographic equations empirically validated. M9 focal regions bind to authoritative cell identities on either synthetic or transformed worlds.
 
-M3 keeps the M1 `World` immutable and creates a separate dynamic renewable-resource stock per cell. Resource quantities are abstract integer units. They are deliberately not labelled calories, kilograms, biomass or any other empirical energetic unit.
-
-M4 reads dynamic local resource stock plus existing cell water/stress/movement fields when evaluating candidate destinations. It does not create a hidden geographic attractiveness field or label any cell as historically important.
+Dynamic renewable-resource stock remains separate from immutable/model-facing world fields. Resource quantities are abstract integer units unless a future research configuration explicitly supplies defensible units and evidence.
 
 ### Time
 
-Authoritative simulation time is represented in integer days.
+Authoritative simulation time is represented in integer days. Resource/condition processing occurs at explicit subannual boundaries and M2 baseline demography at annual boundaries.
 
-Resource/condition processing occurs at explicit subannual boundaries; the default synthetic resource configuration uses four periods per year. Migration is evaluated immediately after each resource boundary when the population survives that period. Selected household moves complete atomically at the same boundary and impose an explicit travel-condition cost. The M2 baseline demographic process remains evaluated at annual boundaries after the final resource/migration period of the year.
+M4 permanent relocation remains atomic at its decision boundary. M9 temporary journeys are explicitly duration-bearing: departure, arrival, visiting duration, return departure and completion occur on deterministic days, and journeys can remain active across an annual checkpoint. When multiple processes share a day, elapsed resource accounting settles first, then due temporary transitions/start decisions, then eligible at-residence M4 permanent migration, then annual M2 demography where applicable.
 
-These are temporal approximations, not claims that real gathering, physiological change, travel, births or deaths occur synchronously at those intervals.
+These schedules are model approximations and are scientifically consequential assumptions, not claims that real births, deaths, gathering, travel or physiological change occur synchronously.
 
 ### Space
 
-v0.1 uses a synthetic rectangular grid with hard boundaries. Four-neighbour topology supports world structure, while M4 destination discovery uses bounded Manhattan-distance neighbourhoods. Real Earth and palaeoenvironmental reconstruction are explicitly deferred.
+The baseline world is a bounded rectangular grid. M4 permanent destination discovery uses a bounded Manhattan information radius rather than global optimization. M8 can replace the synthetic model-facing fields with deterministic transformations of a normalized provenance-tracked landscape while preserving the same stable cell identity contract.
+
+M9 focal regions are identity-bearing bindings over declared cell sets. Temporary travel resolves deterministic cost/duration from household residence to the focal-region destination under the declared travel semantics. A journey's transit phase intentionally has no authoritative world cell, preventing false precision about unmodelled routes.
 
 ## 3. Process overview and scheduling
 
-For each M4 simulated year, the implemented order is:
+The baseline M2–M4 process remains: subannual renewable-resource settlement updates household supply/condition/scarcity survival, surviving pressured households may make bounded permanent-migration decisions from a shared pre-move snapshot, selected permanent moves are applied simultaneously, and the final period is followed by the annual demographic boundary.
 
-1. divide the year into the configured number of resource periods (four by default);
-2. at each resource boundary, regenerate renewable cell stock from baseline productivity, configured productivity scale, synthetic seasonality and environmental stress, subject to cell stock capacity;
-3. count living household members and calculate household resource need for the period;
-4. aggregate household demand by cell;
-5. allocate available stock among co-located households in proportion to household need, with bounded integer remainder resolved in stable household-ID order;
-6. treat household harvest as immediate household consumption in the current baseline;
-7. update each living member's condition from the household supply fraction;
-8. apply an additional scarcity-mortality draw whose probability increases with condition deficit;
-9. stop immediately if the population becomes extinct;
-10. derive one shared pre-move household/cell snapshot for the surviving population;
-11. calculate relocation pressure for living households from condition and local resource support;
-12. pressured households compare staying with only the cells inside the configured local Manhattan radius;
-13. decompose each candidate's utility into explicit resource, water/security, kin, travel, uncertainty and relocation-risk factors;
-14. discard candidates that do not improve sufficiently over staying;
-15. select among eligible alternatives with deterministic weighted stochastic choice;
-16. retain all chosen destinations as plans so later household decisions at that boundary do not observe earlier planned moves;
-17. apply selected household relocations simultaneously in one packed population pass, deduct distance-dependent travel condition cost and rebuild occupancy once;
-18. after the final resource/migration period of the year, evaluate the M2 annual demographic boundary;
-19. stop explicitly if extinction or the operational persistent-record limit occurs;
-20. at run completion, validate authoritative invariants and emit world, population, resource and migration summaries.
+M9 overlays temporary mobility without changing the meaning of M4 permanent migration. The governing same-day order is:
 
-For the M2 annual demographic boundary specifically:
+1. settle the elapsed resource interval using duration-aware residence/visitor/transit person-days;
+2. complete any due temporary transitions and evaluate/start due temporary journeys;
+3. evaluate M4 permanent migration only for eligible households physically at residence;
+4. run M2 annual demography if this is an annual boundary.
 
-1. evaluate baseline mortality for living person records that existed at the start of the boundary;
-2. if nobody remains alive, stop with `population_extinct`;
-3. evaluate fertility among surviving female records that existed at the start of the boundary;
-4. apply minimum birth-spacing eligibility;
-5. require at least one eligible living male in the female's current cell;
-6. perform the configured fertility draw;
-7. select one eligible local male uniformly by deterministic reservoir sampling;
-8. create the newborn with stable parent IDs, the female parent's current location/household and a deterministic reproductive-sex draw;
-9. rebuild the spatial occupancy index after births;
-10. stop explicitly if the operational persistent-record limit is reached.
+Temporary lifecycle state progresses through departure, outbound transit, visiting, return departure, return transit and completion. Focal-region identity, residence, destination, timing and people affected remain stable across a journey's authoritative event history. Transit uses an explicit home-provisioning resource proxy rather than an invented route cell.
 
-Newborns are not exposed to baseline annual mortality until a later annual boundary. They participate in later resource and migration periods once they exist. Scheduling is part of the model definition and must be treated as scientifically consequential in later sensitivity and validation work.
+M2 mortality/fertility remains annual and residence-based. Births inherit household residence. If a person dies while the household is away, temporary-presence state is updated so visitor/transit counts remain correct; `Death.cell` remains a residence attribution field and must not be read as an observed physical death location.
+
+Scheduling is part of the model definition and must be included in sensitivity/validation work. Detailed contracts are in [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md), [`research/m9-temporary-travel-semantics-v1.md`](research/m9-temporary-travel-semantics-v1.md), and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
 
 ## 4. Design concepts
 
@@ -178,11 +155,11 @@ This is deliberately narrow. It is not a model of clans, lineages, bilateral kin
 
 ### Travel and relocation risk
 
-Movement is not free. Candidate utility includes a travel penalty from Manhattan distance and destination movement-cost excess, plus a relocation-risk penalty. After a move is selected, each living mover loses condition according to travelled distance and the configured travel-condition cost.
+M4 permanent migration and M9 temporary mobility have different travel abstractions.
 
-The current relocation-risk term affects decision utility rather than creating a separate injury/death event. The journey itself is atomic rather than persistent: there is no en-route state, journey duration, camp sequence, route choice or movement mortality process yet.
+For M4, candidate utility includes distance/terrain travel penalty and relocation risk, and a selected permanent move completes atomically at that boundary with a condition cost. It has no persistent en-route state.
 
-These are explicit M4 simplifications and are not calibrated travel energetics or mortality estimates.
+For M9, temporary travel is explicitly duration-bearing. The household can remain in outbound or return transit for deterministic intervals before/after visiting. Travel cost/duration is derived from the declared world/focal-region binding and travel configuration; transit does not pretend to know a route cell. The current M9 null mechanism does not add route memory, camps, movement mortality, convoy structure or a cultural motive for travel.
 
 ### Interaction
 
@@ -190,7 +167,7 @@ v0.1 interaction is primarily household resource sharing, reproduction context, 
 
 Resource demand is aggregated only among households occupying the same cell. M4 candidate work is proportional to pressured households × bounded local candidate count, not households × all world cells. The hot path uses contiguous arrays indexed by cell/household/person plus reusable candidate buffers rather than pairwise person searches or a global household-interaction graph.
 
-M2 parent selection is intentionally minimal: a male parent must be alive, inside the configured age interval and present in the same cell as the female parent. Among eligible males, one is selected uniformly. v0.1 does **not** model marriage, pair bonds, social paternity, mate preference, incest avoidance, kin exogamy, polygyny or reproductive status beyond the stated rules.
+M2 parent selection is intentionally minimal: a male parent must be alive, inside the configured age interval and share the same persistent residence cell as the female parent. M9 visitor co-presence does not change parent eligibility. Among eligible males, one is selected uniformly. v0.1 does **not** model marriage, pair bonds, social paternity, mate preference, incest avoidance, kin exogamy, polygyny or reproductive status beyond the stated rules.
 
 ### Simultaneous movement
 
@@ -213,56 +190,33 @@ Resource regeneration, household demand/allocation, condition updates, candidate
 
 ### Observation
 
-M5 separates authoritative engine facts from recalculable summaries. This distinction is part of the scientific model rather than merely an output format.
+Authoritative events are versioned ordered state-transition records. In addition to births, deaths and completed M4 permanent migrations, M9 records the temporary-journey lifecycle needed to replay departure/arrival/return/completion history. Core invariant validation replays that lifecycle independently of optional derived reports.
 
-**Authoritative events** are versioned, ordered state-transition records. M5 v1 emits births, demographic deaths, resource-scarcity deaths and completed household migrations. Migration events retain the implemented pressure, factor-by-factor origin/destination utility, best locally visible candidate and deterministic stochastic-choice information. These records describe what the implemented model did; they are not inferred historical motives or archaeological interpretations.
+Derived metric snapshots remain explicitly downstream and reconcile against authoritative state. Completed/paused run bundles preserve the world, founders, event history, metrics and checkpoint required for deterministic inspection/resume.
 
-**Derived metric snapshots** are explicitly labelled `derived` and are emitted at completed annual boundaries plus the terminal boundary when necessary. They summarize population, resources and migration and carry the same composite state digest used for deterministic regression checks. Their final values are tested to reconcile with authoritative population/resource/migration summaries.
+M8 and M9 observability intentionally answer different location questions. `spatial-observability.json` schema v2 is residence-based: occupancy/person-days/birth/death cell attribution describes persistent residence and excludes temporary visitors/transit. `temporary-observability.json` derives physical-presence measures such as residents, visitors, transit, focal-region person-days, peak visitor share, journey counts/durations and travel/catchment. When both are present, the Explorer displays them side by side rather than collapsing them into one ambiguous occupancy concept.
 
-The run manifest records experiment configuration, artifact schema versions, world/population/resource/migration summaries, stop reason, deterministic state digest and compact runtime counters. Controlled run directories also contain the generated world, founder population, event log, metric series and checkpoint so later analysis does not require a live simulation process or database.
-
-M4's bounded retained migration-trace sample remains useful in the aggregate migration summary, while M5's event stream records every completed move. A trace or event explains the implemented mechanism; it is not evidence that a real person held the encoded motive.
-
-Interpretation remains downstream. Labels such as "collapse", "migration wave", "recovery" or future archaeological classifications must not be silently promoted into authoritative simulated ground truth.
+Interpretation remains downstream. Labels such as settlement, aggregation, refuge, ritual gathering, migration wave or collapse are not silently promoted into authoritative simulated ground truth.
 
 ## 5. Initialization
 
-A run specifies:
+A run records a complete versioned experiment configuration: seed, world/population/demographic/resource/permanent-migration settings, duration/stop conditions and evidence provenance where present. Landscape-bound runs additionally bind normalized landscape identity plus explicit spatial-mechanism transformations. M9-enabled runs additionally bind focal-region identity and the complete temporary-mobility/travel configuration in immutable experiment identity.
 
-- seed;
-- synthetic world dimensions and generator schema;
-- initial population count and spatial clustering;
-- starting age/reproductive-sex distribution;
-- household initialization rule;
-- persistent person-record safety limit;
-- demographic schedule/preset and provenance status;
-- resource model/preset, productivity scale, need and scarcity-response parameters;
-- migration preset, local-information radius, pressure thresholds, utility weights, uncertainty/risk and travel-cost parameters;
-- duration and stop conditions.
+The `synthetic_validation_v1` founder/demographic/resource/permanent-migration presets remain mechanism-testing baselines rather than neutral empirical priors. M9 temporary-mobility defaults likewise remain synthetic unless a research-specific configuration supplies a defensible evidence basis.
 
-No default parameter should be described as empirically realistic until a source and validation rationale are documented.
-
-The current `synthetic_validation_v1` founder initialization samples ages from an explicitly configured synthetic range, assigns reproductive sex stochastically from a configured share, creates simple fixed-target-size co-resident households and places households stochastically across synthetic world cells. Founder parentage and pre-run birth history are unknown/unset. This can create demographic transients and is not a scientifically neutral age structure.
-
-M3 initializes dynamic resource stock from the synthetic world's initial food-stock/productivity fields, the resource productivity scale and stock-capacity rule. This is an engine-validation initial condition, not reconstructed environmental carrying capacity.
-
-M4 initializes no historical route, migration corridor or destination knowledge. Households begin with current location/co-residence and only the bounded genealogical information already represented in persistent person state.
-
-A future schedule-consistent or empirical initialization method is required before experiments claim correspondence to a real population.
+No historical route, settlement role, aggregation motive or destination outcome is initialized implicitly. Focal-region cells define where the temporary mechanism can act; they do not assert why a real place was used or that a historical aggregation occurred there.
 
 ## 6. Input data and provenance
 
-v0.1 has no external anthropological, archaeological, energetic, mobility or palaeoecological **runtime dataset**. The M1 environment, M3 resource quantities and M4 migration parameters are synthetic.
+The original v0.1 M1/M3/M4 runtime baseline is synthetic. M2 mechanisms are informed by published comparative evidence but its executable preset remains explicitly synthetic validation.
 
-M2 demographic mechanisms are informed by published comparative evidence documented in `docs/research/demography-v0.1.md`, but the first executable demographic preset remains explicitly synthetic for engine validation.
+M8 adds a separate evidence/provenance layer: normalized external spatial inputs can be preserved with source identity, transformations and uncertainty/provenance metadata, then mapped deterministically into model-facing fields. Evidence parameter links are validated against the actual versioned serialized `ExperimentConfig` so a typo or obsolete path cannot masquerade as machine-readable provenance.
 
-The M3 executable resource preset is `synthetic_validation_v1`, documented in `docs/research/resources-v0.1.md`. Current need, regeneration, stock-capacity, condition and scarcity-mortality values are modelling placeholders selected to exercise causal machinery and directional tests.
+Real-world-derived input does not automatically validate the model transformation or downstream behavioural mechanism. Every empirical interpretation still requires source/units/uncertainty, a declared transformation and question-specific validation rationale.
 
-The M4 executable migration preset is also `synthetic_validation_v1`, documented in `docs/research/migration-v0.1.md`. Its information radius, pressure thresholds, utility weights, uncertainty, relocation-risk and travel-condition costs are mechanism-testing assumptions rather than estimates of observed mobility.
+M9's generic temporary-mobility mechanism is not itself an empirical dataset or behavioural claim. Its controlled aggregation benchmark is synthetic capability validation. Research-specific temporal frequency, duration, catchment or focal-region assumptions require their own evidence/uncertainty treatment before archaeological interpretation.
 
-Later empirical presets must retain source identity, transformations, units, uncertainty and provenance status.
-
-## 7. Implemented v0.1 submodels
+## 7. Implemented baseline and extensions
 
 ### Synthetic environment (M1 — implemented)
 
@@ -326,7 +280,15 @@ Candidate evaluation is not global optimization. Alternatives must improve suffi
 
 All households decide from one pre-move snapshot. Selected households then relocate simultaneously. Living members move together, their condition pays the travel cost, current household location changes, and occupancy is rebuilt. Dead records keep location at death.
 
-There is no hard-coded historical destination or route, persistent en-route state, route memory, seasonal mobility tradition, clan/tribe institution or claim that synthetic weights reproduce real mobility behaviour.
+There is no hard-coded historical destination or route, route memory, seasonal mobility tradition, clan/tribe institution or claim that synthetic M4 weights reproduce real mobility behaviour. M4 itself has no persistent en-route state; M9 temporary mobility adds a separate duration-bearing transit/visiting lifecycle without changing permanent-migration semantics.
+
+### Evidence-grounded spatial execution (M8 — implemented; v0.2.0 release baseline)
+
+M8 preserves normalized landscape inputs and provenance separately from explicit deterministic model-facing transformations. Landscape/mechanism identity is carried through experiment/run artifacts, and residence-based spatial observability is derived downstream. Its first evidence-grounded terrain null-model benchmark found fragile rather than seed-stable spatial effects; this validates the experiment/reproduction capability, not a historical reconstruction.
+
+### Temporary mobility and aggregation (M9 — implemented on unreleased main)
+
+M9 separates persistent residence from physical presence and adds identity-bearing focal regions, deterministic temporary journey scheduling/travel, duration-aware resource attribution, checkpointable active journeys and separate physical-presence observability. The frozen M9.7 benchmark distinguished intermittent aggregation from continuous residence across its paired synthetic seeds while preserving exact duplicate and checkpoint/resume replay. This is a capability result only; no social motive or archaeological interpretation is encoded.
 
 ## 8. Model verification targets
 
@@ -353,7 +315,12 @@ Before scientific validation, implementation must satisfy:
 - completed migration traces must remain within the configured local radius and expose origin/destination utility factors;
 - migration-enabled and migration-disabled otherwise-equal tests can diverge spatially through the implemented movement mechanism;
 - household relocation and occupancy invariants remain valid after simultaneous moves;
-- migration candidate lookup and the full v0.1 target workload remain benchmarked in CI.
+- migration candidate lookup and the full v0.1 target workload remain benchmarked in CI;
+- every M9 temporary journey has a unique coherent departure → arrival → return-departure → completion history with stable household/region/residence/destination identity;
+- M9 state/events replay exactly across uninterrupted and annual-boundary resumed execution, including checkpoints taken while journeys are active;
+- transformed spatial runs receive the same core invariant validation as ordinary runs;
+- M8 residence-based spatial observability and M9 physical-presence observability declare and preserve their different location semantics;
+- compact enabled-M9 cross-platform golden outputs remain byte-identical across supported Linux, Windows and macOS CI runners.
 
 Passing these targets verifies implementation properties. It does not validate demographic, resource or migration assumptions against reality.
 
@@ -371,7 +338,7 @@ A research-capable demographic/resource/migration configuration will require, as
 - evidence on mobility scale, settlement duration/relocation frequency and information horizon where movement is part of the claim;
 - explicit treatment of analogy limits when ethnographic mobility evidence is used;
 - defensible travel/terrain costs and social/kin assumptions;
-- sensitivity to simultaneous-arrival crowding and the atomic-travel approximation;
+- sensitivity to simultaneous-arrival crowding, M4 atomic permanent relocation, and M9 temporary-journey duration/transit assumptions;
 - explicit examination of annual/subannual scheduling effects;
 - explicit examination of initialization transients and initial resource stock;
 - calibration only where justified by a stated research question;
@@ -382,12 +349,10 @@ A research-capable demographic/resource/migration configuration will require, as
 
 A preset fails validation if it cannot reproduce the empirical quantities it claims to represent within declared tolerance/uncertainty. Failure is reported rather than tuned away invisibly.
 
-## 10. First candidate experiment
+## 10. Research progression
 
-Now that the complete M1–M4 environmental-response loop exists, a reasonable first research-style model exercise is:
+The first v0.1 resource-variability experiment, the M8 evidence-grounded terrain benchmark and the M9 controlled aggregation benchmark are now completed reference exercises rather than future candidates.
 
-> How does the magnitude and temporal variability of local resource productivity affect population persistence, spatial fragmentation and migration distance in the simplified v0.1 model?
+The M8 result showed that a declared terrain-only transformation could perturb spatial outcomes without yielding a stable directional effect across seeds. The M9 result showed that continuous residence and intermittent temporary aggregation can produce measurably different physical-presence histories under frozen synthetic assumptions while remaining deterministic and checkpoint-replayable.
 
-M3 supplies the resource-to-condition-to-survival pathway and M4 adds bounded behavioural movement. Factorial comparisons can also turn migration on/off or vary information radius to distinguish survival effects caused by resources from those caused by mobility response.
-
-Until empirical parameterization and validation exist, such experiments remain engine/model validation exercises rather than claims about actual prehistory.
+Neither result establishes an archaeological explanation. The next mechanism or experiment is intentionally question-led: identify a real discriminating research question, state competing hypotheses and observables, determine which assumptions/evidence can constrain them, then add only the missing capability required for that comparison. Negative, fragile and equifinal results remain valid outcomes and must not be tuned away.
