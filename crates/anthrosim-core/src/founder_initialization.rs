@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeStruct};
 use thiserror::Error;
 
 use crate::{
@@ -7,6 +7,10 @@ use crate::{
     population::ReproductiveSex,
     world::{PERMILLE_MAX, World},
 };
+
+const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+const CONTENT_IDENTITY_DOMAIN: &[u8] = b"anthrosim-founder-population-definition-v1";
 
 /// Completeness statement for direct-parent state at the simulation boundary.
 ///
@@ -56,8 +60,14 @@ pub struct FounderPerson {
 /// immutable experiment identity. `provenance` describes the declared epistemic source of the
 /// founder state; evidence-closure enforcement remains the separate research-readiness gate in
 /// issue #181.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+///
+/// Programmatically constructed definitions are deliberately editable before persistence. JSON
+/// deserialization seals the scientific contents to the serialized `contentDigest64` when one is
+/// present, or to the content observed at load time when it is omitted by a standalone input file.
+/// Serialization always writes the current deterministic digest. Consequently, persisted run and
+/// checkpoint artifacts reject later content mutation unless their integrity metadata is also
+/// deliberately rewritten; this is an integrity/reproducibility check, not a cryptographic seal.
+#[derive(Debug, Clone)]
 pub struct FounderPopulationDefinition {
     pub schema_version: u32,
     pub initialization_id: String,
@@ -65,6 +75,72 @@ pub struct FounderPopulationDefinition {
     pub genealogy_status: FounderGenealogyStatus,
     pub households: Vec<FounderHousehold>,
     pub people: Vec<FounderPerson>,
+    expected_content_digest64: Option<u64>,
+}
+
+impl PartialEq for FounderPopulationDefinition {
+    fn eq(&self, other: &Self) -> bool {
+        self.schema_version == other.schema_version
+            && self.initialization_id == other.initialization_id
+            && self.provenance == other.provenance
+            && self.genealogy_status == other.genealogy_status
+            && self.households == other.households
+            && self.people == other.people
+    }
+}
+
+impl Eq for FounderPopulationDefinition {}
+
+impl Serialize for FounderPopulationDefinition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("FounderPopulationDefinition", 7)?;
+        state.serialize_field("schemaVersion", &self.schema_version)?;
+        state.serialize_field("initializationId", &self.initialization_id)?;
+        state.serialize_field("provenance", &self.provenance)?;
+        state.serialize_field("genealogyStatus", &self.genealogy_status)?;
+        state.serialize_field("contentDigest64", &self.content_digest64())?;
+        state.serialize_field("households", &self.households)?;
+        state.serialize_field("people", &self.people)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for FounderPopulationDefinition {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct WireDefinition {
+            schema_version: u32,
+            initialization_id: String,
+            provenance: ParameterProvenance,
+            genealogy_status: FounderGenealogyStatus,
+            #[serde(default)]
+            content_digest64: Option<u64>,
+            households: Vec<FounderHousehold>,
+            people: Vec<FounderPerson>,
+        }
+
+        let wire = WireDefinition::deserialize(deserializer)?;
+        let mut definition = Self {
+            schema_version: wire.schema_version,
+            initialization_id: wire.initialization_id,
+            provenance: wire.provenance,
+            genealogy_status: wire.genealogy_status,
+            households: wire.households,
+            people: wire.people,
+            expected_content_digest64: wire.content_digest64,
+        };
+        if definition.expected_content_digest64.is_none() {
+            definition.expected_content_digest64 = Some(definition.content_digest64());
+        }
+        Ok(definition)
+    }
 }
 
 impl FounderPopulationDefinition {
@@ -85,7 +161,45 @@ impl FounderPopulationDefinition {
             genealogy_status,
             households,
             people,
+            expected_content_digest64: None,
         }
+    }
+
+    /// Deterministic identity of every scientifically consequential founder-definition field.
+    ///
+    /// The digest deliberately excludes only the serialized digest itself. It is a compact
+    /// reproducibility/integrity identity, not a cryptographic authenticity mechanism.
+    #[must_use]
+    pub fn content_digest64(&self) -> u64 {
+        let mut hash = FNV_OFFSET_BASIS;
+        digest_bytes(&mut hash, CONTENT_IDENTITY_DOMAIN);
+        digest_u32(&mut hash, self.schema_version);
+        digest_bytes(&mut hash, self.initialization_id.as_bytes());
+        digest_u8(&mut hash, provenance_code(self.provenance));
+        digest_u8(&mut hash, genealogy_code(self.genealogy_status));
+        digest_u64(
+            &mut hash,
+            u64::try_from(self.households.len()).expect("founder household count must fit u64"),
+        );
+        for household in &self.households {
+            digest_u64(&mut hash, household.id.0);
+            digest_u64(&mut hash, household.location.0);
+        }
+        digest_u64(
+            &mut hash,
+            u64::try_from(self.people.len()).expect("founder person count must fit u64"),
+        );
+        for person in &self.people {
+            digest_u64(&mut hash, person.id.0);
+            digest_i64(&mut hash, person.birth_day);
+            digest_u8(&mut hash, reproductive_sex_code(person.reproductive_sex));
+            digest_u64(&mut hash, person.household.0);
+            digest_optional_person_id(&mut hash, person.female_parent);
+            digest_optional_person_id(&mut hash, person.male_parent);
+            digest_optional_i64(&mut hash, person.last_birth_day);
+            digest_u16(&mut hash, person.condition_permille);
+        }
+        hash
     }
 
     /// Return one declared founder by stable one-based `PersonId` when IDs are canonical.
@@ -225,6 +339,13 @@ impl FounderPopulationDefinition {
                 household: HouseholdId::new(index as u64 + 1),
             });
         }
+
+        if let Some(expected) = self.expected_content_digest64 {
+            let actual = self.content_digest64();
+            if actual != expected {
+                return Err(FounderPopulationError::ContentIdentityMismatch { expected, actual });
+            }
+        }
         Ok(())
     }
 }
@@ -262,6 +383,88 @@ fn validate_parent(
         });
     }
     Ok(())
+}
+
+fn provenance_code(provenance: ParameterProvenance) -> u8 {
+    match provenance {
+        ParameterProvenance::EmpiricalDirect => 1,
+        ParameterProvenance::EmpiricalDerived => 2,
+        ParameterProvenance::EvidenceInformed => 3,
+        ParameterProvenance::SyntheticValidation => 4,
+        ParameterProvenance::Unresolved => 5,
+    }
+}
+
+fn genealogy_code(status: FounderGenealogyStatus) -> u8 {
+    match status {
+        FounderGenealogyStatus::Unspecified => 1,
+        FounderGenealogyStatus::CompleteLivingDirectParents => 2,
+    }
+}
+
+fn reproductive_sex_code(sex: ReproductiveSex) -> u8 {
+    match sex {
+        ReproductiveSex::Female => 1,
+        ReproductiveSex::Male => 2,
+    }
+}
+
+fn digest_optional_person_id(hash: &mut u64, value: Option<PersonId>) {
+    match value {
+        None => digest_u8(hash, 0),
+        Some(id) => {
+            digest_u8(hash, 1);
+            digest_u64(hash, id.0);
+        }
+    }
+}
+
+fn digest_optional_i64(hash: &mut u64, value: Option<i64>) {
+    match value {
+        None => digest_u8(hash, 0),
+        Some(value) => {
+            digest_u8(hash, 1);
+            digest_i64(hash, value);
+        }
+    }
+}
+
+fn digest_bytes(hash: &mut u64, bytes: &[u8]) {
+    digest_u64(
+        hash,
+        u64::try_from(bytes.len()).expect("content identity byte length must fit u64"),
+    );
+    for &byte in bytes {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
+}
+
+fn digest_u8(hash: &mut u64, value: u8) {
+    digest_bytes_raw(hash, &[value]);
+}
+
+fn digest_u16(hash: &mut u64, value: u16) {
+    digest_bytes_raw(hash, &value.to_le_bytes());
+}
+
+fn digest_u32(hash: &mut u64, value: u32) {
+    digest_bytes_raw(hash, &value.to_le_bytes());
+}
+
+fn digest_u64(hash: &mut u64, value: u64) {
+    digest_bytes_raw(hash, &value.to_le_bytes());
+}
+
+fn digest_i64(hash: &mut u64, value: i64) {
+    digest_bytes_raw(hash, &value.to_le_bytes());
+}
+
+fn digest_bytes_raw(hash: &mut u64, bytes: &[u8]) {
+    for &byte in bytes {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -336,6 +539,10 @@ pub enum FounderPopulationError {
         birth_day: i64,
         last_birth_day: i64,
     },
+    #[error(
+        "founder population content identity mismatch: stored {expected}, reconstructed {actual}"
+    )]
+    ContentIdentityMismatch { expected: u64, actual: u64 },
 }
 
 #[cfg(test)]
@@ -438,5 +645,56 @@ mod tests {
             definition.validate(3, 10, &world()),
             Err(FounderPopulationError::ParentSexMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn serialized_content_identity_detects_valid_post_load_mutation() {
+        let definition = valid_definition();
+        let json = serde_json::to_string(&definition).unwrap();
+        assert!(json.contains("contentDigest64"));
+
+        let mut loaded: FounderPopulationDefinition = serde_json::from_str(&json).unwrap();
+        loaded.people[2].last_birth_day = Some(-200);
+        assert!(matches!(
+            loaded.validate(3, 10, &world()),
+            Err(FounderPopulationError::ContentIdentityMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn standalone_json_without_digest_is_sealed_at_load_time() {
+        let definition = valid_definition();
+        let mut json_value = serde_json::to_value(&definition).unwrap();
+        json_value
+            .as_object_mut()
+            .unwrap()
+            .remove("contentDigest64");
+        let loaded: FounderPopulationDefinition = serde_json::from_value(json_value).unwrap();
+        loaded.validate(3, 10, &world()).unwrap();
+
+        let round_trip = serde_json::to_value(&loaded).unwrap();
+        assert!(round_trip.get("contentDigest64").is_some());
+    }
+
+    #[test]
+    fn content_identity_covers_genealogy_residence_condition_and_birth_history() {
+        let definition = valid_definition();
+        let baseline = definition.content_digest64();
+
+        let mut changed = definition.clone();
+        changed.people[2].last_birth_day = Some(-200);
+        assert_ne!(changed.content_digest64(), baseline);
+
+        let mut changed = definition.clone();
+        changed.people[2].male_parent = None;
+        assert_ne!(changed.content_digest64(), baseline);
+
+        let mut changed = definition.clone();
+        changed.households[0].location = CellId::new(2);
+        assert_ne!(changed.content_digest64(), baseline);
+
+        let mut changed = definition;
+        changed.people[2].condition_permille = 701;
+        assert_ne!(changed.content_digest64(), baseline);
     }
 }
