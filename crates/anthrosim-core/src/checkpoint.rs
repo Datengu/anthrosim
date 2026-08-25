@@ -1,9 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::ExperimentConfig, events::EventLog, manifest::StopReason, metrics::MetricSeries,
-    migration::MigrationCheckpointState, population::Population, provenance::ResumeLineage,
-    resources::ResourceSystem, rng::RngStreamPosition, temporary_mobility::TemporaryMobilityState,
+    config::{ExperimentConfig, ParameterProvenance},
+    events::EventLog,
+    founder_initialization::{FounderGenealogyStatus, FounderPopulationDefinition},
+    manifest::StopReason,
+    metrics::MetricSeries,
+    migration::MigrationCheckpointState,
+    population::{Population, ReproductiveSex},
+    provenance::ResumeLineage,
+    resources::ResourceSystem,
+    rng::RngStreamPosition,
+    temporary_mobility::TemporaryMobilityState,
     time::SimTime,
 };
 
@@ -105,8 +113,132 @@ pub fn state_digest64_with_temporary_mobility(
     hash
 }
 
+/// Extend authoritative state identity with declared founder history only when that history exists.
+///
+/// `FounderPopulationDefinition` contains pre-run reproductive timing that remains causally active
+/// after day 0 until a model-period birth supersedes it. It therefore has to participate in the
+/// checkpoint state digest even though it is preserved in immutable experiment configuration rather
+/// than forged into model-period Population event state. `None` returns the exact legacy/M9 digest,
+/// preserving every existing synthetic reference digest.
+#[must_use]
+pub(crate) fn state_digest64_with_founder_population(
+    day: u64,
+    world_digest64: u64,
+    population_digest64: u64,
+    resource_digest64: u64,
+    migration_digest64: u64,
+    temporary_mobility: &TemporaryMobilityState,
+    founder_population: Option<&FounderPopulationDefinition>,
+) -> u64 {
+    let legacy = state_digest64_with_temporary_mobility(
+        day,
+        world_digest64,
+        population_digest64,
+        resource_digest64,
+        migration_digest64,
+        temporary_mobility,
+    );
+    let Some(founder_population) = founder_population else {
+        return legacy;
+    };
+
+    let mut hash = FNV_OFFSET_BASIS;
+    digest_u64(&mut hash, legacy);
+    digest_u64(&mut hash, founder_population_digest64(founder_population));
+    hash
+}
+
+fn founder_population_digest64(definition: &FounderPopulationDefinition) -> u64 {
+    let mut hash = FNV_OFFSET_BASIS;
+    digest_u64(&mut hash, u64::from(definition.schema_version));
+    digest_bytes(&mut hash, definition.initialization_id.as_bytes());
+    digest_u64(
+        &mut hash,
+        match definition.provenance {
+            ParameterProvenance::EmpiricalDirect => 0,
+            ParameterProvenance::EmpiricalDerived => 1,
+            ParameterProvenance::EvidenceInformed => 2,
+            ParameterProvenance::SyntheticValidation => 3,
+            ParameterProvenance::Unresolved => 4,
+        },
+    );
+    digest_u64(
+        &mut hash,
+        match definition.genealogy_status {
+            FounderGenealogyStatus::Unspecified => 0,
+            FounderGenealogyStatus::CompleteLivingDirectParents => 1,
+        },
+    );
+    digest_u64(
+        &mut hash,
+        u64::try_from(definition.households.len()).unwrap_or(u64::MAX),
+    );
+    for household in &definition.households {
+        digest_u64(&mut hash, household.id.0);
+        digest_u64(&mut hash, household.location.0);
+    }
+    digest_u64(
+        &mut hash,
+        u64::try_from(definition.people.len()).unwrap_or(u64::MAX),
+    );
+    for person in &definition.people {
+        digest_u64(&mut hash, person.id.0);
+        digest_i64(&mut hash, person.birth_day);
+        digest_u64(
+            &mut hash,
+            match person.reproductive_sex {
+                ReproductiveSex::Female => 0,
+                ReproductiveSex::Male => 1,
+            },
+        );
+        digest_u64(&mut hash, person.household.0);
+        digest_optional_id(&mut hash, person.female_parent.map(|id| id.0));
+        digest_optional_id(&mut hash, person.male_parent.map(|id| id.0));
+        digest_optional_i64(&mut hash, person.last_birth_day);
+        digest_u64(&mut hash, u64::from(person.condition_permille));
+    }
+    hash
+}
+
+fn digest_optional_id(hash: &mut u64, value: Option<u64>) {
+    match value {
+        Some(value) => {
+            digest_u64(hash, 1);
+            digest_u64(hash, value);
+        }
+        None => digest_u64(hash, 0),
+    }
+}
+
+fn digest_optional_i64(hash: &mut u64, value: Option<i64>) {
+    match value {
+        Some(value) => {
+            digest_u64(hash, 1);
+            digest_i64(hash, value);
+        }
+        None => digest_u64(hash, 0),
+    }
+}
+
 fn digest_u64(hash: &mut u64, value: u64) {
-    for byte in value.to_le_bytes() {
+    digest_bytes(hash, &value.to_le_bytes());
+}
+
+fn digest_i64(hash: &mut u64, value: i64) {
+    digest_bytes(hash, &value.to_le_bytes());
+}
+
+fn digest_bytes(hash: &mut u64, bytes: &[u8]) {
+    digest_u64_length(hash, bytes.len());
+    for &byte in bytes {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(FNV_PRIME);
+    }
+}
+
+fn digest_u64_length(hash: &mut u64, length: usize) {
+    let length = u64::try_from(length).unwrap_or(u64::MAX);
+    for byte in length.to_le_bytes() {
         *hash ^= u64::from(byte);
         *hash = hash.wrapping_mul(FNV_PRIME);
     }
@@ -133,5 +265,17 @@ mod tests {
         let extended =
             state_digest64_with_temporary_mobility(365, 11, 22, 33, 44, &temporary_mobility);
         assert_eq!(extended, legacy);
+        assert_eq!(
+            state_digest64_with_founder_population(
+                365,
+                11,
+                22,
+                33,
+                44,
+                &temporary_mobility,
+                None,
+            ),
+            legacy
+        );
     }
 }
