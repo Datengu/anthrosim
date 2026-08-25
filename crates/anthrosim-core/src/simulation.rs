@@ -29,7 +29,7 @@ use crate::{
         TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
         TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
     },
-    time::{DAYS_PER_YEAR, SimTime},
+    time::{DAYS_PER_YEAR, MAX_SUPPORTED_DURATION_YEARS, SimTime},
     world::{World, WorldError},
 };
 
@@ -634,6 +634,12 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
             supported: ExperimentConfig::CURRENT_SCHEMA_VERSION,
         });
     }
+    if config.duration_years > MAX_SUPPORTED_DURATION_YEARS {
+        return Err(SimulationError::DurationOutOfRange {
+            duration_years: config.duration_years,
+            maximum_years: MAX_SUPPORTED_DURATION_YEARS,
+        });
+    }
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
@@ -700,6 +706,13 @@ fn validate_terminal_checkpoint_state(
 pub enum SimulationError {
     #[error("experiment schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedExperimentSchema { found: u32, supported: u32 },
+    #[error(
+        "experiment duration {duration_years} years exceeds supported signed chronology limit {maximum_years} years"
+    )]
+    DurationOutOfRange {
+        duration_years: u64,
+        maximum_years: u64,
+    },
     #[error("checkpoint schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedCheckpointSchema { found: u32, supported: u32 },
     #[error("checkpoint model version {found} does not match current model version {expected}")]
@@ -837,6 +850,18 @@ mod tests {
                 note: None,
             }]),
         )
+    }
+
+    #[test]
+    fn duration_beyond_signed_chronology_domain_is_rejected_before_execution() {
+        let duration_years = MAX_SUPPORTED_DURATION_YEARS + 1;
+        assert!(matches!(
+            Simulation::new(ExperimentConfig::new(5, duration_years)),
+            Err(SimulationError::DurationOutOfRange {
+                duration_years: found,
+                maximum_years,
+            }) if found == duration_years && maximum_years == MAX_SUPPORTED_DURATION_YEARS
+        ));
     }
 
     #[test]

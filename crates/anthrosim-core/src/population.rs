@@ -210,7 +210,9 @@ impl Population {
             u64::try_from(world.cell_count()).expect("supported world cell count must fit u64");
         let mut household_locations = Vec::with_capacity(household_count);
         for _ in 0..household_count {
-            let location = CellId::new(household_rng.next_u64() % world_cell_count + 1);
+            let location = CellId::new(
+                synthetic_validation_modulo_draw(household_rng.next_u64(), world_cell_count) + 1,
+            );
             household_locations.push(location);
         }
 
@@ -234,10 +236,12 @@ impl Population {
             let age_days = if max_age_days == 0 {
                 0
             } else {
-                age_rng.next_u64() % max_age_days
+                synthetic_validation_modulo_draw(age_rng.next_u64(), max_age_days)
             };
             let birth_day = -i64::try_from(age_days).expect("synthetic age range must fit i64");
-            let sex_draw = (sex_rng.next_u64() % u64::from(PERMILLE_MAX)) as u16;
+            let sex_draw =
+                synthetic_validation_modulo_draw(sex_rng.next_u64(), u64::from(PERMILLE_MAX))
+                    as u16;
             let reproductive_sex = if sex_draw < config.synthetic_male_permille {
                 ReproductiveSex::Male
             } else {
@@ -609,7 +613,8 @@ impl Population {
             if death_day != NO_EVENT_DAY && self.birth_days[index] >= 0 {
                 let birth_day = u64::try_from(self.birth_days[index])
                     .expect("non-negative birth day must fit u64");
-                if death_day < birth_day {
+                // Newborns are not exposed to mortality until a later annual boundary.
+                if death_day <= birth_day {
                     return Err(PopulationValidationError::DeathBeforeBirth {
                         person,
                         birth_day: self.birth_days[index],
@@ -623,13 +628,58 @@ impl Population {
                 if self.reproductive_sexes[index] != ReproductiveSex::Female {
                     return Err(PopulationValidationError::BirthHistoryOnNonFemale { person });
                 }
-                if death_day != NO_EVENT_DAY && last_birth_day > death_day {
+                if self.birth_days[index] >= 0 {
+                    let own_birth_day = u64::try_from(self.birth_days[index])
+                        .expect("non-negative birth day must fit u64");
+                    if last_birth_day <= own_birth_day {
+                        return Err(PopulationValidationError::BirthHistoryBeforeOwnBirth {
+                            person,
+                            own_birth_day,
+                            recorded_birth_day: last_birth_day,
+                        });
+                    }
+                }
+                // Mortality precedes fertility on the same boundary, so equality is impossible.
+                if death_day != NO_EVENT_DAY && last_birth_day >= death_day {
                     return Err(PopulationValidationError::BirthAfterDeath {
                         person,
                         birth_day: last_birth_day,
                         death_day,
                     });
                 }
+            }
+        }
+
+        // `last_birth_days` is persisted fertility state used by future spacing decisions. It
+        // must therefore agree with the latest post-run child record, not merely be locally
+        // plausible in isolation.
+        let mut latest_recorded_child_birth_days = vec![NO_EVENT_DAY; person_count];
+        for child_index in 0..person_count {
+            let female_parent = self.female_parents[child_index];
+            if female_parent == PersonId::INVALID || self.birth_days[child_index] < 0 {
+                continue;
+            }
+            let parent_index = person_index(female_parent, person_count).ok_or(
+                PopulationValidationError::InvalidParent {
+                    person: person_id_from_index(child_index),
+                    parent: female_parent,
+                },
+            )?;
+            let child_birth_day = u64::try_from(self.birth_days[child_index])
+                .expect("non-negative child birth day must fit u64");
+            let latest = &mut latest_recorded_child_birth_days[parent_index];
+            if *latest == NO_EVENT_DAY || child_birth_day > *latest {
+                *latest = child_birth_day;
+            }
+        }
+        for (index, &expected) in latest_recorded_child_birth_days.iter().enumerate() {
+            let recorded = self.last_birth_days[index];
+            if recorded != expected {
+                return Err(PopulationValidationError::BirthHistoryMismatch {
+                    person: person_id_from_index(index),
+                    recorded_birth_day: optional_event_day(recorded),
+                    latest_child_birth_day: optional_event_day(expected),
+                });
             }
         }
 
@@ -664,7 +714,9 @@ impl Population {
         if child_birth_day >= 0 && parent_death_day != NO_EVENT_DAY {
             let child_birth_day =
                 u64::try_from(child_birth_day).expect("non-negative birth day must fit u64");
-            if parent_death_day < child_birth_day {
+            // Mortality is processed before fertility at an annual boundary, so a parent who
+            // dies on the child's birth day is already ineligible for that birth.
+            if parent_death_day <= child_birth_day {
                 return Err(PopulationValidationError::ParentDeadBeforeBirth {
                     person,
                     parent,
@@ -825,6 +877,17 @@ fn validate_config(config: PopulationConfig) -> Result<(), PopulationError> {
     Ok(())
 }
 
+/// Frozen synthetic-validation mapping used by the founder preset.
+///
+/// Modulo reduction can differ by one source value between buckets when `upper_exclusive` does
+/// not divide the 2^64 RNG domain. That negligible bias is not an empirical sampling claim and
+/// changing the mapping would churn historical deterministic reference outputs, so it is kept
+/// explicit and regression-tested rather than silently replaced.
+fn synthetic_validation_modulo_draw(raw: u64, upper_exclusive: u64) -> u64 {
+    debug_assert!(upper_exclusive > 0);
+    raw % upper_exclusive
+}
+
 fn person_id_from_index(index: usize) -> PersonId {
     PersonId::new(u64::try_from(index).expect("person index must fit u64") + 1)
 }
@@ -932,7 +995,7 @@ pub enum PopulationValidationError {
     #[error("person {person:?} parent {parent:?} is not older than the child")]
     ParentNotOlder { person: PersonId, parent: PersonId },
     #[error(
-        "person {person:?} parent {parent:?} died on day {parent_death_day} before child birth day {child_birth_day}"
+        "person {person:?} parent {parent:?} died on day {parent_death_day} before or on child birth day {child_birth_day}"
     )]
     ParentDeadBeforeBirth {
         person: PersonId,
@@ -940,7 +1003,7 @@ pub enum PopulationValidationError {
         parent_death_day: u64,
         child_birth_day: u64,
     },
-    #[error("person {person:?} dies on day {death_day} before birth day {birth_day}")]
+    #[error("person {person:?} dies on day {death_day} before or on birth day {birth_day}")]
     DeathBeforeBirth {
         person: PersonId,
         birth_day: i64,
@@ -948,11 +1011,27 @@ pub enum PopulationValidationError {
     },
     #[error("person {person:?} has a birth-history event despite non-female reproductive sex")]
     BirthHistoryOnNonFemale { person: PersonId },
-    #[error("person {person:?} has birth on day {birth_day} after death on day {death_day}")]
+    #[error(
+        "person {person:?} records a birth on day {recorded_birth_day} before or on own birth day {own_birth_day}"
+    )]
+    BirthHistoryBeforeOwnBirth {
+        person: PersonId,
+        own_birth_day: u64,
+        recorded_birth_day: u64,
+    },
+    #[error("person {person:?} has birth on day {birth_day} on or after death on day {death_day}")]
     BirthAfterDeath {
         person: PersonId,
         birth_day: u64,
         death_day: u64,
+    },
+    #[error(
+        "person {person:?} birth-history day {recorded_birth_day:?} does not match latest recorded child birth day {latest_child_birth_day:?}"
+    )]
+    BirthHistoryMismatch {
+        person: PersonId,
+        recorded_birth_day: Option<u64>,
+        latest_child_birth_day: Option<u64>,
     },
     #[error("invalid occupancy index: {reason}")]
     OccupancyShape { reason: &'static str },
@@ -1094,6 +1173,165 @@ mod tests {
         assert!(population.mean_living_condition_permille() < 1_000);
         assert_eq!(population.living_below_condition(500), 1);
         assert_ne!(before, population.digest64());
+    }
+
+    #[test]
+    fn synthetic_modulo_mapping_is_frozen_and_has_at_most_one_count_bucket_imbalance() {
+        assert_eq!(synthetic_validation_modulo_draw(0, 3), 0);
+        assert_eq!(synthetic_validation_modulo_draw(u64::MAX, 3), u64::MAX % 3);
+
+        let domain = u128::from(u64::MAX) + 1;
+        for upper_exclusive in [3_u64, 365, u64::from(PERMILLE_MAX), 10_003] {
+            let smaller_bucket = domain / u128::from(upper_exclusive);
+            let remainder = domain % u128::from(upper_exclusive);
+            assert!(remainder < u128::from(upper_exclusive));
+            if remainder != 0 {
+                let larger_bucket = smaller_bucket + 1;
+                assert_eq!(larger_bucket - smaller_bucket, 1);
+            }
+        }
+    }
+
+    #[test]
+    fn persisted_parent_death_on_child_birth_day_is_rejected() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(53)).unwrap();
+        let mut population =
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(53))
+                .unwrap();
+        let female_index = (0..population.person_count())
+            .find(|&index| {
+                population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Female)
+            })
+            .unwrap();
+        let male_index = (0..population.person_count())
+            .find(|&index| {
+                population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Male)
+            })
+            .unwrap();
+        let female = population.person_id_at_index(female_index).unwrap();
+        let male = population.person_id_at_index(male_index).unwrap();
+        let location = population.location_at_index(female_index).unwrap();
+        let household = population.household_at_index(female_index).unwrap();
+        population
+            .append_birth(
+                365,
+                ReproductiveSex::Female,
+                location,
+                household,
+                female,
+                male,
+            )
+            .unwrap();
+        population.rebuild_occupancy(&world).unwrap();
+        assert!(population.mark_death(male_index, 365));
+
+        assert!(matches!(
+            population.validate(&world),
+            Err(PopulationValidationError::ParentDeadBeforeBirth {
+                parent_death_day: 365,
+                child_birth_day: 365,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn persisted_last_birth_not_after_own_birth_is_rejected() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(59)).unwrap();
+        let mut population =
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(59))
+                .unwrap();
+        let female_index = (0..population.person_count())
+            .find(|&index| {
+                population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Female)
+            })
+            .unwrap();
+        let male_index = (0..population.person_count())
+            .find(|&index| {
+                population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Male)
+            })
+            .unwrap();
+        let female = population.person_id_at_index(female_index).unwrap();
+        let male = population.person_id_at_index(male_index).unwrap();
+        let location = population.location_at_index(female_index).unwrap();
+        let household = population.household_at_index(female_index).unwrap();
+        population
+            .append_birth(
+                365,
+                ReproductiveSex::Female,
+                location,
+                household,
+                female,
+                male,
+            )
+            .unwrap();
+        population.rebuild_occupancy(&world).unwrap();
+        let child_index = population.person_count() - 1;
+        population.last_birth_days[child_index] = 365;
+
+        assert!(matches!(
+            population.validate(&world),
+            Err(PopulationValidationError::BirthHistoryBeforeOwnBirth {
+                own_birth_day: 365,
+                recorded_birth_day: 365,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn persisted_last_birth_day_must_match_latest_recorded_child() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(61)).unwrap();
+        let mut population =
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(61))
+                .unwrap();
+        let female_index = (0..population.person_count())
+            .find(|&index| {
+                population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Female)
+            })
+            .unwrap();
+        let male_index = (0..population.person_count())
+            .find(|&index| {
+                population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Male)
+            })
+            .unwrap();
+        let female = population.person_id_at_index(female_index).unwrap();
+        let male = population.person_id_at_index(male_index).unwrap();
+        let location = population.location_at_index(female_index).unwrap();
+        let household = population.household_at_index(female_index).unwrap();
+        population
+            .append_birth(
+                365,
+                ReproductiveSex::Female,
+                location,
+                household,
+                female,
+                male,
+            )
+            .unwrap();
+        population.note_successful_birth(female_index, 365);
+        population.rebuild_occupancy(&world).unwrap();
+        population.validate(&world).unwrap();
+
+        population.last_birth_days[female_index] = 364;
+        assert!(matches!(
+            population.validate(&world),
+            Err(PopulationValidationError::BirthHistoryMismatch {
+                recorded_birth_day: Some(364),
+                latest_child_birth_day: Some(365),
+                ..
+            })
+        ));
+
+        population.last_birth_days[female_index] = NO_EVENT_DAY;
+        assert!(matches!(
+            population.validate(&world),
+            Err(PopulationValidationError::BirthHistoryMismatch {
+                recorded_birth_day: None,
+                latest_child_birth_day: Some(365),
+                ..
+            })
+        ));
     }
 
     #[test]
