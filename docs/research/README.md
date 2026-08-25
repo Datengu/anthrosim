@@ -12,6 +12,7 @@ Start here:
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence provenance and transformation contract.
 - [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — authoritative annual M2 demographic-time semantics introduced by the post-M9 scientific-hardening repair programme; defines interval age, competing mortality/fertility, executable birth spacing, same-day M4 parentage locality, newborn condition, and the still-open founder/observability work.
+- [`trace-m2-demographic-time-repair-2026-08-25.md`](trace-m2-demographic-time-repair-2026-08-25.md) — TRACE change record for the first M2 repair slice, including verification evidence, invalidated synthetic references and remaining gates.
 
 ## TRACE audit records
 
