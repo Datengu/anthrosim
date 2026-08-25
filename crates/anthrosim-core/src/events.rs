@@ -46,6 +46,8 @@ pub enum EventKind {
     Death {
         person: PersonId,
         household: HouseholdId,
+        /// Persistent residence cell used for demographic/spatial attribution. Under M9 this is
+        /// not necessarily the person's physical location at death while the household is away.
         cell: CellId,
         cause: DeathCause,
         condition_permille: u16,

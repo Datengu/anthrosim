@@ -138,23 +138,40 @@ jobs:
           checkpoint = json.loads((root / 'checkpoint.json').read_text())
           landscape_manifest = json.loads((root / 'landscape-manifest.json').read_text())
 
-          if report['schemaVersion'] != 1 or report['provenance'] != 'derived':
-              raise SystemExit('M8.5 report schema/provenance mismatch')
+          if report['schemaVersion'] != 2 or report['provenance'] != 'derived':
+              raise SystemExit('spatial observability schema/provenance mismatch')
+          semantics = report.get('semantics', {})
+          if semantics.get('populationLocationBasis') != 'persistent_residence':
+              raise SystemExit('spatial population basis is not explicit persistent residence')
+          if semantics.get('occupancyIncludesTemporaryVisitors') is not False:
+              raise SystemExit('spatial occupancy must explicitly exclude temporary visitors')
+          if semantics.get('occupancyIncludesTransit') is not False:
+              raise SystemExit('spatial occupancy must explicitly exclude transit')
+          if semantics.get('birthCellAttribution') != 'persistent_residence':
+              raise SystemExit('spatial birth attribution is not persistent residence')
+          if semantics.get('deathCellAttribution') != 'persistent_residence':
+              raise SystemExit('spatial death attribution is not persistent residence')
+          if semantics.get('physicalPresenceCompanionArtifact') is not None:
+              raise SystemExit('non-M9 spatial fixture unexpectedly declares a physical-presence companion')
           if report['source']['seed'] != checkpoint['experiment']['seed']:
-              raise SystemExit('M8.5 report seed mismatch')
+              raise SystemExit('spatial observability seed mismatch')
           if report['source']['runStateDigest64'] != checkpoint['stateDigest64']:
-              raise SystemExit('M8.5 report state identity mismatch')
+              raise SystemExit('spatial observability state identity mismatch')
           if report['source']['landscapeIdentity'] != landscape_manifest['landscape']['landscapeIdentity']:
-              raise SystemExit('M8.5 report landscape identity mismatch')
+              raise SystemExit('spatial observability landscape identity mismatch')
           if len(report['cells']) != len(json.loads((root / 'world.json').read_text())['cells']):
-              raise SystemExit('M8.5 per-cell table shape mismatch')
+              raise SystemExit('spatial per-cell table shape mismatch')
           if any(row['derived']['provenance'] != 'derived' for row in report['cells']):
-              raise SystemExit('M8.5 per-cell derived provenance missing')
+              raise SystemExit('spatial per-cell derived provenance missing')
           unavailable = ' '.join(report['unavailableObservables'])
           if 'historical per-cell food stock' not in unavailable:
-              raise SystemExit('M8.5 report failed to declare unavailable resource history')
+              raise SystemExit('spatial report failed to declare unavailable resource history')
+          if 'persistent residence' not in unavailable:
+              raise SystemExit('spatial report failed to declare its residence-based location boundary')
+          if 'Death.cell' not in unavailable:
+              raise SystemExit('spatial report failed to declare residence-based death attribution')
 
-          print('M8.5 machine-readable report is provenance-bound and explicitly incomplete where history is unavailable.')
+          print('Spatial observability is provenance-bound and explicitly residence-based; M9 physical presence remains a separate companion concept.')
           PY
 
       - name: Prove explorer serves spatial artifacts read-only

@@ -99,9 +99,10 @@ pub use spatial_mechanisms::{
 };
 pub use spatial_observability::{
     SpatialCellObservability, SpatialDerivedCell, SpatialLayerDescriptor,
-    SpatialMigrationDistanceBin, SpatialMigrationFlow, SpatialModelFacingCell,
-    SpatialObservabilityError, SpatialObservabilityReport, SpatialObservabilitySource,
-    SpatialObservabilitySummary, derive_spatial_observability,
+    SpatialLocationAttribution, SpatialMigrationDistanceBin, SpatialMigrationFlow,
+    SpatialModelFacingCell, SpatialObservabilityError, SpatialObservabilityReport,
+    SpatialObservabilitySemantics, SpatialObservabilitySource, SpatialObservabilitySummary,
+    derive_spatial_observability,
 };
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
