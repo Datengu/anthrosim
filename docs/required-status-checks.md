@@ -2,7 +2,7 @@
 
 AnthroSim's `main` branch is protected by GitHub. This file records the intended repository-governance contract for the checks that must pass before ordinary merges.
 
-This contract is separate from the complete CI topology in `docs/ci-validation.md`: some workflows are valuable but deliberately not globally required because they are path-filtered or performance-oriented. The list below is the exact set intended for branch protection.
+This contract is separate from the complete CI topology in `docs/ci-validation.md`: some workflows are valuable but deliberately not globally required because they are path-filtered, scheduled or performance-oriented. The list below is the exact set intended for branch protection.
 
 ## Required GitHub Actions checks
 
@@ -51,17 +51,20 @@ The following jobs are useful but are not part of the global protected set:
 - `Core benchmarks`;
 - `1000-run ensemble soak`;
 - `Performance and memory acceptance`;
+- `RustSec dependency advisory audit`;
 - `Regenerate pinned open terrain input`;
 - `Execute predeclared terrain null-model benchmark`;
 - `Execute predeclared M9.7 aggregation benchmark`.
 
-The first three are scale/performance gates whose failure is still taken seriously during release work but which are not necessary as everyday branch-protection contexts. The M8.6 and M9.7 benchmark jobs are path-filtered: globally requiring a path-filtered check can block unrelated pull requests waiting for a context that never runs.
+The first three are scale/performance gates whose failure is still taken seriously during release work but which are not necessary as everyday branch-protection contexts. The RustSec job is both path-filtered and scheduled: it runs on dependency/security-control changes and independently against the current default branch, but globally requiring its context would block unrelated pull requests on which that context is intentionally absent. A dependency-changing pull request is not considered complete while its RustSec audit is failing, and a scheduled vulnerability finding remains a release/security blocker until assessed.
 
-Named releases may impose a stronger release checklist than ordinary branch protection. In particular, `v0.2.0` required an explicit M8.6 canonical scientific regression run even though that path-filtered job was not globally required. The planned M9 `v0.3.0` release must likewise explicitly rerun the preserved M9.7 scientific regression benchmark as part of release verification rather than making its path-filtered context globally mandatory.
+The M8.6 and M9.7 benchmark jobs are path-filtered: globally requiring a path-filtered check can block unrelated pull requests waiting for a context that never runs.
+
+Named releases may impose a stronger release checklist than ordinary branch protection. In particular, `v0.2.0` required an explicit M8.6 canonical scientific regression run even though that path-filtered job was not globally required. The planned M9 `v0.3.0` release must likewise explicitly rerun the preserved M9.7 scientific regression benchmark and assess the latest dependency-advisory result as part of release verification rather than making those path-filtered/scheduled contexts globally mandatory.
 
 ## Maintenance rule
 
-Any pull request that adds, removes or renames an independent workflow/job protecting correctness, determinism, provenance, artifact integrity or research reproducibility must explicitly answer:
+Any pull request that adds, removes or renames an independent workflow/job protecting correctness, determinism, provenance, artifact integrity, dependency security or research reproducibility must explicitly answer:
 
 > Should this check be added to, removed from, or renamed in the protected `main` required-check set?
 
