@@ -41,13 +41,21 @@ function fixture() {
     ],
   };
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     provenance: "derived",
     source: {
       seed: 7,
       endDay: 730,
       runStateDigest64: "18446744073709551615",
       landscapeIdentity: "landscape-v1-example",
+    },
+    semantics: {
+      populationLocationBasis: "persistent_residence",
+      occupancyIncludesTemporaryVisitors: false,
+      occupancyIncludesTransit: false,
+      birthCellAttribution: "persistent_residence",
+      deathCellAttribution: "persistent_residence",
+      physicalPresenceCompanionArtifact: "temporary-observability.json",
     },
     width: 2,
     height: 1,
@@ -93,6 +101,15 @@ function fixture() {
     },
     spatialMechanisms: null,
     spatialObservability: report,
+    temporaryObservability: {
+      schemaVersion: 1,
+      source: { seed: 7, endDay: 730, runStateDigest64: "18446744073709551615" },
+      summary: { visitorPersonDays: 12, peakVisitors: 3 },
+      cells: [
+        { cell: 1, persistentResidencePersonDays: 900, atResidencePersonDays: 888, visitorPersonDays: 4, visitorHouseholdDays: 2, arrivals: 1, returnDepartures: 1, peakVisitors: 2 },
+        { cell: 2, persistentResidencePersonDays: 365, atResidencePersonDays: 365, visitorPersonDays: 8, visitorHouseholdDays: 4, arrivals: 2, returnDepartures: 2, peakVisitors: 3 },
+      ],
+    },
   };
 }
 
@@ -127,7 +144,7 @@ test("derived spatial overlays are read from the machine-readable report", () =>
   assert.deepEqual(spatialMapValues(bundle, "derived:occupancyPersistence"), [1000, 500]);
   assert.deepEqual(spatialMapValues(bundle, "derived:personDays"), [900, 365]);
   assert.deepEqual(spatialMapValues(bundle, "derived:terminalPopulation"), [2, 1]);
-  assert.match(spatialOverlayDescription(bundle, "derived:personDays"), /downstream analysis/);
+  assert.match(spatialOverlayDescription(bundle, "derived:personDays"), /temporary visitors and transit are excluded/);
 });
 
 test("overlay options keep normalized input and derived observables visibly distinct", () => {
@@ -143,4 +160,11 @@ test("cell details retain exact source-layer values beside derived metrics", () 
   assert.equal(details.layers[0].value, null);
   assert.equal(details.layers[1].value, 750);
   assert.equal(details.report.derived.terminalLivingPopulation, 1);
+  assert.equal(details.temporaryReport.visitorPersonDays, 8);
+});
+
+test("spatial semantics reject ambiguous location-basis metadata", () => {
+  const bundle = fixture();
+  bundle.spatialObservability.semantics.populationLocationBasis = "physical_presence";
+  assert.throws(() => validateSpatialArtifacts(bundle, runInfo), /persistent residence/);
 });

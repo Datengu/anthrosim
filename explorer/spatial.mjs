@@ -61,6 +61,13 @@ function renderMetadata(bundle) {
   if (bundle.spatialObservability?.source?.spatialModelSemanticsId) {
     addDefinition(metadata, "Spatial semantics", bundle.spatialObservability.source.spatialModelSemanticsId);
   }
+  if (bundle.spatialObservability?.semantics) {
+    addDefinition(metadata, "Population location basis", "persistent residence");
+    addDefinition(metadata, "Death cell attribution", "persistent residence (not necessarily physical death location)");
+    if (bundle.spatialObservability.semantics.physicalPresenceCompanionArtifact) {
+      addDefinition(metadata, "Physical-presence companion", bundle.spatialObservability.semantics.physicalPresenceCompanionArtifact);
+    }
+  }
 }
 
 function renderLayerCatalogue(bundle) {
@@ -93,15 +100,21 @@ function renderSummary(bundle) {
     return;
   }
   const values = [
-    ["Terminal population", summary.terminalLivingPopulation],
-    ["Terminal occupied cells", summary.terminalOccupiedCells],
-    ["Cell-time occupied", formatPermille(summary.cellTimeOccupiedPermille)],
-    ["Largest-cell share", formatPermille(summary.terminalLargestCellSharePermille)],
+    ["Terminal resident population", summary.terminalLivingPopulation],
+    ["Terminal residence-occupied cells", summary.terminalOccupiedCells],
+    ["Residence cell-time occupied", formatPermille(summary.cellTimeOccupiedPermille)],
+    ["Largest residence-cell share", formatPermille(summary.terminalLargestCellSharePermille)],
     ["Population HHI", summary.terminalPopulationHerfindahlPerMillion === null ? "not available" : `${formatValue(summary.terminalPopulationHerfindahlPerMillion)} / 1,000,000`],
     ["Migration moves", summary.migrationMoves],
     ["People moved", summary.migrationPeopleMoved],
     ["Migration distance", `${formatValue(summary.migrationTotalDistanceCells)} cell-steps`],
   ];
+  if (bundle.temporaryObservability?.summary) {
+    values.push(
+      ["M9 visitor person-days", bundle.temporaryObservability.summary.visitorPersonDays],
+      ["M9 peak visitors", bundle.temporaryObservability.summary.peakVisitors],
+    );
+  }
   for (const [label, value] of values) {
     const card = create("div", null, "summary-card");
     card.append(create("span", label, "label"), create("strong", formatValue(value), "value"));
@@ -149,16 +162,30 @@ function renderCell(bundle, cellId) {
     addDefinition(model, "Terminal food stock", report.modelFacing.terminalFoodStock);
     container.append(model);
 
-    container.append(create("h4", "Derived spatial observables"));
+    container.append(create("h4", "Derived persistent-residence observables"));
     const derived = create("dl");
-    addDefinition(derived, "Occupancy duration", `${formatValue(report.derived.occupiedDurationDays)} days`);
-    addDefinition(derived, "Occupancy persistence", formatPermille(report.derived.occupancyFractionPermille));
-    addDefinition(derived, "Living person-days", report.derived.livingPersonDays);
-    addDefinition(derived, "Terminal population", report.derived.terminalLivingPopulation);
-    addDefinition(derived, "Births / deaths", `${report.derived.births} / ${report.derived.deaths}`);
-    addDefinition(derived, "Scarcity deaths", report.derived.resourceScarcityDeaths);
+    addDefinition(derived, "Residence occupancy duration", `${formatValue(report.derived.occupiedDurationDays)} days`);
+    addDefinition(derived, "Residence occupancy persistence", formatPermille(report.derived.occupancyFractionPermille));
+    addDefinition(derived, "Resident living person-days", report.derived.livingPersonDays);
+    addDefinition(derived, "Terminal resident population", report.derived.terminalLivingPopulation);
+    addDefinition(derived, "Residence-attributed births / deaths", `${report.derived.births} / ${report.derived.deaths}`);
+    addDefinition(derived, "Residence-attributed scarcity deaths", report.derived.resourceScarcityDeaths);
     addDefinition(derived, "Migration people in / out", `${report.derived.migrationPeopleIn} / ${report.derived.migrationPeopleOut}`);
     container.append(derived);
+
+    if (details.temporaryReport) {
+      const temporary = details.temporaryReport;
+      container.append(create("h4", "M9 physical-presence companion"));
+      const presence = create("dl");
+      addDefinition(presence, "Persistent-residence person-days", temporary.persistentResidencePersonDays);
+      addDefinition(presence, "At-residence person-days", temporary.atResidencePersonDays);
+      addDefinition(presence, "Visitor person-days", temporary.visitorPersonDays);
+      addDefinition(presence, "Visitor household-days", temporary.visitorHouseholdDays);
+      addDefinition(presence, "Peak visitors", temporary.peakVisitors);
+      addDefinition(presence, "Arrivals / return departures", `${temporary.arrivals} / ${temporary.returnDepartures}`);
+      container.append(presence);
+      container.append(create("p", "Transit is reported in temporary-observability.json totals and has no invented per-cell location.", "muted"));
+    }
   }
 }
 
@@ -235,13 +262,14 @@ async function startSpatial() {
   try {
     const landscape = await fetchArtifact("landscape.json");
     if (!landscape) return;
-    const [world, checkpoint, manifest, landscapeManifest, spatialMechanisms, spatialObservability] = await Promise.all([
+    const [world, checkpoint, manifest, landscapeManifest, spatialMechanisms, spatialObservability, temporaryObservability] = await Promise.all([
       fetchArtifact("world.json", { optional: false }),
       fetchArtifact("checkpoint.json", { optional: false }),
       fetchArtifact("manifest.json"),
       fetchArtifact("landscape-manifest.json"),
       fetchArtifact("spatial-mechanisms.json"),
       fetchArtifact("spatial-observability.json"),
+      fetchArtifact("temporary-observability.json"),
     ]);
     const bundle = {
       world,
@@ -249,6 +277,7 @@ async function startSpatial() {
       landscapeManifest,
       spatialMechanisms,
       spatialObservability,
+      temporaryObservability,
     };
     const runInfo = {
       seed: checkpoint.experiment.seed,
