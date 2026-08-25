@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anthrosim_core::{
     DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, MigrationConfig,
     ParameterProvenance, PopulationConfig, RecordedRun, ResourceConfig, Simulation,
-    TemporaryMobilityProgram, TemporaryMobilitySchedule, TemporaryTravelModel,
+    TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
     TemporaryTriggerTiming, WorldConfig,
     ids::{CellId, HouseholdId, TemporaryJourneyId},
 };
@@ -27,7 +27,7 @@ fn no_pressure_resources() -> ResourceConfig {
 }
 
 fn recorded_m9_run() -> RecordedRun {
-    let config = ExperimentConfig::new(9_141, 1)
+    let base_config = ExperimentConfig::new(9_141, 1)
         .with_world(WorldConfig::new(4, 4))
         .with_population(
             PopulationConfig::new(20)
@@ -37,7 +37,7 @@ fn recorded_m9_run() -> RecordedRun {
         .with_demography(no_event_demography())
         .with_resources(no_pressure_resources())
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
-    let probe = Simulation::new(config.clone()).unwrap();
+    let probe = Simulation::new(base_config.clone()).unwrap();
     let residences = (1..=probe.population().household_count() as u64)
         .filter_map(|raw| probe.population().household_location(HouseholdId::new(raw)))
         .collect::<BTreeSet<_>>();
@@ -58,8 +58,7 @@ fn recorded_m9_run() -> RecordedRun {
         u16::MAX,
     )
     .unwrap();
-    let travel = model.derive_table(&region, probe.world()).unwrap();
-    let program = TemporaryMobilityProgram::new(
+    let temporary_mobility = TemporaryMobilityConfig::new(
         region,
         TemporaryMobilitySchedule::new(
             "m9-history-invariant-schedule",
@@ -68,15 +67,12 @@ fn recorded_m9_run() -> RecordedRun {
             10,
         )
         .unwrap(),
-        travel,
-        probe.world(),
+        model,
     )
     .unwrap();
+    let config = base_config.with_temporary_mobility(temporary_mobility);
 
-    Simulation::new_with_temporary_mobility(config, program)
-        .unwrap()
-        .run_recorded()
-        .unwrap()
+    Simulation::new(config).unwrap().run_recorded().unwrap()
 }
 
 fn renumber(run: &mut RecordedRun) {
