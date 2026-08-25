@@ -1,0 +1,325 @@
+# AnthroSim ODD 2020 model description
+
+**Protocol:** ODD 2020 (Grimm et al. 2020)  
+**AnthroSim baseline:** v0.3.0 / completed M9  
+**Status:** formal living ODD description  
+**Scientific status:** exploratory / unvalidated
+
+This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated.
+
+ODD describes the model. It does not by itself establish that the model is fit for a real archaeological or anthropological inference. Evaluation evidence is tracked separately in [`trace.md`](trace.md), while human decision assumptions are expanded in [`odd-d.md`](odd-d.md).
+
+---
+
+## 1. Purpose and patterns
+
+### Purpose
+
+AnthroSim is a deterministic/reproducible agent-based simulation framework for exploring whether explicit local causal mechanisms can generate interpretable population, resource, spatial and mobility patterns without scripting historical outcomes.
+
+The current baseline supports three connected methodological purposes:
+
+1. **Synthetic causal exploration:** test demographic, resource and permanent-migration mechanisms under transparent assumptions.
+2. **Evidence-grounded spatial experimentation:** bind normalized external spatial evidence to declared model-facing transformations while keeping evidence, transformation and simulated result conceptually separate.
+3. **Residence versus temporary presence:** test whether persistent residence and intermittent temporary aggregation can produce distinguishable physical-presence histories without treating temporary visitation as settlement.
+
+The general purpose type is primarily **understanding/explanation and methodological demonstration**, not point prediction of a specific past society.
+
+The baseline is not a validated reconstruction of human prehistory. It does not encode a tribe, polity, ethnic group, settlement function, ritual motive, war, market, language or historical route unless a future question-specific model explicitly introduces and justifies such a mechanism.
+
+### Patterns used to evaluate suitability
+
+AnthroSim distinguishes four kinds of patterns/criteria:
+
+**A. Implementation-verification patterns**
+
+Examples include exact population/resource accounting, deterministic replay, valid genealogy, bounded state, coherent residence/presence histories, checkpoint-resume equivalence and named RNG-stream isolation. These test whether the implementation matches its declared semantics; they do not validate anthropology.
+
+**B. Directional/mechanism patterns**
+
+Examples include the expectation that, under otherwise equal controlled conditions, worsening local resource/condition inputs must not reduce declared migration pressure, and that severe sustained resource deprivation must not improve condition/survival. These are falsification-oriented mechanism checks.
+
+**C. Synthetic capability patterns**
+
+The preserved M8 and M9 benchmarks test whether the engine can express and distinguish declared synthetic mechanisms reproducibly. The M8 terrain exercise found fragile spatial effects rather than a stable historical result. The M9 benchmark demonstrated distinguishable intermittent-presence versus continuous-residence histories under frozen synthetic assumptions. Neither is empirical validation.
+
+**D. Future empirical/pattern-oriented validation criteria**
+
+A research configuration may require simultaneous agreement with multiple independent patterns appropriate to its question, for example survivorship/age structure, fertility and birth spacing, population persistence, relocation frequency/distance, occupation/presence duration, spatial concentration or other independently justified observables. Such patterns must be predeclared and evidence-linked rather than selected only after results are known.
+
+Detailed verification and validation targets are listed in [`../scientific-model.md`](../scientific-model.md) and tracked under TRACE in [`trace.md`](trace.md).
+
+### Rationale
+
+AnthroSim deliberately treats patterns as evaluation criteria rather than as outcomes that the simulator is instructed to produce. This preserves falsifiability and reduces the risk of embedding the desired archaeological conclusion in the model rules.
+
+---
+
+## 2. Entities, state variables and scales
+
+### People
+
+Persistent person records include stable identity, birth time/derived age, reproductive sex for the current reproduction mechanism, condition, household membership, parent references, birth-history state and death state. Dead people remain persistent records so genealogy does not change retrospectively.
+
+A living person's persistent **residence** is distinct from M9 **physical presence**. Physical presence can be at residence, outbound transit, a focal-region visit, or return transit. Only permanent migration changes residence.
+
+### Households
+
+Households are persistent resource-sharing and mobility units. They are not asserted to be tribes, clans, lineages, marriages or universal nuclear families. Living household members normally share persistent residence; newborns join the female parent's household. M4 permanent migration moves the living household as a unit. M9 temporary mobility moves the household through a temporary journey state while preserving residence.
+
+Household formation/dissolution remains intentionally minimal in the baseline and is therefore a model limitation to be evaluated when household lifecycle could affect a research claim.
+
+### World cells
+
+The world is a bounded rectangular grid of stable cells. Model-facing cell state/fields include movement cost, water accessibility, productivity/resource opportunity, seasonality, environmental stress and dynamic renewable resource stock, plus occupancy/presence relationships derived from people/households.
+
+Synthetic runs generate environmental fields deterministically. M8 can instead bind normalized evidence-derived spatial inputs to explicit deterministic transformations. Real-world-derived inputs do not automatically validate the transformation or behavioural response.
+
+### Focal regions and temporary journeys
+
+M9 focal regions are identity-bearing declared sets of world cells. Temporary journeys preserve household, residence, destination/focal-region identity, timing and lifecycle state through departure, transit, visitation, return and completion.
+
+### Time
+
+Authoritative time is integer days.
+
+- M2 baseline demography is processed at annual boundaries.
+- M3 resource/condition/scarcity processing occurs at configured subannual resource boundaries.
+- M4 permanent migration is evaluated at eligible resource boundaries.
+- M9 transitions and starts can occur on deterministic journey days and can span annual checkpoints.
+
+When processes share a day, the declared ordering is scientifically consequential and is part of the model definition.
+
+### Space
+
+The baseline space is a bounded rectangular grid. M4 candidate discovery uses a bounded Manhattan radius in cells. M9 uses deterministic travel-cost/duration semantics over the declared landscape/focal-region binding. M8 provides normalized grid/evidence binding and declared transformations.
+
+Cell size, grid extent, boundary conditions and the translation between cell units and physical distance are scientific assumptions for evidence-grounded applications and must be included in resolution/boundary sensitivity work.
+
+### Rationale
+
+Persistent identity and explicit residence/presence separation allow causal histories to be inspected rather than inferred from aggregate snapshots. The grid is a computational abstraction; it must not be mistaken for an intrinsically meaningful archaeological spatial scale.
+
+---
+
+## 3. Process overview and scheduling
+
+The baseline annual/subannual causal sequence is:
+
+1. settle elapsed resource demand and regeneration at a resource boundary;
+2. update supply, unmet need, condition and resource-linked survival according to the configured M3 semantics;
+3. process due M9 temporary journey transitions/start decisions;
+4. evaluate eligible M4 permanent-migration decisions from the declared shared pre-move state;
+5. apply selected permanent moves according to the simultaneous-movement contract;
+6. at annual boundaries, execute M2 mortality/fertility/parentage according to the annual demographic schedule;
+7. update authoritative events/checkpoint/derived observability as specified by the run lifecycle.
+
+M9 duration-aware resource accounting can attribute elapsed person-days to residence, focal-region visitation or transit according to its declared provisioning proxy. Temporary mobility does not by itself redefine persistent residence or M2 parentage locality.
+
+Permanent M4 relocation is atomic at the decision boundary; M9 temporary travel is duration-bearing.
+
+The detailed same-day ordering and M9 lifecycle are specified in:
+
+- [`temporary-mobility-v1.md`](temporary-mobility-v1.md)
+- [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md)
+- [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md)
+
+### Rationale
+
+Scheduling is part of the scientific model, not an implementation detail. AnthroSim therefore records it explicitly and requires temporal-resolution/scheduling sensitivity before strong claims when multiple mechanisms interact on different frequencies.
+
+---
+
+## 4. Design concepts
+
+### 4.1 Basic principles
+
+AnthroSim follows the principle **model causes, not historical outcomes**. Local mechanisms and constraints generate trajectories; no rule may directly command a population to produce a desired archaeological narrative.
+
+The model is generative and mechanism-oriented. Deterministic reproducibility is treated as software/research infrastructure, not evidence of empirical validity.
+
+### 4.2 Emergence
+
+Potentially emergent outputs include population concentration/dispersion, local crowding, differential condition/survival, migration frequency/direction, residence distributions, temporary aggregation histories and resource-pressure patterns.
+
+Higher-level labels such as settlement, ritual centre, polity, refuge or migration wave are not authoritative model state and must be justified downstream.
+
+### 4.3 Adaptation
+
+M4 provides a limited adaptive response: pressured households may relocate to locally evaluated alternatives. M9 baseline temporary mobility follows configured trigger/scheduling semantics rather than a general adaptive theory of gathering motives.
+
+No general behavioural learning, cultural adaptation or evolving strategy is present in v0.3.0.
+
+### 4.4 Objectives
+
+M4 uses an explicit synthetic bounded utility comparison. Candidate utility combines resource support, water/security proxy, a narrow direct-parent/kin proxy, travel/terrain cost, uncertainty and relocation risk. Candidates must improve sufficiently over staying before participating in weighted choice.
+
+This is a mechanism-testing objective function, not a claim that real people maximize this utility or consciously calculate these terms.
+
+### 4.5 Learning
+
+No persistent learning or updating of behavioural rules is implemented in the current baseline. Agents do not learn routes, revise utility weights, accumulate social memory or infer hidden environmental states.
+
+Absence of learning is a declared null assumption, not evidence that learning was historically unimportant.
+
+### 4.6 Prediction
+
+Households do not run explicit forward simulations of future resource or social states. M4 evaluates current/proxy candidate conditions and deterministic uncertainty. M9 follows its configured journey timing/travel semantics.
+
+### 4.7 Sensing
+
+M4 household information is bounded spatially by the candidate radius and uses only declared model-facing state/proxies. Households do not have global omniscience. Candidate environmental/resource fields are treated as locally available proxies for the synthetic decision mechanism.
+
+M9 focal-region/travel configuration is model structure, not necessarily agent knowledge in a cognitive sense.
+
+### 4.8 Interaction
+
+Major interactions include:
+
+- within-household resource sharing;
+- same-cell competition for renewable resources;
+- reproduction through residence-based parent eligibility;
+- a narrow genealogical/parent-location contribution to M4 utility;
+- crowding/resource consequences after multiple households relocate or visit.
+
+M4 decisions at one boundary use a common pre-move snapshot so household iteration order does not become a hidden information advantage. Households do not anticipate one another's simultaneous moves.
+
+### 4.9 Stochasticity
+
+All stochastic processes use seeded named deterministic random streams. Separate streams exist for the model's declared demographic, scarcity, migration-choice and uncertainty processes. Conditional on configuration/state and supported determinism boundary, runs are reproducible.
+
+Reproducibility does not imply that a stochastic mechanism is scientifically well parameterized.
+
+### 4.10 Collectives
+
+Households are the principal collective entity in the current model. Focal regions are spatial constructs rather than social groups. Tribes, clans, polities, markets, armies, ritual institutions and other higher-order human collectives are not represented in the baseline.
+
+### 4.11 Observation
+
+Authoritative state/events record simulated model history. Derived metrics and observability layers are downstream views that must reconcile with authoritative state.
+
+M8 spatial observability is residence-based. M9 temporary observability records physical presence and journey-derived measures separately. The Explorer must not collapse these into one ambiguous concept.
+
+Simulated presence/activity is not automatically equivalent to preserved archaeological evidence. A question requiring comparison with material remains needs an explicit observation/taphonomic/sampling model or a justified downstream comparison layer.
+
+### Rationale
+
+The design concepts intentionally expose absences as well as implemented mechanisms. An unrepresented human process is not a hidden constant; it is a boundary on what the model can legitimately explain.
+
+For human-decision detail, see [`odd-d.md`](odd-d.md).
+
+---
+
+## 5. Initialization
+
+Every run records a complete versioned experiment configuration including seed, world/population/demography/resource/permanent-migration controls, duration/stop conditions and applicable evidence/spatial/M9 configuration.
+
+The default founder, demographic, resource and migration presets are explicitly synthetic validation baselines. They are not neutral prehistoric priors.
+
+Synthetic founder initialization currently sets the declared founder population, target household structure, synthetic age distribution and reproductive-sex distribution according to configuration. World/resource initial state is generated deterministically or supplied through the M8 evidence-grounded landscape path.
+
+M9-enabled runs bind focal-region identity and temporary-mobility/travel configuration as part of immutable experiment identity.
+
+Initial conditions are scientifically consequential. Question-specific research must examine initialization/burn-in sensitivity where founder age structure, condition, household structure, resource stock, start season or starting locations could affect conclusions.
+
+### Rationale
+
+Explicit initialization prevents day-zero assumptions from being mistaken for emergent history and allows initialization transients to be measured rather than ignored.
+
+---
+
+## 6. Input data
+
+### Synthetic inputs
+
+The baseline M1 environment and default M2/M3/M4 parameter sets are synthetic mechanism-validation inputs, although some qualitative demographic shapes are evidence-informed. Synthetic inputs must remain labelled as such.
+
+### Evidence-grounded spatial inputs
+
+M8 supports normalized external spatial evidence with declared provenance, units/coverage where available, transformations and content identity. The source input is preserved separately from model-facing transformed fields.
+
+Relevant contracts include:
+
+- [`landscape-contract-v1.md`](landscape-contract-v1.md)
+- [`landscape-loading-v1.md`](landscape-loading-v1.md)
+- [`landscape-preprocessing-v1.md`](landscape-preprocessing-v1.md)
+- [`spatial-mechanisms-v1.md`](spatial-mechanisms-v1.md)
+- [`evidence-provenance.md`](evidence-provenance.md)
+
+### Parameter/evidence provenance
+
+The evidence catalogue can record source identity, original variable/units, transformation, simulation units, uncertainty, applicability, competing estimates, parameter links and external-input links.
+
+A real-world source does not validate a transformation merely because the source itself is empirical. The transformation and downstream behavioural interpretation require their own rationale/evaluation.
+
+### Calibration and corroboration roles
+
+For inferential studies, evidence must be assigned a declared role: model construction/parameterisation, calibration, model-output verification, or independent corroboration. Evidence used to tune a model cannot later be presented as independent confirmation of that same fit.
+
+### Rationale
+
+AnthroSim keeps source evidence, transformations and simulation outputs separable so that uncertainty and interpretation can be traced through the causal chain.
+
+---
+
+## 7. Submodels
+
+### M1 — synthetic environment
+
+Creates deterministic heterogeneous environmental fields for mechanism testing. Current relationships among wetness/elevation/ruggedness/productivity/movement are synthetic and not empirical ecological laws.
+
+Primary implementation: `crates/anthrosim-core/src/world.rs` and related world/config code.
+
+### M2 — demography and genealogy
+
+Maintains persistent people, age-derived state, mortality/fertility schedules, parentage and births. The default schedule is `synthetic_validation_v1`; it is not calibrated to one prehistoric population.
+
+Primary specification: [`demography-v0.1.md`](demography-v0.1.md).  
+Primary implementation: `crates/anthrosim-core/src/population.rs` and demographic/config code.
+
+### M3 — renewable resources, condition and scarcity
+
+Maintains dynamic cell food stock, regeneration, household/cell demand, supply allocation, individual condition response and configured scarcity-related survival mechanism. Quantities are abstract units unless a future evidence-grounded configuration establishes a defensible unit mapping.
+
+Primary implementation: `crates/anthrosim-core/src/resources.rs` and resource/config code.
+
+### M4 — permanent household migration
+
+Evaluates pressured households against bounded local alternatives using explicit synthetic utility factors, stochastic uncertainty and weighted destination choice. Selected moves change persistent residence.
+
+Primary specification: [`migration-v0.1.md`](migration-v0.1.md).  
+Primary implementation: `crates/anthrosim-core/src/migration.rs` and related spatial/migration code.
+
+### M5–M7 — observability and experiment infrastructure
+
+Authoritative events, metrics, checkpoints, deterministic replay, run bundles, ensembles, retries and sweeps make the scientific unit inspectable/reproducible but do not add anthropological mechanisms.
+
+Primary experiment contract: [`../experiments-v0.1.md`](../experiments-v0.1.md).
+
+### M8 — evidence-grounded spatial execution
+
+Binds normalized spatial evidence to declared deterministic model-facing transformations and residence-based spatial observability while preserving source/transformation/result separation.
+
+Primary specifications: [`spatial-mechanisms-v1.md`](spatial-mechanisms-v1.md), [`spatial-observability-v1.md`](spatial-observability-v1.md).
+
+### M9 — temporary mobility and aggregation
+
+Separates persistent residence from temporary physical presence, adds focal regions and duration-bearing journeys, and records duration-aware resource attribution plus temporary-presence observability.
+
+Primary specifications: [`temporary-mobility-v1.md`](temporary-mobility-v1.md), [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md), [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md), [`temporary-mobility-observability-v1.md`](temporary-mobility-observability-v1.md).
+
+### Model evaluation
+
+ODD 2020 encourages the model's fitness for purpose to be made explicit. AnthroSim keeps the evaluation record in the TRACE dossier rather than pretending evaluation is part of the mechanism definition itself. See [`trace.md`](trace.md).
+
+---
+
+## ODD completeness declaration
+
+For the v0.3.0 baseline, this document explicitly covers all seven ODD 2020 elements and all eleven standard design concepts. A concept that is absent from the model (for example learning) is documented as absent rather than omitted silently.
+
+This completeness declaration means **the model is formally described under ODD**. It does **not** mean the behavioural model has passed empirical validation.
+
+## Reference
+
+Grimm, V. et al. (2020). *The ODD protocol for describing agent-based and other simulation models: A second update to improve clarity, replication, and structural realism.* Journal of Artificial Societies and Social Simulation 23(2):7. DOI: `10.18564/jasss.4259`.
