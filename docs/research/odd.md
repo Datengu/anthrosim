@@ -5,7 +5,7 @@
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
-This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated. The repaired M2 annual transition semantics are specified more precisely in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md).
+This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated. The repaired M2 annual transition semantics are specified more precisely in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), while day-zero founder reproductive/genealogical state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
 
 ODD describes the model. It does not by itself establish that the model is fit for a real archaeological or anthropological inference. Evaluation evidence is tracked separately in [`trace.md`](trace.md), while human decision assumptions are expanded in [`odd-d.md`](odd-d.md).
 
@@ -85,6 +85,7 @@ Authoritative time is integer days.
 
 - M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality/fertility bands are selected from age at the start of `[t-365,t)`, not age at `t`.
 - M2 mortality is drawn before fertility; the current fertility probability is therefore conditional on surviving the annual demographic mortality transition, subject also to spacing and parent-availability filters.
+- Declared founders may carry signed pre-run birth-history timing before day 0; this initial-condition chronology can constrain later M2 birth spacing without being recorded as a model-period birth event.
 - M3 resource/condition/scarcity processing occurs at configured subannual resource boundaries.
 - M4 permanent migration is evaluated at eligible resource boundaries.
 - M9 transitions and starts can occur on deterministic journey days and can span annual checkpoints.
@@ -124,6 +125,7 @@ Permanent M4 relocation is atomic at the decision boundary; M9 temporary travel 
 The detailed same-day ordering and lifecycle contracts are specified in:
 
 - [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md)
+- [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md)
 - [`temporary-mobility-v1.md`](temporary-mobility-v1.md)
 - [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md)
 - [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md)
@@ -183,7 +185,7 @@ Major interactions include:
 - within-household resource sharing;
 - same-cell competition for renewable resources;
 - reproduction through pre-same-boundary-M4 persistent-residence parent eligibility;
-- a narrow genealogical/parent-location contribution to M4 utility;
+- a narrow genealogical/parent-location contribution to M4 utility, including declared living direct-parent state available from day 0 when supplied;
 - crowding/resource consequences after multiple households relocate or visit.
 
 M4 decisions at one boundary use a common pre-move snapshot so household iteration order does not become a hidden information advantage. Households do not anticipate one another's simultaneous moves.
@@ -220,13 +222,15 @@ Every run records a complete versioned experiment configuration including seed, 
 
 The default founder, demographic, resource and migration presets are explicitly synthetic validation baselines. They are not neutral prehistoric priors.
 
-Synthetic founder initialization currently sets the declared founder population, target household structure, synthetic age distribution and reproductive-sex distribution according to configuration. World/resource initial state is generated deterministically or supplied through the M8 evidence-grounded landscape path.
+AnthroSim now distinguishes two founder-initialization meanings. `synthetic_validation_v1` remains the deterministic engineering/null-model generator for founder population, target household grouping, synthetic age distribution, reproductive-sex distribution and household locations; it intentionally carries no claim to realistic prehistory. `declared_founder_state_v1` instead materializes an explicit versioned founder definition containing exact founder chronology, reproductive sex, household/residence, condition, optional signed pre-run last-birth timing and optional living direct-parent links.
 
-The current founder population still lacks persisted pre-simulation reproductive history and founder genealogy sufficient to remove early M2 birth-spacing and M4 kin-information transients (#192). This is an explicit known scientific limitation; the annual transition repair must not be used to calibrate around it.
+Declared pre-run birth timing constrains M2 birth spacing until superseded by a model-period birth without creating fictitious pre-run child records or incrementing runtime birth accounting. Declared living direct-parent links are authoritative Population state and can therefore affect the M4 kin proxy on its first eligible migration boundary. When M4 has non-zero active kin weighting, declared genealogy marked `unspecified` fails closed rather than being interpreted as evidence of no living direct kin.
 
-M9-enabled runs bind focal-region identity and temporary-mobility/travel configuration as part of immutable experiment identity.
+The declared path removes the requirement that research-facing founder history begin implicitly at zero, but it is not itself a stable-population generator or evidence of empirical adequacy. The procedure that creates a founder declaration must be justified separately, and initialization/burn-in sensitivity remains required. Normative semantics are in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
 
-Initial conditions are scientifically consequential. Question-specific research must examine initialization/burn-in sensitivity where founder age structure, condition, household structure, resource stock, start season or starting locations could affect conclusions.
+World/resource initial state is generated deterministically or supplied through the M8 evidence-grounded landscape path. M9-enabled runs bind focal-region identity and temporary-mobility/travel configuration as part of immutable experiment identity.
+
+Initial conditions are scientifically consequential. Question-specific research must examine initialization/burn-in sensitivity where founder age structure, reproductive history, genealogy, condition, household structure, resource stock, start season or starting locations could affect conclusions.
 
 ### Rationale
 
@@ -278,10 +282,10 @@ Primary implementation: `crates/anthrosim-core/src/world.rs` and related world/c
 
 ### M2 — demography and genealogy
 
-Maintains persistent people, age-derived state, mortality/fertility schedules, parentage and births. The default schedule is `synthetic_validation_v1`; it is not calibrated to one prehistoric population. The current implementation is an explicit annual discrete transition: age bands are selected from interval-start age, fertility is conditional on surviving annual M2 mortality, requested day-valued birth spacing is normalized to executable annual boundaries, same-day M4 relocation does not redefine prior parentage locality, and newborn condition inherits the female parent's boundary condition.
+Maintains persistent people, age-derived state, mortality/fertility schedules, parentage and births. The default schedule is `synthetic_validation_v1`; it is not calibrated to one prehistoric population. The current implementation is an explicit annual discrete transition: age bands are selected from interval-start age, fertility is conditional on surviving annual M2 mortality, requested day-valued birth spacing is normalized to executable annual boundaries, same-day M4 relocation does not redefine prior parentage locality, and newborn condition inherits the female parent's boundary condition. Founder initialization can remain explicitly synthetic or use an exact declared state whose signed pre-run reproductive timing and living direct-parent links are available from the start of the run.
 
-Primary specifications: [`demography-v0.1.md`](demography-v0.1.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md).  
-Primary implementation: `crates/anthrosim-core/src/population.rs`, `crates/anthrosim-core/src/demography.rs` and demographic/config code.
+Primary specifications: [`demography-v0.1.md`](demography-v0.1.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).  
+Primary implementation: `crates/anthrosim-core/src/population.rs`, `crates/anthrosim-core/src/demography.rs`, `crates/anthrosim-core/src/founder_initialization.rs` and demographic/config code.
 
 ### M3 — renewable resources, condition and scarcity
 

@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::{
     config::{PopulationConfig, PopulationInitialization},
+    founder_initialization::{FounderPopulationDefinition, FounderPopulationError},
     ids::{CellId, HouseholdId, PersonId},
     rng::RngFactory,
     time::{DAYS_PER_YEAR, SimTime},
@@ -32,6 +33,8 @@ pub struct PersonSnapshot {
     /// Epoch-relative day of birth. Founders born before the run use negative days.
     pub birth_day: i64,
     pub death_day: Option<u64>,
+    /// Latest birth created during model execution. Declared pre-run reproductive-history timing
+    /// remains in the immutable founder definition rather than being forged into model-time state.
     pub last_birth_day: Option<u64>,
     pub reproductive_sex: ReproductiveSex,
     /// Persistent residence cell. M9 temporary physical presence is stored separately.
@@ -175,6 +178,11 @@ pub struct Population {
 impl Population {
     pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 
+    /// Initialize the frozen synthetic-validation founder preset.
+    ///
+    /// Declared founder state requires the separate definition-bearing constructor so a caller
+    /// cannot accidentally request declared initialization while omitting the state that gives it
+    /// scientific meaning.
     pub fn initialize(
         config: PopulationConfig,
         world: &World,
@@ -189,7 +197,84 @@ impl Population {
             PopulationInitialization::SyntheticValidationV1 => {
                 Self::initialize_synthetic_validation_v1(config, world, rng_factory)
             }
+            PopulationInitialization::DeclaredFounderStateV1 => {
+                Err(PopulationError::DeclaredFounderDefinitionRequired)
+            }
         }
+    }
+
+    /// Materialize one exact declared founder state at simulation day 0.
+    ///
+    /// Synthetic-only population parameters such as the uniform age ceiling, synthetic sex ratio,
+    /// and target synthetic household size are intentionally ignored. Every authoritative founder
+    /// age, sex, household, residence, direct-parent link and condition comes from `definition`.
+    pub fn initialize_declared_founder_state_v1(
+        config: PopulationConfig,
+        definition: &FounderPopulationDefinition,
+        world: &World,
+    ) -> Result<Self, PopulationError> {
+        validate_config(config)?;
+        if config.initialization != PopulationInitialization::DeclaredFounderStateV1 {
+            return Err(PopulationError::DeclaredFounderModeNotSelected);
+        }
+        if world.cell_count() == 0 {
+            return Err(PopulationError::WorldHasNoCells);
+        }
+        definition.validate(config.initial_population, config.max_person_records, world)?;
+
+        let person_count = definition.people.len();
+        let mut birth_days = Vec::with_capacity(person_count);
+        let death_days = vec![NO_EVENT_DAY; person_count];
+        // Pre-run reproductive-history timing is intentionally not forged into this u64 model-time
+        // field. M2 consults the immutable founder definition until a model-period birth supersedes
+        // that history.
+        let last_birth_days = vec![NO_EVENT_DAY; person_count];
+        let mut reproductive_sexes = Vec::with_capacity(person_count);
+        let mut locations = Vec::with_capacity(person_count);
+        let mut households = Vec::with_capacity(person_count);
+        let mut female_parents = Vec::with_capacity(person_count);
+        let mut male_parents = Vec::with_capacity(person_count);
+        let mut condition_permille = Vec::with_capacity(person_count);
+        let household_locations: Vec<_> = definition
+            .households
+            .iter()
+            .map(|household| household.location)
+            .collect();
+
+        for person in &definition.people {
+            let household_index = usize::try_from(person.household.0 - 1)
+                .expect("validated founder household ID must fit usize");
+            let location = household_locations[household_index];
+            birth_days.push(person.birth_day);
+            reproductive_sexes.push(person.reproductive_sex);
+            locations.push(location);
+            households.push(person.household);
+            female_parents.push(person.female_parent.unwrap_or(PersonId::INVALID));
+            male_parents.push(person.male_parent.unwrap_or(PersonId::INVALID));
+            condition_permille.push(person.condition_permille);
+        }
+
+        let occupancy = CellOccupancy::build(&locations, world.cell_count())?;
+        let population = Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            initial_population: config.initial_population,
+            births_since_start: 0,
+            deaths_since_start: 0,
+            max_person_records: config.max_person_records,
+            birth_days,
+            death_days,
+            last_birth_days,
+            reproductive_sexes,
+            locations,
+            households,
+            female_parents,
+            male_parents,
+            condition_permille,
+            household_locations,
+            occupancy,
+        };
+        population.validate(world)?;
+        Ok(population)
     }
 
     fn initialize_synthetic_validation_v1(
@@ -864,13 +949,15 @@ fn validate_config(config: PopulationConfig) -> Result<(), PopulationError> {
             supported: PopulationConfig::CURRENT_SCHEMA_VERSION,
         });
     }
-    if config.target_household_size == 0 {
-        return Err(PopulationError::ZeroHouseholdSize);
-    }
-    if config.synthetic_male_permille > PERMILLE_MAX {
-        return Err(PopulationError::InvalidMalePermille {
-            value: config.synthetic_male_permille,
-        });
+    if config.initialization == PopulationInitialization::SyntheticValidationV1 {
+        if config.target_household_size == 0 {
+            return Err(PopulationError::ZeroHouseholdSize);
+        }
+        if config.synthetic_male_permille > PERMILLE_MAX {
+            return Err(PopulationError::InvalidMalePermille {
+                value: config.synthetic_male_permille,
+            });
+        }
     }
     if u64::from(config.initial_population) > config.max_person_records {
         return Err(PopulationError::InitialPopulationExceedsRecordLimit {
@@ -935,6 +1022,10 @@ pub enum PopulationError {
     InvalidMalePermille { value: u16 },
     #[error("initial population {initial_population} exceeds persistent record limit {limit}")]
     InitialPopulationExceedsRecordLimit { initial_population: u32, limit: u64 },
+    #[error("declared founder initialization requires an explicit founder definition")]
+    DeclaredFounderDefinitionRequired,
+    #[error("declared founder definition supplied without declared founder initialization mode")]
+    DeclaredFounderModeNotSelected,
     #[error("persistent person record limit {limit} has been reached")]
     PersonRecordLimitReached { limit: u64 },
     #[error("household relocation arrays do not match the population household layout")]
@@ -947,6 +1038,8 @@ pub enum PopulationError {
     InternalInvariant { reason: &'static str },
     #[error("cannot initialize a population into a world with no cells")]
     WorldHasNoCells,
+    #[error(transparent)]
+    FounderPopulation(#[from] FounderPopulationError),
     #[error(transparent)]
     Validation(#[from] PopulationValidationError),
 }
@@ -1058,10 +1151,65 @@ pub enum PopulationValidationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::WorldConfig;
+    use crate::{
+        config::{ParameterProvenance, WorldConfig},
+        founder_initialization::{
+            FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+        },
+    };
 
     fn test_world(seed: u64) -> World {
         World::generate(WorldConfig::new(32, 24), RngFactory::new(seed)).unwrap()
+    }
+
+    fn declared_definition() -> FounderPopulationDefinition {
+        FounderPopulationDefinition::new(
+            "population-materialization-test-v1",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            vec![
+                FounderHousehold {
+                    id: HouseholdId::new(1),
+                    location: CellId::new(1),
+                },
+                FounderHousehold {
+                    id: HouseholdId::new(2),
+                    location: CellId::new(2),
+                },
+            ],
+            vec![
+                FounderPerson {
+                    id: PersonId::new(1),
+                    birth_day: -18_250,
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(2),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 800,
+                },
+                FounderPerson {
+                    id: PersonId::new(2),
+                    birth_day: -17_885,
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: HouseholdId::new(2),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 900,
+                },
+                FounderPerson {
+                    id: PersonId::new(3),
+                    birth_day: -9_125,
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(1),
+                    female_parent: Some(PersonId::new(1)),
+                    male_parent: Some(PersonId::new(2)),
+                    last_birth_day: Some(-100),
+                    condition_permille: 700,
+                },
+            ],
+        )
     }
 
     #[test]
@@ -1075,6 +1223,39 @@ mod tests {
         assert_eq!(population.household_count(), 2_000);
         assert_eq!(population.occupancy.people.len(), 10_000);
         population.validate(&world).unwrap();
+    }
+
+    #[test]
+    fn declared_founder_state_materializes_exactly_and_is_seed_independent() {
+        let world = test_world(8);
+        let config = PopulationConfig::new(3)
+            .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
+        let definition = declared_definition();
+        let population =
+            Population::initialize_declared_founder_state_v1(config, &definition, &world).unwrap();
+
+        assert_eq!(population.person_count(), 3);
+        assert_eq!(population.household_count(), 2);
+        let founder = population.person(PersonId::new(3)).unwrap();
+        assert_eq!(founder.birth_day, -9_125);
+        assert_eq!(founder.location, CellId::new(1));
+        assert_eq!(founder.household, HouseholdId::new(1));
+        assert_eq!(founder.female_parent, PersonId::new(1));
+        assert_eq!(founder.male_parent, PersonId::new(2));
+        assert_eq!(founder.condition_permille, 700);
+        assert_eq!(founder.last_birth_day, None);
+        population.validate(&world).unwrap();
+    }
+
+    #[test]
+    fn declared_mode_cannot_fall_back_to_synthetic_initialization() {
+        let world = test_world(9);
+        let config = PopulationConfig::new(3)
+            .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
+        assert!(matches!(
+            Population::initialize(config, &world, RngFactory::new(9)),
+            Err(PopulationError::DeclaredFounderDefinitionRequired)
+        ));
     }
 
     #[test]
@@ -1346,6 +1527,17 @@ mod tests {
             Population::initialize(config, &world, RngFactory::new(29)),
             Err(PopulationError::ZeroHouseholdSize)
         ));
+    }
+
+    #[test]
+    fn declared_founder_state_does_not_reuse_synthetic_only_household_or_sex_validation() {
+        let world = test_world(30);
+        let mut config = PopulationConfig::new(3)
+            .with_initialization(PopulationInitialization::DeclaredFounderStateV1)
+            .with_target_household_size(0);
+        config.synthetic_male_permille = 1_001;
+        Population::initialize_declared_founder_state_v1(config, &declared_definition(), &world)
+            .unwrap();
     }
 
     #[test]
