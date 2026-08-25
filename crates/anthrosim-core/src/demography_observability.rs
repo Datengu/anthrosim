@@ -16,7 +16,6 @@ use crate::{
     time::DAYS_PER_YEAR,
 };
 
-/// One age-schedule row in the derived M2 mortality report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DemographicMortalityBandObservability {
@@ -27,16 +26,13 @@ pub struct DemographicMortalityBandObservability {
     pub deaths: u64,
 }
 
-/// One age-schedule row in the derived M2 fertility-opportunity report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DemographicFertilityBandObservability {
     pub start_age_years: u32,
     pub end_age_years_exclusive: u32,
     pub configured_probability_per_million: u32,
-    /// Female records alive after the boundary's M2 mortality transition and in this age band.
     pub surviving_female_exposures: u64,
-    /// Surviving female exposures whose configured fertility probability is non-zero.
     pub age_schedule_eligible: u64,
     pub spacing_eligible: u64,
     pub local_male_eligible: u64,
@@ -44,11 +40,9 @@ pub struct DemographicFertilityBandObservability {
     pub fertility_draw_successes: u64,
     pub successful_births: u64,
     pub stochastic_draw_failures: u64,
-    /// Successful draws that could not create a record because the operational ceiling was full.
     pub record_limit_blocked_births: u64,
 }
 
-/// Compact distribution row used for interbirth intervals.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InterbirthIntervalObservability {
@@ -56,7 +50,6 @@ pub struct InterbirthIntervalObservability {
     pub occurrences: u64,
 }
 
-/// Compact distribution row for completed model-period fertility among uncensored females.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedFertilityObservability {
@@ -84,11 +77,10 @@ pub struct DemographyObservabilitySummary {
     pub censored_completed_fertility_females: u64,
 }
 
-/// Deterministically regenerated M2 research/validation surface.
+/// Versioned M2 analysis derived from authoritative initial state, events and checkpoint state.
 ///
-/// This report is downstream of authoritative state and events. It replays the exact v7 M2
-/// structural opportunity rules and the independent fertility RNG stream, but does not alter the
-/// simulation or add one event per rejected opportunity.
+/// The derivation replays the v7 structural opportunity rules and independent fertility RNG stream.
+/// It does not add causal state or one event per rejected opportunity to the simulation hot loop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DemographyObservabilityReport {
@@ -104,15 +96,9 @@ pub struct DemographyObservabilityReport {
     pub summary: DemographyObservabilitySummary,
     pub mortality_bands: Vec<DemographicMortalityBandObservability>,
     pub fertility_bands: Vec<DemographicFertilityBandObservability>,
-    /// Intervals between two births both created during this run.
     pub model_period_interbirth_intervals: Vec<InterbirthIntervalObservability>,
-    /// Declared pre-run last-birth timing to the first model-period birth, where supplied.
     pub declared_prerun_to_first_birth_intervals: Vec<InterbirthIntervalObservability>,
-    /// Model-period births for females whose complete configured reproductive-age window was
-    /// observed from birth. Founders and females not yet through that window are censored.
     pub completed_fertility_distribution: Vec<CompletedFertilityObservability>,
-    /// True when M2 stopped on the person-record ceiling before every boundary-start female could
-    /// finish fertility processing. This is operational truncation, not demographic regulation.
     pub fertility_stage_truncated_by_record_limit: bool,
 }
 
@@ -124,57 +110,8 @@ impl DemographyObservabilityReport {
 pub enum DemographyObservabilityError {
     #[error("demography observability supports model semantics {supported}, found {found}")]
     UnsupportedModelSemantics { found: String, supported: String },
-    #[error("demography observability requires an annual checkpoint boundary, found day {day}")]
-    NonAnnualCheckpoint { day: u64 },
-    #[error("initial population has {actual} records but experiment declares {expected}")]
-    InitialPopulationMismatch { actual: usize, expected: u32 },
-    #[error("event sequence is not strictly increasing at sequence {sequence}")]
-    EventSequenceInvalid { sequence: u64 },
-    #[error("event at day {day} lies beyond checkpoint day {checkpoint_day}")]
-    EventBeyondCheckpoint { day: u64, checkpoint_day: u64 },
-    #[error("event references unknown person {person:?} at day {day}")]
-    UnknownPerson { person: PersonId, day: u64 },
-    #[error("event references person {person:?} that is already dead at day {day}")]
-    PersonAlreadyDead { person: PersonId, day: u64 },
-    #[error("birth person ID {found:?} is not the next canonical ID {expected:?} at day {day}")]
-    NonCanonicalBirthId {
-        found: PersonId,
-        expected: PersonId,
-        day: u64,
-    },
-    #[error("duplicate birth events for female parent {female_parent:?} at day {day}")]
-    DuplicateBirthForFemale { female_parent: PersonId, day: u64 },
-    #[error("unexpected birth event for structurally ineligible female {female_parent:?} at day {day}")]
-    UnexpectedBirth { female_parent: PersonId, day: u64 },
-    #[error("fertility RNG replay expected a birth for {female_parent:?} at day {day}, but none was recorded")]
-    MissingExpectedBirth { female_parent: PersonId, day: u64 },
-    #[error("fertility RNG replay rejected {female_parent:?} at day {day}, but a birth was recorded")]
-    BirthAfterFailedDraw { female_parent: PersonId, day: u64 },
-    #[error("birth for {female_parent:?} at day {day} has an ineligible male parent {male_parent:?}")]
-    IneligibleMaleParent {
-        female_parent: PersonId,
-        male_parent: PersonId,
-        day: u64,
-    },
-    #[error("birth for {female_parent:?} at day {day} does not match the female parent's current household/residence")]
-    BirthResidenceMismatch { female_parent: PersonId, day: u64 },
-    #[error("demographic death event probability for {person:?} at day {day} is {recorded}, expected {expected}")]
-    MortalityProbabilityMismatch {
-        person: PersonId,
-        day: u64,
-        recorded: u32,
-        expected: u32,
-    },
-    #[error("person-record-limit stop reconstructed at day {day}, but checkpoint stop reason does not match")]
-    RecordLimitStopMismatch { day: u64 },
-    #[error("checkpoint stopped for person-record limit but derived M2 replay did not reconstruct that stop")]
-    MissingRecordLimitStop,
-    #[error("replayed demographic history does not reconcile with final population for person {person:?}: {field}")]
-    FinalPopulationMismatch { person: PersonId, field: &'static str },
-    #[error("replayed person count {replayed} does not match final population count {final_count}")]
-    FinalPersonCountMismatch { replayed: usize, final_count: usize },
-    #[error("demographic observation arithmetic overflow")]
-    ArithmeticOverflow,
+    #[error("invalid demographic observability replay: {0}")]
+    InvalidReplay(String),
 }
 
 #[derive(Debug, Clone)]
@@ -203,14 +140,13 @@ impl ReplayPerson {
 #[derive(Debug, Clone)]
 struct BirthRecord {
     person: PersonId,
-    female_parent: PersonId,
     male_parent: PersonId,
     household: HouseholdId,
     cell: CellId,
     reproductive_sex: ReproductiveSex,
 }
 
-/// Rebuild the M2 opportunity funnel from one exact initial population and authoritative checkpoint.
+/// Rebuild the M2 opportunity funnel for an exact run artifact set.
 pub fn derive_demography_observability(
     initial_population: &Population,
     checkpoint: &SimulationCheckpoint,
@@ -223,14 +159,16 @@ pub fn derive_demography_observability(
     }
     let end_day = checkpoint.time.days();
     if !end_day.is_multiple_of(DAYS_PER_YEAR) {
-        return Err(DemographyObservabilityError::NonAnnualCheckpoint { day: end_day });
+        return Err(invalid(format!(
+            "checkpoint day {end_day} is not an annual M2 boundary"
+        )));
     }
     let expected_initial = checkpoint.experiment.population.initial_population;
     if initial_population.person_count() != expected_initial as usize {
-        return Err(DemographyObservabilityError::InitialPopulationMismatch {
-            actual: initial_population.person_count(),
-            expected: expected_initial,
-        });
+        return Err(invalid(format!(
+            "initial population has {} records, experiment declares {expected_initial}",
+            initial_population.person_count()
+        )));
     }
     validate_event_order(&checkpoint.events.events, end_day)?;
 
@@ -246,31 +184,16 @@ pub fn derive_demography_observability(
         .iter()
         .map(fertility_band_row)
         .collect::<Vec<_>>();
-    let mut summary = DemographyObservabilitySummary {
-        initial_living_population: initial_population.living_count(),
-        final_living_population: checkpoint.population.living_count(),
-        mortality_exposures: 0,
-        demographic_deaths: 0,
-        surviving_females_entering_fertility: 0,
-        age_schedule_eligible: 0,
-        spacing_eligible: 0,
-        local_male_eligible: 0,
-        fertility_draws_attempted: 0,
-        fertility_draw_successes: 0,
-        successful_births: 0,
-        stochastic_draw_failures: 0,
-        record_limit_blocked_births: 0,
-        uncensored_completed_fertility_females: 0,
-        censored_completed_fertility_females: 0,
-    };
+    let mut summary = empty_summary(initial_population, &checkpoint.population);
     let mut model_intervals = BTreeMap::<u64, u64>::new();
     let mut declared_intervals = BTreeMap::<u64, u64>::new();
-    let mut fertility_rng = RngFactory::new(checkpoint.experiment.seed).stream("demography/fertility");
+    let mut fertility_rng =
+        RngFactory::new(checkpoint.experiment.seed).stream("demography/fertility");
     let effective_spacing = effective_birth_spacing_days(config);
+    let annual_boundaries = end_day / DAYS_PER_YEAR;
     let mut event_cursor = 0_usize;
     let mut truncated_by_limit = false;
 
-    let annual_boundaries = end_day / DAYS_PER_YEAR;
     for boundary_index in 1..=annual_boundaries {
         let day = boundary_index.saturating_mul(DAYS_PER_YEAR);
         while event_cursor < checkpoint.events.events.len()
@@ -290,52 +213,22 @@ pub fn derive_demography_observability(
         let same_day_origins = apply_pre_m2_boundary_events(&mut people, day_events, day)?;
         let interval_start_day = day - DAYS_PER_YEAR;
 
-        for person in people.iter().filter(|person| person.alive()) {
-            let age_days = person
-                .age_days_at(interval_start_day)
-                .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-            let index = band_index(&config.mortality_bands, age_days)
-                .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-            mortality_bands[index].exposures = mortality_bands[index].exposures.saturating_add(1);
-            summary.mortality_exposures = summary.mortality_exposures.saturating_add(1);
-        }
-
-        for record in day_events {
-            let EventKind::Death {
-                person,
-                cause: DeathCause::DemographicMortality,
-                probability_per_million,
-                ..
-            } = &record.event
-            else {
-                continue;
-            };
-            let index = replay_index(*person, people.len())
-                .ok_or(DemographyObservabilityError::UnknownPerson { person: *person, day })?;
-            if !people[index].alive() {
-                return Err(DemographyObservabilityError::PersonAlreadyDead {
-                    person: *person,
-                    day,
-                });
-            }
-            let age_days = people[index]
-                .age_days_at(interval_start_day)
-                .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-            let band = band_index(&config.mortality_bands, age_days)
-                .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-            let expected_probability = config.mortality_bands[band].annual_probability_per_million;
-            if *probability_per_million != expected_probability {
-                return Err(DemographyObservabilityError::MortalityProbabilityMismatch {
-                    person: *person,
-                    day,
-                    recorded: *probability_per_million,
-                    expected: expected_probability,
-                });
-            }
-            people[index].death_day = Some(day);
-            mortality_bands[band].deaths = mortality_bands[band].deaths.saturating_add(1);
-            summary.demographic_deaths = summary.demographic_deaths.saturating_add(1);
-        }
+        count_mortality_exposures(
+            &people,
+            config,
+            interval_start_day,
+            &mut mortality_bands,
+            &mut summary,
+        )?;
+        apply_demographic_deaths(
+            &mut people,
+            day_events,
+            config,
+            interval_start_day,
+            &mut mortality_bands,
+            &mut summary,
+            day,
+        )?;
 
         if people.iter().all(|person| !person.alive()) {
             continue;
@@ -352,31 +245,22 @@ pub fn derive_demography_observability(
             {
                 continue;
             }
-            let age_days = people[female_index]
-                .age_days_at(interval_start_day)
-                .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-            let fertility_band = band_index(&config.fertility_bands, age_days)
-                .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-            fertility_bands[fertility_band].surviving_female_exposures = fertility_bands
-                [fertility_band]
+            let female_id = people[female_index].id;
+            let age_days = replay_age(&people[female_index], interval_start_day)?;
+            let band_index = schedule_band_index(&config.fertility_bands, age_days)?;
+            fertility_bands[band_index].surviving_female_exposures = fertility_bands[band_index]
                 .surviving_female_exposures
                 .saturating_add(1);
             summary.surviving_females_entering_fertility = summary
                 .surviving_females_entering_fertility
                 .saturating_add(1);
 
-            let fertility_probability = annual_probability_for_age(&config.fertility_bands, age_days);
-            if fertility_probability == 0 {
-                if births.contains_key(&people[female_index].id) {
-                    return Err(DemographyObservabilityError::UnexpectedBirth {
-                        female_parent: people[female_index].id,
-                        day,
-                    });
-                }
+            let probability = annual_probability_for_age(&config.fertility_bands, age_days);
+            if probability == 0 {
+                reject_recorded_birth(&births, female_id, day, "zero fertility schedule")?;
                 continue;
             }
-            fertility_bands[fertility_band].age_schedule_eligible = fertility_bands
-                [fertility_band]
+            fertility_bands[band_index].age_schedule_eligible = fertility_bands[band_index]
                 .age_schedule_eligible
                 .saturating_add(1);
             summary.age_schedule_eligible = summary.age_schedule_eligible.saturating_add(1);
@@ -388,136 +272,103 @@ pub fn derive_demography_observability(
             )
             .is_some_and(|elapsed| elapsed < effective_spacing)
             {
-                if births.contains_key(&people[female_index].id) {
-                    return Err(DemographyObservabilityError::UnexpectedBirth {
-                        female_parent: people[female_index].id,
-                        day,
-                    });
-                }
+                reject_recorded_birth(&births, female_id, day, "birth spacing")?;
                 continue;
             }
-            fertility_bands[fertility_band].spacing_eligible = fertility_bands[fertility_band]
+            fertility_bands[band_index].spacing_eligible = fertility_bands[band_index]
                 .spacing_eligible
                 .saturating_add(1);
             summary.spacing_eligible = summary.spacing_eligible.saturating_add(1);
 
-            let female_location = exposure_location(&people[female_index], &same_day_origins);
-            let eligible_males = eligible_males(
+            let location = exposure_location(&people[female_index], &same_day_origins);
+            let eligible = eligible_males(
                 &people,
-                female_location,
+                location,
                 &same_day_origins,
                 interval_start_day,
                 config,
             )?;
-            if eligible_males.is_empty() {
-                if births.contains_key(&people[female_index].id) {
-                    return Err(DemographyObservabilityError::UnexpectedBirth {
-                        female_parent: people[female_index].id,
-                        day,
-                    });
-                }
+            if eligible.is_empty() {
+                reject_recorded_birth(&births, female_id, day, "local male availability")?;
                 continue;
             }
-            fertility_bands[fertility_band].local_male_eligible = fertility_bands[fertility_band]
+            fertility_bands[band_index].local_male_eligible = fertility_bands[band_index]
                 .local_male_eligible
                 .saturating_add(1);
             summary.local_male_eligible = summary.local_male_eligible.saturating_add(1);
-            fertility_bands[fertility_band].fertility_draws_attempted = fertility_bands
-                [fertility_band]
+            fertility_bands[band_index].fertility_draws_attempted = fertility_bands[band_index]
                 .fertility_draws_attempted
                 .saturating_add(1);
             summary.fertility_draws_attempted = summary.fertility_draws_attempted.saturating_add(1);
 
-            let draw_success = draw_per_million(&mut fertility_rng, fertility_probability);
-            let female_id = people[female_index].id;
+            let draw_success = draw_per_million(&mut fertility_rng, probability);
             let recorded_birth = births.remove(&female_id);
             if !draw_success {
-                fertility_bands[fertility_band].stochastic_draw_failures = fertility_bands
-                    [fertility_band]
+                fertility_bands[band_index].stochastic_draw_failures = fertility_bands[band_index]
                     .stochastic_draw_failures
                     .saturating_add(1);
-                summary.stochastic_draw_failures = summary.stochastic_draw_failures.saturating_add(1);
+                summary.stochastic_draw_failures =
+                    summary.stochastic_draw_failures.saturating_add(1);
                 if recorded_birth.is_some() {
-                    return Err(DemographyObservabilityError::BirthAfterFailedDraw {
-                        female_parent: female_id,
-                        day,
-                    });
+                    return Err(invalid(format!(
+                        "fertility RNG rejected {female_id:?} at day {day}, but a birth exists"
+                    )));
                 }
                 continue;
             }
 
-            fertility_bands[fertility_band].fertility_draw_successes = fertility_bands
-                [fertility_band]
+            fertility_bands[band_index].fertility_draw_successes = fertility_bands[band_index]
                 .fertility_draw_successes
                 .saturating_add(1);
             summary.fertility_draw_successes = summary.fertility_draw_successes.saturating_add(1);
 
             if people.len() as u64 >= max_records {
-                fertility_bands[fertility_band].record_limit_blocked_births = fertility_bands
-                    [fertility_band]
+                fertility_bands[band_index].record_limit_blocked_births = fertility_bands[band_index]
                     .record_limit_blocked_births
                     .saturating_add(1);
-                summary.record_limit_blocked_births = summary.record_limit_blocked_births.saturating_add(1);
+                summary.record_limit_blocked_births =
+                    summary.record_limit_blocked_births.saturating_add(1);
                 if recorded_birth.is_some() {
-                    return Err(DemographyObservabilityError::UnexpectedBirth {
-                        female_parent: female_id,
-                        day,
-                    });
+                    return Err(invalid(format!(
+                        "birth recorded for {female_id:?} at full record limit on day {day}"
+                    )));
                 }
                 truncated_by_limit = true;
                 stop_boundary = true;
                 break;
             }
 
-            let birth = recorded_birth.ok_or(DemographyObservabilityError::MissingExpectedBirth {
-                female_parent: female_id,
-                day,
+            let birth = recorded_birth.ok_or_else(|| {
+                invalid(format!(
+                    "fertility RNG expected birth for {female_id:?} at day {day}, but none exists"
+                ))
             })?;
-            if !eligible_males.contains(&birth.male_parent) {
-                return Err(DemographyObservabilityError::IneligibleMaleParent {
-                    female_parent: female_id,
-                    male_parent: birth.male_parent,
-                    day,
-                });
+            if !eligible.contains(&birth.male_parent) {
+                return Err(invalid(format!(
+                    "birth for {female_id:?} at day {day} has ineligible male parent {:?}",
+                    birth.male_parent
+                )));
             }
             if birth.household != people[female_index].household
                 || birth.cell != people[female_index].location
             {
-                return Err(DemographyObservabilityError::BirthResidenceMismatch {
-                    female_parent: female_id,
-                    day,
-                });
+                return Err(invalid(format!(
+                    "birth for {female_id:?} at day {day} does not match current residence"
+                )));
             }
 
-            let previous_model_birth = people[female_index].last_birth_day;
-            let previous_declared_birth = checkpoint
-                .experiment
-                .founder_population
-                .as_ref()
-                .and_then(|definition| definition.last_birth_day(female_id));
-            if let Some(previous) = previous_model_birth {
-                let interval = day
-                    .checked_sub(previous)
-                    .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-                increment_distribution(&mut model_intervals, interval);
-            } else if let Some(previous) = previous_declared_birth {
-                let day_signed = i64::try_from(day)
-                    .map_err(|_| DemographyObservabilityError::ArithmeticOverflow)?;
-                let interval = u64::try_from(
-                    day_signed
-                        .checked_sub(previous)
-                        .ok_or(DemographyObservabilityError::ArithmeticOverflow)?,
-                )
-                .map_err(|_| DemographyObservabilityError::ArithmeticOverflow)?;
-                increment_distribution(&mut declared_intervals, interval);
-            }
-
+            record_interbirth_interval(
+                &people[female_index],
+                checkpoint,
+                day,
+                &mut model_intervals,
+                &mut declared_intervals,
+            )?;
             people[female_index].last_birth_day = Some(day);
-            people[female_index].model_period_births = people[female_index]
-                .model_period_births
-                .saturating_add(1);
+            people[female_index].model_period_births =
+                people[female_index].model_period_births.saturating_add(1);
             apply_birth(&mut people, &birth, day)?;
-            fertility_bands[fertility_band].successful_births = fertility_bands[fertility_band]
+            fertility_bands[band_index].successful_births = fertility_bands[band_index]
                 .successful_births
                 .saturating_add(1);
             summary.successful_births = summary.successful_births.saturating_add(1);
@@ -529,15 +380,18 @@ pub fn derive_demography_observability(
             }
         }
 
-        if !births.is_empty() {
-            let (&female_parent, _) = births.iter().next().expect("birth map is non-empty");
-            return Err(DemographyObservabilityError::UnexpectedBirth { female_parent, day });
+        if let Some((&female_parent, _)) = births.iter().next() {
+            return Err(invalid(format!(
+                "unexplained birth for {female_parent:?} at day {day}"
+            )));
         }
         if stop_boundary {
             if checkpoint.terminal_stop_reason != Some(StopReason::PersonRecordLimitReached)
                 || day != end_day
             {
-                return Err(DemographyObservabilityError::RecordLimitStopMismatch { day });
+                return Err(invalid(format!(
+                    "record-limit stop reconstructed at day {day}, checkpoint does not match"
+                )));
             }
             break;
         }
@@ -546,11 +400,13 @@ pub fn derive_demography_observability(
     if checkpoint.terminal_stop_reason == Some(StopReason::PersonRecordLimitReached)
         && !truncated_by_limit
     {
-        return Err(DemographyObservabilityError::MissingRecordLimitStop);
+        return Err(invalid(
+            "checkpoint reports person-record-limit stop but M2 replay does not".to_owned(),
+        ));
     }
 
     reconcile_final_population(&people, &checkpoint.population)?;
-    let (completed_distribution, uncensored, censored) =
+    let (completed_fertility_distribution, uncensored, censored) =
         completed_fertility_distribution(&people, config, end_day)?;
     summary.uncensored_completed_fertility_females = uncensored;
     summary.censored_completed_fertility_females = censored;
@@ -570,9 +426,32 @@ pub fn derive_demography_observability(
         fertility_bands,
         model_period_interbirth_intervals: distribution_rows(model_intervals),
         declared_prerun_to_first_birth_intervals: distribution_rows(declared_intervals),
-        completed_fertility_distribution: completed_distribution,
+        completed_fertility_distribution,
         fertility_stage_truncated_by_record_limit: truncated_by_limit,
     })
+}
+
+fn empty_summary(
+    initial_population: &Population,
+    final_population: &Population,
+) -> DemographyObservabilitySummary {
+    DemographyObservabilitySummary {
+        initial_living_population: initial_population.living_count(),
+        final_living_population: final_population.living_count(),
+        mortality_exposures: 0,
+        demographic_deaths: 0,
+        surviving_females_entering_fertility: 0,
+        age_schedule_eligible: 0,
+        spacing_eligible: 0,
+        local_male_eligible: 0,
+        fertility_draws_attempted: 0,
+        fertility_draw_successes: 0,
+        successful_births: 0,
+        stochastic_draw_failures: 0,
+        record_limit_blocked_births: 0,
+        uncensored_completed_fertility_females: 0,
+        censored_completed_fertility_females: 0,
+    }
 }
 
 fn validate_event_order(
@@ -586,15 +465,16 @@ fn validate_event_order(
             continue;
         }
         if event.sequence <= previous_sequence || event.day < previous_day {
-            return Err(DemographyObservabilityError::EventSequenceInvalid {
-                sequence: event.sequence,
-            });
+            return Err(invalid(format!(
+                "event order is invalid at sequence {}",
+                event.sequence
+            )));
         }
         if event.day > checkpoint_day {
-            return Err(DemographyObservabilityError::EventBeyondCheckpoint {
-                day: event.day,
-                checkpoint_day,
-            });
+            return Err(invalid(format!(
+                "event day {} lies beyond checkpoint day {checkpoint_day}",
+                event.day
+            )));
         }
         previous_sequence = event.sequence;
         previous_day = event.day;
@@ -610,7 +490,7 @@ fn replay_people_from_initial(
         let id = PersonId::new(index as u64 + 1);
         let person = population
             .person(id)
-            .ok_or(DemographyObservabilityError::UnknownPerson { person: id, day: 0 })?;
+            .ok_or_else(|| invalid(format!("initial population is missing {id:?}")))?;
         people.push(ReplayPerson {
             id,
             birth_day: person.birth_day,
@@ -634,15 +514,15 @@ fn apply_interboundary_event(
             household,
             destination,
             ..
-        } => apply_household_migration(people, *household, *destination),
+        } => {
+            apply_household_migration(people, *household, *destination);
+            Ok(())
+        }
         EventKind::Death { person, .. } => mark_replay_death(people, *person, record.day),
-        EventKind::Birth { .. } => Err(DemographyObservabilityError::UnexpectedBirth {
-            female_parent: match &record.event {
-                EventKind::Birth { female_parent, .. } => *female_parent,
-                _ => unreachable!(),
-            },
-            day: record.day,
-        }),
+        EventKind::Birth { female_parent, .. } => Err(invalid(format!(
+            "birth for {female_parent:?} occurred off an annual M2 boundary at day {}",
+            record.day
+        ))),
         _ => Ok(()),
     }
 }
@@ -662,18 +542,13 @@ fn apply_pre_m2_boundary_events(
                 ..
             } => {
                 origins.entry(*household).or_insert(*origin);
-                apply_household_migration(people, *household, *destination)?;
+                apply_household_migration(people, *household, *destination);
             }
             EventKind::Death {
                 person,
                 cause: DeathCause::ResourceScarcity,
                 ..
             } => mark_replay_death(people, *person, day)?,
-            EventKind::Death {
-                cause: DeathCause::DemographicMortality,
-                ..
-            }
-            | EventKind::Birth { .. } => {}
             _ => {}
         }
     }
@@ -684,14 +559,13 @@ fn apply_household_migration(
     people: &mut [ReplayPerson],
     household: HouseholdId,
     destination: CellId,
-) -> Result<(), DemographyObservabilityError> {
+) {
     for person in people
         .iter_mut()
         .filter(|person| person.alive() && person.household == household)
     {
         person.location = destination;
     }
-    Ok(())
 }
 
 fn mark_replay_death(
@@ -700,11 +574,70 @@ fn mark_replay_death(
     day: u64,
 ) -> Result<(), DemographyObservabilityError> {
     let index = replay_index(person, people.len())
-        .ok_or(DemographyObservabilityError::UnknownPerson { person, day })?;
+        .ok_or_else(|| invalid(format!("death references unknown {person:?} at day {day}")))?;
     if !people[index].alive() {
-        return Err(DemographyObservabilityError::PersonAlreadyDead { person, day });
+        return Err(invalid(format!(
+            "death references already-dead {person:?} at day {day}"
+        )));
     }
     people[index].death_day = Some(day);
+    Ok(())
+}
+
+fn count_mortality_exposures(
+    people: &[ReplayPerson],
+    config: &DemographyConfig,
+    interval_start_day: u64,
+    bands: &mut [DemographicMortalityBandObservability],
+    summary: &mut DemographyObservabilitySummary,
+) -> Result<(), DemographyObservabilityError> {
+    for person in people.iter().filter(|person| person.alive()) {
+        let age_days = replay_age(person, interval_start_day)?;
+        let index = schedule_band_index(&config.mortality_bands, age_days)?;
+        bands[index].exposures = bands[index].exposures.saturating_add(1);
+        summary.mortality_exposures = summary.mortality_exposures.saturating_add(1);
+    }
+    Ok(())
+}
+
+fn apply_demographic_deaths(
+    people: &mut [ReplayPerson],
+    records: &[EventRecord],
+    config: &DemographyConfig,
+    interval_start_day: u64,
+    bands: &mut [DemographicMortalityBandObservability],
+    summary: &mut DemographyObservabilitySummary,
+    day: u64,
+) -> Result<(), DemographyObservabilityError> {
+    for record in records {
+        let EventKind::Death {
+            person,
+            cause: DeathCause::DemographicMortality,
+            probability_per_million,
+            ..
+        } = &record.event
+        else {
+            continue;
+        };
+        let index = replay_index(*person, people.len())
+            .ok_or_else(|| invalid(format!("M2 death references unknown {person:?} at day {day}")))?;
+        if !people[index].alive() {
+            return Err(invalid(format!(
+                "M2 death references already-dead {person:?} at day {day}"
+            )));
+        }
+        let age_days = replay_age(&people[index], interval_start_day)?;
+        let band = schedule_band_index(&config.mortality_bands, age_days)?;
+        let expected = config.mortality_bands[band].annual_probability_per_million;
+        if *probability_per_million != expected {
+            return Err(invalid(format!(
+                "M2 death probability for {person:?} at day {day} is {probability_per_million}, expected {expected}"
+            )));
+        }
+        people[index].death_day = Some(day);
+        bands[band].deaths = bands[band].deaths.saturating_add(1);
+        summary.demographic_deaths = summary.demographic_deaths.saturating_add(1);
+    }
     Ok(())
 }
 
@@ -725,27 +658,34 @@ fn births_by_female(
         else {
             continue;
         };
-        if births
-            .insert(
-                *female_parent,
-                BirthRecord {
-                    person: *person,
-                    female_parent: *female_parent,
-                    male_parent: *male_parent,
-                    household: *household,
-                    cell: *cell,
-                    reproductive_sex: *reproductive_sex,
-                },
-            )
-            .is_some()
-        {
-            return Err(DemographyObservabilityError::DuplicateBirthForFemale {
-                female_parent: *female_parent,
-                day,
-            });
+        let birth = BirthRecord {
+            person: *person,
+            male_parent: *male_parent,
+            household: *household,
+            cell: *cell,
+            reproductive_sex: *reproductive_sex,
+        };
+        if births.insert(*female_parent, birth).is_some() {
+            return Err(invalid(format!(
+                "multiple births for {female_parent:?} at day {day}"
+            )));
         }
     }
     Ok(births)
+}
+
+fn reject_recorded_birth(
+    births: &BTreeMap<PersonId, BirthRecord>,
+    female: PersonId,
+    day: u64,
+    reason: &str,
+) -> Result<(), DemographyObservabilityError> {
+    if births.contains_key(&female) {
+        return Err(invalid(format!(
+            "birth exists for {female:?} at day {day} despite {reason}"
+        )));
+    }
+    Ok(())
 }
 
 fn apply_birth(
@@ -755,13 +695,13 @@ fn apply_birth(
 ) -> Result<(), DemographyObservabilityError> {
     let expected = PersonId::new(people.len() as u64 + 1);
     if birth.person != expected {
-        return Err(DemographyObservabilityError::NonCanonicalBirthId {
-            found: birth.person,
-            expected,
-            day,
-        });
+        return Err(invalid(format!(
+            "birth ID {:?} is not next canonical ID {expected:?} at day {day}",
+            birth.person
+        )));
     }
-    let birth_day = i64::try_from(day).map_err(|_| DemographyObservabilityError::ArithmeticOverflow)?;
+    let birth_day =
+        i64::try_from(day).map_err(|_| invalid("birth day does not fit i64".to_owned()))?;
     people.push(ReplayPerson {
         id: birth.person,
         birth_day,
@@ -778,14 +718,14 @@ fn apply_birth(
 fn prior_birth_elapsed_days(
     female: &ReplayPerson,
     day: u64,
-    founder_population: Option<&crate::founder_initialization::FounderPopulationDefinition>,
+    founders: Option<&crate::founder_initialization::FounderPopulationDefinition>,
 ) -> Option<u64> {
     if let Some(last_birth_day) = female.last_birth_day {
         return day.checked_sub(last_birth_day);
     }
-    let last_birth_day = founder_population?.last_birth_day(female.id)?;
+    let previous = founders?.last_birth_day(female.id)?;
     let day = i64::try_from(day).ok()?;
-    u64::try_from(day.checked_sub(last_birth_day)?).ok()
+    u64::try_from(day.checked_sub(previous)?).ok()
 }
 
 fn exposure_location(
@@ -813,10 +753,7 @@ fn eligible_males(
         if exposure_location(person, same_day_origins) != location {
             continue;
         }
-        let age_days = person
-            .age_days_at(interval_start_day)
-            .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-        let age_years = age_days / DAYS_PER_YEAR;
+        let age_years = replay_age(person, interval_start_day)? / DAYS_PER_YEAR;
         if age_years < u64::from(config.male_parent_min_age_years)
             || age_years >= u64::from(config.male_parent_max_age_years_exclusive)
         {
@@ -827,11 +764,159 @@ fn eligible_males(
     Ok(eligible)
 }
 
-fn band_index(bands: &[AgeProbabilityBand], age_days: u64) -> Option<usize> {
+fn record_interbirth_interval(
+    female: &ReplayPerson,
+    checkpoint: &SimulationCheckpoint,
+    day: u64,
+    model_intervals: &mut BTreeMap<u64, u64>,
+    declared_intervals: &mut BTreeMap<u64, u64>,
+) -> Result<(), DemographyObservabilityError> {
+    if let Some(previous) = female.last_birth_day {
+        let interval = day
+            .checked_sub(previous)
+            .ok_or_else(|| invalid("model interbirth interval underflow".to_owned()))?;
+        increment_distribution(model_intervals, interval);
+    } else if let Some(previous) = checkpoint
+        .experiment
+        .founder_population
+        .as_ref()
+        .and_then(|definition| definition.last_birth_day(female.id))
+    {
+        let day = i64::try_from(day)
+            .map_err(|_| invalid("declared interbirth day does not fit i64".to_owned()))?;
+        let interval = u64::try_from(
+            day.checked_sub(previous)
+                .ok_or_else(|| invalid("declared interbirth interval underflow".to_owned()))?,
+        )
+        .map_err(|_| invalid("declared interbirth interval is negative".to_owned()))?;
+        increment_distribution(declared_intervals, interval);
+    }
+    Ok(())
+}
+
+fn completed_fertility_distribution(
+    people: &[ReplayPerson],
+    config: &DemographyConfig,
+    end_day: u64,
+) -> Result<(Vec<CompletedFertilityObservability>, u64, u64), DemographyObservabilityError> {
+    let reproductive_end_year = config
+        .fertility_bands
+        .iter()
+        .filter(|band| band.annual_probability_per_million > 0)
+        .map(|band| band.end_age_years_exclusive)
+        .max();
+    let mut distribution = BTreeMap::<u32, u64>::new();
+    let mut uncensored = 0_u64;
+    let mut censored = 0_u64;
+
+    for person in people
+        .iter()
+        .filter(|person| person.reproductive_sex == ReproductiveSex::Female)
+    {
+        let complete = reproductive_window_complete(person, reproductive_end_year, end_day)?;
+        if complete {
+            uncensored = uncensored.saturating_add(1);
+            let count = distribution.entry(person.model_period_births).or_default();
+            *count = count.saturating_add(1);
+        } else {
+            censored = censored.saturating_add(1);
+        }
+    }
+
+    let rows = distribution
+        .into_iter()
+        .map(
+            |(model_period_births, females)| CompletedFertilityObservability {
+                model_period_births,
+                females,
+            },
+        )
+        .collect();
+    Ok((rows, uncensored, censored))
+}
+
+fn reproductive_window_complete(
+    person: &ReplayPerson,
+    reproductive_end_year: Option<u32>,
+    end_day: u64,
+) -> Result<bool, DemographyObservabilityError> {
+    if person.birth_day < 0 {
+        return Ok(false);
+    }
+    let Some(end_year) = reproductive_end_year else {
+        return Ok(true);
+    };
+    if end_year == u32::MAX {
+        return Ok(false);
+    }
+    let end_age_days = i64::from(end_year)
+        .checked_mul(i64::try_from(DAYS_PER_YEAR).expect("DAYS_PER_YEAR fits i64"))
+        .ok_or_else(|| invalid("reproductive age overflow".to_owned()))?;
+    let reproductive_end_day = person
+        .birth_day
+        .checked_add(end_age_days)
+        .ok_or_else(|| invalid("reproductive end-day overflow".to_owned()))?;
+    let observation_end = i64::try_from(person.death_day.unwrap_or(end_day))
+        .map_err(|_| invalid("observation end does not fit i64".to_owned()))?;
+    Ok(observation_end >= reproductive_end_day)
+}
+
+fn reconcile_final_population(
+    replay: &[ReplayPerson],
+    final_population: &Population,
+) -> Result<(), DemographyObservabilityError> {
+    if replay.len() != final_population.person_count() {
+        return Err(invalid(format!(
+            "replayed {} people, final population contains {}",
+            replay.len(),
+            final_population.person_count()
+        )));
+    }
+    for person in replay {
+        let final_person = final_population
+            .person(person.id)
+            .ok_or_else(|| invalid(format!("final population is missing {:?}", person.id)))?;
+        let checks = [
+            (final_person.birth_day == person.birth_day, "birthDay"),
+            (final_person.death_day == person.death_day, "deathDay"),
+            (
+                final_person.last_birth_day == person.last_birth_day,
+                "lastBirthDay",
+            ),
+            (
+                final_person.reproductive_sex == person.reproductive_sex,
+                "reproductiveSex",
+            ),
+            (final_person.location == person.location, "location"),
+            (final_person.household == person.household, "household"),
+        ];
+        if let Some((_, field)) = checks.into_iter().find(|(matches, _)| !matches) {
+            return Err(invalid(format!(
+                "replayed {field} does not match final population for {:?}",
+                person.id
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn replay_age(person: &ReplayPerson, day: u64) -> Result<u64, DemographyObservabilityError> {
+    person
+        .age_days_at(day)
+        .ok_or_else(|| invalid(format!("age is not representable for {:?} at day {day}", person.id)))
+}
+
+fn schedule_band_index(
+    bands: &[AgeProbabilityBand],
+    age_days: u64,
+) -> Result<usize, DemographyObservabilityError> {
     let age_years = u32::try_from(age_days / DAYS_PER_YEAR).unwrap_or(u32::MAX - 1);
-    bands.iter().position(|band| {
-        age_years >= band.start_age_years && age_years < band.end_age_years_exclusive
-    })
+    bands
+        .iter()
+        .position(|band| {
+            age_years >= band.start_age_years && age_years < band.end_age_years_exclusive
+        })
+        .ok_or_else(|| invalid(format!("age {age_years} is outside configured schedule")))
 }
 
 fn mortality_band_row(band: &AgeProbabilityBand) -> DemographicMortalityBandObservability {
@@ -861,128 +946,28 @@ fn fertility_band_row(band: &AgeProbabilityBand) -> DemographicFertilityBandObse
     }
 }
 
-fn completed_fertility_distribution(
-    people: &[ReplayPerson],
-    config: &DemographyConfig,
-    end_day: u64,
-) -> Result<(Vec<CompletedFertilityObservability>, u64, u64), DemographyObservabilityError> {
-    let reproductive_end_year = config
-        .fertility_bands
-        .iter()
-        .filter(|band| band.annual_probability_per_million > 0)
-        .map(|band| band.end_age_years_exclusive)
-        .max();
-    let mut distribution = BTreeMap::<u32, u64>::new();
-    let mut uncensored = 0_u64;
-    let mut censored = 0_u64;
-
-    for person in people
-        .iter()
-        .filter(|person| person.reproductive_sex == ReproductiveSex::Female)
-    {
-        let complete = if person.birth_day < 0 {
-            false
-        } else if let Some(end_year) = reproductive_end_year {
-            if end_year == u32::MAX {
-                false
-            } else {
-                let end_age_days = i64::from(end_year)
-                    .checked_mul(i64::try_from(DAYS_PER_YEAR).expect("days per year fits i64"))
-                    .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-                let reproductive_end_day = person
-                    .birth_day
-                    .checked_add(end_age_days)
-                    .ok_or(DemographyObservabilityError::ArithmeticOverflow)?;
-                let observation_end = i64::try_from(person.death_day.unwrap_or(end_day))
-                    .map_err(|_| DemographyObservabilityError::ArithmeticOverflow)?;
-                observation_end >= reproductive_end_day
-            }
-        } else {
-            true
-        };
-
-        if complete {
-            uncensored = uncensored.saturating_add(1);
-            *distribution.entry(person.model_period_births).or_default() = distribution
-                .get(&person.model_period_births)
-                .copied()
-                .unwrap_or(0)
-                .saturating_add(1);
-        } else {
-            censored = censored.saturating_add(1);
-        }
-    }
-
-    Ok((
-        distribution
-            .into_iter()
-            .map(|(model_period_births, females)| CompletedFertilityObservability {
-                model_period_births,
-                females,
-            })
-            .collect(),
-        uncensored,
-        censored,
-    ))
-}
-
-fn reconcile_final_population(
-    replay: &[ReplayPerson],
-    final_population: &Population,
-) -> Result<(), DemographyObservabilityError> {
-    if replay.len() != final_population.person_count() {
-        return Err(DemographyObservabilityError::FinalPersonCountMismatch {
-            replayed: replay.len(),
-            final_count: final_population.person_count(),
-        });
-    }
-    for person in replay {
-        let final_person = final_population
-            .person(person.id)
-            .ok_or(DemographyObservabilityError::FinalPopulationMismatch {
-                person: person.id,
-                field: "missing person",
-            })?;
-        for (matches, field) in [
-            (final_person.birth_day == person.birth_day, "birthDay"),
-            (final_person.death_day == person.death_day, "deathDay"),
-            (final_person.last_birth_day == person.last_birth_day, "lastBirthDay"),
-            (
-                final_person.reproductive_sex == person.reproductive_sex,
-                "reproductiveSex",
-            ),
-            (final_person.location == person.location, "location"),
-            (final_person.household == person.household, "household"),
-        ] {
-            if !matches {
-                return Err(DemographyObservabilityError::FinalPopulationMismatch {
-                    person: person.id,
-                    field,
-                });
-            }
-        }
-    }
-    Ok(())
-}
-
 fn replay_index(person: PersonId, len: usize) -> Option<usize> {
     let index = usize::try_from(person.0.checked_sub(1)?).ok()?;
     (index < len).then_some(index)
 }
 
 fn increment_distribution(distribution: &mut BTreeMap<u64, u64>, value: u64) {
-    let current = distribution.get(&value).copied().unwrap_or(0);
-    distribution.insert(value, current.saturating_add(1));
+    let count = distribution.entry(value).or_default();
+    *count = count.saturating_add(1);
 }
 
-fn distribution_rows(
-    distribution: BTreeMap<u64, u64>,
-) -> Vec<InterbirthIntervalObservability> {
+fn distribution_rows(distribution: BTreeMap<u64, u64>) -> Vec<InterbirthIntervalObservability> {
     distribution
         .into_iter()
-        .map(|(interval_days, occurrences)| InterbirthIntervalObservability {
-            interval_days,
-            occurrences,
-        })
+        .map(
+            |(interval_days, occurrences)| InterbirthIntervalObservability {
+                interval_days,
+                occurrences,
+            },
+        )
         .collect()
+}
+
+fn invalid(reason: String) -> DemographyObservabilityError {
+    DemographyObservabilityError::InvalidReplay(reason)
 }
