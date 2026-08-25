@@ -300,12 +300,9 @@ fn m9_visitors_and_deaths_cannot_be_mistaken_for_residence_occupancy() {
         Some(&run.checkpoint.spatial),
     )
     .unwrap();
-    let temporary = derive_temporary_mobility_observability(
-        &world,
-        &initial_population,
-        run.core_checkpoint(),
-    )
-    .unwrap();
+    let temporary =
+        derive_temporary_mobility_observability(&world, &initial_population, run.core_checkpoint())
+            .unwrap();
 
     assert_eq!(
         spatial.semantics.population_location_basis,
