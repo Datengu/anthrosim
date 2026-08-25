@@ -277,7 +277,7 @@ Those capabilities should be considered only when a later controlled research qu
 
 No fixed M10 feature list is declared yet.
 
-With M9 complete, the immediate project step is audit/hardening and re-verification of the completed capability before the planned `v0.3.0` release. The first real research uses of temporary mobility/aggregation should then help determine the next missing capability rather than assuming in advance that the project next needs settlement formation, livestock, social networks, exchange, conflict or archaeological observation modelling.
+M9 is complete, its post-milestone audit/hardening has been resolved, and the audited capability is preserved as the `v0.3.0` release baseline. The next project step is therefore research-led rather than a predetermined M10 feature package: concrete comparisons using the M8/M9 capabilities should identify which missing mechanism, uncertainty treatment, observation layer or validation target is actually needed next.
 
 Candidate directions remain valid only when justified by experimental need, including:
 

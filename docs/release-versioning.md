@@ -45,12 +45,12 @@ This expected cadence does **not** make milestone completion and release publica
 The practical release cadence is currently:
 
 - **M8 → `v0.2.0`**: completed, audited and released as the preserved M8 baseline.
-- **M9 → target `v0.3.0`**: after M9 is completed, its material correctness/reproducibility findings are resolved and the intended release candidate passes the required verification.
+- **M9 → `v0.3.0`**: completed, audited and released as the preserved temporary-mobility / controlled-aggregation baseline.
 - **Later major milestones** should normally target the next minor release in sequence unless the repository deliberately records a reason to do otherwise.
 
 These are release targets, not identity equivalences. `M9` does not literally mean `v0.3.0`, and patch releases can exist within an already completed milestone.
 
-During ordinary M9 implementation work the package version should remain at the current released line unless an explicit release task says otherwise. The version change belongs in release preparation rather than routine milestone PRs.
+During ordinary M9 implementation work the package version remained on the v0.2 line. The change to `0.3.0` is made only by the explicit v0.3.0 release-preparation change after M9 acceptance and post-milestone audit/reverification.
 
 ## Scientific changes are separate from release numbering
 
@@ -75,7 +75,7 @@ Audit findings that affect correctness, determinism, reproducibility, provenance
 
 M8 is completed and its audited baseline was released as `v0.2.0` on 2026-08-24. The exact release commit is preserved by the `v0.2.0` tag.
 
-Compatible defects discovered in the released M8 baseline should normally be fixed in patch releases such as `v0.2.1`, `v0.2.2`, and so on when a named maintenance release is warranted. M9 development does not require opportunistic package-version bumps; its planned minor release is `v0.3.0` after M9 completion and release verification.
+Compatible defects discovered in a preserved release baseline should normally be fixed in a patch release on the relevant release line when a named maintenance release is warranted. M9 development did not use opportunistic package-version bumps; its completed and audited minor release is `v0.3.0`.
 
 ## Preserving named release commits
 
@@ -89,7 +89,7 @@ Use the `Preserve named release tag` workflow only after the release candidate h
 - succeeds without changing anything when the tag already resolves to the requested commit;
 - fails closed if the release tag already exists at a different commit, rather than moving or rewriting a published release identity.
 
-The workflow has a one-time push bootstrap for `v0.2.0` because the audited M8 release candidate was merged before repository-side tag preservation tooling existed. Future named releases, including the planned M9 `v0.3.0` release, should use the explicit manual workflow input path after their release PR is merged and verified.
+The workflow has a one-time push bootstrap for `v0.2.0` because the audited M8 release candidate was merged before repository-side tag preservation tooling existed. Named releases from `v0.3.0` onward use the explicit manual workflow input path after their release PR is merged and verified.
 
 Creating or preserving a release tag does not change `MODEL_SEMANTICS_ID`, package contents, or simulation semantics. It only preserves the exact source identity of the named software release.
 
