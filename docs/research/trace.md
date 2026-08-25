@@ -79,6 +79,7 @@ Provide a detailed, understandable description of what the model is, how it work
 - [`odd.md`](odd.md) — formal seven-element ODD 2020 description covering all 11 standard design concepts.
 - [`odd-d.md`](odd-d.md) — explicit ODD+D human-decision supplement.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific semantics.
+- [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) — explicit synthetic-versus-declared founder-state semantics, signed pre-run reproductive timing and scoped founder genealogy.
 - module-specific research documents under `docs/research/` for demography, migration, spatial transformations, temporary mobility, travel/resource semantics and observability.
 
 ## Current assessment
@@ -102,7 +103,8 @@ Critically evaluate the quality, source, uncertainty, representativeness and app
 - source identity, original variable/units, transformation, simulation units, uncertainty, applicability and competing-estimate fields;
 - parameter-to-evidence links and external-input provenance;
 - M8 normalized landscape/preprocessing contracts;
-- [`demography-v0.1.md`](demography-v0.1.md) explicitly avoids presenting one comparative population as a universal prehistoric proxy.
+- [`demography-v0.1.md`](demography-v0.1.md) explicitly avoids presenting one comparative population as a universal prehistoric proxy;
+- declared founder state now has a versioned initialization identity and coarse provenance label, while [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) explicitly states that those fields do not themselves establish evidence closure.
 
 ## Required evidence roles
 
@@ -121,7 +123,8 @@ The same observation may not be represented as independent corroboration if it m
 - make evidence-role separation explicit in study protocols and, where practical, machine-readable;
 - assess measurement/sampling/taphonomic uncertainty rather than only source-file provenance;
 - record why an ethnographic/comparative analogue is applicable to the target question;
-- propagate competing estimates and uncertainty into parameter/model ensembles rather than collapsing them prematurely to one value.
+- propagate competing estimates and uncertainty into parameter/model ensembles rather than collapsing them prematurely to one value;
+- for declared founder populations, document how ages, reproductive history, co-residence, condition and direct-parent completeness were derived and how alternative plausible initial states are represented.
 
 **Current assessment:** Partial.
 
@@ -139,9 +142,9 @@ The detailed scientific model and ODD/ODD+D documents explicitly identify many n
 
 The repository's adversarial scientific audits have also produced concrete issue-level evidence that conceptual/causal semantics are being challenged rather than accepted because code runs reproducibly.
 
-### Current high-priority conceptual/semantic debt
+### High-priority conceptual/semantic debt and repair record
 
-At the time this dossier was introduced, known P1 issues include scientific problems around:
+At the time this dossier was introduced, known P1 issues included scientific problems around:
 
 - demographic age/timing semantics and birth spacing;
 - founder/history initialization;
@@ -154,7 +157,7 @@ At the time this dossier was introduced, known P1 issues include scientific prob
 - spatial georeferencing/physical movement interpretation;
 - evidence closure for empirical provenance.
 
-The live GitHub issue tracker is authoritative for exact open/closed status; this document must not be used as a substitute for checking whether blocking issues were resolved.
+The live GitHub issue tracker is authoritative for exact open/closed status. Founder/history initialization issue #192 has a dedicated repair/evaluation record in [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md): the repair removes the requirement that research-facing founder reproductive/kin state begin implicitly at zero, while leaving empirical founder derivation, uncertainty and initialization sensitivity as separate open scientific tasks.
 
 ## Required conceptual-evaluation methods
 
@@ -193,9 +196,10 @@ AnthroSim already has unusually strong research-software verification infrastruc
 - experiment/sweep retry reconciliation;
 - run/archive integrity mechanisms;
 - explicit operational stop reasons;
-- preserved synthetic benchmark definitions/results.
+- preserved synthetic benchmark definitions/results;
+- explicit declared-founder materialization and mode-mismatch checks, signed pre-run birth-spacing tests, founder-history checkpoint/resume equivalence and first-boundary direct-parent kin verification for the #192 repair line.
 
-The detailed verification-target list is maintained in [`../scientific-model.md`](../scientific-model.md).
+The detailed verification-target list is maintained in [`../scientific-model.md`](../scientific-model.md). The #192-specific evidence/rationale is recorded in [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md).
 
 ## Verification work still required
 
@@ -307,7 +311,7 @@ Represent equivalent physical landscapes at different grid resolutions/extents w
 
 ### Initialization / burn-in
 
-Vary founder age/household/location/resource/start-season conditions or use justified burn-in/initialization procedures. Distinguish persistent dynamics from day-zero artifacts.
+Vary founder age/household/location/resource/start-season conditions or use justified burn-in/initialization procedures. For declared founder populations, include reproductive-history and available direct-parent/genealogy alternatives where they can affect the active mechanisms. Distinguish persistent dynamics from day-zero artifacts.
 
 ### Counterfactual robustness
 

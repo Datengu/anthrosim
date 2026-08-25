@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "initializationId": "declared-founder-cli-example-v1",
+  "provenance": "synthetic_validation",
+  "genealogyStatus": "complete_living_direct_parents",
+  "households": [
+    {
+      "id": 1,
+      "location": 1
+    }
+  ],
+  "people": [
+    {
+      "id": 1,
+      "birthDay": -9125,
+      "reproductiveSex": "female",
+      "household": 1,
+      "lastBirthDay": -500,
+      "conditionPermille": 1000
+    },
+    {
+      "id": 2,
+      "birthDay": -10950,
+      "reproductiveSex": "male",
+      "household": 1,
+      "conditionPermille": 1000
+    }
+  ]
+}
