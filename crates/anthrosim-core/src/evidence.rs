@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use thiserror::Error;
 
-use crate::config::ParameterProvenance;
+use crate::config::{ExperimentConfig, ParameterProvenance};
 
 /// Versioned evidence catalogue attached to an experiment when parameters or
 /// external inputs are grounded in empirical or evidence-informed sources.
@@ -43,8 +44,22 @@ impl EvidenceCatalog {
         self
     }
 
+    /// Validate the catalogue as a self-contained evidence artifact.
+    ///
+    /// Parameter paths are experiment-schema references, so their existence is
+    /// checked separately by [`Self::validate_against_experiment`].
     pub fn validate(&self) -> Result<(), EvidenceError> {
         validate_evidence_catalog(self)
+    }
+
+    /// Validate this catalogue and resolve every parameter link against the
+    /// actual camelCase serialized shape of the supplied experiment schema.
+    pub fn validate_against_experiment(
+        &self,
+        experiment: &ExperimentConfig,
+    ) -> Result<(), EvidenceError> {
+        validate_evidence_catalog(self)?;
+        validate_parameter_evidence_links(self, experiment)
     }
 }
 
@@ -119,6 +134,9 @@ pub struct EvidenceUncertainty {
 pub struct ParameterEvidenceLink {
     /// Stable dotted path in the serialized experiment configuration, for
     /// example `resources.annualNeedUnitsPerPerson`.
+    ///
+    /// Paths traverse object keys only. Collection indices are deliberately
+    /// excluded because an array position is not a stable parameter identity.
     pub parameter_path: String,
     pub evidence_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -158,6 +176,33 @@ pub enum EvidenceError {
     },
     #[error("parameter evidence link has an empty parameter path")]
     EmptyParameterPath,
+    #[error(
+        "experiment schema {found} is unsupported for evidence parameter-path validation; supported schema is {supported}"
+    )]
+    UnsupportedExperimentSchema { found: u32, supported: u32 },
+    #[error("failed to serialize experiment configuration for evidence parameter-path validation")]
+    ExperimentSerialization,
+    #[error(
+        "parameter evidence path {parameter_path} does not resolve in serialized experiment schema {schema_version}"
+    )]
+    UnknownParameterPath {
+        parameter_path: String,
+        schema_version: u32,
+    },
+    #[error(
+        "parameter evidence path {parameter_path} traverses a collection; collection indices are not stable parameter paths"
+    )]
+    CollectionParameterPath { parameter_path: String },
+    #[error("parameter evidence path {parameter_path} resolves to an unconfigured optional value")]
+    UnconfiguredParameterPath { parameter_path: String },
+    #[error(
+        "parameter evidence path {parameter_path} resolves to a container rather than a parameter leaf"
+    )]
+    ParameterPathNotLeaf { parameter_path: String },
+    #[error(
+        "parameter evidence path {parameter_path} may not target the evidence catalogue itself"
+    )]
+    EvidenceSelfReference { parameter_path: String },
     #[error("external input has an empty input identifier")]
     EmptyExternalInputId,
     #[error("duplicate external input identifier {0}")]
@@ -279,6 +324,88 @@ pub fn validate_evidence_catalog(catalog: &EvidenceCatalog) -> Result<(), Eviden
     Ok(())
 }
 
+pub fn validate_parameter_evidence_links(
+    catalog: &EvidenceCatalog,
+    experiment: &ExperimentConfig,
+) -> Result<(), EvidenceError> {
+    if experiment.schema_version != ExperimentConfig::CURRENT_SCHEMA_VERSION {
+        return Err(EvidenceError::UnsupportedExperimentSchema {
+            found: experiment.schema_version,
+            supported: ExperimentConfig::CURRENT_SCHEMA_VERSION,
+        });
+    }
+    let serialized =
+        serde_json::to_value(experiment).map_err(|_| EvidenceError::ExperimentSerialization)?;
+
+    for link in &catalog.parameter_links {
+        validate_parameter_path(
+            &serialized,
+            link.parameter_path.trim(),
+            experiment.schema_version,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_parameter_path(
+    experiment: &Value,
+    parameter_path: &str,
+    schema_version: u32,
+) -> Result<(), EvidenceError> {
+    let segments = parameter_path.split('.').collect::<Vec<_>>();
+    if segments.iter().any(|segment| segment.is_empty()) {
+        return Err(EvidenceError::UnknownParameterPath {
+            parameter_path: parameter_path.to_owned(),
+            schema_version,
+        });
+    }
+    if segments.first() == Some(&"evidence") {
+        return Err(EvidenceError::EvidenceSelfReference {
+            parameter_path: parameter_path.to_owned(),
+        });
+    }
+
+    let mut current = experiment;
+    for segment in &segments {
+        current = match current {
+            Value::Object(object) => {
+                object
+                    .get(*segment)
+                    .ok_or_else(|| EvidenceError::UnknownParameterPath {
+                        parameter_path: parameter_path.to_owned(),
+                        schema_version,
+                    })?
+            }
+            Value::Array(_) => {
+                return Err(EvidenceError::CollectionParameterPath {
+                    parameter_path: parameter_path.to_owned(),
+                });
+            }
+            Value::Null => {
+                return Err(EvidenceError::UnconfiguredParameterPath {
+                    parameter_path: parameter_path.to_owned(),
+                });
+            }
+            _ => {
+                return Err(EvidenceError::UnknownParameterPath {
+                    parameter_path: parameter_path.to_owned(),
+                    schema_version,
+                });
+            }
+        };
+    }
+
+    match current {
+        Value::Object(_) | Value::Array(_) => Err(EvidenceError::ParameterPathNotLeaf {
+            parameter_path: parameter_path.to_owned(),
+        }),
+        Value::Null => Err(EvidenceError::UnconfiguredParameterPath {
+            parameter_path: parameter_path.to_owned(),
+        }),
+        _ => Ok(()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,6 +442,14 @@ mod tests {
         }
     }
 
+    fn linked(path: &str) -> EvidenceCatalog {
+        EvidenceCatalog::new(vec![record()]).with_parameter_links(vec![ParameterEvidenceLink {
+            parameter_path: path.to_owned(),
+            evidence_id: "source-1".to_owned(),
+            note: None,
+        }])
+    }
+
     #[test]
     fn valid_catalog_reconciles_parameter_and_external_input_references() {
         let catalog = EvidenceCatalog::new(vec![record()])
@@ -332,6 +467,10 @@ mod tests {
             }]);
 
         assert_eq!(catalog.validate(), Ok(()));
+        assert_eq!(
+            catalog.validate_against_experiment(&ExperimentConfig::new(1, 1)),
+            Ok(())
+        );
     }
 
     #[test]
@@ -347,6 +486,44 @@ mod tests {
         assert!(matches!(
             catalog.validate(),
             Err(EvidenceError::UnknownEvidenceReference { evidence_id }) if evidence_id == "missing"
+        ));
+    }
+
+    #[test]
+    fn typo_can_be_catalog_valid_but_is_rejected_against_experiment_schema() {
+        let catalog = linked("resources.annualNeedsUnitsPerPerson");
+        assert_eq!(catalog.validate(), Ok(()));
+        assert!(matches!(
+            catalog.validate_against_experiment(&ExperimentConfig::new(2, 1)),
+            Err(EvidenceError::UnknownParameterPath { parameter_path, .. })
+                if parameter_path == "resources.annualNeedsUnitsPerPerson"
+        ));
+    }
+
+    #[test]
+    fn container_and_collection_paths_are_not_stable_parameter_leaves() {
+        assert!(matches!(
+            linked("resources").validate_against_experiment(&ExperimentConfig::new(3, 1)),
+            Err(EvidenceError::ParameterPathNotLeaf { parameter_path })
+                if parameter_path == "resources"
+        ));
+        assert!(matches!(
+            linked("demography.mortalityBands.0.annualProbabilityPerMillion")
+                .validate_against_experiment(&ExperimentConfig::new(4, 1)),
+            Err(EvidenceError::CollectionParameterPath { parameter_path })
+                if parameter_path == "demography.mortalityBands.0.annualProbabilityPerMillion"
+        ));
+    }
+
+    #[test]
+    fn evidence_catalog_cannot_link_to_itself() {
+        let experiment =
+            ExperimentConfig::new(5, 1).with_evidence(linked("evidence.schemaVersion"));
+        let catalog = experiment.evidence.as_ref().unwrap();
+        assert!(matches!(
+            catalog.validate_against_experiment(&experiment),
+            Err(EvidenceError::EvidenceSelfReference { parameter_path })
+                if parameter_path == "evidence.schemaVersion"
         ));
     }
 }
