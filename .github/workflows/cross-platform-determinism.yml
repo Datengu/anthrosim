@@ -35,13 +35,20 @@ jobs:
           ANTHROSIM_CROSS_PLATFORM_GOLDEN: ${{ github.workspace }}/cross-platform-golden.json
         run: cargo test --locked -p anthrosim-core --test cross_platform_golden -- --nocapture
 
-      - name: Upload normalized scientific output
+      - name: Run enabled-M9 deterministic golden fixture
+        env:
+          ANTHROSIM_M9_CROSS_PLATFORM_GOLDEN: ${{ github.workspace }}/m9-cross-platform-golden.json
+        run: cargo test --locked -p anthrosim-core --test m9_cross_platform_golden -- --nocapture
+
+      - name: Upload normalized scientific outputs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: cross-platform-golden-${{ matrix.os }}
           if-no-files-found: error
           retention-days: 7
-          path: ${{ github.workspace }}/cross-platform-golden.json
+          path: |
+            ${{ github.workspace }}/cross-platform-golden.json
+            ${{ github.workspace }}/m9-cross-platform-golden.json
 
   compare-golden-runs:
     name: Compare cross-platform golden runs
@@ -63,27 +70,28 @@ jobs:
           import difflib
           import sys
 
-          files = sorted(Path('golden-artifacts').glob('*/cross-platform-golden.json'))
-          if len(files) != 3:
-              raise SystemExit(f'expected three platform golden files, found {len(files)}: {files}')
+          for filename in ('cross-platform-golden.json', 'm9-cross-platform-golden.json'):
+              files = sorted(Path('golden-artifacts').glob(f'*/{filename}'))
+              if len(files) != 3:
+                  raise SystemExit(f'expected three platform files for {filename}, found {len(files)}: {files}')
 
-          reference = files[0]
-          reference_bytes = reference.read_bytes()
-          for candidate in files[1:]:
-              candidate_bytes = candidate.read_bytes()
-              if candidate_bytes == reference_bytes:
-                  continue
-              before = reference.read_text().splitlines(keepends=True)
-              after = candidate.read_text().splitlines(keepends=True)
-              sys.stdout.writelines(difflib.unified_diff(
-                  before,
-                  after,
-                  fromfile=str(reference),
-                  tofile=str(candidate),
-              ))
-              raise SystemExit(
-                  f'cross-platform deterministic output differs: {reference} != {candidate}'
-              )
+              reference = files[0]
+              reference_bytes = reference.read_bytes()
+              for candidate in files[1:]:
+                  candidate_bytes = candidate.read_bytes()
+                  if candidate_bytes == reference_bytes:
+                      continue
+                  before = reference.read_text().splitlines(keepends=True)
+                  after = candidate.read_text().splitlines(keepends=True)
+                  sys.stdout.writelines(difflib.unified_diff(
+                      before,
+                      after,
+                      fromfile=str(reference),
+                      tofile=str(candidate),
+                  ))
+                  raise SystemExit(
+                      f'cross-platform deterministic output differs for {filename}: {reference} != {candidate}'
+                  )
 
-          print('Cross-platform deterministic golden output is byte-identical on all three runners.')
+          print('Core and enabled-M9 golden outputs are byte-identical on all three runners.')
           PY
