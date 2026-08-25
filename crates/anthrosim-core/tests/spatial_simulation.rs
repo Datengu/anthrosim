@@ -229,36 +229,68 @@ fn transformed_water_access_changes_migration_utility_in_declared_direction() {
 }
 
 #[test]
-fn transformed_movement_cost_changes_migration_utility_in_declared_direction() {
-    let mut traces = Vec::new();
-    for seed in 9_200..9_220 {
+fn transformed_movement_cost_enters_relocation_action_not_stay_utility() {
+    let mut observed = None;
+    for seed in 9_200..9_240 {
         let run = SpatialLandscapeSimulation::new(
-            directional_config(seed, 1, 1),
+            directional_config(seed, 4, 1),
             fixture(),
-            directional_mechanisms(1_000, 3_000, 1_000, 1_000),
+            directional_mechanisms(1_000, 3_000, 0, 1_000),
         )
         .unwrap()
         .run_recorded()
         .unwrap();
-        traces.extend(
-            run.core_manifest()
-                .migration
-                .recorded_decision_traces
-                .clone(),
-        );
-        if !traces.is_empty() {
+        observed = run
+            .core_manifest()
+            .migration
+            .recorded_decision_traces
+            .iter()
+            .find(|trace| trace.destination != CellId::new(1))
+            .cloned();
+        if observed.is_some() {
             break;
         }
     }
 
-    assert!(
-        !traces.is_empty(),
-        "controlled fixture should produce lower-cost moves"
+    let trace = observed.expect(
+        "controlled spatial fixture should produce a move into a transformed non-baseline terrain cell",
     );
-    assert!(traces.iter().all(|trace| {
+    assert_eq!(trace.origin_utility.travel_penalty_permille, 0);
+    assert_eq!(trace.origin_utility.uncertainty_penalty_permille, 0);
+    assert_eq!(trace.origin_utility.relocation_risk_penalty_permille, 0);
+
+    let destination_movement_cost = match trace.destination {
+        cell if cell == CellId::new(2) => 2_000_u16,
+        cell if cell == CellId::new(3) => 3_000_u16,
+        _ => unreachable!("selected trace is restricted to transformed terrain cells 2 or 3"),
+    };
+    let terrain_excess = destination_movement_cost.saturating_sub(1_000);
+    let expected_travel_penalty = u16::try_from(
+        (u32::from(trace.distance_cells).saturating_mul(120) + u32::from(terrain_excess) / 3)
+            .min(1_000),
+    )
+    .unwrap();
+    assert_eq!(
+        trace.destination_utility.travel_penalty_permille,
+        expected_travel_penalty
+    );
+    assert!(
         trace.destination_utility.travel_penalty_permille
-            < trace.origin_utility.travel_penalty_permille
-    }));
+            > trace.distance_cells.saturating_mul(120)
+    );
+    assert_eq!(trace.destination_utility.uncertainty_penalty_permille, 0);
+    assert_eq!(
+        trace.destination_utility.relocation_risk_penalty_permille,
+        0
+    );
+
+    let expected_destination_utility =
+        i32::from(trace.destination_utility.water_security_score_permille) * 4
+            - i32::from(trace.destination_utility.travel_penalty_permille);
+    assert_eq!(
+        trace.destination_utility.total_utility,
+        expected_destination_utility
+    );
 }
 
 #[test]
