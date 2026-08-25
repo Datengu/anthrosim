@@ -93,7 +93,7 @@ The implementation reconstructs the pre-M4 residence snapshot from authoritative
 
 Birth state itself is recorded at the mother's current persistent household residence at `t`. Therefore, when an M4 move occurs on the same boundary, parentage exposure can refer to the pre-move residence while the newborn immediately inherits the already-updated household residence. This is intentional: parentage locality represents exposure over the elapsed interval, whereas the newborn's stored residence is boundary state.
 
-Demographic death spatial attribution likewise uses the pre-M4 residence for the elapsed demographic exposure, preventing a zero-duration destination from being credited with the preceding year's M2 mortality exposure. This is exposure attribution, not a claim to reconstruct the person's physical place of death.
+`Death.cell` retains its existing event/state meaning: the person's persistent boundary-state residence when the death transition is recorded. M2 mortality is not currently spatially parameterized, so the model does not infer a separate spatial exposure location for the annual mortality probability. If mortality later becomes spatially varying, an explicit exposure-location field/state should be introduced rather than overloading `Death.cell` and breaking event/state reconciliation.
 
 ## 7. Newborn condition
 
@@ -140,7 +140,7 @@ The repair suite must include model-contract tests for:
 - exact half-open age-band transitions based on interval-start age;
 - requested-to-executable birth-spacing normalization around 365-day boundaries;
 - high-mortality/high-fertility cases proving the declared conditional-survival equation;
-- same-day M4 relocation proving zero-duration destination residence does not redefine parentage locality or mortality exposure attribution;
+- same-day M4 relocation proving zero-duration destination residence does not redefine parentage locality;
 - newborn condition inheritance at high, medium and low maternal condition;
 - deterministic replay under the changed semantics.
 
