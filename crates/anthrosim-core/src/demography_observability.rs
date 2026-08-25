@@ -507,7 +507,7 @@ fn replay_people_from_initial(
 }
 
 fn apply_interboundary_event(
-    people: &mut Vec<ReplayPerson>,
+    people: &mut [ReplayPerson],
     record: &EventRecord,
 ) -> Result<(), DemographyObservabilityError> {
     match &record.event {
@@ -529,7 +529,7 @@ fn apply_interboundary_event(
 }
 
 fn apply_pre_m2_boundary_events(
-    people: &mut Vec<ReplayPerson>,
+    people: &mut [ReplayPerson],
     records: &[EventRecord],
     day: u64,
 ) -> Result<BTreeMap<HouseholdId, CellId>, DemographyObservabilityError> {
