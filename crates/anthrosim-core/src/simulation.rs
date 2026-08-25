@@ -641,7 +641,7 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
         temporary_mobility.validate_evidence_context(config.evidence.as_ref())?;
     }
     if let Some(evidence) = &config.evidence {
-        evidence.validate()?;
+        evidence.validate_against_experiment(config)?;
     }
     Ok(())
 }
