@@ -37,7 +37,7 @@ Examples include exact population/resource accounting, deterministic replay, val
 
 **B. Directional/mechanism patterns**
 
-Examples include the expectation that, under otherwise equal controlled conditions, worsening local resource/condition inputs must not reduce declared migration pressure, and that severe sustained resource deprivation must not improve condition/survival. These are falsification-oriented mechanism checks.
+Examples include the expectation that, under otherwise equal controlled conditions, worsening local resource/condition inputs must not reduce declared migration pressure, increasing relocation-only cost must not make relocation more attractive, and severe sustained resource deprivation must not improve condition/survival. These are falsification-oriented mechanism checks.
 
 **C. Synthetic capability patterns**
 
@@ -111,7 +111,7 @@ The baseline annual/subannual causal sequence is:
 1. settle elapsed resource demand and regeneration at a resource boundary;
 2. update supply, unmet need, condition and resource-linked survival according to the configured M3 semantics;
 3. process due M9 temporary journey transitions/start decisions;
-4. evaluate eligible M4 permanent-migration decisions from the declared shared pre-move state;
+4. evaluate eligible M4 permanent-migration decisions from the declared shared pre-move state, comparing an explicit zero-action-cost stay utility with candidate residence utility minus relocation-only travel, uncertainty and relocation-risk costs;
 5. apply selected permanent moves according to the simultaneous-movement contract;
 6. at annual boundaries, execute the M2 discrete transition for `[t-365,t)`: use interval-start age bands, draw mortality, then evaluate conditional fertility/parentage among survivors;
 7. update authoritative events/checkpoint/derived observability as specified by the run lifecycle.
@@ -158,9 +158,9 @@ No general behavioural learning, cultural adaptation or evolving strategy is pre
 
 ### 4.4 Objectives
 
-M4 uses an explicit synthetic bounded utility comparison. Candidate utility combines resource support, water/security proxy, a narrow direct-parent/kin proxy, travel/terrain cost, uncertainty and relocation risk. Candidates must improve sufficiently over staying before participating in weighted choice.
+M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a narrow direct-parent/kin proxy are treated as residence-state terms. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
 
-This is a mechanism-testing objective function, not a claim that real people maximize this utility or consciously calculate these terms.
+This is a mechanism-testing objective function, not a claim that real people maximize this utility or consciously calculate or partition these terms in this way.
 
 ### 4.5 Learning
 
@@ -295,7 +295,7 @@ Primary implementation: `crates/anthrosim-core/src/resources.rs` and resource/co
 
 ### M4 — permanent household migration
 
-Evaluates pressured households against bounded local alternatives using explicit synthetic utility factors, stochastic uncertainty and weighted destination choice. Selected moves change persistent residence.
+Evaluates pressured households against bounded local alternatives. The current explicit stay counterfactual contains residence-state resource/water/kin terms only; relocation candidates evaluate their destination residence terms and then subtract relocation-only travel/terrain, uncertainty and relocation-risk costs before the minimum-improvement and stochastic weighted-choice steps. Selected moves change persistent residence.
 
 Primary specification: [`migration-v0.1.md`](migration-v0.1.md).  
 Primary implementation: `crates/anthrosim-core/src/migration.rs` and related spatial/migration code.

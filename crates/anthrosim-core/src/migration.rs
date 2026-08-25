@@ -117,6 +117,20 @@ struct CandidateEvaluation {
     weight: u64,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ResidenceUtilityTerms {
+    resource_score_permille: u16,
+    water_security_score_permille: u16,
+    kin_score_permille: u16,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct RelocationActionCosts {
+    travel_penalty_permille: u16,
+    uncertainty_penalty_permille: u16,
+    relocation_risk_penalty_permille: u16,
+}
+
 pub(crate) struct MigrationBoundaryContext<'a> {
     pub world: &'a World,
     pub resources: &'a ResourceSystem,
@@ -320,17 +334,14 @@ impl MigrationSystem {
                 u16::try_from(self.condition_sums[household_index] / u64::from(members))
                     .unwrap_or(PERMILLE_MAX);
             let origin_population = self.cell_population(origin)?;
-            let origin_utility = self.evaluate_cell(
+            let origin_utility = self.evaluate_stay(
                 household_index,
                 origin,
-                0,
                 origin_population,
-                members,
                 resources,
                 world,
                 config,
                 period_need_per_person,
-                0,
             )?;
             let pressure = migration_pressure_permille(
                 mean_condition,
@@ -371,12 +382,11 @@ impl MigrationSystem {
                     ))
                     .unwrap_or(config.max_uncertainty_penalty_permille)
                 };
-                let utility = self.evaluate_cell(
+                let utility = self.evaluate_relocation(
                     household_index,
                     candidate,
                     distance,
                     destination_population,
-                    members,
                     resources,
                     world,
                     config,
@@ -552,19 +562,90 @@ impl MigrationSystem {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn evaluate_cell(
+    fn evaluate_stay(
+        &self,
+        household_index: usize,
+        cell: CellId,
+        resident_population: u32,
+        resources: &ResourceSystem,
+        world: &World,
+        config: &MigrationConfig,
+        period_need_per_person: u64,
+    ) -> Result<MigrationUtilityBreakdown, MigrationError> {
+        let residence = self.evaluate_residence_terms(
+            household_index,
+            cell,
+            resident_population,
+            resources,
+            world,
+            period_need_per_person,
+        )?;
+        Ok(compose_utility(
+            residence,
+            config,
+            RelocationActionCosts::default(),
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn evaluate_relocation(
         &self,
         household_index: usize,
         cell: CellId,
         distance: u16,
         destination_population: u32,
-        _moving_members: u32,
         resources: &ResourceSystem,
         world: &World,
         config: &MigrationConfig,
         period_need_per_person: u64,
         uncertainty_penalty: u16,
     ) -> Result<MigrationUtilityBreakdown, MigrationError> {
+        let residence = self.evaluate_residence_terms(
+            household_index,
+            cell,
+            destination_population,
+            resources,
+            world,
+            period_need_per_person,
+        )?;
+        let world_cell = world
+            .cell(cell)
+            .ok_or(MigrationError::InternalInvariant("candidate outside world"))?;
+        let terrain_excess = world_cell.movement_cost.saturating_sub(BASE_MOVEMENT_COST);
+        let travel_penalty = u16::try_from(
+            (u32::from(distance).saturating_mul(120) + u32::from(terrain_excess) / 3)
+                .min(u32::from(PERMILLE_MAX)),
+        )
+        .unwrap_or(PERMILLE_MAX);
+        let relocation_risk = u16::try_from(
+            (u32::from(config.relocation_risk_base_penalty_permille)
+                + u32::from(config.relocation_risk_per_cell_permille)
+                    .saturating_mul(u32::from(distance)))
+            .min(u32::from(PERMILLE_MAX)),
+        )
+        .unwrap_or(PERMILLE_MAX);
+
+        Ok(compose_utility(
+            residence,
+            config,
+            RelocationActionCosts {
+                travel_penalty_permille: travel_penalty,
+                uncertainty_penalty_permille: uncertainty_penalty,
+                relocation_risk_penalty_permille: relocation_risk,
+            },
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn evaluate_residence_terms(
+        &self,
+        household_index: usize,
+        cell: CellId,
+        resident_population: u32,
+        resources: &ResourceSystem,
+        world: &World,
+        period_need_per_person: u64,
+    ) -> Result<ResidenceUtilityTerms, MigrationError> {
         let world_cell = world
             .cell(cell)
             .ok_or(MigrationError::InternalInvariant("candidate outside world"))?;
@@ -573,7 +654,7 @@ impl MigrationSystem {
             .ok_or(MigrationError::InternalInvariant(
                 "resource cell outside world",
             ))?;
-        let demand = period_need_per_person.saturating_mul(u64::from(destination_population));
+        let demand = period_need_per_person.saturating_mul(u64::from(resident_population));
         let resource_score = u16::try_from(
             stock
                 .saturating_mul(u64::from(PERMILLE_MAX))
@@ -596,42 +677,11 @@ impl MigrationSystem {
         let kin_score = u16::try_from(kin_matches.saturating_mul(250))
             .unwrap_or(PERMILLE_MAX)
             .min(PERMILLE_MAX);
-        let terrain_excess = world_cell.movement_cost.saturating_sub(BASE_MOVEMENT_COST);
-        let travel_penalty = u16::try_from(
-            (u32::from(distance).saturating_mul(120) + u32::from(terrain_excess) / 3)
-                .min(u32::from(PERMILLE_MAX)),
-        )
-        .unwrap_or(PERMILLE_MAX);
-        let relocation_risk = u16::try_from(
-            (u32::from(config.relocation_risk_base_penalty_permille)
-                + u32::from(config.relocation_risk_per_cell_permille)
-                    .saturating_mul(u32::from(distance)))
-            .min(u32::from(PERMILLE_MAX)),
-        )
-        .unwrap_or(PERMILLE_MAX);
 
-        let positive = i64::from(resource_score) * i64::from(config.resource_weight)
-            + i64::from(water_security_score) * i64::from(config.water_security_weight)
-            + i64::from(kin_score) * i64::from(config.kin_weight);
-        let negative = i64::from(travel_penalty) * i64::from(config.travel_cost_weight)
-            + i64::from(uncertainty_penalty)
-            + i64::from(relocation_risk);
-        let total_utility = i32::try_from(positive.saturating_sub(negative)).unwrap_or({
-            if positive >= negative {
-                i32::MAX
-            } else {
-                i32::MIN
-            }
-        });
-
-        Ok(MigrationUtilityBreakdown {
+        Ok(ResidenceUtilityTerms {
             resource_score_permille: resource_score,
             water_security_score_permille: water_security_score,
             kin_score_permille: kin_score,
-            travel_penalty_permille: travel_penalty,
-            uncertainty_penalty_permille: uncertainty_penalty,
-            relocation_risk_penalty_permille: relocation_risk,
-            total_utility,
         })
     }
 
@@ -946,6 +996,38 @@ impl MigrationSystem {
             digest_u64(&mut hash, trace.choice_draw);
         }
         hash
+    }
+}
+
+fn compose_utility(
+    residence: ResidenceUtilityTerms,
+    config: &MigrationConfig,
+    action_costs: RelocationActionCosts,
+) -> MigrationUtilityBreakdown {
+    let positive = i64::from(residence.resource_score_permille) * i64::from(config.resource_weight)
+        + i64::from(residence.water_security_score_permille)
+            * i64::from(config.water_security_weight)
+        + i64::from(residence.kin_score_permille) * i64::from(config.kin_weight);
+    let negative = i64::from(action_costs.travel_penalty_permille)
+        * i64::from(config.travel_cost_weight)
+        + i64::from(action_costs.uncertainty_penalty_permille)
+        + i64::from(action_costs.relocation_risk_penalty_permille);
+    let total_utility = i32::try_from(positive.saturating_sub(negative)).unwrap_or({
+        if positive >= negative {
+            i32::MAX
+        } else {
+            i32::MIN
+        }
+    });
+
+    MigrationUtilityBreakdown {
+        resource_score_permille: residence.resource_score_permille,
+        water_security_score_permille: residence.water_security_score_permille,
+        kin_score_permille: residence.kin_score_permille,
+        travel_penalty_permille: action_costs.travel_penalty_permille,
+        uncertainty_penalty_permille: action_costs.uncertainty_penalty_permille,
+        relocation_risk_penalty_permille: action_costs.relocation_risk_penalty_permille,
+        total_utility,
     }
 }
 
