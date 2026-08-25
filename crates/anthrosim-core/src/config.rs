@@ -17,6 +17,10 @@ pub struct ExperimentConfig {
     pub duration_years: u64,
     pub world: WorldConfig,
     pub population: PopulationConfig,
+    /// Explicit founder state required by `declared_founder_state_v1` initialization. Synthetic
+    /// experiments omit this field, preserving their established serialized experiment identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub founder_population: Option<FounderPopulationDefinition>,
     pub demography: DemographyConfig,
     pub resources: ResourceConfig,
     pub migration: MigrationConfig,
@@ -43,6 +47,7 @@ impl ExperimentConfig {
             duration_years,
             world: WorldConfig::default_config(),
             population: PopulationConfig::default_config(),
+            founder_population: None,
             demography: DemographyConfig::synthetic_validation_v1(),
             resources: ResourceConfig::synthetic_validation_v1(),
             migration: MigrationConfig::synthetic_validation_v1(),
@@ -58,8 +63,15 @@ impl ExperimentConfig {
     }
 
     #[must_use]
-    pub fn with_population(mut self, population: PopulationConfig) -> Self {
+    pub const fn with_population(mut self, population: PopulationConfig) -> Self {
         self.population = population;
+        self
+    }
+
+    #[must_use]
+    pub fn with_founder_population(mut self, founder_population: FounderPopulationDefinition) -> Self {
+        self.population.initialization = PopulationInitialization::DeclaredFounderStateV1;
+        self.founder_population = Some(founder_population);
         self
     }
 
@@ -137,27 +149,17 @@ impl Default for WorldConfig {
 ///
 /// `SyntheticValidationV1` remains the frozen engineering/null-model preset and serializes to the
 /// same `synthetic_validation_v1` string used by earlier experiment identities. The declared mode
-/// carries the complete founder state inside immutable experiment configuration instead of silently
-/// reusing synthetic ages, sexes, reproductive history, or kin state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// requires the complete founder state in `ExperimentConfig.founder_population` and never silently
+/// reuses synthetic ages, sexes, reproductive history, or kin state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PopulationInitialization {
     SyntheticValidationV1,
-    DeclaredFounderStateV1(FounderPopulationDefinition),
-}
-
-impl PopulationInitialization {
-    #[must_use]
-    pub const fn declared_founders(&self) -> Option<&FounderPopulationDefinition> {
-        match self {
-            Self::SyntheticValidationV1 => None,
-            Self::DeclaredFounderStateV1(definition) => Some(definition),
-        }
-    }
+    DeclaredFounderStateV1,
 }
 
 /// Configuration for persistent people and co-resident households.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PopulationConfig {
     pub schema_version: u32,
@@ -201,7 +203,7 @@ impl PopulationConfig {
     }
 
     #[must_use]
-    pub fn with_initialization(mut self, initialization: PopulationInitialization) -> Self {
+    pub const fn with_initialization(mut self, initialization: PopulationInitialization) -> Self {
         self.initialization = initialization;
         self
     }
