@@ -4,11 +4,13 @@ Status: authoritative scientific/model contract for the repaired annual M2 trans
 
 This document defines what AnthroSim's current demographic probabilities and annual demographic boundary mean. It is a **verification contract**, not an empirical validation claim. The current M2 implementation remains a deliberately coarse annual discrete-time model; it must not be described as a continuous-time demographic hazard model.
 
+The versioned downstream validation/diagnostic surface for these semantics is defined separately in [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md).
+
 ## 1. Purpose
 
 The pre-repair M2 implementation allowed several separate-looking defects to arise from one ambiguity: the annual boundary simultaneously acted as an ageing boundary, a mortality draw, a fertility draw, a birth-spacing clock and a parentage-locality snapshot. The resulting behavior could skip the infant mortality interval, silently quantize a day-valued birth-spacing parameter, let a zero-duration same-day M4 relocation redefine the male parent pool, reset newborn condition to 1000, and let implementation order decide whether mortality erased fertility opportunity.
 
-This contract makes those semantics explicit before further empirical calibration. It intentionally does **not** solve founder demographic/kin prehistory; that is a separate persisted-initialization repair in the same M2 programme.
+This contract makes those semantics explicit before empirical calibration. Founder demographic/kin prehistory is handled by the separate declared-founder contract rather than hidden inside annual transition code.
 
 ## 2. Annual interval
 
@@ -81,7 +83,7 @@ Examples:
 | 1278 | 1460 |
 | 1460 | 1460 |
 
-The engine exposes this normalization as an authoritative derived function and tests it explicitly. The raw requested value must not be described as if births can resume on that exact subannual day. This removes the previous accidental/hidden quantization without claiming subannual capability that the scheduler does not possess.
+The engine exposes this normalization as an authoritative derived function and tests it explicitly. The versioned M2 observability report also writes both the requested and executable values into ordinary run-facing analysis output. The raw requested value must not be described as if births can resume on that exact subannual day.
 
 A future research mode requiring exact day-scale interbirth intervals needs a genuinely subannual/event-time M2 redesign rather than a different comparison operator at the annual boundary.
 
@@ -105,49 +107,62 @@ This rule does **not** make fertility itself condition-dependent. It only define
 
 A future empirically grounded neonatal-condition model may replace this proxy only with explicit evidence, parameters, uncertainty and a new compatible scientific contract.
 
-## 8. Founder initialization is deliberately not solved by this transition patch
+## 8. Founder initialization
 
-`SyntheticValidationV1` founders currently have no persisted pre-simulation reproductive history and no founder parentage. That produces founder-transient behavior and is tracked by #192.
+Founder history is not inferred implicitly by the annual M2 transition.
 
-The correct repair must add explicit, provenance-bearing initialization semantics rather than inventing fake in-run births or hiding prehistory in annual transition code. It must address both:
+`SyntheticValidationV1` deliberately remains a labelled zero-history synthetic initializer. Research-facing runs can instead use `declared_founder_state_v1`, defined by [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md), to carry provenance-bearing founder ages, reproductive state, signed pre-run last-birth timing and explicit living direct-parent links into authoritative Population/experiment state.
 
-- schedule-consistent pre-run reproductive/birth-spacing history; and
-- the M4 kin-information transient, either through plausible pre-run genealogy/network state or an explicit research-analysis burn-in/kin-unavailable contract.
+M2 consults declared pre-run `lastBirthDay` only until a real model-period birth supersedes it. Declared direct-parent links are immediately available to the M4 kin proxy. The declaration is content-bound for persistence/reproducibility rather than reconstructed from hidden pseudo-events.
 
-Because those values must survive checkpointing, digesting and provenance and affect M4 as well as M2, #192 remains a separate implementation sub-PR inside the M2 redesign programme.
+This removes the previous requirement to pretend every founder has no reproductive or kin history. It does **not** make an arbitrary founder declaration empirically plausible; the supplied initialization still requires study-specific evidence, uncertainty and sensitivity analysis.
 
 ## 9. Opportunity observability
 
-Issue #228 should be implemented downstream of this contract. At minimum an M2 validation report should distinguish:
+The versioned derived report defined in [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md) reconstructs the M2 opportunity funnel from authoritative day-zero Population, EventLog history, immutable experiment configuration and final checkpoint Population.
 
-- records exposed to mortality by start-of-interval age band;
-- demographic mortality events by age band;
-- living female records entering the fertility stage;
+It distinguishes at least:
+
+- mortality exposures and M2 demographic deaths by interval-start age band;
+- surviving female records entering fertility;
 - non-zero fertility-schedule eligibility;
-- requested versus executable birth-spacing eligibility;
-- pre-M4 local eligible-male availability;
-- fertility draws/attempts;
+- spacing eligibility using the explicit requested-to-executable rule;
+- eligible-male availability under the pre-same-day-M4 parentage locality;
+- fertility draws attempted;
+- replayed stochastic draw successes/failures;
 - successful births;
-- record-limit blocking.
+- person-record-limit blocking/truncation;
+- model-period and declared-prehistory-to-first-birth interbirth intervals; and
+- completed-fertility summaries with explicit censoring.
 
-These denominators must remain separate so later calibration cannot compensate for missing male availability, founder history or spacing suppression by inflating the fertility schedule.
+The derivation independently replays the `demography/fertility` RNG stream and reconciles reconstructed demographic history against final Population state. A mismatch is an analysis error rather than a silently estimated denominator.
+
+These quantities remain separate so later calibration cannot compensate invisibly for male availability, founder history, mortality competition or spacing suppression by inflating the fertility schedule.
 
 ## 10. Verification tests required by this contract
 
-The repair suite must include model-contract tests for:
+The repair suite includes model-contract tests for:
 
 - age-0 mortality exposure of a model-born child at its first later annual boundary;
-- exact half-open age-band transitions based on interval-start age;
+- age-1 second-year risk at the following boundary;
+- founder records immediately below/at an age-band boundary;
+- equivalent fertility age-band boundaries;
 - requested-to-executable birth-spacing normalization around 365-day boundaries;
 - high-mortality/high-fertility cases proving the declared conditional-survival equation;
-- same-day M4 relocation proving zero-duration destination residence does not redefine parentage locality;
-- newborn condition inheritance at high, medium and low maternal condition;
-- deterministic replay under the changed semantics.
+- same-day M4 relocation with origin-only and destination-only eligible males;
+- the corresponding non-annual move after elapsed destination residence;
+- newborn maternal-condition inheritance;
+- deterministic demographic-observability replay and final-state reconciliation; and
+- end-to-end CLI derivation/checking from a normal run bundle.
+
+The additional severe-scarcity/household-mean/M4-pressure tests for newborn condition deliberately remain with the later M2→M3/M4 resource/condition cluster rather than duplicating resource semantics here.
 
 Synthetic tests verify that software implements this declared model. They do not empirically validate the model for any archaeological population.
 
 ## 11. Compatibility and interpretation
 
-This contract changes authoritative demographic meaning relative to the v0.3.0 baseline and therefore requires a new `MODEL_SEMANTICS_ID`. It does not require an opportunistic package-version bump.
+The transition-semantics repair changed authoritative demographic meaning relative to the v0.3.0 baseline and therefore advanced `MODEL_SEMANTICS_ID` to v6; the later M4 stay-comparator repair advanced the current repository model semantics to v7.
 
-The repair is specifically intended to improve **verification** and interpretability. Empirical **validation** remains study-specific and future work. Exact Git provenance continues to identify the implementation used for every run.
+The observability/report work described here is downstream analysis only. It must **not** change authoritative simulation trajectories and therefore does not itself require another model-semantics bump. Any canonical M7/M8/M9 output change caused by this analysis PR would be treated as a regression requiring investigation rather than rebaselining.
+
+The repair programme is specifically intended to improve **verification** and interpretability. Empirical **validation** remains study-specific and future work. Exact Git provenance continues to identify the implementation used for every run.
