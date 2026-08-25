@@ -146,15 +146,15 @@ pub enum ResumeLineageError {
         artifact_day: u64,
     },
     #[error("resume-lineage boundary {index} changes package model version across one resume")]
-    ModelVersionDiscontinuity { index },
+    ModelVersionDiscontinuity { index: usize },
     #[error("resume-lineage boundary {index} changes model-semantics identity across one resume")]
-    ModelSemanticsDiscontinuity { index },
+    ModelSemanticsDiscontinuity { index: usize },
     #[error("resume-lineage boundary {index} precedes the previous boundary")]
-    BoundaryOrder { index },
+    BoundaryOrder { index: usize },
     #[error(
         "resume-lineage boundary {index} source identity does not match the previous continuation"
     )]
-    SourceContinuity { index },
+    SourceContinuity { index: usize },
     #[error("resume-lineage final continuation identity does not match the containing artifact")]
     FinalIdentityMismatch,
 }
