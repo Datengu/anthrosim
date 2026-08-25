@@ -1,0 +1,22 @@
+# RustSec policy for AnthroSim's locked dependency graph.
+#
+# Vulnerability advisories are errors by cargo-audit itself. Unsound advisories
+# are also denied because they can undermine software/scientific integrity.
+# Unmaintained and yanked crates remain visible warnings requiring triage rather
+# than automatic dependency churn.
+
+[advisories]
+ignore = []
+informational_warnings = ["unmaintained", "unsound"]
+
+[database]
+fetch = true
+stale = false
+
+[output]
+deny = ["unsound"]
+show_tree = true
+
+[yanked]
+enabled = true
+update_index = true
