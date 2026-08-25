@@ -6,6 +6,7 @@ on:
       - audit/final-integrity-168-176-178
     paths:
       - scripts/apply-final-audit-core.py
+      - crates/anthrosim-core/src/provenance.rs
 
 permissions:
   contents: write
