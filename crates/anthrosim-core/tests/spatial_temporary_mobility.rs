@@ -3,9 +3,9 @@ use anthrosim_core::{
     DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, GridGeometry,
     LandscapeBundle, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, MigrationConfig,
     NoDataPolicy, PopulationConfig, ResourceConfig, SpatialFieldTransform,
-    SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField, TemporaryMobilityConfig,
-    TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTriggerTiming, TransformDirection,
-    WorldConfig,
+    SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField,
+    TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
+    TemporaryTriggerTiming, TransformDirection, WorldConfig,
 };
 
 fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
@@ -149,14 +149,11 @@ fn transformed_spatial_host_executes_and_resumes_active_temporary_journeys_exact
     let mechanisms = mechanisms();
     let config = configured_temporary_mobility();
 
-    let uninterrupted = SpatialLandscapeSimulation::new(
-        config.clone(),
-        source.clone(),
-        mechanisms.clone(),
-    )
-    .expect("temporary spatial host")
-    .run_recorded()
-    .expect("uninterrupted run");
+    let uninterrupted =
+        SpatialLandscapeSimulation::new(config.clone(), source.clone(), mechanisms.clone())
+            .expect("temporary spatial host")
+            .run_recorded()
+            .expect("uninterrupted run");
 
     assert!(
         uninterrupted
