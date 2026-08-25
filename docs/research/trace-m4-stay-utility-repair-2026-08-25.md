@@ -75,6 +75,23 @@ This observed change matches the defect's expected causal direction. Removing a 
 
 The M8.6 reference is updated only after this causal inspection. The new reference records the v7 model-semantics identity, the benchmark execution/artifact provenance, all predeclared paired-effect summaries, and every terminal state digest. Future changes must still pass the same scientific regression verifier; this repair does not relax that gate.
 
+## Observed M7.6 consequence
+
+The canonical synthetic resource-variability sweep was also rerun under v7 before its reference was changed. Umbrella CI run `32907506629`, merge-test revision `9dd1e447fa4ccab4d4e7be5f962b0236898b2b04`, produced artifact `9585478308` (ZIP SHA-256 `5e9765c169fea2a79c57e6bf588ea1268df30b649fa83c1432035c9ac86bdd31`). The source-definition SHA-256 remained exactly `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`; all 18 points × 8 seeds completed, with no failed, incomplete or person-record-limit runs.
+
+M7.6 contains a particularly useful internal control because each productivity/seasonality setting is run once with migration enabled and once with migration disabled. The v6 → v7 comparison is unambiguous:
+
+- **all nine migration-disabled points reproduce the v6 reference exactly in every compared point metric**;
+- **all nine migration-enabled points change** under the repaired comparator;
+- total migration distance decreases in all nine migration-enabled points, by roughly **4% to 12%** relative to the v6 reference;
+- pooled mean distance per completed move decreases in all nine migration-enabled points, by roughly **5% to 8%**;
+- migration-move counts do not move in one universal direction, so the most consistent correction is to the distance/attractiveness structure of selected moves rather than simply suppressing every migration decision;
+- downstream population, occupancy and resource-stress quantities also change only when migration is enabled, as expected because altered relocation histories feed back into later resource exposure.
+
+This migration-on/migration-off split is strong causal evidence that the M7.6 reference difference comes from #186 rather than an unrelated M2/M3 or orchestration change. It also reinforces the M8.6 finding: the former stay comparator was overstating the relative attractiveness of some relocations. The corrected v7 model still shows a large synthetic persistence difference between migration-enabled and migration-disabled arms, but the exact migration-distance outputs and downstream resource trajectories must be interpreted under the repaired comparator.
+
+The checked-in M7.6 reference is therefore regenerated for v7 only after this controlled comparison. The versioned source experiment definition is unchanged; the reference remains a derived synthetic regression snapshot, not empirical validation or a calibration target.
+
 ## Scientific boundary
 
 This repair establishes consistency between the implemented comparator and the documented meaning of travel/relocation costs. It does **not** establish that:
@@ -92,7 +109,7 @@ Those questions remain subject to evidence grounding, structural sensitivity and
 - **Conceptual model evaluation:** improved — the action/state distinction is explicit and internally coherent for this mechanism.
 - **Implementation verification:** improved — direct counterfactual/metamorphic tests now cover the repaired semantics.
 - **Model output verification:** unchanged — no new empirical validation evidence is created.
-- **Model analysis:** improved in one narrow respect — the preserved M8.6 rerun demonstrates that a previously robust terrain-distance response was not robust to correcting the stay comparator. Broader sensitivity/uncertainty analysis remains incomplete.
+- **Model analysis:** improved in a narrow but useful respect — the M8.6 and controlled M7.6 reruns show that previously recorded migration-distance behaviour changes in the predicted direction when the stay comparator is repaired. Broader sensitivity/uncertainty analysis remains incomplete.
 - **Output corroboration:** unchanged / not established.
 
-Closing #186 therefore removes one blocking scientific-behaviour defect and corrects one overstated synthetic terrain response; it does not upgrade AnthroSim to empirically research-ready status.
+Closing #186 therefore removes one blocking scientific-behaviour defect and corrects overstated synthetic migration-distance responses; it does not upgrade AnthroSim to empirically research-ready status.
