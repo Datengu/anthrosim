@@ -1,9 +1,11 @@
 use anthrosim_core::{
-    ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole,
-    LandscapeValueDomain, MigrationConfig, NoDataPolicy, PopulationConfig, ResourceConfig,
-    ResumeLineage, SpatialFieldTransform, SpatialLandscapeError, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, SpatialTargetField, TransformDirection, WorldConfig, ids::CellId,
-    validate_spatial_landscape_recorded_run,
+    ExperimentConfig, FounderGenealogyStatus, FounderHousehold, FounderPerson,
+    FounderPopulationDefinition, GridGeometry, LandscapeBundle, LandscapeLayer,
+    LandscapeLayerRole, LandscapeValueDomain, MigrationConfig, NoDataPolicy,
+    ParameterProvenance, PopulationConfig, ResourceConfig, ResumeLineage, ReproductiveSex,
+    SpatialFieldTransform, SpatialLandscapeError, SpatialLandscapeSimulation,
+    SpatialMechanismConfig, SpatialTargetField, TransformDirection, WorldConfig,
+    ids::{CellId, HouseholdId, PersonId}, validate_spatial_landscape_recorded_run,
 };
 
 fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
@@ -128,6 +130,58 @@ fn directional_config(seed: u64, water_weight: u16, travel_weight: u16) -> Exper
         .with_migration(migration)
 }
 
+fn movement_cost_directional_config(seed: u64) -> ExperimentConfig {
+    let founder_population = FounderPopulationDefinition::new(
+        "m8-movement-cost-directionality-v1",
+        ParameterProvenance::SyntheticValidation,
+        FounderGenealogyStatus::CompleteLivingDirectParents,
+        vec![FounderHousehold {
+            id: HouseholdId::new(1),
+            location: CellId::new(1),
+        }],
+        vec![FounderPerson {
+            id: PersonId::new(1),
+            birth_day: -(25 * 365),
+            reproductive_sex: ReproductiveSex::Female,
+            household: HouseholdId::new(1),
+            female_parent: None,
+            male_parent: None,
+            last_birth_day: None,
+            condition_permille: 0,
+        }],
+    );
+
+    let mut resources = ResourceConfig::synthetic_validation_v1();
+    resources.annual_need_units_per_person = 0;
+    resources.annual_regeneration_units_per_productivity = 0;
+    resources.condition_recovery_per_period = 0;
+    resources.max_condition_loss_per_period = 0;
+    resources.max_scarcity_mortality_probability_per_million = 0;
+
+    let mut migration = MigrationConfig::synthetic_validation_v1();
+    migration.enabled = true;
+    migration.candidate_radius_cells = 2;
+    migration.condition_pressure_threshold_permille = 1_000;
+    migration.resource_pressure_threshold_permille = 0;
+    migration.minimum_utility_improvement = 0;
+    migration.resource_weight = 0;
+    migration.water_security_weight = 4;
+    migration.kin_weight = 0;
+    migration.travel_cost_weight = 1;
+    migration.max_uncertainty_penalty_permille = 0;
+    migration.relocation_risk_base_penalty_permille = 0;
+    migration.relocation_risk_per_cell_permille = 0;
+    migration.travel_condition_cost_per_cell = 0;
+    migration.max_recorded_decision_traces = 1;
+
+    ExperimentConfig::new(seed, 1)
+        .with_world(WorldConfig::new(3, 1))
+        .with_population(PopulationConfig::new(1).with_max_person_records(10_000))
+        .with_founder_population(founder_population)
+        .with_resources(resources)
+        .with_migration(migration)
+}
+
 fn directional_mechanisms(
     movement_min: u16,
     movement_max: u16,
@@ -230,35 +284,50 @@ fn transformed_water_access_changes_migration_utility_in_declared_direction() {
 
 #[test]
 fn transformed_movement_cost_changes_migration_utility_in_declared_direction() {
-    let mut traces = Vec::new();
-    for seed in 9_200..9_220 {
-        let run = SpatialLandscapeSimulation::new(
-            directional_config(seed, 1, 1),
-            fixture(),
-            directional_mechanisms(1_000, 3_000, 1_000, 1_000),
-        )
-        .unwrap()
-        .run_recorded()
-        .unwrap();
-        traces.extend(
-            run.core_manifest()
-                .migration
-                .recorded_decision_traces
-                .clone(),
-        );
-        if !traces.is_empty() {
-            break;
-        }
-    }
+    let smooth = SpatialLandscapeSimulation::new(
+        movement_cost_directional_config(9_200),
+        fixture(),
+        directional_mechanisms(1_000, 1_000, 0, 1_000),
+    )
+    .unwrap()
+    .run_recorded()
+    .unwrap();
+    let rough = SpatialLandscapeSimulation::new(
+        movement_cost_directional_config(9_200),
+        fixture(),
+        directional_mechanisms(1_000, 3_000, 0, 1_000),
+    )
+    .unwrap()
+    .run_recorded()
+    .unwrap();
 
+    let smooth_trace = smooth
+        .core_manifest()
+        .migration
+        .recorded_decision_traces
+        .first()
+        .expect("water advantage should make the controlled relocation worthwhile");
+    let rough_trace = rough
+        .core_manifest()
+        .migration
+        .recorded_decision_traces
+        .first()
+        .expect("water advantage should remain worthwhile under the rougher candidate cost");
+
+    assert_eq!(smooth_trace.origin, CellId::new(1));
+    assert_eq!(rough_trace.origin, CellId::new(1));
+    assert_eq!(smooth_trace.destination, CellId::new(3));
+    assert_eq!(rough_trace.destination, CellId::new(3));
+    assert_eq!(smooth_trace.origin_utility.travel_penalty_permille, 0);
+    assert_eq!(rough_trace.origin_utility.travel_penalty_permille, 0);
     assert!(
-        !traces.is_empty(),
-        "controlled fixture should produce lower-cost moves"
+        rough_trace.destination_utility.travel_penalty_permille
+            > smooth_trace.destination_utility.travel_penalty_permille
     );
-    assert!(traces.iter().all(|trace| {
-        trace.destination_utility.travel_penalty_permille
-            < trace.origin_utility.travel_penalty_permille
-    }));
+    assert!(
+        rough_trace.destination_utility.total_utility
+            < smooth_trace.destination_utility.total_utility
+    );
 }
 
 #[test]
