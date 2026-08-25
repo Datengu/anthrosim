@@ -40,6 +40,8 @@ pub mod time;
 pub mod world;
 
 #[cfg(test)]
+mod demography_observability_tests;
+#[cfg(test)]
 mod founder_initialization_acceptance_tests;
 #[cfg(test)]
 mod m4_stay_utility_acceptance_tests;
