@@ -73,13 +73,13 @@ fn run_two_cell_case(
     migration_config.kin_weight = 0;
     migration_config.travel_cost_weight = travel_cost_weight;
     migration_config.max_uncertainty_penalty_permille = 0;
-    migration_config.relocation_risk_base_penalty_permille =
-        relocation_risk_base_penalty_permille;
+    migration_config.relocation_risk_base_penalty_permille = relocation_risk_base_penalty_permille;
     migration_config.relocation_risk_per_cell_permille = relocation_risk_per_cell_permille;
     migration_config.travel_condition_cost_per_cell = 0;
     migration_config.max_recorded_decision_traces = 8;
 
-    let mut migration = MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
+    let mut migration =
+        MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
     let mut rngs = MigrationRngs::new(factory);
     let mut events = EventLog::new();
     migration
@@ -129,7 +129,10 @@ fn stay_action_never_pays_travel_uncertainty_or_relocation_risk() {
     assert_eq!(trace.origin_utility.uncertainty_penalty_permille, 0);
     assert_eq!(trace.origin_utility.relocation_risk_penalty_permille, 0);
     assert_eq!(trace.destination_utility.travel_penalty_permille, 120);
-    assert_eq!(trace.destination_utility.relocation_risk_penalty_permille, 75);
+    assert_eq!(
+        trace.destination_utility.relocation_risk_penalty_permille,
+        75
+    );
 }
 
 #[test]
@@ -146,8 +149,7 @@ fn m8_style_rough_origin_overlay_cannot_penalize_the_zero_distance_stay_action()
 #[test]
 fn raising_only_candidate_movement_cost_cannot_make_relocation_more_attractive() {
     let (baseline, baseline_location) = run_two_cell_case([1_000, 1_000], 0, 0, 1);
-    let (rough_candidate, rough_candidate_location) =
-        run_two_cell_case([1_000, 4_000], 0, 0, 1);
+    let (rough_candidate, rough_candidate_location) = run_two_cell_case([1_000, 4_000], 0, 0, 1);
 
     assert_eq!(baseline.moves_completed, 1);
     assert_eq!(baseline_location, CellId::new(2));
