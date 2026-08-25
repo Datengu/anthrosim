@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    evidence::EvidenceCatalog,
-    founder_initialization::FounderPopulationDefinition,
+    evidence::EvidenceCatalog, founder_initialization::FounderPopulationDefinition,
     temporary_mobility::TemporaryMobilityConfig,
 };
 
@@ -69,7 +68,10 @@ impl ExperimentConfig {
     }
 
     #[must_use]
-    pub fn with_founder_population(mut self, founder_population: FounderPopulationDefinition) -> Self {
+    pub fn with_founder_population(
+        mut self,
+        founder_population: FounderPopulationDefinition,
+    ) -> Self {
         self.population.initialization = PopulationInitialization::DeclaredFounderStateV1;
         self.founder_population = Some(founder_population);
         self
