@@ -75,8 +75,10 @@ impl Simulation {
         Self::new_internal(config, None)
     }
 
-    /// Construct a core simulation with an explicit M9 temporary-mobility program.
-    pub fn new_with_temporary_mobility(
+    /// Test-only seam for isolated lifecycle mechanics that need a resolved M9 program.
+    /// Production callers must configure temporary mobility through `ExperimentConfig`.
+    #[cfg(test)]
+    pub(crate) fn new_with_temporary_mobility(
         config: ExperimentConfig,
         program: TemporaryMobilityProgram,
     ) -> Result<Self, SimulationError> {
@@ -650,10 +652,16 @@ fn validate_configured_temporary_mobility(
     world: &World,
 ) -> Result<(), SimulationError> {
     let Some(definition) = &config.temporary_mobility else {
-        // Explicit `new_with_temporary_mobility` remains available for isolated lifecycle tests.
-        // Ordinary experiment execution records a definition in ExperimentConfig and is checked
-        // below.
-        return Ok(());
+        if state.is_disabled() {
+            return Ok(());
+        }
+        return Err(SimulationError::ConfiguredTemporaryMobilityMismatch {
+            expected: "temporary-mobility-disabled".to_owned(),
+            actual: state
+                .program()
+                .map(TemporaryMobilityProgram::identity)
+                .or_else(|| Some("unconfigured-temporary-mobility-state".to_owned())),
+        });
     };
     let expected = definition.derive_program(world)?;
     if state.program() != Some(&expected) {
