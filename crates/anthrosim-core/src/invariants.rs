@@ -103,11 +103,8 @@ pub fn validate_run_artifacts_with_world(
     checkpoint: &SimulationCheckpoint,
     world: &World,
 ) -> Result<InvariantReport, InvariantError> {
-    let report = validate_checkpoint_invariants_for_world(
-        checkpoint,
-        Some(manifest.stop_reason),
-        world,
-    )?;
+    let report =
+        validate_checkpoint_invariants_for_world(checkpoint, Some(manifest.stop_reason), world)?;
     validate_manifest_against_checkpoint_with_world(manifest, checkpoint, world)?;
     Ok(report)
 }
