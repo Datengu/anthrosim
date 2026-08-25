@@ -1,0 +1,42 @@
+name: Apply final audit core remediation
+
+on:
+  push:
+    branches:
+      - audit/final-integrity-168-176-178
+    paths:
+      - scripts/apply-final-audit-core.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/final-integrity-168-176-178
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: rustfmt, clippy
+      - name: Apply audited patch
+        run: python3 scripts/apply-final-audit-core.py
+      - name: Format
+        run: cargo fmt --all
+      - name: Test workspace
+        run: cargo test --workspace
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Commit audited changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/apply-final-audit-core.yml scripts/apply-final-audit-core.py
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: harden core checkpoint and history integrity"
+          git push origin HEAD:audit/final-integrity-168-176-178
