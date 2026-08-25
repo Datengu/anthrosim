@@ -41,6 +41,8 @@ pub mod world;
 #[cfg(test)]
 mod founder_initialization_acceptance_tests;
 #[cfg(test)]
+mod m4_stay_utility_acceptance_tests;
+#[cfg(test)]
 mod m9_integration_tests;
 
 pub use checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64};
