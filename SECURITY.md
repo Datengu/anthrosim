@@ -6,6 +6,12 @@ AnthroSim is research-oriented simulation software. Security reports are welcome
 
 Security fixes are made against the current `main` branch. Older commits, experimental branches, and historical artifact schemas are not independently supported unless a report also affects the current codebase.
 
+## Dependency advisories
+
+The committed Rust dependency graph is checked automatically against the current RustSec Advisory Database when dependency state changes and on a daily schedule. Applicable vulnerability and unsoundness advisories are treated as failing security/integrity conditions; unmaintained and yanked dependencies remain visible for explicit assessment rather than triggering blind dependency churn.
+
+The complete machine-readable policy, scheduled-control rationale, advisory-ignore rule and reproducibility requirements for dependency remediation are documented in [`docs/dependency-security.md`](docs/dependency-security.md). A security-driven dependency update remains subject to AnthroSim's ordinary deterministic and scientific regression checks.
+
 ## Reporting a vulnerability
 
 Please do **not** publish exploit details, credentials, private data, or a proof of concept in a public issue.
