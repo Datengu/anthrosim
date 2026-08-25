@@ -35,7 +35,7 @@ use crate::{
         TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
         TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
     },
-    time::{DAYS_PER_YEAR, SimTime},
+    time::{DAYS_PER_YEAR, MAX_SUPPORTED_DURATION_YEARS, SimTime},
     world::{World, WorldError},
 };
 
@@ -831,6 +831,12 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
             supported: ExperimentConfig::CURRENT_SCHEMA_VERSION,
         });
     }
+    if config.duration_years > MAX_SUPPORTED_DURATION_YEARS {
+        return Err(SpatialLandscapeError::DurationOutOfRange {
+            duration_years: config.duration_years,
+            maximum_years: MAX_SUPPORTED_DURATION_YEARS,
+        });
+    }
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
@@ -983,6 +989,13 @@ pub enum SpatialLandscapeError {
     Migration(#[from] MigrationError),
     #[error("experiment schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedExperimentSchema { found: u32, supported: u32 },
+    #[error(
+        "experiment duration {duration_years} years exceeds supported signed chronology limit {maximum_years} years"
+    )]
+    DurationOutOfRange {
+        duration_years: u64,
+        maximum_years: u64,
+    },
     #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSpatialBindingSchema { found: u32, supported: u32 },
     #[error(

@@ -145,6 +145,22 @@ fn directional_mechanisms(
 }
 
 #[test]
+fn transformed_simulation_rejects_duration_beyond_signed_chronology_domain() {
+    let duration_years = anthrosim_core::time::MAX_SUPPORTED_DURATION_YEARS + 1;
+    let config = ExperimentConfig::new(8_000, duration_years)
+        .with_world(WorldConfig::new(3, 1))
+        .with_population(PopulationConfig::new(60).with_max_person_records(10_000));
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, fixture(), mechanisms()),
+        Err(SpatialLandscapeError::DurationOutOfRange {
+            duration_years: found,
+            maximum_years,
+        }) if found == duration_years
+            && maximum_years == anthrosim_core::time::MAX_SUPPORTED_DURATION_YEARS
+    ));
+}
+
+#[test]
 fn transformed_world_uses_declared_model_facing_fields() {
     let source = fixture();
     let simulation =
