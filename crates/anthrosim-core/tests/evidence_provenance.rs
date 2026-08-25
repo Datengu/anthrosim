@@ -1,6 +1,7 @@
 use anthrosim_core::{
-    EvidenceCatalog, EvidenceRecord, EvidenceSource, EvidenceTransformation, EvidenceUncertainty,
-    ExperimentConfig, ExternalInputEvidence, ParameterEvidenceLink, ParameterProvenance,
+    EvidenceCatalog, EvidenceError, EvidenceRecord, EvidenceSource, EvidenceTransformation,
+    EvidenceUncertainty, ExperimentConfig, ExternalInputEvidence, ParameterEvidenceLink,
+    ParameterProvenance, Simulation, SimulationError,
 };
 
 fn evidence_record() -> EvidenceRecord {
@@ -65,7 +66,9 @@ fn evidence_catalog_is_serialized_inside_reproducible_experiment_identity() {
     catalog.validate().unwrap();
 
     let without_evidence = ExperimentConfig::new(36_002, 10);
-    let with_evidence = without_evidence.clone().with_evidence(catalog);
+    let with_evidence = without_evidence.clone().with_evidence(catalog.clone());
+    catalog.validate_against_experiment(&with_evidence).unwrap();
+    Simulation::new(with_evidence.clone()).expect("valid evidence path must pass run preflight");
 
     let plain = serde_json::to_string(&without_evidence).unwrap();
     let grounded = serde_json::to_string(&with_evidence).unwrap();
@@ -80,4 +83,25 @@ fn evidence_catalog_is_serialized_inside_reproducible_experiment_identity() {
         "resources.annualRegenerationUnitsPerProductivity"
     );
     assert_eq!(evidence["externalInputs"][0]["format"], "GeoTIFF");
+}
+
+#[test]
+fn authoritative_run_preflight_rejects_nonexistent_parameter_path() {
+    let catalog = EvidenceCatalog::new(vec![evidence_record()]).with_parameter_links(vec![
+        ParameterEvidenceLink {
+            parameter_path: "resources.annualRegeneratonUnitsPerProductivity".to_owned(),
+            evidence_id: "resource-estimate-a".to_owned(),
+            note: None,
+        },
+    ]);
+    assert_eq!(catalog.validate(), Ok(()));
+    let config = ExperimentConfig::new(36_003, 1).with_evidence(catalog);
+
+    assert!(matches!(
+        Simulation::new(config),
+        Err(SimulationError::Evidence(EvidenceError::UnknownParameterPath {
+            parameter_path,
+            ..
+        })) if parameter_path == "resources.annualRegeneratonUnitsPerProductivity"
+    ));
 }
