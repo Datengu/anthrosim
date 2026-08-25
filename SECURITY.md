@@ -6,6 +6,14 @@ AnthroSim is research-oriented simulation software. Security reports are welcome
 
 Security fixes are made against the current `main` branch. Older commits, experimental branches, and historical artifact schemas are not independently supported unless a report also affects the current codebase.
 
+## Dependency advisory policy
+
+The `Dependency advisory audit` workflow runs the pinned `cargo-audit` 0.22.2 tool against the locked Rust dependency graph on dependency-changing pull requests, after dependency changes reach `main`, on a daily schedule, and when manually requested. The scheduled run matters because a dependency can become known-vulnerable after the commit that introduced it has already passed CI.
+
+A RustSec vulnerability that makes `cargo audit` exit non-zero is an actionable failure and must be assessed before release or continued wider use. Informational categories such as unmaintained/unsound/notice advisories and yanked-crate warnings are still surfaced for review, but are not automatically treated as a reason to churn the dependency graph. If an advisory is ever explicitly ignored, the repository must record the advisory identifier, rationale, scope, and removal condition; there are no standing advisory ignores by default.
+
+Dependency remediation remains a scientific-reproducibility change as well as a security change. Updating a crate to clear an advisory does not bypass the ordinary locked build, determinism, checkpoint/resume, artifact-integrity, and preserved reference/benchmark checks that apply to other code changes.
+
 ## Reporting a vulnerability
 
 Please do **not** publish exploit details, credentials, private data, or a proof of concept in a public issue.
