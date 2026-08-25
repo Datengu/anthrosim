@@ -7,7 +7,7 @@
 
 ODD+D extends ODD so assumptions about human decision-making are not hidden inside equations or generic terms such as “agent behaviour”. AnthroSim uses this document to state what its people/households are actually assumed to know, choose, optimize, learn and socially respond to — and, equally importantly, what is **not** represented.
 
-The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure.
+The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure. Founder reproductive/parent state that predates day 0 is separately governed by [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
 
 ---
 
@@ -73,7 +73,7 @@ The model intentionally separates:
 | M4 relocation pressure | Synthetic heuristic based on condition/resource deficits. |
 | M4 candidate utility | Synthetic multi-factor utility proxy; not validated psychology. |
 | M4 local information horizon | Explicit bounded-information assumption; current radius synthetic unless evidence-grounded. |
-| M4 kin contribution | Narrow genealogical proxy; not a theory of kinship, alliance or social obligation. |
+| M4 kin contribution | Narrow direct-parent-location proxy; declared founder parent state can exist from the first boundary, but the proxy is not a theory of kinship, alliance or social obligation. |
 | M4 uncertainty | Stochastic proxy; not calibrated perception or risk cognition. |
 | M9 temporary participation | Generic configured mechanism; motive/decision theory intentionally absent. |
 | M2 reproduction/parent selection | Demographic mechanism with explicit annual timing/locality semantics; not conscious choice or marriage model. |
@@ -214,7 +214,7 @@ The detailed scientific semantics are in [`../scientific-model.md`](../scientifi
 - `crates/anthrosim-core/src/temporary_travel.rs`
 - related configuration/spatial modules.
 
-M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`.
+M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`. Pre-run founder reproductive and direct-parent state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
 
 Implementation names should remain close to scientific terms so reviewers can trace ODD+D concepts into code.
 
@@ -222,7 +222,9 @@ Implementation names should remain close to scientific terms so reviewers can tr
 
 Decision parameters are fixed by the versioned experiment configuration unless an explicit future adaptive mechanism says otherwise. Founder/residence/environment initialization can affect subsequent decision opportunities and must be included in initialization-transient analysis where relevant.
 
-Founder genealogy/reproductive prehistory is currently incomplete (#192). This means early M4 kin information and M2 birth-spacing eligibility contain an initialization transient. The transition-time repair does not hide or calibrate around that limitation; it remains an explicit M2 repair item.
+The default `synthetic_validation_v1` founder mode remains an explicitly synthetic zero-history engine-validation/null model. The alternative `declared_founder_state_v1` mode can materialize exact founder age/sex/household/residence/condition, signed pre-run last-birth timing and living direct-parent links. Declared direct-parent links are therefore available to M4 on the first eligible migration boundary. If M4 has non-zero active kin weighting, declared founder genealogy marked `unspecified` fails closed rather than being interpreted as no kin.
+
+This removes the requirement that research-facing founder history be implicitly zero, but it does not make a supplied founder state empirically correct. A study must justify how that declaration was derived and test sensitivity to other plausible initial states; see [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
 
 ### III.iii Input data
 
