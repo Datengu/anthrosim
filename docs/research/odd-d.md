@@ -40,7 +40,7 @@ Important exogenous/model-fixed factors include utility weights, pressure thresh
 
 ### I.iii Process overview and scheduling
 
-At eligible M4 boundaries, households are first tested for relocation pressure. Pressured households compare the utility of staying with bounded local alternatives using a shared pre-move snapshot. Alternatives that exceed the configured minimum improvement become eligible; one is selected through weighted deterministic stochastic choice. Selected moves are then applied simultaneously.
+At eligible M4 boundaries, households are first tested for relocation pressure. Pressured households compare the utility of staying with bounded local alternatives using a shared pre-move snapshot. The stay action evaluates residence-state terms only; candidate actions evaluate the same destination residence terms and then pay relocation-only travel, uncertainty and relocation-risk costs. Alternatives that exceed the configured minimum improvement over the stay action become eligible; one is selected through weighted deterministic stochastic choice. Selected moves are then applied simultaneously.
 
 M9 journey starts/transitions occur according to the declared temporary-mobility configuration and travel semantics. M9 does not currently simulate a cognitive deliberation in which a household weighs social motives and decides whether to attend.
 
@@ -71,10 +71,10 @@ The model intentionally separates:
 | Mechanism | Current theoretical/empirical status |
 |---|---|
 | M4 relocation pressure | Synthetic heuristic based on condition/resource deficits. |
-| M4 candidate utility | Synthetic multi-factor utility proxy; not validated psychology. |
+| M4 stay/candidate utility | Synthetic residence-state utility plus relocation-only action costs; not validated psychology. |
 | M4 local information horizon | Explicit bounded-information assumption; current radius synthetic unless evidence-grounded. |
 | M4 kin contribution | Narrow direct-parent-location proxy; declared founder parent state can exist from the first boundary, but the proxy is not a theory of kinship, alliance or social obligation. |
-| M4 uncertainty | Stochastic proxy; not calibrated perception or risk cognition. |
+| M4 uncertainty | Stochastic candidate-action proxy; not calibrated perception or risk cognition. |
 | M9 temporary participation | Generic configured mechanism; motive/decision theory intentionally absent. |
 | M2 reproduction/parent selection | Demographic mechanism with explicit annual timing/locality semantics; not conscious choice or marriage model. |
 
@@ -96,18 +96,23 @@ Only a local household-level decision is represented. There is no village, linea
 
 #### Objectives / rationality
 
-M4 households do not maximize a globally known landscape. They compare staying against bounded candidates using a synthetic utility function combining:
+M4 households do not maximize a globally known landscape. They compare an explicit stay action against bounded relocation candidates.
+
+Residence-state utility at both the current residence and candidate residences combines:
 
 - resource support;
 - water/security proxy;
-- narrow kin/parent-location proxy;
+- narrow kin/parent-location proxy.
+
+Only relocation candidates additionally pay:
+
 - travel/terrain cost;
 - uncertainty penalty;
-- relocation-risk penalty.
+- base and distance-dependent relocation-risk penalty.
 
-A destination must exceed the status quo by a configured minimum improvement. Multiple qualifying alternatives may compete stochastically with weight proportional to the declared improvement semantics.
+The stay action therefore has zero travel, uncertainty and relocation-risk penalties by definition. A destination must exceed the stay utility by a configured minimum improvement. Multiple qualifying alternatives may compete stochastically with weight proportional to the declared improvement semantics.
 
-This is an **instrumental model rule**, not evidence that historical people consciously optimized a scalar utility function.
+This is an **instrumental model rule**, not evidence that historical people consciously optimized a scalar utility function or separated costs cognitively in this way.
 
 #### Decision rules and adaptation
 
@@ -121,9 +126,9 @@ The absence of these processes defines the model's current domain of applicabili
 
 #### Spatial aspects
 
-M4 information and alternatives are spatially bounded by the candidate radius and world boundary. Travel/terrain cost contributes to candidate evaluation. M9 uses declared focal-region/travel semantics.
+M4 information and alternatives are spatially bounded by the candidate radius and world boundary. Candidate travel/terrain cost contributes only to relocation evaluation; the current residence does not pay a travel penalty for remaining stationary. Under the current synthetic proxy, candidate travel cost combines Manhattan distance with the destination cell's movement-cost excess. M9 uses declared focal-region/travel semantics.
 
-For evidence-grounded studies, the translation from cell units to physical distance and the influence of raster resolution/extent are part of model evaluation, not merely GIS preprocessing.
+For evidence-grounded studies, the translation from cell units to physical distance, the meaning of destination-cell movement cost as a traversal proxy, and the influence of raster resolution/extent are part of model evaluation, not merely GIS preprocessing.
 
 M2 parentage is local in the narrow mechanistic sense of persistent pre-M4 residence at the annual boundary; M9 visitor/transit presence is not treated as parentage locality. This is deliberately narrower than real social/mating networks and remains structurally sensitive.
 
@@ -135,7 +140,7 @@ M2 is likewise a coarse annual discrete transition, not continuous reproductive/
 
 #### Uncertainty
 
-M4 includes an explicit stochastic uncertainty penalty and stochastic destination choice. This is not an empirical cognitive error model. Other unknowns are represented through parameter uncertainty/sensitivity at the experiment level rather than being assumed to exist inside an agent's mind.
+M4 includes an explicit stochastic uncertainty penalty on relocation candidates and stochastic destination choice. Staying does not receive candidate uncertainty. This is not an empirical cognitive error model. Other unknowns are represented through parameter uncertainty/sensitivity at the experiment level rather than being assumed to exist inside an agent's mind.
 
 ### II.iii Learning
 
@@ -197,7 +202,7 @@ If stochastic parameters are later interpreted empirically, their distribution a
 
 ### II.x Observation (including emergence)
 
-Decision traces, events and downstream observability can be inspected to determine which alternatives were considered/selected and what spatial outcomes emerged.
+Decision traces, events and downstream observability can be inspected to determine which alternatives were considered/selected and what spatial outcomes emerged. The origin breakdown is the explicit stay-action utility and therefore reports zero relocation-only action costs.
 
 Interpretive labels are not automatic. A cluster of households, repeated visits or a focal-region peak does not by itself establish a social institution, ritual motive or political centre.
 
@@ -238,11 +243,12 @@ The current decision-related submodels are:
 
 1. M4 relocation-pressure calculation;
 2. M4 candidate enumeration/information horizon;
-3. M4 candidate utility and stay comparison;
-4. M4 stochastic destination choice;
-5. M4 simultaneous move application/travel condition effect;
-6. M9 configured participation/start semantics;
-7. M9 travel/duration/temporary-presence lifecycle.
+3. M4 residence-state utility and explicit stay-action comparison;
+4. M4 relocation-only action costs and candidate utility;
+5. M4 stochastic destination choice;
+6. M4 simultaneous move application/travel condition effect;
+7. M9 configured participation/start semantics;
+8. M9 travel/duration/temporary-presence lifecycle.
 
 Each submodel's equations and exact semantics remain normative in the detailed scientific/model-specific documents rather than being duplicated here.
 
