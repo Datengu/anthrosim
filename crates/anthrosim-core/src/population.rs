@@ -34,6 +34,7 @@ pub struct PersonSnapshot {
     pub death_day: Option<u64>,
     pub last_birth_day: Option<u64>,
     pub reproductive_sex: ReproductiveSex,
+    /// Persistent residence cell. M9 temporary physical presence is stored separately.
     pub location: CellId,
     pub household: HouseholdId,
     pub female_parent: PersonId,
@@ -65,16 +66,19 @@ pub struct PopulationSummary {
     pub births_since_start: u64,
     pub deaths_since_start: u64,
     pub household_count: u64,
+    /// Number of cells containing at least one living persistent resident.
+    /// M9 temporary visitors/transit are intentionally excluded.
     pub living_occupied_cell_count: u64,
     pub mean_living_condition_permille: u16,
     pub living_below_half_condition: u64,
     pub digest64: u64,
 }
 
-/// Compact cell-to-person index rebuilt from authoritative person locations.
+/// Compact persistent-residence cell-to-person index rebuilt from authoritative person locations.
 ///
-/// It indexes persistent person records, including the dead. Consumers that
-/// need current interaction candidates must additionally filter for alive state.
+/// It indexes persistent person records, including the dead. Consumers that need M2/M4
+/// residence-based interaction candidates must additionally filter for alive state. M9
+/// temporary visitor/transit presence is authoritative elsewhere and is not indexed here.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CellOccupancy {

@@ -1,6 +1,7 @@
 import {
   eventsForEntity,
   genealogyForPerson,
+  inspectionTargetForEvent,
   mapValues,
   parseLosslessJson,
   reconstructState,
@@ -82,14 +83,14 @@ function renderTimeline() {
     ["Living population", snapshot.population.livingPopulation],
     ["Births", snapshot.population.birthsSinceStart],
     ["Deaths", snapshot.population.deathsSinceStart],
-    ["Occupied cells", snapshot.population.livingOccupiedCellCount],
+    ["Residence-occupied cells", snapshot.population.livingOccupiedCellCount],
     ["Migration moves", snapshot.migration.movesCompleted],
     ["Unmet need", snapshot.resources.unmetNeed],
   ] : [
     ["Living population", bundle.initialPopulation.initialPopulation],
     ["Births", 0],
     ["Deaths", 0],
-    ["Occupied cells", reconstructed.cellResidents.size],
+    ["Residence-occupied cells", reconstructed.cellResidents.size],
     ["Migration moves", 0],
     ["Unmet need", 0],
   ];
@@ -116,7 +117,7 @@ function renderTimeline() {
 
 function overlayProvenance(overlay) {
   if (overlay === "population") {
-    return `Reconstructed display from founder locations plus authoritative events through day ${selectedDay}.`;
+    return `Reconstructed persistent-residence display from founder residences plus authoritative birth/death/permanent-migration events through day ${selectedDay}. Temporary visitors and transit are excluded; use the M9 temporary-presence panel for physical presence.`;
   }
   if (overlay === "finalFood") {
     return `Authoritative checkpoint cell food stock at day ${runInfo.endTime}; it does not represent earlier selected boundaries.`;
@@ -233,7 +234,7 @@ function renderCell(cellId) {
   container.replaceChildren();
   container.append(create("h3", `Cell ${summary.id}`));
   const dl = create("dl");
-  addDefinition(dl, "Living population", summary.livingPopulation);
+  addDefinition(dl, "Living persistent residents", summary.livingPopulation);
   addDefinition(dl, "Baseline productivity", summary.world.baseProductivity);
   addDefinition(dl, "Water access", summary.world.waterAccess);
   addDefinition(dl, "Movement cost", summary.world.movementCost);
@@ -258,7 +259,7 @@ function renderHousehold(householdId) {
   container.append(create("h3", `Household ${id}`));
   const living = members.filter((personId) => reconstructed.people.get(personId)?.alive);
   const dl = create("dl");
-  addDefinition(dl, "Reconstructed location", reconstructed.householdLocations.get(id) ?? "—");
+  addDefinition(dl, "Persistent residence cell", reconstructed.householdLocations.get(id) ?? "—");
   addDefinition(dl, "Known members", members.length);
   addDefinition(dl, "Living members", living.length);
   addDefinition(dl, "Completed migrations through this day", eventsForEntity(bundle, { household: id, type: "householdMigration" }).filter((record) => record.day <= selectedDay).length);
@@ -289,7 +290,7 @@ function renderPerson(personId) {
   addDefinition(dl, "Age at selected boundary", `${Math.max(0, Math.floor((selectedDay - person.birthDay) / 365))} years`);
   addDefinition(dl, "Reproductive sex", person.reproductiveSex ?? "not recorded");
   addDefinition(dl, "Household", person.household);
-  addDefinition(dl, "Reconstructed cell", person.location);
+  addDefinition(dl, "Persistent residence cell", person.location);
   addDefinition(dl, "Condition", conditionText(person));
   container.append(dl);
 
@@ -328,8 +329,8 @@ function inspect(kind, id) {
 
 function eventSummary(record) {
   const event = record.event;
-  if (event.type === "birth") return `birth · person ${event.person} · household ${event.household} · cell ${event.cell}`;
-  if (event.type === "death") return `death · person ${event.person} · ${event.cause} · cell ${event.cell}`;
+  if (event.type === "birth") return `birth · person ${event.person} · household ${event.household} · residence cell ${event.cell}`;
+  if (event.type === "death") return `death · person ${event.person} · ${event.cause} · residence cell ${event.cell}`;
   if (event.type === "householdMigration") {
     const peopleMoved = event.people_moved ?? event.peopleMoved;
     return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${peopleMoved} people`;
@@ -388,9 +389,8 @@ function renderEvents() {
     const button = create("button", eventSummary(record), "event-description");
     button.type = "button";
     button.addEventListener("click", () => {
-      const event = record.event;
-      if (event.type === "householdMigration") inspect("household", event.household);
-      else inspect("person", event.person);
+      const target = inspectionTargetForEvent(record.event);
+      if (target) inspect(target.kind, target.id);
       showRawEvent(record);
     });
     row.append(button);
