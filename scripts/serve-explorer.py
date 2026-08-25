@@ -27,6 +27,7 @@ OPTIONAL_RUN_FILES = {
     "landscape-checkpoint.json",
     "spatial-mechanisms.json",
     "spatial-observability.json",
+    "temporary-observability.json",
 }
 ALLOWED_RUN_FILES = BASE_RUN_FILES | OPTIONAL_RUN_FILES
 EXPLORER_FILES = {
@@ -108,7 +109,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "run_dir",
         type=Path,
-        help="run directory containing world, original founder population, events, metrics and checkpoint; resume-boundary provenance, manifest and M8 spatial artifacts are optional",
+        help="run directory containing world, original founder population, events, metrics and checkpoint; resume-boundary provenance, manifest and M8/M9 derived observability artifacts are optional",
     )
     parser.add_argument("--host", default="127.0.0.1", help="bind address; defaults to loopback only")
     parser.add_argument("--port", type=int, default=8765, help="local port; defaults to 8765")
