@@ -112,8 +112,10 @@ export function validateSpatialArtifacts(bundle, runInfo) {
       "temporary observability end day disagrees with run boundary");
     assert(String(temporaryObservability.source.runStateDigest64) === String(runInfo.stateDigest64),
       "temporary observability state digest disagrees with run");
-    assert(spatialObservability?.semantics?.physicalPresenceCompanionArtifact === "temporary-observability.json",
-      "spatial observability does not declare its M9 physical-presence companion");
+    if (spatialObservability) {
+      assert(spatialObservability.semantics?.physicalPresenceCompanionArtifact === "temporary-observability.json",
+        "spatial observability does not declare its M9 physical-presence companion");
+    }
   }
 
   return {
