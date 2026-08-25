@@ -259,11 +259,11 @@ pub(crate) fn process_demographic_year_recorded(
                     .ok_or(PopulationError::InternalInvariant {
                         reason: "living person is missing a household at mortality boundary",
                     })?;
-            let cell =
-                demographic_exposure_location(population, index, &same_day_migration_origins)
-                    .ok_or(PopulationError::InternalInvariant {
-                        reason: "living person is missing a demographic exposure residence",
-                    })?;
+            let cell = population.location_at_index(index).ok_or(
+                PopulationError::InternalInvariant {
+                    reason: "living person is missing a current residence at mortality boundary",
+                },
+            )?;
             let condition =
                 population
                     .condition_at_index(index)
