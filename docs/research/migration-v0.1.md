@@ -32,7 +32,7 @@ Movement currently completes at that decision boundary rather than creating a pe
 
 ## Bounded local knowledge
 
-A household can inspect destination cells within a Manhattan-distance radius around its current cell. The default radius is three cells. The origin is not considered a move candidate; remaining at the origin is represented by the origin utility against which candidate improvement is compared.
+A household can inspect destination cells within a Manhattan-distance radius around its current cell. The default radius is three cells. The origin is not considered a move candidate; remaining at the origin is represented by an explicit **stay utility** against which candidate improvement is compared.
 
 For an interior cell the number of candidates is bounded by:
 
@@ -55,20 +55,38 @@ The deficits are added and bounded to 0..1000 permille. Under the default synthe
 
 This is a trigger mechanism, not a calibrated psychological, social or ethnographic model of migration motivation.
 
-## Destination utility factors
+## Residence utility and relocation action costs
 
-Each candidate produces a `MigrationUtilityBreakdown`. The current factors are:
+M4 separates two different scientific quantities when comparing staying with moving.
+
+### Residence-state terms
+
+The following describe the state of residing at a cell and therefore apply both to the current residence and to candidate residences:
 
 | Factor | Current interpretation | Evidence status |
 |---|---|---|
-| Resource score | Dynamic M3 food stock relative to local period demand after adding the moving household | Synthetic validation proxy |
+| Resource score | Dynamic M3 food stock relative to local period demand after adding the moving household where applicable | Synthetic validation proxy |
 | Water/security score | Weighted water accessibility plus inverse environmental stress | Synthetic validation proxy |
 | Kin score | Presence of a bounded set of known, living direct-parent locations outside the household | Minimal genealogical proxy |
-| Travel penalty | Manhattan distance plus destination terrain movement-cost excess | Synthetic validation proxy |
-| Uncertainty penalty | Deterministic stochastic penalty from a named migration RNG stream | Synthetic validation proxy |
-| Relocation-risk penalty | Base penalty plus distance-dependent penalty | Synthetic validation proxy |
 
-Positive factors are combined with configurable integer weights. Travel, uncertainty and relocation-risk factors subtract from utility. A destination must exceed the origin utility by a configured minimum improvement before it can be selected.
+### Relocation-only action costs
+
+The following describe the act/uncertainty/risk of relocating and therefore apply **only to candidate moves**:
+
+| Factor | Current interpretation | Evidence status |
+|---|---|---|
+| Travel penalty | Manhattan distance plus the **destination** cell's terrain movement-cost excess | Synthetic validation proxy |
+| Uncertainty penalty | Deterministic stochastic candidate penalty from a named migration RNG stream | Synthetic validation proxy |
+| Relocation-risk penalty | Base relocation penalty plus distance-dependent relocation penalty | Synthetic validation proxy |
+
+The stay action has exactly zero travel penalty, zero candidate uncertainty and zero relocation-risk penalty. In particular:
+
+- the origin's terrain movement cost cannot lower the utility of remaining in place;
+- the base relocation-risk penalty is not charged to staying and therefore cannot cancel out of the move-versus-stay comparison;
+- increasing relocation risk can only make relocation less attractive under otherwise equal residence terms;
+- destination movement cost represents the current simplified cost of moving to/through that destination, not a cost of occupying rough terrain while stationary.
+
+Positive residence factors are combined with configurable integer weights. Candidate travel, uncertainty and relocation-risk factors subtract from relocation utility. A destination must exceed the explicit stay utility by a configured minimum improvement before it can be selected.
 
 The exact functional form and all default weights are placeholders. They must not be interpreted as measured human preferences.
 
@@ -94,9 +112,11 @@ This preserves a useful distinction between current co-residence and persistent 
 
 A completed move deducts condition from each living mover according to distance and the configured per-cell travel-condition cost, bounded by the condition scale. The manifest reports total realized travel-condition loss.
 
-Relocation risk is currently a decision penalty rather than an additional movement-injury or movement-mortality draw. Thus M4 represents the cost/risk of moving in two different simplified ways:
+Relocation risk is currently a **candidate-action decision penalty** rather than an additional movement-injury or movement-mortality draw. The base term is paid once for taking the relocation action; the per-cell term increases that anticipated penalty with distance. Neither applies to staying.
 
-- anticipated relocation risk reduces candidate utility;
+Thus M4 represents the cost/risk of moving in two different simplified ways:
+
+- anticipated relocation risk and candidate travel cost reduce relocation utility;
 - completed travel produces condition loss.
 
 Neither term is calibrated to measured energetic expenditure, injury, mortality or journey duration.
@@ -111,8 +131,8 @@ To keep normal manifests bounded, M4 records only the first configured number of
 - Manhattan distance;
 - relocation pressure;
 - number of locally visible candidates;
-- factor-by-factor origin utility;
-- factor-by-factor selected-destination utility;
+- factor-by-factor **stay** utility for the origin (with relocation-only costs explicitly zero);
+- factor-by-factor selected-destination relocation utility;
 - best visible candidate and its utility;
 - selected and total stochastic-choice weights plus the choice draw;
 - travel condition cost per person.
@@ -156,7 +176,11 @@ Once the milestone acceptance tests and CI pass, it is legitimate to say that th
 
 - destination discovery is spatially bounded and independent of total-world search;
 - no historical destination or migration route is encoded;
-- each recorded move can be decomposed into explicit implemented utility factors;
+- each recorded move can be decomposed into explicit implemented residence and relocation-action utility factors;
+- the stay comparator has zero travel, uncertainty and relocation-risk costs;
+- increasing base relocation risk can reduce move eligibility rather than cancelling against the stay action;
+- changing only the origin movement cost cannot penalize a zero-distance stay action through a travel term;
+- increasing only candidate travel/terrain cost cannot make that candidate more attractive;
 - identical configuration/seed yields identical migration decisions and traces;
 - worsened local resource/condition state directionally increases relocation pressure under otherwise equal inputs;
 - living household members relocate together and packed population/occupancy invariants continue to reconcile;
