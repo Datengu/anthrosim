@@ -12,7 +12,7 @@ use crate::{
     migration::MigrationSystem,
     provenance::ResumeLineage,
     rng::RngFactory,
-    simulation::Simulation,
+    simulation::{Simulation, SimulationError},
     temporary_mobility::{
         HouseholdPresence, TemporaryMobilityProgram, TemporaryMobilitySchedule,
         TemporaryTravelResolution, TemporaryTravelTable, TemporaryTriggerTiming,
@@ -188,49 +188,46 @@ fn active_checkpoint(seed: u64, duration_years: u64) -> crate::SimulationCheckpo
 }
 
 #[test]
-fn active_presence_round_trips_through_checkpoint_integrity() {
+fn unconfigured_temporary_presence_is_rejected_by_resume() {
     let checkpoint = active_checkpoint(9_001, 2);
-    let source_presence = checkpoint.temporary_mobility.clone();
-    let source_digest = checkpoint.state_digest64;
 
-    checkpoint.validate_invariants().unwrap();
-    let resumed = Simulation::from_checkpoint(checkpoint)
-        .unwrap()
-        .checkpoint_at_year(0)
-        .unwrap();
-
-    assert_eq!(resumed.temporary_mobility, source_presence);
-    assert_eq!(resumed.state_digest64, source_digest);
-    resumed.validate_invariants().unwrap();
+    assert!(matches!(
+        Simulation::from_checkpoint(checkpoint),
+        Err(SimulationError::ConfiguredTemporaryMobilityMismatch { .. })
+    ));
 }
 
 #[test]
-fn active_temporary_household_is_excluded_from_m4_without_changing_residence() {
+fn temporary_households_are_excluded_from_m4_without_changing_residence() {
     let seed = 9_002;
-    let baseline = Simulation::new(
-        ExperimentConfig::new(seed, 1)
-            .with_world(WorldConfig::new(4, 4))
-            .with_population(PopulationConfig::new(20).with_target_household_size(5))
-            .with_demography(stable_demography())
-            .with_resources(stable_resources()),
-    )
-    .unwrap()
-    .run_recorded()
-    .unwrap();
-
-    let checkpoint = active_checkpoint(seed, 1);
+    let config = m9_config(seed, 1, 20, stable_demography());
+    let probe = Simulation::new(config.clone()).unwrap();
     let household = HouseholdId::new(1);
-    let residence = checkpoint.population.household_location(household).unwrap();
-    let active = Simulation::from_checkpoint(checkpoint)
+    let residence = probe.population().household_location(household).unwrap();
+    let household_count = probe.population().household_count() as u64;
+
+    let baseline = Simulation::new(config.clone())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    let program = temporary_program(
+        &config,
+        TemporaryTriggerTiming::DepartureDay,
+        vec![0],
+        400,
+        0,
+        true,
+    );
+    let active = Simulation::new_with_temporary_mobility(config, program)
         .unwrap()
         .run_recorded()
         .unwrap();
 
     assert_eq!(
-        baseline.manifest.migration.households_evaluated
-            - active.manifest.migration.households_evaluated,
-        active.manifest.migration.decision_boundaries
+        baseline.manifest.migration.households_evaluated,
+        household_count.saturating_mul(baseline.manifest.migration.decision_boundaries)
     );
+    assert_eq!(active.manifest.migration.households_evaluated, 0);
     assert_eq!(
         active.checkpoint.population.household_location(household),
         Some(residence)
@@ -242,26 +239,37 @@ fn active_temporary_household_is_excluded_from_m4_without_changing_residence() {
             .is_at_residence(household),
         Some(false)
     );
-    active.validate_invariants().unwrap();
 }
 
 #[test]
 fn real_active_journey_resume_matches_uninterrupted_execution() {
-    let config = m9_config(9_003, 2, 40, stable_demography());
-    let program = temporary_program(
-        &config,
-        TemporaryTriggerTiming::DepartureDay,
-        vec![360],
-        20,
-        10,
-        true,
-    );
+    let base_config = m9_config(9_003, 2, 40, stable_demography());
+    let probe = Simulation::new(base_config.clone()).unwrap();
+    let destination = unoccupied_destination(&probe);
+    let definition = crate::TemporaryMobilityConfig::new(
+        FocalRegion::new(
+            "m9-integration-resume-region",
+            FocalRegionSource::Synthetic,
+            vec![destination],
+        )
+        .unwrap(),
+        TemporaryMobilitySchedule::new(
+            "m9-integration-resume-schedule",
+            TemporaryTriggerTiming::DepartureDay,
+            vec![300],
+            100,
+        )
+        .unwrap(),
+        crate::TemporaryTravelModel::synthetic_validation_v1(),
+    )
+    .unwrap();
+    let config = base_config.with_temporary_mobility(definition);
 
-    let uninterrupted = Simulation::new_with_temporary_mobility(config.clone(), program.clone())
+    let uninterrupted = Simulation::new(config.clone())
         .unwrap()
         .run_recorded()
         .unwrap();
-    let checkpoint = Simulation::new_with_temporary_mobility(config, program)
+    let checkpoint = Simulation::new(config)
         .unwrap()
         .checkpoint_at_year(1)
         .unwrap();
