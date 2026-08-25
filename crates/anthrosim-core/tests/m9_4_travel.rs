@@ -2,7 +2,7 @@ use anthrosim_core::{
     DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, GridGeometry,
     LandscapeBundle, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, MigrationConfig,
     NoDataPolicy, ParameterProvenance, PopulationConfig, ResourceConfig, Simulation,
-    SpatialFieldTransform, SpatialMechanismConfig, SpatialTargetField, TemporaryMobilityProgram,
+    SpatialFieldTransform, SpatialMechanismConfig, SpatialTargetField, TemporaryMobilityConfig,
     TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTravelResolution,
     TemporaryTriggerTiming, TransformDirection, World, WorldConfig, transform_landscape,
 };
@@ -124,13 +124,13 @@ fn m8_movement_transform_changes_m9_4_cost_and_duration_through_public_boundary(
 #[test]
 fn derived_cost_and_model_identity_are_authoritative_in_active_journey_and_departure_event() {
     let seed = 9_104;
-    let config = ExperimentConfig::new(seed, 2)
+    let base_config = ExperimentConfig::new(seed, 2)
         .with_world(WorldConfig::new(4, 4))
         .with_population(PopulationConfig::new(20).with_target_household_size(5))
         .with_demography(no_event_demography())
         .with_resources(no_pressure_resources())
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
-    let probe = Simulation::new(config.clone()).unwrap();
+    let probe = Simulation::new(base_config.clone()).unwrap();
     let household = HouseholdId::new(1);
     let residence = probe.population().household_location(household).unwrap();
     let destination = (1..=probe.world().cell_count() as u64)
@@ -153,7 +153,7 @@ fn derived_cost_and_model_identity_are_authoritative_in_active_journey_and_depar
     let expected_model_identity = model.identity();
     let travel = model.derive_table(&region, probe.world()).unwrap();
     let expected_cost = travel.accumulated_cost_units(residence).unwrap();
-    let program = TemporaryMobilityProgram::new(
+    let temporary_mobility = TemporaryMobilityConfig::new(
         region,
         TemporaryMobilitySchedule::new(
             "active-cost-schedule",
@@ -162,12 +162,12 @@ fn derived_cost_and_model_identity_are_authoritative_in_active_journey_and_depar
             30,
         )
         .unwrap(),
-        travel,
-        probe.world(),
+        model,
     )
     .unwrap();
+    let config = base_config.with_temporary_mobility(temporary_mobility);
 
-    let checkpoint = Simulation::new_with_temporary_mobility(config, program)
+    let checkpoint = Simulation::new(config)
         .unwrap()
         .checkpoint_at_year(1)
         .unwrap();
