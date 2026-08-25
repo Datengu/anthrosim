@@ -17,8 +17,10 @@ keywords:
   - demography
   - migration
 abstract: >-
-  AnthroSim is a reproducible agent-based simulation framework for exploring
-  human demography, migration, kinship, cultural transmission, and long-run
-  social emergence. Version 0.2 is the audited M8 evidence-grounded spatial
-  experiment baseline, building on the deterministic synthetic v0.1 engine.
-  It is not an empirically validated model of human prehistory.
+  AnthroSim is a reproducible agent-based simulation framework for deterministic
+  demography, resource-constrained household migration, kinship, and
+  evidence-grounded spatial experiments under explicit model assumptions.
+  Version 0.2.0 is the audited M8 evidence-grounded spatial experiment baseline,
+  building on the deterministic synthetic v0.1 engine. Later capabilities on
+  unreleased main are not part of the v0.2.0 citation baseline. AnthroSim is not
+  an empirically validated model of human prehistory.

@@ -1,8 +1,10 @@
 # AnthroSim
 
-AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, migration, kinship, cultural transmission, and long-run social emergence.
+AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**v0.2.0 is the audited M8 evidence-grounded spatial experiment baseline.** It retains the deterministic synthetic population-simulation and experiment engine established through M1–M7, and adds provenance-tracked landscape inputs, explicit model-facing spatial transformations, evidence catalogues, spatial observability, real-world-derived terrain benchmarking, and the post-M8 research-integrity hardening required to preserve that baseline. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
+**v0.2.0 is the latest released baseline and is the audited M8 evidence-grounded spatial experiment release.** It retains the deterministic synthetic population-simulation and experiment engine established through M1–M7, and adds provenance-tracked landscape inputs, explicit model-facing spatial transformations, evidence catalogues, spatial observability and a real-world-derived terrain benchmark.
+
+**Current unreleased `main` has completed M9 temporary-mobility and aggregation capability.** M9 separates persistent residence from temporary physical presence, adds deterministic multi-day household journeys, focal-region travel semantics, duration-aware resource accounting, temporary-presence observability and a controlled aggregation benchmark. These changes are being audited/hardened for the planned v0.3.0 release; they are not part of the released v0.2.0 citation baseline yet. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
 ## Core rule
 
@@ -12,60 +14,50 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-AnthroSim includes:
+On current unreleased `main`, AnthroSim includes:
 
 - deterministic synthetic spatial environments;
-- persistent individuals and genealogy;
-- households and local resource sharing;
-- birth, ageing, condition, and death;
-- renewable food, seasonality, environmental stress and local density competition;
-- local, interpretable household migration decisions;
-- deterministic experiment configuration and replay;
-- versioned authoritative events and derived metric snapshots;
-- resumable deterministic annual-boundary checkpoints;
-- self-contained offline run bundles;
-- a read-only local explorer for maps, timelines, entities, events and genealogy;
-- deterministic multi-seed batch/ensemble execution with immutable provenance and retry state;
-- deterministic parameter sweeps with derived machine-readable analysis tables;
-- long-run correctness soaks and cross-artifact invariant validation;
-- end-to-end performance and process-memory acceptance gates;
-- a versioned 144-run synthetic resource-variability reference experiment;
+- persistent individuals, genealogy and households;
+- birth, ageing, condition, death and renewable-resource scarcity;
+- local interpretable **permanent** household migration;
+- deterministic experiment configuration, replay and immutable provenance;
+- versioned authoritative events, derived metric snapshots and resumable checkpoints;
+- self-contained offline run bundles and a read-only local explorer;
+- deterministic ensemble execution, retries and parameter sweeps;
+- long-run invariant, performance, memory and cross-platform determinism gates;
 - versioned normalized landscape inputs with explicit provenance;
-- deterministic transformations from declared landscape layers into movement cost, water access and resource opportunity;
-- spatial observability and read-only explorer support for landscape-bound runs;
-- evidence catalogues carried through immutable experiment identity;
-- a reproducible 32-run evidence-grounded terrain null-model benchmark.
+- deterministic landscape-to-model transformations for movement cost, water access and resource opportunity;
+- evidence catalogues tied to experiment identity and validated parameter paths;
+- residence-based spatial observability for landscape-bound runs;
+- explicit persistent residence versus temporary physical-presence state;
+- identity-bearing focal regions and deterministic temporary travel cost/duration;
+- outbound transit, visiting, return transit and journey-completion lifecycle state;
+- duration-aware resource demand during temporary mobility;
+- temporary-presence observability with resident, visitor, transit, person-day, peak, journey-duration and catchment measures;
+- an evidence-grounded M8 terrain null-model benchmark and a controlled synthetic M9 aggregation benchmark.
 
-Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them.
+Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them. M9 temporary mobility is deliberately a generic null mechanism rather than a cultural, ritual, political or economic motive model.
 
 ## Current milestone status
 
 - **M1 — Deterministic synthetic world:** complete.
 - **M2 — Persistent people, households, demography and genealogy:** complete.
 - **M3 — Renewable resources, household sharing, condition and scarcity survival:** complete; parameters remain an explicit synthetic validation baseline until empirically grounded.
-- **M4 — Interpretable local migration:** complete; migration utility weights, information radius and response thresholds remain explicit synthetic validation assumptions.
-- **M5 — Events, metrics, checkpoints and causal inspection:** complete; it adds observability/persistence rather than a new anthropological mechanism.
-- **M6 — Local simulation explorer:** complete as a read-only consumer of completed and paused M5 run bundles; it does not participate in authoritative simulation state or the Rust hot loop.
-- **M7.1 — Batch / ensemble execution:** complete.
-- **M7.2 — Immutable experiment provenance and retry semantics:** complete.
-- **M7.3 — Parameter sweeps and aggregate analysis outputs:** complete.
-- **M7.4 — Long-run soak and invariant hardening:** complete.
-- **M7.5 — Performance and memory acceptance benchmarking:** complete.
-- **M7.6 — First resource-variability experiment and v0.1 closure:** complete.
-- **M7 / v0.1 experiment-engine baseline:** complete.
-- **M8 — Evidence-grounded spatial experiments:** complete. M8 adds reproducible normalized landscape inputs, explicit deterministic spatial transformations, exact landscape/evidence identity, machine-readable spatial observability, explorer support, M7 ensemble/sweep integration and a first evidence-grounded null-model benchmark. See [`docs/roadmap.md`](docs/roadmap.md).
+- **M4 — Interpretable local permanent migration:** complete; migration utility weights, information radius and response thresholds remain explicit synthetic validation assumptions.
+- **M5 — Events, metrics, checkpoints and causal inspection:** complete.
+- **M6 — Local simulation explorer:** complete as a read-only artifact consumer.
+- **M7 — Deterministic experiment orchestration, ensembles, retries, sweeps, soak/performance validation and the v0.1 reference experiment:** complete.
+- **M8 — Evidence-grounded spatial experiments / v0.2.0:** complete and released. M8 adds normalized landscape inputs, explicit deterministic spatial transformations, landscape/evidence identity, residence-based spatial observability and the first evidence-grounded terrain null-model benchmark.
+- **M9 — Temporary mobility and controlled aggregation:** complete on unreleased `main`. M9 adds persistent-residence/current-presence separation, identity-bearing focal regions, deterministic multi-day temporary journeys, duration-aware resource accounting, M9 observability and a predeclared continuous-residence versus intermittent-aggregation benchmark.
+- **Post-M9 audit / planned v0.3.0:** in progress. Package and citation version remain v0.2.0 until release-readiness verification is complete.
 
-M1–M4 establish the first closed spatial response loop: local synthetic productivity and seasonality create renewable resource supply; co-located households compete for finite stock; household supply affects individual condition and scarcity mortality; surviving households under local pressure can compare only bounded nearby alternatives and relocate together at an explicit travel cost; demographic births and baseline deaths continue through the M2 schedules.
+M1–M4 establish the baseline permanent-residence response loop: local supply and competition affect condition/survival, and surviving pressured households can make bounded permanent relocations. M5–M7 make that loop inspectable, resumable and reproducibly orchestrated without introducing a second simulation engine.
 
-M5 makes that loop inspectable. Births, deaths and completed household moves are emitted as versioned authoritative events; annual/terminal summaries are explicitly derived metrics; state digests fingerprint deterministic boundaries; and annual-boundary checkpoints preserve full dynamic state plus the exact positions of all named RNG streams for deterministic resumption.
+M8 keeps evidence separate from model-facing transformations and results. Its first terrain reference exercise found **fragile spatial structure** under the declared terrain-only null model: terrain materially perturbed some spatial outcomes, but direction was not stable across seeds. See [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md).
 
-M6 makes those artifacts navigable without changing them. It provides timeline, map, cell, household, person, genealogy and event views while visibly distinguishing serialized authoritative facts, recorded derived metrics and UI reconstructions. Historical state that M5 did not record is not silently invented.
+M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. A temporary journey can be at residence, in outbound transit, visiting a focal region, in return transit, then complete. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across those states, and M9 observability is separate from M8 residence-based spatial observability. The controlled M9.7 benchmark distinguished intermittent aggregation from continuous residence under its frozen synthetic assumptions; that is capability validation, not archaeological validation. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md), [`docs/research/temporary-mobility-observability-v1.md`](docs/research/temporary-mobility-observability-v1.md), [`docs/research/m9-controlled-aggregation-benchmark-v1.md`](docs/research/m9-controlled-aggregation-benchmark-v1.md), and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
 
-M7 adds deterministic experiment orchestration around that same simulator rather than a second simulation engine. Ensembles, retries and parameter sweeps preserve immutable provenance, keep incomplete/failed runs explicit, and generate separate derived analysis tables without changing authoritative model state.
-
-M8 keeps the same separation between evidence, model assumptions and results. Externally derived landscape values remain distinct from model-facing transformed fields; transformed runs retain exact landscape and mechanism identity; spatial metrics are downstream derived artifacts; and visualisation remains read-only. The first M8.6 reference exercise used an open terrain input and four movement-cost mappings over eight paired seeds. Its predeclared result was **fragile spatial structure**: terrain materially perturbed migration distance and largest-cell concentration in some runs, but the direction was not stable across seeds. This is a result about the declared terrain-only null model, not a historical reconstruction or archaeological validation. See [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md).
-
-No historical destination, route, settlement, tribe or migration outcome is scripted into that loop.
+No historical destination, route, settlement, group or migration outcome is scripted into these loops.
 
 ## Running locally
 
@@ -207,15 +199,17 @@ python3 scripts/run-versioned-sweep.py \
 
 The launcher copies the exact definition, records its SHA-256, verifies the immutable sweep manifest against the requested seeds/settings/dimensions, and writes a reproduction record containing the model and source identity. It refuses a missing source identity or an automatically detected `-dirty` tracked tree. Controlled build systems can still provide `ANTHROSIM_GIT_COMMIT` explicitly. The full contract and Windows/PowerShell equivalent are in [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md), with the build-time source policy in [`docs/source-provenance.md`](docs/source-provenance.md).
 
-See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the M7 provenance/retry/sweep contract, [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md) for the synthetic reference experiment, [`docs/research/spatial-mechanisms-v1.md`](docs/research/spatial-mechanisms-v1.md) for M8 transformation semantics, [`docs/research/spatial-observability-v1.md`](docs/research/spatial-observability-v1.md) for M8 observability, and [`docs/roadmap.md`](docs/roadmap.md) for the question-led development direction after M8.
+See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the M7 provenance/retry/sweep contract, [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md) for the synthetic reference experiment, [`docs/research/spatial-mechanisms-v1.md`](docs/research/spatial-mechanisms-v1.md) for M8 transformation semantics, [`docs/research/spatial-observability-v1.md`](docs/research/spatial-observability-v1.md) for residence-based M8 observability, [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md) for the M9 residence/presence contract, [`docs/research/m9-temporary-travel-semantics-v1.md`](docs/research/m9-temporary-travel-semantics-v1.md) and [`docs/research/m9-duration-aware-resource-semantics-v1.md`](docs/research/m9-duration-aware-resource-semantics-v1.md) for travel/resource semantics, [`docs/research/temporary-mobility-observability-v1.md`](docs/research/temporary-mobility-observability-v1.md) for M9 physical-presence observability, and [`docs/roadmap.md`](docs/roadmap.md) for the question-led development direction after M9.
 
 ## Scientific status
 
-AnthroSim is a **research-oriented simulation framework, not a validated anthropological or archaeological model**. Its synthetic demographic, resource and migration presets remain explicit model assumptions. M8 demonstrates that the same deterministic experiment engine can bind provenance-tracked real-world-derived spatial evidence, transform it through declared assumptions and analyse spatial outcomes reproducibly.
+AnthroSim is a **research-oriented simulation framework, not a validated anthropological or archaeological model**. Its synthetic demographic, resource, permanent-migration and temporary-mobility presets remain explicit model assumptions unless a particular experiment supplies and justifies stronger evidence grounding.
 
-That does not make a spatially grounded run a reconstruction of a real past population. Strong archaeological or anthropological claims still require question-specific evidence, calibration/validation where appropriate, uncertainty and sensitivity analysis, comparison against independent observations, and domain review.
+Released v0.2.0 demonstrates that the deterministic experiment engine can bind provenance-tracked real-world-derived spatial evidence, transform it through declared assumptions and analyse residence-based spatial outcomes reproducibly. Unreleased M9 demonstrates a separate software/model capability: persistent residence and temporary physical presence can generate distinguishable aggregation histories while preserving deterministic replay, checkpoint/resume and explicit resource accounting.
 
-Post-M8 development is intentionally question-led rather than a fixed feature list. The first evidence-grounded benchmark should inform which missing mechanism, alternative assumption, comparison method or archaeological observation layer is most scientifically useful next. See [`docs/roadmap.md`](docs/roadmap.md).
+Neither result makes a run a reconstruction of a real past population. Strong archaeological or anthropological claims still require question-specific evidence, calibration/validation where appropriate, uncertainty and sensitivity analysis, comparison against independent observations, discriminating predictions and domain review.
+
+Post-M9 development is intentionally question-led rather than a fixed feature list. The M8 and M9 benchmark results should inform which missing mechanism, competing assumption, comparison method or observation layer is scientifically useful next. See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Contributing and security
 
