@@ -1,0 +1,242 @@
+name: One-shot audit 166 fix v3
+
+on:
+  push:
+    branches: [audit/166-final-m9-explorer-semantics]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: true
+
+      - name: Apply count-checked final-audit fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_exact(path, old, new, expected=1):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} matches, found {count}: {old!r}")
+              p.write_text(text.replace(old, new))
+
+          def sub_regex(path, pattern, replacement, expected=1, flags=0):
+              p = Path(path)
+              text = p.read_text()
+              changed, count = re.subn(pattern, replacement, text, flags=flags)
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} regex matches, found {count}: {pattern!r}")
+              p.write_text(changed)
+
+          # Explorer model: route any person-bearing event to a person, otherwise household-bearing
+          # events (including every M9 lifecycle event) to the household. Keep generic replay residence-only.
+          helper = "\n".join([
+              "export function inspectionTargetForEvent(event) {",
+              "  if (!event || typeof event !== \"object\") return null;",
+              "  if (Object.hasOwn(event, \"person\") && event.person !== null && event.person !== undefined) {",
+              "    return { kind: \"person\", id: asNumber(event.person, \"event person\") };",
+              "  }",
+              "  if (Object.hasOwn(event, \"household\") && event.household !== null && event.household !== undefined) {",
+              "    return { kind: \"household\", id: asNumber(event.household, \"event household\") };",
+              "  }",
+              "  return null;",
+              "}",
+              "",
+          ])
+          replace_exact(
+              "explorer/model.mjs",
+              "function terminalSnapshot(metrics, endTime) {",
+              helper + "function terminalSnapshot(metrics, endTime) {",
+          )
+          replace_exact(
+              "explorer/model.mjs",
+              "export function reconstructState(bundle, day) {",
+              "// Reconstruct persistent residence only. M9 temporary visitor/transit presence is represented\n"
+              "// separately by temporary-observability.json and must not be invented as ordinary cell occupancy.\n"
+              "export function reconstructState(bundle, day) {",
+          )
+          replace_exact(
+              "explorer/model.mjs",
+              "      const touchesCell = Number(event.cell) === cellId || Number(event.origin) === cellId || Number(event.destination) === cellId;",
+              "      const touchesCell = Number(event.cell) === cellId ||\n"
+              "        Number(event.origin) === cellId ||\n"
+              "        Number(event.destination) === cellId ||\n"
+              "        Number(event.residence) === cellId;",
+          )
+
+          # Explorer UI: make the generic map/inspectors explicitly persistent-residence based.
+          replace_exact(
+              "explorer/app.mjs",
+              "  genealogyForPerson,\n",
+              "  genealogyForPerson,\n  inspectionTargetForEvent,\n",
+          )
+          replace_exact(
+              "explorer/app.mjs",
+              "    return `Reconstructed display from founder locations plus authoritative events through day ${selectedDay}.`;",
+              "    return `Reconstructed persistent-residence display from founder residences plus authoritative birth/death/permanent-migration events through day ${selectedDay}. Temporary visitors and transit are excluded; use the M9 temporary-presence panel for physical presence.`;",
+          )
+          replace_exact("explorer/app.mjs", '["Occupied cells",', '["Residence-occupied cells",', expected=2)
+          replace_exact(
+              "explorer/app.mjs",
+              '  addDefinition(dl, "Living population", summary.livingPopulation);',
+              '  addDefinition(dl, "Living persistent residents", summary.livingPopulation);',
+          )
+          replace_exact(
+              "explorer/app.mjs",
+              '  addDefinition(dl, "Reconstructed location", reconstructed.householdLocations.get(id) ?? "—");',
+              '  addDefinition(dl, "Persistent residence cell", reconstructed.householdLocations.get(id) ?? "—");',
+          )
+          replace_exact(
+              "explorer/app.mjs",
+              '  addDefinition(dl, "Reconstructed cell", person.location);',
+              '  addDefinition(dl, "Persistent residence cell", person.location);',
+          )
+          replace_exact(
+              "explorer/app.mjs",
+              '  if (event.type === "birth") return `birth · person ${event.person} · household ${event.household} · cell ${event.cell}`;',
+              '  if (event.type === "birth") return `birth · person ${event.person} · household ${event.household} · residence cell ${event.cell}`;',
+          )
+          replace_exact(
+              "explorer/app.mjs",
+              '  if (event.type === "death") return `death · person ${event.person} · ${event.cause} · cell ${event.cell}`;',
+              '  if (event.type === "death") return `death · person ${event.person} · ${event.cause} · residence cell ${event.cell}`;',
+          )
+          sub_regex(
+              "explorer/app.mjs",
+              r'''    button\.addEventListener\("click", \(\) => \{\n\s*const event = record\.event;\n\s*if \(event\.type === "householdMigration"\) inspect\("household", event\.household\);\n\s*else inspect\("person", event\.person\);\n\s*showRawEvent\(record\);\n\s*\}\);''',
+              "    button.addEventListener(\"click\", () => {\n"
+              "      const target = inspectionTargetForEvent(record.event);\n"
+              "      if (target) inspect(target.kind, target.id);\n"
+              "      showRawEvent(record);\n"
+              "    });",
+          )
+          replace_exact(
+              "explorer/index.html",
+              '<option value="population">Living population</option>',
+              '<option value="population">Living persistent residents</option>',
+          )
+
+          # Pure regression seam in the existing Explorer validation module.
+          replace_exact(
+              "scripts/validate-explorer-bundle.mjs",
+              'import { parseLosslessJson, reconstructState, validateBundle } from "../explorer/model.mjs";',
+              "\n".join([
+                  "import {",
+                  "  eventsForEntity,",
+                  "  inspectionTargetForEvent,",
+                  "  parseLosslessJson,",
+                  "  reconstructState,",
+                  "  validateBundle,",
+                  '} from "../explorer/model.mjs";',
+              ]),
+          )
+          regression = "\n".join([
+              "function validateEventInspectionSemantics() {",
+              '  const birthTarget = inspectionTargetForEvent({ type: "birth", person: 17, household: 4 });',
+              '  if (birthTarget?.kind !== "person" || birthTarget.id !== 17) fail("birth event does not route to its person inspector");',
+              "",
+              '  const migrationTarget = inspectionTargetForEvent({ type: "householdMigration", household: 4 });',
+              '  if (migrationTarget?.kind !== "household" || migrationTarget.id !== 4) fail("permanent migration event does not route to its household inspector");',
+              "",
+              '  const temporaryTarget = inspectionTargetForEvent({ type: "temporaryJourneyDeparted", household: 9 });',
+              '  if (temporaryTarget?.kind !== "household" || temporaryTarget.id !== 9) fail("temporary-mobility event does not route to its household inspector");',
+              "",
+              '  if (inspectionTargetForEvent({ type: "unknown" }) !== null) fail("entity-free event unexpectedly produced an inspector target");',
+              "",
+              "  const residenceFixture = {",
+              "    events: { events: [",
+              '      { event: { type: "temporaryJourneyCompleted", household: 9, residence: 23 } },',
+              "    ] },",
+              "  };",
+              '  if (eventsForEntity(residenceFixture, { cell: 23 }).length !== 1) fail("M9 residence cell is not included in Explorer cell-event filtering");',
+              "}",
+              "",
+          ])
+          replace_exact(
+              "scripts/validate-explorer-bundle.mjs",
+              "async function readArtifact(path, { optional = false } = {}) {",
+              regression + "async function readArtifact(path, { optional = false } = {}) {",
+          )
+          replace_exact(
+              "scripts/validate-explorer-bundle.mjs",
+              "async function main() {\n",
+              "async function main() {\n  validateEventInspectionSemantics();\n",
+          )
+
+          # Core source documentation: packed `location` is persistent residence under M9.
+          replace_exact(
+              "crates/anthrosim-core/src/demography.rs",
+              "/// to the mother's current cell and uniform among eligible living male records;\n/// it does not model marriage, pair bonds, kin avoidance, or social paternity.",
+              "/// to the mother's persistent residence cell and uniform among eligible living male records;\n"
+              "/// M9 temporary visitor co-presence does not change parent eligibility. It does not model\n"
+              "/// marriage, pair bonds, kin avoidance, or social paternity.",
+          )
+          replace_exact(
+              "crates/anthrosim-core/src/population.rs",
+              "    pub reproductive_sex: ReproductiveSex,\n    pub location: CellId,",
+              "    pub reproductive_sex: ReproductiveSex,\n"
+              "    /// Persistent residence cell. M9 temporary physical presence is stored separately.\n"
+              "    pub location: CellId,",
+          )
+          replace_exact(
+              "crates/anthrosim-core/src/population.rs",
+              "    pub household_count: u64,\n    pub living_occupied_cell_count: u64,",
+              "    pub household_count: u64,\n"
+              "    /// Number of cells containing at least one living persistent resident.\n"
+              "    /// M9 temporary visitors/transit are intentionally excluded.\n"
+              "    pub living_occupied_cell_count: u64,",
+          )
+          replace_exact(
+              "crates/anthrosim-core/src/population.rs",
+              "/// Compact cell-to-person index rebuilt from authoritative person locations.",
+              "/// Compact persistent-residence cell-to-person index rebuilt from authoritative person locations.",
+          )
+          replace_exact(
+              "crates/anthrosim-core/src/population.rs",
+              "/// It indexes persistent person records, including the dead. Consumers that\n/// need current interaction candidates must additionally filter for alive state.",
+              "/// It indexes persistent person records, including the dead. Consumers that need M2/M4\n"
+              "/// residence-based interaction candidates must additionally filter for alive state. M9\n"
+              "/// temporary visitor/transit presence is authoritative elsewhere and is not indexed here.",
+          )
+          replace_exact(
+              "crates/anthrosim-core/src/events.rs",
+              "        household: HouseholdId,\n        cell: CellId,\n        reproductive_sex: ReproductiveSex,",
+              "        household: HouseholdId,\n"
+              "        /// Persistent residence cell inherited from the household at birth.\n"
+              "        cell: CellId,\n"
+              "        reproductive_sex: ReproductiveSex,",
+          )
+          PY
+
+      - name: Validate edited JavaScript and regression seam
+        run: |
+          node --check explorer/model.mjs
+          node --check explorer/app.mjs
+          node --check scripts/validate-explorer-bundle.mjs
+          node --input-type=module <<'JS'
+          import { eventsForEntity, inspectionTargetForEvent } from "./explorer/model.mjs";
+          const t = inspectionTargetForEvent({ type: "temporaryJourneyCompleted", household: 9, residence: 23 });
+          if (t?.kind !== "household" || t.id !== 9) throw new Error("temporary event routing regression");
+          const fixture = { events: { events: [{ event: { type: "temporaryJourneyCompleted", household: 9, residence: 23 } }] } };
+          if (eventsForEntity(fixture, { cell: 23 }).length !== 1) throw new Error("residence-cell filtering regression");
+          JS
+
+      - name: Remove one-shot workflows and commit final diff
+        run: |
+          git config user.name "Jack"
+          git config user.email "15160645+Datengu@users.noreply.github.com"
+          git rm .github/workflows/one-shot-166-final-audit.yml .github/workflows/one-shot-166-final-audit-v2.yml .github/workflows/one-shot-166-final-audit-v3.yml
+          git add explorer/model.mjs explorer/app.mjs explorer/index.html scripts/validate-explorer-bundle.mjs crates/anthrosim-core/src/demography.rs crates/anthrosim-core/src/population.rs crates/anthrosim-core/src/events.rs
+          git diff --cached --check
+          git commit -m "Fix final M9 Explorer residence semantics"
+          git push origin HEAD:audit/166-final-m9-explorer-semantics
