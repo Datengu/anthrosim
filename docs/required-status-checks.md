@@ -53,9 +53,12 @@ The following jobs are useful but are not part of the global protected set:
 - `Performance and memory acceptance`;
 - `Regenerate pinned open terrain input`;
 - `Execute predeclared terrain null-model benchmark`;
-- `Execute predeclared M9.7 aggregation benchmark`.
+- `Execute predeclared M9.7 aggregation benchmark`;
+- `RustSec dependency audit`.
 
 The first three are scale/performance gates whose failure is still taken seriously during release work but which are not necessary as everyday branch-protection contexts. The M8.6 and M9.7 benchmark jobs are path-filtered: globally requiring a path-filtered check can block unrelated pull requests waiting for a context that never runs.
+
+`RustSec dependency audit` is likewise deliberately not globally required because its pull-request trigger is restricted to Cargo dependency state and the audit workflow itself, while its daily scheduled run detects advisories disclosed after merge. Dependency-changing pull requests must treat a failed audit as blocking even though unrelated pull requests do not receive that status context.
 
 Named releases may impose a stronger release checklist than ordinary branch protection. In particular, `v0.2.0` required an explicit M8.6 canonical scientific regression run even though that path-filtered job was not globally required. The planned M9 `v0.3.0` release must likewise explicitly rerun the preserved M9.7 scientific regression benchmark as part of release verification rather than making its path-filtered context globally mandatory.
 
