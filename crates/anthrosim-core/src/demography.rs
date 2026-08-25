@@ -240,11 +240,11 @@ pub(crate) fn process_demographic_year_recorded(
         if !population.is_alive_index(index) {
             continue;
         }
-        let age_days = population.age_days_at_index(index, interval_start_day).ok_or(
-            PopulationError::InternalInvariant {
+        let age_days = population
+            .age_days_at_index(index, interval_start_day)
+            .ok_or(PopulationError::InternalInvariant {
                 reason: "living person has no representable age at demographic interval start",
-            },
-        )?;
+            })?;
         let probability = annual_probability_for_age(&config.mortality_bands, age_days);
         if draw_per_million(&mut rngs.mortality, probability) {
             let person =
@@ -259,14 +259,11 @@ pub(crate) fn process_demographic_year_recorded(
                     .ok_or(PopulationError::InternalInvariant {
                         reason: "living person is missing a household at mortality boundary",
                     })?;
-            let cell = demographic_exposure_location(
-                population,
-                index,
-                &same_day_migration_origins,
-            )
-            .ok_or(PopulationError::InternalInvariant {
-                reason: "living person is missing a demographic exposure residence",
-            })?;
+            let cell =
+                demographic_exposure_location(population, index, &same_day_migration_origins)
+                    .ok_or(PopulationError::InternalInvariant {
+                        reason: "living person is missing a demographic exposure residence",
+                    })?;
             let condition =
                 population
                     .condition_at_index(index)
@@ -324,14 +321,11 @@ pub(crate) fn process_demographic_year_recorded(
             continue;
         }
 
-        let parentage_location = demographic_exposure_location(
-            population,
-            female_index,
-            &same_day_migration_origins,
-        )
-        .ok_or(PopulationError::InternalInvariant {
-            reason: "living female is missing a demographic exposure residence",
-        })?;
+        let parentage_location =
+            demographic_exposure_location(population, female_index, &same_day_migration_origins)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "living female is missing a demographic exposure residence",
+                })?;
         let eligible_males = parentage_occupancy
             .get(&parentage_location)
             .map(Vec::as_slice)
@@ -478,14 +472,10 @@ fn build_parentage_occupancy(
                 reason: "living person is missing a stable ID while building parentage occupancy",
             },
         )?;
-        let location = demographic_exposure_location(
-            population,
-            index,
-            same_day_migration_origins,
-        )
-        .ok_or(PopulationError::InternalInvariant {
-            reason: "living person is missing a residence while building parentage occupancy",
-        })?;
+        let location = demographic_exposure_location(population, index, same_day_migration_origins)
+            .ok_or(PopulationError::InternalInvariant {
+                reason: "living person is missing a residence while building parentage occupancy",
+            })?;
         occupancy.entry(location).or_default().push(person);
     }
     Ok(occupancy)
@@ -691,14 +681,9 @@ mod tests {
         }
 
         let mut rngs = DemographyRngs::new(RngFactory::new(90));
-        let outcome = process_demographic_year(
-            &mut population,
-            &world,
-            &config,
-            DAYS_PER_YEAR,
-            &mut rngs,
-        )
-        .unwrap();
+        let outcome =
+            process_demographic_year(&mut population, &world, &config, DAYS_PER_YEAR, &mut rngs)
+                .unwrap();
 
         assert_eq!(outcome, DemographyStepOutcome::PopulationExtinct);
         assert_eq!(population.summary().births_since_start, 0);
@@ -776,7 +761,9 @@ mod tests {
                 if population.reproductive_sex_at_index(index) != Some(ReproductiveSex::Female) {
                     return false;
                 }
-                let age_days = population.age_days_at_index(index, interval_start_day).unwrap();
+                let age_days = population
+                    .age_days_at_index(index, interval_start_day)
+                    .unwrap();
                 let probability = annual_probability_for_age(&config.fertility_bands, age_days);
                 probability > 0
             })
@@ -784,28 +771,15 @@ mod tests {
         assert!(population.set_condition_at_index(female_index, 275));
         let female = population.person_id_at_index(female_index).unwrap();
 
+        let female_age_years = population
+            .age_days_at_index(female_index, interval_start_day)
+            .unwrap()
+            / DAYS_PER_YEAR;
         let mut config = config;
         config.minimum_birth_spacing_days = 0;
         for band in &mut config.mortality_bands {
             band.annual_probability_per_million = 0;
         }
-        for band in &mut config.fertility_bands {
-            if annual_probability_for_age(
-                std::slice::from_ref(band),
-                population
-                    .age_days_at_index(female_index, interval_start_day)
-                    .unwrap(),
-            ) > 0
-            {
-                band.annual_probability_per_million = PROBABILITY_PER_MILLION;
-            }
-        }
-        // The schedule helper above cannot search an isolated band outside its original position;
-        // select the female's containing band directly instead.
-        let female_age_years = population
-            .age_days_at_index(female_index, interval_start_day)
-            .unwrap()
-            / DAYS_PER_YEAR;
         for band in &mut config.fertility_bands {
             band.annual_probability_per_million = if female_age_years
                 >= u64::from(band.start_age_years)
@@ -874,16 +848,9 @@ mod tests {
 
             let eligible_in_household = (0..population.person_count()).any(|index| {
                 population.household_at_index(index) == Some(female_household)
-                    && population
-                        .person_id_at_index(index)
-                        .is_some_and(|person| {
-                            male_is_eligible(
-                                &population,
-                                person,
-                                interval_start_day,
-                                &base_config,
-                            )
-                        })
+                    && population.person_id_at_index(index).is_some_and(|person| {
+                        male_is_eligible(&population, person, interval_start_day, &base_config)
+                    })
             });
             if eligible_in_household {
                 continue;
@@ -916,14 +883,8 @@ mod tests {
             }
         }
 
-        let (
-            female_index,
-            female_household,
-            origin,
-            destination,
-            origin_males,
-            destination_males,
-        ) = selected.expect("fixture should contain a suitable separated parentage case");
+        let (female_index, female_household, origin, destination, origin_males, destination_males) =
+            selected.expect("fixture should contain a suitable separated parentage case");
         let female = population.person_id_at_index(female_index).unwrap();
 
         let mut destinations = vec![CellId::INVALID; population.household_count()];
@@ -933,7 +894,10 @@ mod tests {
         let relocation = population
             .apply_household_relocations(&destinations, &condition_costs, &world)
             .unwrap();
-        assert_eq!(population.location_at_index(female_index), Some(destination));
+        assert_eq!(
+            population.location_at_index(female_index),
+            Some(destination)
+        );
 
         let zero_utility = MigrationUtilityBreakdown {
             resource_score_permille: 0,
