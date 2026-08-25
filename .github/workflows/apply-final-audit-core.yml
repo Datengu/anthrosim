@@ -6,6 +6,7 @@ on:
       - audit/final-integrity-168-176-178
     paths:
       - scripts/apply-final-audit-core.py
+      - scripts/apply-final-audit-core-fix.py
       - crates/anthrosim-core/src/provenance.rs
 
 permissions:
@@ -24,7 +25,9 @@ jobs:
           toolchain: 1.97.1
           components: rustfmt, clippy
       - name: Apply audited patch
-        run: python3 scripts/apply-final-audit-core.py
+        run: |
+          python3 scripts/apply-final-audit-core.py
+          python3 scripts/apply-final-audit-core-fix.py
       - name: Format
         run: cargo fmt --all
       - name: Test workspace
@@ -35,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git rm .github/workflows/apply-final-audit-core.yml scripts/apply-final-audit-core.py
+          git rm .github/workflows/apply-final-audit-core.yml scripts/apply-final-audit-core.py scripts/apply-final-audit-core-fix.py
           git add -A
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
