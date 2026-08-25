@@ -1,7 +1,7 @@
 use anthrosim_core::ids::{CellId, HouseholdId};
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, FocalRegion, FocalRegionSource, MigrationConfig,
-    ParameterProvenance, PopulationConfig, ResourceConfig, Simulation, TemporaryMobilityProgram,
+    ParameterProvenance, PopulationConfig, ResourceConfig, Simulation, TemporaryMobilityConfig,
     TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTriggerTiming, WorldConfig,
 };
 
@@ -33,10 +33,10 @@ fn config(seed: u64) -> ExperimentConfig {
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
 }
 
-fn program_for_stay(
+fn temporary_mobility_for_stay(
     config: &ExperimentConfig,
     stay_duration_days: u32,
-) -> (TemporaryMobilityProgram, CellId) {
+) -> (TemporaryMobilityConfig, CellId) {
     let probe = Simulation::new(config.clone()).unwrap();
     let household = HouseholdId::new(1);
     let residence = probe.population().household_location(household).unwrap();
@@ -64,8 +64,7 @@ fn program_for_stay(
         u16::MAX,
     )
     .unwrap();
-    let travel = model.derive_table(&region, probe.world()).unwrap();
-    let program = TemporaryMobilityProgram::new(
+    let temporary_mobility = TemporaryMobilityConfig::new(
         region,
         TemporaryMobilitySchedule::new(
             format!("m9-5-stay-schedule-{stay_duration_days}"),
@@ -74,26 +73,29 @@ fn program_for_stay(
             stay_duration_days,
         )
         .unwrap(),
-        travel,
-        probe.world(),
+        model,
     )
     .unwrap();
-    (program, destination)
+    (temporary_mobility, destination)
 }
 
 fn destination_stock_shift(stay_duration_days: u32) -> (u64, u64) {
     let config = config(95_000 + u64::from(stay_duration_days));
-    let (program, destination) = program_for_stay(&config, stay_duration_days);
+    let (temporary_mobility, destination) = temporary_mobility_for_stay(&config, stay_duration_days);
 
     let disabled = Simulation::new(config.clone())
         .unwrap()
         .checkpoint_at_year(1)
         .unwrap();
-    let enabled = Simulation::new_with_temporary_mobility(config.clone(), program.clone())
+    let enabled_config = config
+        .clone()
+        .with_temporary_mobility(temporary_mobility.clone());
+    let replay_config = config.with_temporary_mobility(temporary_mobility);
+    let enabled = Simulation::new(enabled_config)
         .unwrap()
         .checkpoint_at_year(1)
         .unwrap();
-    let replay = Simulation::new_with_temporary_mobility(config, program)
+    let replay = Simulation::new(replay_config)
         .unwrap()
         .checkpoint_at_year(1)
         .unwrap();
