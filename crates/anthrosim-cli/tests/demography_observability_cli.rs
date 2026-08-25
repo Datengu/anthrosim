@@ -30,12 +30,13 @@ fn demographic_observability_derives_and_checks_normal_run_bundle() {
         String::from_utf8_lossy(&run.stderr)
     );
 
-    let derive = Command::new(env!(
-        "CARGO_BIN_EXE_anthrosim-demography-observability"
-    ))
-    .args(["--run-dir", run_dir.to_str().expect("temp path must be UTF-8")])
-    .output()
-    .expect("demography observability CLI should execute");
+    let derive = Command::new(env!("CARGO_BIN_EXE_anthrosim-demography-observability"))
+        .args([
+            "--run-dir",
+            run_dir.to_str().expect("temp path must be UTF-8"),
+        ])
+        .output()
+        .expect("demography observability CLI should execute");
     assert!(
         derive.status.success(),
         "observability CLI failed: {}",
@@ -43,10 +44,9 @@ fn demographic_observability_derives_and_checks_normal_run_bundle() {
     );
 
     let report_path = run_dir.join("demography-observability.json");
-    let report: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(&report_path).expect("report should be written"),
-    )
-    .expect("report should be valid JSON");
+    let report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&report_path).expect("report should be written"))
+            .expect("report should be valid JSON");
     assert_eq!(report["schemaVersion"], 1);
     assert_eq!(report["requestedBirthSpacingDays"], 1_278);
     assert_eq!(report["effectiveBirthSpacingDays"], 1_460);
@@ -56,17 +56,15 @@ fn demographic_observability_derives_and_checks_normal_run_bundle() {
     );
     assert_eq!(report["parentageUsesPreSameDayM4Residence"], true);
 
-    let check = Command::new(env!(
-        "CARGO_BIN_EXE_anthrosim-demography-observability"
-    ))
-    .args([
-        "--run-dir",
-        run_dir.to_str().expect("temp path must be UTF-8"),
-        "--check",
-        report_path.to_str().expect("report path must be UTF-8"),
-    ])
-    .output()
-    .expect("demography observability check should execute");
+    let check = Command::new(env!("CARGO_BIN_EXE_anthrosim-demography-observability"))
+        .args([
+            "--run-dir",
+            run_dir.to_str().expect("temp path must be UTF-8"),
+            "--check",
+            report_path.to_str().expect("report path must be UTF-8"),
+        ])
+        .output()
+        .expect("demography observability check should execute");
     assert!(
         check.status.success(),
         "observability check failed: {}",
