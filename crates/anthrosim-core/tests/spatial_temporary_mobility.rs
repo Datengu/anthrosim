@@ -4,8 +4,8 @@ use anthrosim_core::{
     LandscapeBundle, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain, MigrationConfig,
     NoDataPolicy, PopulationConfig, ResourceConfig, SpatialFieldTransform,
     SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField,
-    TemporaryMobilityProgram, TemporaryMobilitySchedule, TemporaryTravelResolution,
-    TemporaryTravelTable, TemporaryTriggerTiming, TransformDirection, WorldConfig,
+    TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
+    TemporaryTriggerTiming, TransformDirection, WorldConfig,
 };
 
 fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
@@ -90,7 +90,7 @@ fn mechanisms() -> SpatialMechanismConfig {
     )
 }
 
-fn config() -> ExperimentConfig {
+fn base_config() -> ExperimentConfig {
     let mut demography = DemographyConfig::synthetic_validation_v1();
     for band in &mut demography.mortality_bands {
         band.annual_probability_per_million = 0;
@@ -108,10 +108,9 @@ fn config() -> ExperimentConfig {
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
 }
 
-fn program() -> TemporaryMobilityProgram {
-    let source = landscape();
-    let mechanisms = mechanisms();
-    let baseline = SpatialLandscapeSimulation::new(config(), source, mechanisms)
+fn configured_temporary_mobility() -> ExperimentConfig {
+    let base = base_config();
+    let baseline = SpatialLandscapeSimulation::new(base.clone(), landscape(), mechanisms())
         .expect("baseline spatial host");
     let household = HouseholdId::new(1);
     let residence = baseline
@@ -128,39 +127,33 @@ fn program() -> TemporaryMobilityProgram {
         vec![destination],
     )
     .expect("region");
-    let resolutions = (1..=baseline.world().cell_count() as u64)
-        .map(|_| TemporaryTravelResolution::Reachable {
-            destination,
-            outbound_travel_days: 10,
-            return_travel_days: 10,
-        })
-        .collect();
-    let travel = TemporaryTravelTable::new(resolutions, &region, baseline.world()).expect("travel");
     let schedule = TemporaryMobilitySchedule::new(
         "annual-boundary-active-journey",
         TemporaryTriggerTiming::DepartureDay,
-        vec![360],
-        5,
+        vec![300],
+        100,
     )
     .expect("schedule");
-    TemporaryMobilityProgram::new(region, schedule, travel, baseline.world()).expect("program")
+    let temporary = TemporaryMobilityConfig::new(
+        region,
+        schedule,
+        TemporaryTravelModel::synthetic_validation_v1(),
+    )
+    .expect("temporary mobility config");
+    base.with_temporary_mobility(temporary)
 }
 
 #[test]
 fn transformed_spatial_host_executes_and_resumes_active_temporary_journeys_exactly() {
     let source = landscape();
     let mechanisms = mechanisms();
-    let program = program();
+    let config = configured_temporary_mobility();
 
-    let uninterrupted = SpatialLandscapeSimulation::new_with_temporary_mobility(
-        config(),
-        source.clone(),
-        mechanisms.clone(),
-        program.clone(),
-    )
-    .expect("temporary spatial host")
-    .run_recorded()
-    .expect("uninterrupted run");
+    let uninterrupted =
+        SpatialLandscapeSimulation::new(config.clone(), source.clone(), mechanisms.clone())
+            .expect("temporary spatial host")
+            .run_recorded()
+            .expect("uninterrupted run");
 
     assert!(
         uninterrupted
@@ -170,22 +163,17 @@ fn transformed_spatial_host_executes_and_resumes_active_temporary_journeys_exact
             .any(|record| matches!(record.event, EventKind::TemporaryJourneyDeparted { .. }))
     );
 
-    let paused = SpatialLandscapeSimulation::new_with_temporary_mobility(
-        config(),
-        source.clone(),
-        mechanisms,
-        program,
-    )
-    .expect("temporary spatial host")
-    .checkpoint_at_year(1)
-    .expect("annual checkpoint");
+    let paused = SpatialLandscapeSimulation::new(config, source.clone(), mechanisms)
+        .expect("temporary spatial host")
+        .checkpoint_at_year(1)
+        .expect("annual checkpoint");
     assert!(
         paused
             .core_checkpoint
             .temporary_mobility
             .active_journey(HouseholdId::new(1))
             .is_some(),
-        "household 1 should be in outbound transit across the annual checkpoint"
+        "household 1 should have an active temporary journey across the annual checkpoint"
     );
 
     let resumed = SpatialLandscapeSimulation::from_checkpoint(paused, source)

@@ -114,23 +114,6 @@ fn resume_rejects_config_definition_that_no_longer_matches_authoritative_program
     ));
 }
 
-#[test]
-fn explicit_program_and_config_definition_are_rejected_as_ambiguous() {
-    let configured = config(96_105);
-    let world_probe = Simulation::new(configured.clone()).expect("world probe");
-    let program = configured
-        .temporary_mobility
-        .as_ref()
-        .expect("definition")
-        .derive_program(world_probe.world())
-        .expect("program");
-
-    assert!(matches!(
-        Simulation::new_with_temporary_mobility(configured, program),
-        Err(SimulationError::AmbiguousTemporaryMobilityConfiguration)
-    ));
-}
-
 fn landscape_mask_definition(input_id: &str) -> TemporaryMobilityConfig {
     let region = FocalRegion::new(
         "evidence-bound-experiment-region",

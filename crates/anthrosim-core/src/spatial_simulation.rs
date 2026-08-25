@@ -180,25 +180,13 @@ impl SpatialLandscapeSimulation {
         landscape: LandscapeBundle,
         mechanisms: SpatialMechanismConfig,
     ) -> Result<Self, SpatialLandscapeError> {
-        Self::new_internal(config, landscape, mechanisms, None)
-    }
-
-    /// Construct a transformed-landscape simulation with the same authoritative M9 temporary-
-    /// mobility program supported by the core host.
-    pub fn new_with_temporary_mobility(
-        config: ExperimentConfig,
-        landscape: LandscapeBundle,
-        mechanisms: SpatialMechanismConfig,
-        program: TemporaryMobilityProgram,
-    ) -> Result<Self, SpatialLandscapeError> {
-        Self::new_internal(config, landscape, mechanisms, Some(program))
+        Self::new_internal(config, landscape, mechanisms)
     }
 
     fn new_internal(
         config: ExperimentConfig,
         landscape: LandscapeBundle,
         mechanisms: SpatialMechanismConfig,
-        program: Option<TemporaryMobilityProgram>,
     ) -> Result<Self, SpatialLandscapeError> {
         validate_experiment(&config)?;
         let landscape_binding = LandscapeBinding::from_bundle(&landscape)?;
@@ -217,14 +205,9 @@ impl SpatialLandscapeSimulation {
             .as_ref()
             .map(|definition| definition.derive_program(&world))
             .transpose()?;
-        let temporary_mobility = match (program, configured_program) {
-            (Some(_), Some(_)) => {
-                return Err(SpatialLandscapeError::AmbiguousTemporaryMobilityConfiguration);
-            }
-            (Some(program), None) | (None, Some(program)) => {
-                TemporaryMobilityState::with_program(&population, program, &world)?
-            }
-            (None, None) => TemporaryMobilityState::at_residence(&population),
+        let temporary_mobility = match configured_program {
+            Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
+            None => TemporaryMobilityState::at_residence(&population),
         };
         temporary_mobility.validate_at_day(0, &population, &world)?;
         let resources = ResourceSystem::initialize(&world, &config.resources)?;
@@ -939,6 +922,15 @@ fn validate_spatial_temporary_mobility(
                     .map(TemporaryMobilityProgram::identity),
             });
         }
+    } else if !checkpoint.temporary_mobility.is_disabled() {
+        return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {
+            expected: "temporary-mobility-disabled".to_owned(),
+            actual: checkpoint
+                .temporary_mobility
+                .program()
+                .map(TemporaryMobilityProgram::identity)
+                .or_else(|| Some("unconfigured-temporary-mobility-state".to_owned())),
+        });
     }
     Ok(())
 }
@@ -1030,8 +1022,6 @@ pub enum SpatialLandscapeError {
     },
     #[error("spatial checkpoint temporary mobility state is invalid: {reason}")]
     TemporaryMobilityInvalid { reason: String },
-    #[error("both ExperimentConfig and an explicit constructor supplied temporary mobility")]
-    AmbiguousTemporaryMobilityConfiguration,
     #[error(
         "configured temporary-mobility program mismatch: expected {expected}, found {actual:?}"
     )]
