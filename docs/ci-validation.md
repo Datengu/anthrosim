@@ -17,7 +17,7 @@ The dependency graph prevents formatting, lint, unit-test, or script failures fr
 
 The following workflow families remain separate from the main CI graph because each protects a distinct contract:
 
-- **Cross-platform determinism** (`cross-platform-determinism.yml`) — requires normalized authoritative outputs from the compact golden fixture to agree across Ubuntu, Windows and macOS.
+- **Cross-platform determinism** (`cross-platform-determinism.yml`) — requires normalized authoritative outputs from both the compact core golden fixture and a compact enabled-M9 temporary-mobility fixture to agree byte-for-byte across Ubuntu, Windows and macOS. The M9 sentinel exercises departure, arrival, visiting, return, completion, temporary observability, and checkpoint/resume through an active journey; it complements rather than duplicates the larger Ubuntu M9.7 scientific benchmark.
 - **Landscape preprocessing** (`landscape-preprocessing.yml`) — checks deterministic normalization/preprocessing of declared landscape inputs.
 - **Landscape loading determinism** (`landscape-loading.yml`) — verifies normalized landscape loading and landscape-bound execution remain deterministic and correctly bound.
 - **Spatial mechanism determinism** (`spatial-mechanisms.yml`) — validates versioned landscape-to-model transformations, mechanism identity and transformed spatial execution.
