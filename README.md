@@ -205,7 +205,7 @@ See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the M7 provenance
 
 AnthroSim is a **research-oriented simulation framework, not a validated anthropological or archaeological model**. Its synthetic demographic, resource, permanent-migration and temporary-mobility presets remain explicit model assumptions unless a particular experiment supplies and justifies stronger evidence grounding.
 
-Released v0.2.0 demonstrates that the deterministic experiment engine can bind provenance-tracked real-world-derived spatial evidence, transform it through declared assumptions and analyse residence-based spatial outcomes reproducibly. Unreleased M9 demonstrates a separate software/model capability: persistent residence and temporary physical presence can generate distinguishable aggregation histories while preserving deterministic replay, checkpoint/resume and explicit resource accounting.
+Released v0.2.0 demonstrated that the deterministic experiment engine can bind provenance-tracked real-world-derived spatial evidence, transform it through declared assumptions and analyse residence-based spatial outcomes reproducibly. Released v0.3.0 preserves that spatial path and adds a separate software/model capability: persistent residence and temporary physical presence can generate distinguishable aggregation histories while preserving deterministic replay, checkpoint/resume and explicit resource accounting.
 
 Neither result makes a run a reconstruction of a real past population. Strong archaeological or anthropological claims still require question-specific evidence, calibration/validation where appropriate, uncertainty and sensitivity analysis, comparison against independent observations, discriminating predictions and domain review.
 
