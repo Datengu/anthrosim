@@ -138,13 +138,13 @@ fn fertility_band_boundary_uses_interval_start_age_exactly() {
             ),
             founder(
                 PersonId::new(2),
-                -(18 * DAYS_PER_YEAR) as i64,
+                -((18 * DAYS_PER_YEAR) as i64),
                 ReproductiveSex::Female,
                 household,
             ),
             founder(
                 PersonId::new(3),
-                -(25 * DAYS_PER_YEAR) as i64,
+                -((25 * DAYS_PER_YEAR) as i64),
                 ReproductiveSex::Male,
                 household,
             ),
@@ -292,13 +292,13 @@ fn two_adult_population(
         vec![
             founder(
                 PersonId::new(1),
-                -(25 * DAYS_PER_YEAR) as i64,
+                -((25 * DAYS_PER_YEAR) as i64),
                 ReproductiveSex::Female,
                 female_household,
             ),
             founder(
                 PersonId::new(2),
-                -(25 * DAYS_PER_YEAR) as i64,
+                -((25 * DAYS_PER_YEAR) as i64),
                 ReproductiveSex::Male,
                 male_household,
             ),
