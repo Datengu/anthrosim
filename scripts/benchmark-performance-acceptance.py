@@ -6,7 +6,11 @@ reads the emitted immutable run manifest, derives throughput, writes a JSON
 report, and optionally enforces deliberately broad CI acceptance floors.
 
 This is an engineering benchmark. It does not validate anthropological model
-assumptions or change simulation semantics.
+assumptions or change simulation semantics. In particular, the benchmark must
+not require a synthetic population to survive the full requested horizon: a
+scientifically valid model stop such as population extinction is not a
+performance failure. Instead the harness requires a substantial minimum amount
+of simulated work before an early terminal stop can satisfy acceptance.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ import time
 from pathlib import Path
 
 DAYS_PER_YEAR = 365
+EARLY_TERMINAL_REASONS = {"populationExtinct", "personRecordLimitReached"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,6 +40,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--world-height", type=int, default=64)
     parser.add_argument("--seed", type=int, default=1_847_291)
     parser.add_argument("--max-person-records", type=int, default=1_000_000)
+    parser.add_argument(
+        "--min-simulated-years",
+        type=float,
+        default=500.0,
+        help=(
+            "minimum actual simulated years required for acceptance even when a valid model "
+            "stop occurs before the requested horizon"
+        ),
+    )
     parser.add_argument("--min-years-per-second", type=float, default=20.0)
     parser.add_argument("--max-wall-seconds", type=float, default=100.0)
     parser.add_argument("--max-rss-mib", type=float, default=256.0)
@@ -53,6 +67,10 @@ def main() -> int:
     binary = args.binary.resolve()
     if not binary.is_file():
         raise SystemExit(f"benchmark binary not found: {binary}")
+    if args.min_simulated_years <= 0:
+        raise SystemExit("--min-simulated-years must be positive")
+    if args.min_simulated_years > args.years:
+        raise SystemExit("--min-simulated-years must not exceed --years")
 
     with tempfile.TemporaryDirectory(prefix="anthrosim-m7-5-") as temp_dir:
         manifest_path = Path(temp_dir) / "manifest.json"
@@ -94,6 +112,7 @@ def main() -> int:
     population = manifest["population"]
     simulated_days = int(statistics["simulatedDays"])
     simulated_years = simulated_days / DAYS_PER_YEAR
+    requested_days = args.years * DAYS_PER_YEAR
     event_count = int(statistics["authoritativeEventCount"])
     metric_count = int(statistics["metricSnapshotCount"])
     max_rss_mib = rss_to_mib(after.ru_maxrss)
@@ -106,20 +125,32 @@ def main() -> int:
     person_records = int(population["personRecords"])
     living_population = int(population["livingPopulation"])
     rss_bytes = max_rss_mib * 1024 * 1024
+    stop_reason = manifest["stopReason"]
+
+    terminal_progress_consistent = (
+        stop_reason == "durationReached" and simulated_days == requested_days
+    ) or (
+        stop_reason in EARLY_TERMINAL_REASONS and simulated_days <= requested_days
+    )
 
     checks = {
         "process_exit_success": True,
-        "duration_reached": manifest["stopReason"] == "durationReached",
-        "requested_years_reached": simulated_days == args.years * DAYS_PER_YEAR,
+        "terminal_progress_consistent": terminal_progress_consistent,
+        "minimum_simulated_years": simulated_years >= args.min_simulated_years,
         "minimum_years_per_second": years_per_second >= args.min_years_per_second,
         "maximum_wall_seconds": wall_seconds <= args.max_wall_seconds,
         "maximum_rss_mib": max_rss_mib <= args.max_rss_mib,
     }
 
     report = {
-        "schemaVersion": 1,
-        "benchmarkId": "v0.1_10k_people_2000_year_end_to_end",
+        "schemaVersion": 2,
+        "benchmarkId": "v0.2_10k_people_up_to_2000_year_end_to_end",
         "purpose": "engineering_performance_acceptance_not_scientific_validation",
+        "interpretation": (
+            "Performance is measured over actual simulated work. A valid early model stop is not "
+            "treated as a performance defect, but acceptance requires the configured minimum "
+            "simulated-years workload."
+        ),
         "environment": {
             "platform": platform.platform(),
             "machine": platform.machine(),
@@ -128,7 +159,8 @@ def main() -> int:
             "sourceRevision": os.environ.get("GITHUB_SHA"),
         },
         "configuration": {
-            "years": args.years,
+            "requestedYears": args.years,
+            "minimumSimulatedYears": args.min_simulated_years,
             "population": args.population,
             "worldWidth": args.world_width,
             "worldHeight": args.world_height,
@@ -137,8 +169,9 @@ def main() -> int:
         },
         "model": {
             "modelVersion": manifest["modelVersion"],
+            "modelSemanticsId": manifest.get("modelSemanticsId"),
             "gitCommit": manifest.get("gitCommit"),
-            "stopReason": manifest["stopReason"],
+            "stopReason": stop_reason,
             "stateDigest64": manifest["stateDigest64"],
         },
         "result": {
@@ -157,6 +190,7 @@ def main() -> int:
             "approxRssBytesPerLivingPerson": (rss_bytes / living_population) if living_population else None,
         },
         "acceptance": {
+            "minimumSimulatedYears": args.min_simulated_years,
             "minYearsPerSecond": args.min_years_per_second,
             "maxWallSeconds": args.max_wall_seconds,
             "maxResidentSetMiB": args.max_rss_mib,
