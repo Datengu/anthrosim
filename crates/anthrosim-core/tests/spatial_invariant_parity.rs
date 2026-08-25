@@ -115,10 +115,7 @@ fn run(seed: u64) -> anthrosim_core::SpatialLandscapeRecordedRun {
         .unwrap()
 }
 
-fn assert_core_invariant_failure(
-    result: Result<(), SpatialInvariantError>,
-    context: &str,
-) {
+fn assert_core_invariant_failure(result: Result<(), SpatialInvariantError>, context: &str) {
     assert!(
         matches!(result, Err(SpatialInvariantError::Core(_))),
         "{context} should fail the shared core invariant suite, got {result:?}"
