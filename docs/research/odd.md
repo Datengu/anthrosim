@@ -1,11 +1,11 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** v0.3.0 / completed M9  
+**AnthroSim baseline:** v0.3.0 package / post-M9 scientific-hardening line  
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
-This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated.
+This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated. The repaired M2 annual transition semantics are specified more precisely in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md).
 
 ODD describes the model. It does not by itself establish that the model is fit for a real archaeological or anthropological inference. Evaluation evidence is tracked separately in [`trace.md`](trace.md), while human decision assumptions are expanded in [`odd-d.md`](odd-d.md).
 
@@ -83,12 +83,13 @@ M9 focal regions are identity-bearing declared sets of world cells. Temporary jo
 
 Authoritative time is integer days.
 
-- M2 baseline demography is processed at annual boundaries.
+- M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality/fertility bands are selected from age at the start of `[t-365,t)`, not age at `t`.
+- M2 mortality is drawn before fertility; the current fertility probability is therefore conditional on surviving the annual demographic mortality transition, subject also to spacing and parent-availability filters.
 - M3 resource/condition/scarcity processing occurs at configured subannual resource boundaries.
 - M4 permanent migration is evaluated at eligible resource boundaries.
 - M9 transitions and starts can occur on deterministic journey days and can span annual checkpoints.
 
-When processes share a day, the declared ordering is scientifically consequential and is part of the model definition.
+When processes share a day, the declared ordering is scientifically consequential and is part of the model definition. The annual M2 contract is intentionally coarse and must not be described as continuous-time mortality/fertility hazard execution.
 
 ### Space
 
@@ -111,15 +112,18 @@ The baseline annual/subannual causal sequence is:
 3. process due M9 temporary journey transitions/start decisions;
 4. evaluate eligible M4 permanent-migration decisions from the declared shared pre-move state;
 5. apply selected permanent moves according to the simultaneous-movement contract;
-6. at annual boundaries, execute M2 mortality/fertility/parentage according to the annual demographic schedule;
+6. at annual boundaries, execute the M2 discrete transition for `[t-365,t)`: use interval-start age bands, draw mortality, then evaluate conditional fertility/parentage among survivors;
 7. update authoritative events/checkpoint/derived observability as specified by the run lifecycle.
 
 M9 duration-aware resource accounting can attribute elapsed person-days to residence, focal-region visitation or transit according to its declared provisioning proxy. Temporary mobility does not by itself redefine persistent residence or M2 parentage locality.
 
+When M4 and M2 share annual-boundary day `t`, a just-entered M4 destination contributes zero elapsed exposure to `[t-365,t)`. M2 therefore reconstructs parentage locality from persistent residence immediately before that same-day M4 relocation. A newborn is nevertheless stored at the female parent's current boundary-state residence after M4. M2 demographic `Death.cell` retains its existing boundary-state residence meaning because current M2 mortality is not spatially parameterized.
+
 Permanent M4 relocation is atomic at the decision boundary; M9 temporary travel is duration-bearing.
 
-The detailed same-day ordering and M9 lifecycle are specified in:
+The detailed same-day ordering and lifecycle contracts are specified in:
 
+- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md)
 - [`temporary-mobility-v1.md`](temporary-mobility-v1.md)
 - [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md)
 - [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md)
@@ -178,7 +182,7 @@ Major interactions include:
 
 - within-household resource sharing;
 - same-cell competition for renewable resources;
-- reproduction through residence-based parent eligibility;
+- reproduction through pre-same-boundary-M4 persistent-residence parent eligibility;
 - a narrow genealogical/parent-location contribution to M4 utility;
 - crowding/resource consequences after multiple households relocate or visit.
 
@@ -217,6 +221,8 @@ Every run records a complete versioned experiment configuration including seed, 
 The default founder, demographic, resource and migration presets are explicitly synthetic validation baselines. They are not neutral prehistoric priors.
 
 Synthetic founder initialization currently sets the declared founder population, target household structure, synthetic age distribution and reproductive-sex distribution according to configuration. World/resource initial state is generated deterministically or supplied through the M8 evidence-grounded landscape path.
+
+The current founder population still lacks persisted pre-simulation reproductive history and founder genealogy sufficient to remove early M2 birth-spacing and M4 kin-information transients (#192). This is an explicit known scientific limitation; the annual transition repair must not be used to calibrate around it.
 
 M9-enabled runs bind focal-region identity and temporary-mobility/travel configuration as part of immutable experiment identity.
 
@@ -272,10 +278,10 @@ Primary implementation: `crates/anthrosim-core/src/world.rs` and related world/c
 
 ### M2 — demography and genealogy
 
-Maintains persistent people, age-derived state, mortality/fertility schedules, parentage and births. The default schedule is `synthetic_validation_v1`; it is not calibrated to one prehistoric population.
+Maintains persistent people, age-derived state, mortality/fertility schedules, parentage and births. The default schedule is `synthetic_validation_v1`; it is not calibrated to one prehistoric population. The current implementation is an explicit annual discrete transition: age bands are selected from interval-start age, fertility is conditional on surviving annual M2 mortality, requested day-valued birth spacing is normalized to executable annual boundaries, same-day M4 relocation does not redefine prior parentage locality, and newborn condition inherits the female parent's boundary condition.
 
-Primary specification: [`demography-v0.1.md`](demography-v0.1.md).  
-Primary implementation: `crates/anthrosim-core/src/population.rs` and demographic/config code.
+Primary specifications: [`demography-v0.1.md`](demography-v0.1.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md).  
+Primary implementation: `crates/anthrosim-core/src/population.rs`, `crates/anthrosim-core/src/demography.rs` and demographic/config code.
 
 ### M3 — renewable resources, condition and scarcity
 
@@ -316,7 +322,7 @@ ODD 2020 encourages the model's fitness for purpose to be made explicit. AnthroS
 
 ## ODD completeness declaration
 
-For the v0.3.0 baseline, this document explicitly covers all seven ODD 2020 elements and all eleven standard design concepts. A concept that is absent from the model (for example learning) is documented as absent rather than omitted silently.
+For the v0.3.0 package baseline and subsequent model-semantics hardening line, this document explicitly covers all seven ODD 2020 elements and all eleven standard design concepts. A concept that is absent from the model (for example learning) is documented as absent rather than omitted silently.
 
 This completeness declaration means **the model is formally described under ODD**. It does **not** mean the behavioural model has passed empirical validation.
 
