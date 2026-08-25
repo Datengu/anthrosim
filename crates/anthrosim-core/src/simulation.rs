@@ -2,13 +2,14 @@ use thiserror::Error;
 
 use crate::{
     checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility},
-    config::ExperimentConfig,
+    config::{ExperimentConfig, PopulationInitialization},
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
-        process_demographic_year_recorded, validate_demography_config,
+        process_demographic_year_recorded_with_founder_history, validate_demography_config,
     },
     events::EventLog,
     evidence::EvidenceError,
+    founder_initialization::FounderGenealogyStatus,
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
     metrics::{
         MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics,
@@ -93,7 +94,22 @@ impl Simulation {
 
         let rng_factory = RngFactory::new(config.seed);
         let world = World::generate(config.world, rng_factory)?;
-        let population = Population::initialize(config.population, &world, rng_factory)?;
+        let population = match config.population.initialization {
+            PopulationInitialization::SyntheticValidationV1 => {
+                Population::initialize(config.population, &world, rng_factory)?
+            }
+            PopulationInitialization::DeclaredFounderStateV1 => {
+                let definition = config
+                    .founder_population
+                    .as_ref()
+                    .ok_or(SimulationError::MissingFounderPopulationDefinition)?;
+                Population::initialize_declared_founder_state_v1(
+                    config.population,
+                    definition,
+                    &world,
+                )?
+            }
+        };
         let configured_program = config
             .temporary_mobility
             .as_ref()
@@ -192,6 +208,7 @@ impl Simulation {
                 actual: world.digest64(),
             });
         }
+        validate_founder_population_against_world(&checkpoint.experiment, &world)?;
         validate_configured_temporary_mobility(
             &checkpoint.experiment,
             &checkpoint.temporary_mobility,
@@ -436,13 +453,14 @@ impl Simulation {
             }
 
             self.time = SimTime::from_years(year);
-            let outcome = process_demographic_year_recorded(
+            let outcome = process_demographic_year_recorded_with_founder_history(
                 &mut self.population,
                 &self.world,
                 &self.config.demography,
                 self.time.days(),
                 &mut self.demography_rngs,
                 &mut self.events,
+                self.config.founder_population.as_ref(),
             )?;
             self.temporary_mobility
                 .reconcile_after_population_change(&self.population);
@@ -640,6 +658,7 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
             maximum_years: MAX_SUPPORTED_DURATION_YEARS,
         });
     }
+    validate_founder_population_binding(config)?;
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
@@ -648,6 +667,46 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
     }
     if let Some(evidence) = &config.evidence {
         evidence.validate_against_experiment(config)?;
+    }
+    Ok(())
+}
+
+fn validate_founder_population_binding(config: &ExperimentConfig) -> Result<(), SimulationError> {
+    match (
+        config.population.initialization,
+        config.founder_population.as_ref(),
+    ) {
+        (PopulationInitialization::SyntheticValidationV1, None) => Ok(()),
+        (PopulationInitialization::SyntheticValidationV1, Some(_)) => {
+            Err(SimulationError::UnexpectedFounderPopulationDefinition)
+        }
+        (PopulationInitialization::DeclaredFounderStateV1, None) => {
+            Err(SimulationError::MissingFounderPopulationDefinition)
+        }
+        (PopulationInitialization::DeclaredFounderStateV1, Some(definition)) => {
+            if config.migration.enabled
+                && config.migration.kin_weight > 0
+                && definition.genealogy_status != FounderGenealogyStatus::CompleteLivingDirectParents
+            {
+                return Err(SimulationError::FounderKinStateUnspecified);
+            }
+            Ok(())
+        }
+    }
+}
+
+fn validate_founder_population_against_world(
+    config: &ExperimentConfig,
+    world: &World,
+) -> Result<(), SimulationError> {
+    if let Some(definition) = &config.founder_population {
+        definition
+            .validate(
+                config.population.initial_population,
+                config.population.max_person_records,
+                world,
+            )
+            .map_err(PopulationError::from)?;
     }
     Ok(())
 }
@@ -713,6 +772,14 @@ pub enum SimulationError {
         duration_years: u64,
         maximum_years: u64,
     },
+    #[error("declared founder initialization requires founderPopulation in experiment config")]
+    MissingFounderPopulationDefinition,
+    #[error("synthetic founder initialization cannot carry a founderPopulation definition")]
+    UnexpectedFounderPopulationDefinition,
+    #[error(
+        "declared founder genealogy is unspecified while the active migration model gives kin non-zero weight"
+    )]
+    FounderKinStateUnspecified,
     #[error("checkpoint schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedCheckpointSchema { found: u32, supported: u32 },
     #[error("checkpoint model version {found} does not match current model version {expected}")]
@@ -797,10 +864,15 @@ mod tests {
     use crate::{
         EvidenceCatalog, ParameterEvidenceLink,
         config::{
-            DemographyConfig, MigrationConfig, PROBABILITY_PER_MILLION, PopulationConfig,
-            ResourceConfig, WorldConfig,
+            DemographyConfig, MigrationConfig, PROBABILITY_PER_MILLION, ParameterProvenance,
+            PopulationConfig, PopulationInitialization, ResourceConfig, WorldConfig,
         },
         events::EventProvenance,
+        founder_initialization::{
+            FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+        },
+        ids::{CellId, HouseholdId, PersonId},
+        population::ReproductiveSex,
     };
 
     fn no_event_demography() -> DemographyConfig {
@@ -823,6 +895,59 @@ mod tests {
 
     fn disabled_migration() -> MigrationConfig {
         MigrationConfig::synthetic_validation_v1().with_enabled(false)
+    }
+
+    fn declared_founder_definition(
+        genealogy_status: FounderGenealogyStatus,
+        last_birth_day: Option<i64>,
+    ) -> FounderPopulationDefinition {
+        FounderPopulationDefinition::new(
+            "simulation-declared-founder-test-v1",
+            ParameterProvenance::SyntheticValidation,
+            genealogy_status,
+            vec![FounderHousehold {
+                id: HouseholdId::new(1),
+                location: CellId::new(1),
+            }],
+            vec![
+                FounderPerson {
+                    id: PersonId::new(1),
+                    birth_day: -(25 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day,
+                    condition_permille: 1_000,
+                },
+                FounderPerson {
+                    id: PersonId::new(2),
+                    birth_day: -(30 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+            ],
+        )
+    }
+
+    fn declared_config(
+        seed: u64,
+        duration_years: u64,
+        definition: FounderPopulationDefinition,
+    ) -> ExperimentConfig {
+        ExperimentConfig::new(seed, duration_years)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(
+                PopulationConfig::new(2)
+                    .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+            )
+            .with_founder_population(definition)
+            .with_resources(no_pressure_resources())
+            .with_migration(disabled_migration())
     }
 
     fn record_limit_config(seed: u64) -> ExperimentConfig {
@@ -862,6 +987,133 @@ mod tests {
                 maximum_years,
             }) if found == duration_years && maximum_years == MAX_SUPPORTED_DURATION_YEARS
         ));
+    }
+
+    #[test]
+    fn declared_founder_mode_requires_a_definition() {
+        let config = ExperimentConfig::new(51, 1).with_population(
+            PopulationConfig::new(2)
+                .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+        );
+        assert!(matches!(
+            Simulation::new(config),
+            Err(SimulationError::MissingFounderPopulationDefinition)
+        ));
+    }
+
+    #[test]
+    fn synthetic_mode_rejects_an_unbound_founder_definition() {
+        let mut config = ExperimentConfig::new(52, 1);
+        config.founder_population = Some(declared_founder_definition(
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            None,
+        ));
+        assert!(matches!(
+            Simulation::new(config),
+            Err(SimulationError::UnexpectedFounderPopulationDefinition)
+        ));
+    }
+
+    #[test]
+    fn declared_founder_kin_state_fails_closed_when_unspecified() {
+        let definition = declared_founder_definition(FounderGenealogyStatus::Unspecified, None);
+        let mut config = ExperimentConfig::new(53, 1)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(PopulationConfig::new(2))
+            .with_founder_population(definition)
+            .with_resources(no_pressure_resources());
+        config.migration.enabled = true;
+        config.migration.kin_weight = 1;
+
+        assert!(matches!(
+            Simulation::new(config),
+            Err(SimulationError::FounderKinStateUnspecified)
+        ));
+    }
+
+    #[test]
+    fn unspecified_founder_genealogy_is_allowed_when_kin_cannot_affect_behavior() {
+        let definition = declared_founder_definition(FounderGenealogyStatus::Unspecified, None);
+        let mut no_kin = ExperimentConfig::new(54, 1)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(PopulationConfig::new(2))
+            .with_founder_population(definition.clone())
+            .with_resources(no_pressure_resources());
+        no_kin.migration.kin_weight = 0;
+        Simulation::new(no_kin).unwrap();
+
+        let disabled = declared_config(55, 1, definition);
+        Simulation::new(disabled).unwrap();
+    }
+
+    #[test]
+    fn declared_pre_run_birth_history_controls_first_boundary_in_full_lifecycle() {
+        let mut demography = no_event_demography();
+        for band in &mut demography.fertility_bands {
+            band.annual_probability_per_million = PROBABILITY_PER_MILLION;
+        }
+        demography.male_parent_min_age_years = 0;
+        demography.male_parent_max_age_years_exclusive = 100;
+
+        let recent = declared_config(
+            56,
+            1,
+            declared_founder_definition(
+                FounderGenealogyStatus::Unspecified,
+                Some(-100),
+            ),
+        )
+        .with_demography(demography.clone());
+        let recent_run = Simulation::new(recent).unwrap().run_recorded().unwrap();
+        assert_eq!(recent_run.manifest.population.births_since_start, 0);
+
+        let distant = declared_config(
+            56,
+            1,
+            declared_founder_definition(
+                FounderGenealogyStatus::Unspecified,
+                Some(-2_000),
+            ),
+        )
+        .with_demography(demography);
+        let distant_run = Simulation::new(distant).unwrap().run_recorded().unwrap();
+        assert_eq!(distant_run.manifest.population.births_since_start, 1);
+    }
+
+    #[test]
+    fn declared_founder_history_survives_checkpoint_resume_via_experiment_identity() {
+        let definition = declared_founder_definition(
+            FounderGenealogyStatus::Unspecified,
+            Some(-100),
+        );
+        let mut demography = no_event_demography();
+        for band in &mut demography.fertility_bands {
+            band.annual_probability_per_million = PROBABILITY_PER_MILLION;
+        }
+        demography.male_parent_min_age_years = 0;
+        demography.male_parent_max_age_years_exclusive = 100;
+        let config = declared_config(57, 4, definition).with_demography(demography);
+
+        let uninterrupted = Simulation::new(config.clone())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
+        let checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(2)
+            .unwrap();
+        assert!(checkpoint.experiment.founder_population.is_some());
+        let resumed = Simulation::from_checkpoint(checkpoint)
+            .unwrap()
+            .run_recorded()
+            .unwrap();
+
+        assert_eq!(resumed.checkpoint.population, uninterrupted.checkpoint.population);
+        assert_eq!(resumed.checkpoint.events, uninterrupted.checkpoint.events);
+        assert_eq!(
+            resumed.checkpoint.state_digest64,
+            uninterrupted.checkpoint.state_digest64
+        );
     }
 
     #[test]
