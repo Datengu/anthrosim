@@ -4,8 +4,8 @@ title: "AnthroSim"
 type: software
 authors:
   - family-names: "Datengu"
-version: "0.2.0"
-date-released: 2026-08-24
+version: "0.3.0"
+date-released: 2026-08-25
 repository-code: "https://github.com/Datengu/anthrosim"
 url: "https://github.com/Datengu/anthrosim"
 license: "Apache-2.0"
@@ -16,11 +16,15 @@ keywords:
   - reproducibility
   - demography
   - migration
+  - temporary mobility
+  - aggregation
 abstract: >-
   AnthroSim is a reproducible agent-based simulation framework for deterministic
-  demography, resource-constrained household migration, kinship, and
-  evidence-grounded spatial experiments under explicit model assumptions.
-  Version 0.2.0 is the audited M8 evidence-grounded spatial experiment baseline,
-  building on the deterministic synthetic v0.1 engine. Later capabilities on
-  unreleased main are not part of the v0.2.0 citation baseline. AnthroSim is not
-  an empirically validated model of human prehistory.
+  demography, resource-constrained permanent household migration,
+  evidence-grounded spatial experiments, and explicit temporary mobility and
+  aggregation under declared model assumptions. Version 0.3.0 is the audited M9
+  release baseline. It adds persistent-residence versus physical-presence
+  semantics, deterministic multi-day temporary journeys, duration-aware resource
+  attribution, temporary-presence observability, and a controlled aggregation
+  capability benchmark while preserving the M8 evidence-grounded spatial path.
+  AnthroSim is not an empirically validated model of human prehistory.

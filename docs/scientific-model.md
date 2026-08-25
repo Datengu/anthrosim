@@ -1,6 +1,6 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for current post-M9 `main`; latest released software remains v0.2.0  
+**Status:** working specification for the AnthroSim v0.3.0 / completed-M9 release baseline
 **Scientific status:** exploratory / unvalidated
 
 This document began as the v0.1 ODD-oriented model specification and now records the scientific meaning of the implemented baseline through M9. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding and M9 adds a separate temporary-mobility layer. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
@@ -286,7 +286,7 @@ There is no hard-coded historical destination or route, route memory, seasonal m
 
 M8 preserves normalized landscape inputs and provenance separately from explicit deterministic model-facing transformations. Landscape/mechanism identity is carried through experiment/run artifacts, and residence-based spatial observability is derived downstream. Its first evidence-grounded terrain null-model benchmark found fragile rather than seed-stable spatial effects; this validates the experiment/reproduction capability, not a historical reconstruction.
 
-### Temporary mobility and aggregation (M9 — implemented on unreleased main)
+### Temporary mobility and aggregation (M9 — implemented; v0.3.0 release baseline)
 
 M9 separates persistent residence from physical presence and adds identity-bearing focal regions, deterministic temporary journey scheduling/travel, duration-aware resource attribution, checkpointable active journeys and separate physical-presence observability. The frozen M9.7 benchmark distinguished intermittent aggregation from continuous residence across its paired synthetic seeds while preserving exact duplicate and checkpoint/resume replay. This is a capability result only; no social motive or archaeological interpretation is encoded.
 
