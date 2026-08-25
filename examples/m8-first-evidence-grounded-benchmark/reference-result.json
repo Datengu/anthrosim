@@ -2,105 +2,86 @@
   "schemaVersion": 1,
   "benchmarkId": "m8_6_first_evidence_grounded_terrain_null_model_v1",
   "referenceExecution": {
-    "workflowRunId": 32655513479,
-    "artifactId": 9497343500,
-    "artifactSha256": "372f1b5381b4c50aa09a8e94736ef7d491e80e4c6e4dfea2cb387dcc9a911e20",
-    "branchHeadSha": "5f35540e2dbf01b07a661b04a9d5a42c1c6dcc09",
-    "pullRequestMergeRefBuildSha": "47735f9861b9ffa586a9f5ea4475cc8e1748af33",
-    "fullAggregateCanonicalSha256": "5d9108ef8302fb9774dc3556b5f5f2abd81324d749dbeffb00b789a140a96b2e"
+    "workflowRunId": 32895255572,
+    "artifactId": 9581037033,
+    "artifactSha256": "3c2cf02fbaea525ce8330f2bafd0aae31093789258f33a847aaa0c0bfe34332b",
+    "branchHeadSha": "4480f062d9bee25b49f1ac4acda31a3c7a313e5c",
+    "pullRequestMergeRefBuildSha": "add0152a9c6a14f263ae123eccbccf2f08c6bf74",
+    "fullAggregateCanonicalSha256": "cc7e1f16958d035e22f801c6907e69b3a5bd0c5a1a36f96879f816c7ec633a5e"
   },
   "source": {
     "contentDigest": "sha256:cf790a87057dfdf126f9b314d9ec71d407afdedbe71c79e2b14c903d024ce0b9",
     "landscapeIdentity": "landscape-v1-da7cb2c3d74d497a",
     "landscapeDigest64": 15743654951580944762,
     "evidenceCatalogCanonicalSha256": "1c791dc569e2426f7c2d90fa46b3602f1024b3a7992db0c7ee57b288f4ff4175",
-    "modelSemanticsId": "anthrosim-model-semantics-v1",
+    "modelSemanticsId": "anthrosim-model-semantics-v6",
     "spatialModelSemanticsId": "anthrosim-spatial-transform-semantics-v1"
   },
   "declaredSeeds": [8601, 8602, 8603, 8604, 8605, 8606, 8607, 8608],
   "classification": {
     "benchmarkClass": "fragile_spatial_structure",
     "degenerateArms": [],
-    "robustMetrics": [],
-    "fragileMetrics": [
-      "migrationTotalDistanceCells",
-      "terminalLargestCellSharePermille"
-    ]
+    "robustMetrics": ["migrationTotalDistanceCells"],
+    "fragileMetrics": ["terminalLargestCellSharePermille"]
   },
   "primaryMetrics": {
     "migrationTotalDistanceCells": {
-      "classification": "fragile",
-      "robustCriteria": {
-        "strongSameSignNonZeroAtLeast6Of8": false,
-        "strongMedianAbsoluteRelativeAtLeast10Percent": true,
-        "moderateMedianSameSignAsStrong": true
-      },
-      "weak": {"medianEffect": "-117/1", "medianAbsoluteRelativeEffect": "45725/814884", "positiveEffects": 2, "negativeEffects": 6, "zeroEffects": 0},
-      "moderate": {"medianEffect": "-2/1", "medianAbsoluteRelativeEffect": "1185829/11705946", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0},
-      "strong": {"medianEffect": "-161/2", "medianAbsoluteRelativeEffect": "1490861/14472620", "positiveEffects": 3, "negativeEffects": 5, "zeroEffects": 0}
+      "classification": "robust",
+      "robustCriteria": {"strongSameSignNonZeroAtLeast6Of8": true, "strongMedianAbsoluteRelativeAtLeast10Percent": true, "moderateMedianSameSignAsStrong": true},
+      "weak": {"medianEffect": "61/2", "medianAbsoluteRelativeEffect": "75563/591213", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0},
+      "moderate": {"medianEffect": "51/1", "medianAbsoluteRelativeEffect": "29461/240964", "positiveEffects": 5, "negativeEffects": 3, "zeroEffects": 0},
+      "strong": {"medianEffect": "150/1", "medianAbsoluteRelativeEffect": "95173/803356", "positiveEffects": 6, "negativeEffects": 2, "zeroEffects": 0}
     },
     "cellTimeOccupiedPermille": {
       "classification": "not_distinctive",
-      "robustCriteria": {
-        "strongSameSignNonZeroAtLeast6Of8": true,
-        "strongMedianAbsoluteRelativeAtLeast10Percent": false,
-        "moderateMedianSameSignAsStrong": true
-      },
-      "weak": {"medianEffect": "-1/2", "medianAbsoluteRelativeEffect": "1553/145080", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0},
-      "moderate": {"medianEffect": "3/1", "medianAbsoluteRelativeEffect": "22/2015", "positiveEffects": 6, "negativeEffects": 2, "zeroEffects": 0},
-      "strong": {"medianEffect": "5/1", "medianAbsoluteRelativeEffect": "464/43059", "positiveEffects": 6, "negativeEffects": 2, "zeroEffects": 0}
+      "robustCriteria": {"strongSameSignNonZeroAtLeast6Of8": true, "strongMedianAbsoluteRelativeAtLeast10Percent": false, "moderateMedianSameSignAsStrong": true},
+      "weak": {"medianEffect": "-21/2", "medianAbsoluteRelativeEffect": "463/15912", "positiveEffects": 2, "negativeEffects": 5, "zeroEffects": 1},
+      "moderate": {"medianEffect": "-9/1", "medianAbsoluteRelativeEffect": "10777/438980", "positiveEffects": 1, "negativeEffects": 7, "zeroEffects": 0},
+      "strong": {"medianEffect": "-13/2", "medianAbsoluteRelativeEffect": "598/30753", "positiveEffects": 1, "negativeEffects": 7, "zeroEffects": 0}
     },
     "terminalPopulationHerfindahlPerMillion": {
       "classification": "not_distinctive",
-      "robustCriteria": {
-        "strongSameSignNonZeroAtLeast6Of8": false,
-        "strongMedianAbsoluteRelativeAtLeast10Percent": false,
-        "moderateMedianSameSignAsStrong": false
-      },
-      "weak": {"medianEffect": "-10/1", "medianAbsoluteRelativeEffect": "28042559/364159040", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0},
-      "moderate": {"medianEffect": "306/1", "medianAbsoluteRelativeEffect": "17537987/464328480", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0},
-      "strong": {"medianEffect": "-720/1", "medianAbsoluteRelativeEffect": "6643361/89968704", "positiveEffects": 3, "negativeEffects": 5, "zeroEffects": 0}
+      "robustCriteria": {"strongSameSignNonZeroAtLeast6Of8": false, "strongMedianAbsoluteRelativeAtLeast10Percent": false, "moderateMedianSameSignAsStrong": true},
+      "weak": {"medianEffect": "4589/2", "medianAbsoluteRelativeEffect": "1878369/12889624", "positiveEffects": 6, "negativeEffects": 2, "zeroEffects": 0},
+      "moderate": {"medianEffect": "3023/1", "medianAbsoluteRelativeEffect": "548579/3280620", "positiveEffects": 6, "negativeEffects": 2, "zeroEffects": 0},
+      "strong": {"medianEffect": "1395/1", "medianAbsoluteRelativeEffect": "5925607/66469860", "positiveEffects": 5, "negativeEffects": 3, "zeroEffects": 0}
     },
     "terminalLargestCellSharePermille": {
       "classification": "fragile",
-      "robustCriteria": {
-        "strongSameSignNonZeroAtLeast6Of8": false,
-        "strongMedianAbsoluteRelativeAtLeast10Percent": true,
-        "moderateMedianSameSignAsStrong": false
-      },
-      "weak": {"medianEffect": "-2/1", "medianAbsoluteRelativeEffect": "112/817", "positiveEffects": 3, "negativeEffects": 5, "zeroEffects": 0},
-      "moderate": {"medianEffect": "0/1", "medianAbsoluteRelativeEffect": "149/2052", "positiveEffects": 3, "negativeEffects": 3, "zeroEffects": 2},
-      "strong": {"medianEffect": "2/1", "medianAbsoluteRelativeEffect": "529/3948", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0}
+      "robustCriteria": {"strongSameSignNonZeroAtLeast6Of8": false, "strongMedianAbsoluteRelativeAtLeast10Percent": true, "moderateMedianSameSignAsStrong": true},
+      "weak": {"medianEffect": "9/2", "medianAbsoluteRelativeEffect": "2777/11340", "positiveEffects": 5, "negativeEffects": 3, "zeroEffects": 0},
+      "moderate": {"medianEffect": "19/2", "medianAbsoluteRelativeEffect": "257/910", "positiveEffects": 6, "negativeEffects": 2, "zeroEffects": 0},
+      "strong": {"medianEffect": "2/1", "medianAbsoluteRelativeEffect": "715/3078", "positiveEffects": 4, "negativeEffects": 4, "zeroEffects": 0}
     }
   },
   "arms": {
     "flat": {
-      "experimentId": "anthrosim-exp-v2-897f9801c6554085",
+      "experimentId": "anthrosim-exp-v2-9354d8ca7c57d251",
       "mechanismsCanonicalSha256": "028644e595bbbd406fef19a2e06b9d946a53797c7ceba86afadf2f5e170b53e0",
       "spatialConfigIdentity": "spatial-mechanisms-v1-380a6761ac69bedc",
       "terminalDegenerateRuns": 0,
-      "runStateDigest64": {"8601": 1058262018712703608, "8602": 10362567933514943559, "8603": 16081791486740067472, "8604": 10611575542618070723, "8605": 2504183140005204866, "8606": 2275636706259607475, "8607": 6232986866667301655, "8608": 6275586344022132690}
+      "runStateDigest64": {"8601":18034596710727042139,"8602":13786319037161140540,"8603":6155670068616924288,"8604":7935799603789215697,"8605":1945083801799496563,"8606":435088975718374942,"8607":9877457967546746314,"8608":12205021754563734361}
     },
     "weak": {
-      "experimentId": "anthrosim-exp-v2-0c092e26d15771cd",
+      "experimentId": "anthrosim-exp-v2-3d04eda27cef9f69",
       "mechanismsCanonicalSha256": "652aca8d93b48d6052f8828fd43e508c5dc4467dc709aede483f17d5246cfd16",
       "spatialConfigIdentity": "spatial-mechanisms-v1-c65ca920c7f1525f",
       "terminalDegenerateRuns": 0,
-      "runStateDigest64": {"8601": 3213763306014025945, "8602": 6165879217387147294, "8603": 13435931390093720781, "8604": 3255658740942155939, "8605": 5400561313325444047, "8606": 15648561892088250910, "8607": 6447681241529342720, "8608": 3308996226938984065}
+      "runStateDigest64": {"8601":11552729289342798134,"8602":16153296591843206094,"8603":6149676917289825687,"8604":10193515106738114213,"8605":8734981224061400967,"8606":2834652068807202740,"8607":10260667172225705748,"8608":1019267061608381485}
     },
     "moderate": {
-      "experimentId": "anthrosim-exp-v2-0e9a466c48aeb5dd",
+      "experimentId": "anthrosim-exp-v2-639f01fb6d651559",
       "mechanismsCanonicalSha256": "3d6ae638972c5033e8042523cd146675f99dcd058d68a05d7464a2ccec01123e",
       "spatialConfigIdentity": "spatial-mechanisms-v1-0d70ab0764bcbaa4",
       "terminalDegenerateRuns": 0,
-      "runStateDigest64": {"8601": 8954486121981421934, "8602": 4881719328867498899, "8603": 18299833489382570362, "8604": 3319258447302422602, "8605": 11401253157432122660, "8606": 2177607629758653989, "8607": 17072140730691419365, "8608": 14839774398698577892}
+      "runStateDigest64": {"8601":18121324532044993855,"8602":12214801913894634476,"8603":8646881943547469088,"8604":3758150901425964383,"8605":10458329373894935073,"8606":16630992662383075828,"8607":5163536250709401475,"8608":13715447609814565571}
     },
     "strong": {
-      "experimentId": "anthrosim-exp-v2-f4ac3a04562acfad",
+      "experimentId": "anthrosim-exp-v2-9c2b32fe43c02ac9",
       "mechanismsCanonicalSha256": "2e1d9740ef2e4d9ac9a85e2819423acb9aa6f733bd9a0df3b4089db06bf80d63",
       "spatialConfigIdentity": "spatial-mechanisms-v1-538c64d614bf42e6",
       "terminalDegenerateRuns": 0,
-      "runStateDigest64": {"8601": 7302398992592718602, "8602": 3367355313506576905, "8603": 7794467356135398731, "8604": 3629681466700776363, "8605": 9379996926767028585, "8606": 4458990624382362119, "8607": 17234437649148856323, "8608": 9275300204393799755}
+      "runStateDigest64": {"8601":12992579277074081357,"8602":10054897527254130704,"8603":5119326870268367366,"8604":9960386164184348077,"8605":11461803089513706054,"8606":1094383760579871121,"8607":9209577684284781230,"8608":2456682751403520757}
     }
   }
 }

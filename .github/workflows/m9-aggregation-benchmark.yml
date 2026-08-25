@@ -224,6 +224,7 @@ jobs:
           grep -q "scientific regression mismatch" /tmp/m9-tamper.log
 
       - name: Upload benchmark result and run archive
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: m9-controlled-aggregation-benchmark

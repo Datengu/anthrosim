@@ -7,7 +7,7 @@
 
 ODD+D extends ODD so assumptions about human decision-making are not hidden inside equations or generic terms such as “agent behaviour”. AnthroSim uses this document to state what its people/households are actually assumed to know, choose, optimize, learn and socially respond to — and, equally importantly, what is **not** represented.
 
-The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice.
+The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure.
 
 ---
 
@@ -44,7 +44,9 @@ At eligible M4 boundaries, households are first tested for relocation pressure. 
 
 M9 journey starts/transitions occur according to the declared temporary-mobility configuration and travel semantics. M9 does not currently simulate a cognitive deliberation in which a household weighs social motives and decides whether to attend.
 
-Scheduling details are part of the model and are specified in [`odd.md`](odd.md), [`../scientific-model.md`](../scientific-model.md) and the M9 research contracts.
+When the final M4 boundary of a model year and M2 occur on the same day, M2 does not reinterpret the just-entered destination as residence throughout the elapsed demographic interval. Parentage locality is reconstructed from the pre-M4 persistent residence for that boundary. The newborn's stored residence remains the mother's boundary-state persistent residence after M4. This is a temporal model contract, not a claim about conscious mate choice.
+
+Scheduling details are part of the model and are specified in [`odd.md`](odd.md), [`../scientific-model.md`](../scientific-model.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and the M9 research contracts.
 
 ---
 
@@ -74,7 +76,7 @@ The model intentionally separates:
 | M4 kin contribution | Narrow genealogical proxy; not a theory of kinship, alliance or social obligation. |
 | M4 uncertainty | Stochastic proxy; not calibrated perception or risk cognition. |
 | M9 temporary participation | Generic configured mechanism; motive/decision theory intentionally absent. |
-| M2 reproduction/parent selection | Demographic mechanism; not conscious choice or marriage model. |
+| M2 reproduction/parent selection | Demographic mechanism with explicit annual timing/locality semantics; not conscious choice or marriage model. |
 
 Future decision submodels must state whether they derive from behavioural theory, ethnographic analogy, empirical statistical relationship, mechanistic assumption, heuristic/null rule, or a declared combination.
 
@@ -123,9 +125,13 @@ M4 information and alternatives are spatially bounded by the candidate radius an
 
 For evidence-grounded studies, the translation from cell units to physical distance and the influence of raster resolution/extent are part of model evaluation, not merely GIS preprocessing.
 
+M2 parentage is local in the narrow mechanistic sense of persistent pre-M4 residence at the annual boundary; M9 visitor/transit presence is not treated as parentage locality. This is deliberately narrower than real social/mating networks and remains structurally sensitive.
+
 #### Temporal aspects
 
 M4 opportunities occur at eligible resource boundaries rather than continuously. M9 follows configured journey timing. The frequency of decision opportunities can alter system behaviour and therefore requires temporal-resolution/scheduling sensitivity for relevant claims.
+
+M2 is likewise a coarse annual discrete transition, not continuous reproductive/death decision-making. Its schedule age is read at the start of `[t-365,t)`, mortality has declared priority, and fertility is conditional on surviving that annual transition. Those are model semantics rather than behavioural assertions.
 
 #### Uncertainty
 
@@ -208,11 +214,15 @@ The detailed scientific semantics are in [`../scientific-model.md`](../scientifi
 - `crates/anthrosim-core/src/temporary_travel.rs`
 - related configuration/spatial modules.
 
+M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`.
+
 Implementation names should remain close to scientific terms so reviewers can trace ODD+D concepts into code.
 
 ### III.ii Initialization
 
 Decision parameters are fixed by the versioned experiment configuration unless an explicit future adaptive mechanism says otherwise. Founder/residence/environment initialization can affect subsequent decision opportunities and must be included in initialization-transient analysis where relevant.
+
+Founder genealogy/reproductive prehistory is currently incomplete (#192). This means early M4 kin information and M2 birth-spacing eligibility contain an initialization transient. The transition-time repair does not hide or calibrate around that limitation; it remains an explicit M2 repair item.
 
 ### III.iii Input data
 
