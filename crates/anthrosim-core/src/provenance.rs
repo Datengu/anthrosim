@@ -9,7 +9,7 @@ use crate::time::DAYS_PER_YEAR;
 /// identifier whenever authoritative simulation meaning changes in a way that makes checkpoint
 /// continuation scientifically incompatible. Documentation, tooling, or other source-neutral
 /// changes do not require a new identity.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v6";
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v7";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ impl SourceRevisionIdentity {
     }
 }
 
-/// Provenance boundary created whenever authoritative execution resumes from a checkpoint.
+/// Append-only source lineage for checkpoint-resumed execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResumeBoundary {
@@ -146,15 +146,15 @@ pub enum ResumeLineageError {
         artifact_day: u64,
     },
     #[error("resume-lineage boundary {index} changes package model version across one resume")]
-    ModelVersionDiscontinuity { index: usize },
+    ModelVersionDiscontinuity { index },
     #[error("resume-lineage boundary {index} changes model-semantics identity across one resume")]
-    ModelSemanticsDiscontinuity { index: usize },
+    ModelSemanticsDiscontinuity { index },
     #[error("resume-lineage boundary {index} precedes the previous boundary")]
-    BoundaryOrder { index: usize },
+    BoundaryOrder { index },
     #[error(
         "resume-lineage boundary {index} source identity does not match the previous continuation"
     )]
-    SourceContinuity { index: usize },
+    SourceContinuity { index },
     #[error("resume-lineage final continuation identity does not match the containing artifact")]
     FinalIdentityMismatch,
 }
