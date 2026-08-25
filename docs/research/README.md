@@ -11,6 +11,8 @@ Start here:
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence provenance and transformation contract.
+- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — authoritative annual M2 demographic-time semantics introduced by the post-M9 scientific-hardening repair programme; defines interval age, competing mortality/fertility, executable birth spacing, same-day M4 parentage locality, newborn condition, and the still-open founder/observability work.
+- [`trace-m2-demographic-time-repair-2026-08-25.md`](trace-m2-demographic-time-repair-2026-08-25.md) — TRACE change record for the first M2 repair slice, including verification evidence, invalidated synthetic references and remaining gates.
 
 ## TRACE audit records
 
@@ -25,6 +27,8 @@ Start here:
 - [`trace-audit-2026-08-25-pass-9.md`](trace-audit-2026-08-25-pass-9.md) — symmetry, relabelling and arbitrary-bookkeeping audit; no new P1 discovered and current audit-first discovery phase judged converged.
 
 The current discovery sequence has now produced multiple genuinely different clean P1-discovery passes. This is a stopping signal for **finding new foundational defects on the current code**, not a claim that verification is complete. The known blocking P1 backlog must now be repaired by causal cluster, after which the relevant adversarial audit families must be repeated on the corrected implementation.
+
+The M2 repair programme begins from [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md). The first implementation slice changes authoritative model semantics and therefore invalidates exact synthetic-output references generated under the previous semantics; affected M7/M8/M9 references must be deliberately regenerated, reviewed, and preserved under the new model-semantics identity rather than tuned back to the old outputs. This is verification/reference maintenance, not empirical calibration.
 
 Module- and milestone-specific documents in this directory provide the detailed evidence, contracts, assumptions and benchmark records referenced by those standards documents.
 
