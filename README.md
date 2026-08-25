@@ -2,9 +2,9 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**v0.2.0 is the latest released baseline and is the audited M8 evidence-grounded spatial experiment release.** It retains the deterministic synthetic population-simulation and experiment engine established through M1–M7, and adds provenance-tracked landscape inputs, explicit model-facing spatial transformations, evidence catalogues, spatial observability and a real-world-derived terrain benchmark.
+**v0.3.0 is the latest released baseline and is the audited M9 temporary-mobility and controlled-aggregation release.** It preserves the v0.2.0 evidence-grounded spatial experiment path and adds explicit persistent-residence versus temporary physical-presence semantics, deterministic multi-day household journeys, focal-region travel semantics, duration-aware resource accounting, temporary-presence observability and the controlled M9.7 aggregation benchmark.
 
-**Current unreleased `main` has completed M9 temporary-mobility and aggregation capability.** M9 separates persistent residence from temporary physical presence, adds deterministic multi-day household journeys, focal-region travel semantics, duration-aware resource accounting, temporary-presence observability and a controlled aggregation benchmark. These changes are being audited/hardened for the planned v0.3.0 release; they are not part of the released v0.2.0 citation baseline yet. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
+The preserved M8.6 and M9.7 references are capability/regression baselines under declared assumptions, not archaeological validation. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
 ## Core rule
 
@@ -14,7 +14,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-On current unreleased `main`, AnthroSim includes:
+AnthroSim v0.3.0 includes:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -48,8 +48,8 @@ Culture, language, trade, states, religion, warfare, and AI-controlled agents re
 - **M6 — Local simulation explorer:** complete as a read-only artifact consumer.
 - **M7 — Deterministic experiment orchestration, ensembles, retries, sweeps, soak/performance validation and the v0.1 reference experiment:** complete.
 - **M8 — Evidence-grounded spatial experiments / v0.2.0:** complete and released. M8 adds normalized landscape inputs, explicit deterministic spatial transformations, landscape/evidence identity, residence-based spatial observability and the first evidence-grounded terrain null-model benchmark.
-- **M9 — Temporary mobility and controlled aggregation:** complete on unreleased `main`. M9 adds persistent-residence/current-presence separation, identity-bearing focal regions, deterministic multi-day temporary journeys, duration-aware resource accounting, M9 observability and a predeclared continuous-residence versus intermittent-aggregation benchmark.
-- **Post-M9 audit / planned v0.3.0:** in progress. Package and citation version remain v0.2.0 until release-readiness verification is complete.
+- **M9 — Temporary mobility and controlled aggregation / v0.3.0:** complete, audited and released. M9 adds persistent-residence/current-presence separation, identity-bearing focal regions, deterministic multi-day temporary journeys, duration-aware resource accounting, M9 observability and a predeclared continuous-residence versus intermittent-aggregation benchmark.
+- **Post-M9 direction:** question-led. No fixed M10 feature list is declared; research comparisons should identify the next missing capability.
 
 M1–M4 establish the baseline permanent-residence response loop: local supply and competition affect condition/survival, and surviving pressured households can make bounded permanent relocations. M5–M7 make that loop inspectable, resumable and reproducibly orchestrated without introducing a second simulation engine.
 
