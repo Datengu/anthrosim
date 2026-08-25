@@ -58,12 +58,9 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
     );
     let population_config = PopulationConfig::new(2)
         .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
-    let mut population = Population::initialize_declared_founder_state_v1(
-        population_config,
-        &definition,
-        &world,
-    )
-    .unwrap();
+    let mut population =
+        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
+            .unwrap();
 
     let resources_config = ResourceConfig::synthetic_validation_v1();
     let resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
@@ -83,7 +80,8 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
     migration_config.travel_condition_cost_per_cell = 0;
     migration_config.max_recorded_decision_traces = 8;
 
-    let mut migration = MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
+    let mut migration =
+        MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
     let mut rngs = MigrationRngs::new(RngFactory::new(seed));
     let mut events = EventLog::new();
     migration
@@ -115,5 +113,8 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
     assert_eq!(trace.destination, CellId::new(2));
     assert_eq!(trace.origin_utility.kin_score_permille, 0);
     assert_eq!(trace.destination_utility.kin_score_permille, 250);
-    assert_eq!(population.household_location(HouseholdId::new(2)), Some(CellId::new(2)));
+    assert_eq!(
+        population.household_location(HouseholdId::new(2)),
+        Some(CellId::new(2))
+    );
 }
