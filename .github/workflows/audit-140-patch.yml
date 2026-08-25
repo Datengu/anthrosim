@@ -1,0 +1,103 @@
+name: Audit 140 one-shot source patch
+
+on:
+  push:
+    branches:
+      - audit/140-close-m9-provenance-escape
+    paths:
+      - .github/workflows/audit-140-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/140-close-m9-provenance-escape
+
+      - name: Apply provenance hardening edits
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one exact replacement target, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          simulation = "crates/anthrosim-core/src/simulation.rs"
+          replace_once(
+              simulation,
+              '''    /// Construct a core simulation with an explicit M9 temporary-mobility program.\n    pub fn new_with_temporary_mobility(\n        config: ExperimentConfig,\n        program: TemporaryMobilityProgram,\n    ) -> Result<Self, SimulationError> {\n        Self::new_internal(config, Some(program))\n    }\n''',
+              '''    /// Test-only seam for isolated lifecycle mechanics that need a resolved M9 program.\n    /// Production callers must configure temporary mobility through `ExperimentConfig`.\n    #[cfg(test)]\n    pub(crate) fn new_with_temporary_mobility(\n        config: ExperimentConfig,\n        program: TemporaryMobilityProgram,\n    ) -> Result<Self, SimulationError> {\n        Self::new_internal(config, Some(program))\n    }\n''',
+          )
+          replace_once(
+              simulation,
+              '''    let Some(definition) = &config.temporary_mobility else {\n        // Explicit `new_with_temporary_mobility` remains available for isolated lifecycle tests.\n        // Ordinary experiment execution records a definition in ExperimentConfig and is checked\n        // below.\n        return Ok(());\n    };\n''',
+              '''    let Some(definition) = &config.temporary_mobility else {\n        if state.is_disabled() {\n            return Ok(());\n        }\n        return Err(SimulationError::ConfiguredTemporaryMobilityMismatch {\n            expected: "temporary-mobility-disabled".to_owned(),\n            actual: state\n                .program()\n                .map(TemporaryMobilityProgram::identity)\n                .or_else(|| Some("unconfigured-temporary-mobility-state".to_owned())),\n        });\n    };\n''',
+          )
+
+          spatial = "crates/anthrosim-core/src/spatial_simulation.rs"
+          replace_once(
+              spatial,
+              '''    pub fn new(\n        config: ExperimentConfig,\n        landscape: LandscapeBundle,\n        mechanisms: SpatialMechanismConfig,\n    ) -> Result<Self, SpatialLandscapeError> {\n        Self::new_internal(config, landscape, mechanisms, None)\n    }\n\n    /// Construct a transformed-landscape simulation with the same authoritative M9 temporary-\n    /// mobility program supported by the core host.\n    pub fn new_with_temporary_mobility(\n        config: ExperimentConfig,\n        landscape: LandscapeBundle,\n        mechanisms: SpatialMechanismConfig,\n        program: TemporaryMobilityProgram,\n    ) -> Result<Self, SpatialLandscapeError> {\n        Self::new_internal(config, landscape, mechanisms, Some(program))\n    }\n\n    fn new_internal(\n        config: ExperimentConfig,\n        landscape: LandscapeBundle,\n        mechanisms: SpatialMechanismConfig,\n        program: Option<TemporaryMobilityProgram>,\n    ) -> Result<Self, SpatialLandscapeError> {\n''',
+              '''    pub fn new(\n        config: ExperimentConfig,\n        landscape: LandscapeBundle,\n        mechanisms: SpatialMechanismConfig,\n    ) -> Result<Self, SpatialLandscapeError> {\n        Self::new_internal(config, landscape, mechanisms)\n    }\n\n    fn new_internal(\n        config: ExperimentConfig,\n        landscape: LandscapeBundle,\n        mechanisms: SpatialMechanismConfig,\n    ) -> Result<Self, SpatialLandscapeError> {\n''',
+          )
+          replace_once(
+              spatial,
+              '''        let temporary_mobility = match (program, configured_program) {\n            (Some(_), Some(_)) => {\n                return Err(SpatialLandscapeError::AmbiguousTemporaryMobilityConfiguration);\n            }\n            (Some(program), None) | (None, Some(program)) => {\n                TemporaryMobilityState::with_program(&population, program, &world)?\n            }\n            (None, None) => TemporaryMobilityState::at_residence(&population),\n        };\n''',
+              '''        let temporary_mobility = match configured_program {\n            Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,\n            None => TemporaryMobilityState::at_residence(&population),\n        };\n''',
+          )
+          replace_once(
+              spatial,
+              '''    if let Some(definition) = &checkpoint.experiment.temporary_mobility {\n        let expected = definition.derive_program(world)?;\n        if checkpoint.temporary_mobility.program() != Some(&expected) {\n            return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {\n                expected: expected.identity(),\n                actual: checkpoint\n                    .temporary_mobility\n                    .program()\n                    .map(TemporaryMobilityProgram::identity),\n            });\n        }\n    }\n''',
+              '''    if let Some(definition) = &checkpoint.experiment.temporary_mobility {\n        let expected = definition.derive_program(world)?;\n        if checkpoint.temporary_mobility.program() != Some(&expected) {\n            return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {\n                expected: expected.identity(),\n                actual: checkpoint\n                    .temporary_mobility\n                    .program()\n                    .map(TemporaryMobilityProgram::identity),\n            });\n        }\n    } else if !checkpoint.temporary_mobility.is_disabled() {\n        return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {\n            expected: "temporary-mobility-disabled".to_owned(),\n            actual: checkpoint\n                .temporary_mobility\n                .program()\n                .map(TemporaryMobilityProgram::identity)\n                .or_else(|| Some("unconfigured-temporary-mobility-state".to_owned())),\n        });\n    }\n''',
+          )
+          replace_once(
+              spatial,
+              '''    #[error("both ExperimentConfig and an explicit constructor supplied temporary mobility")]\n    AmbiguousTemporaryMobilityConfiguration,\n''',
+              '',
+          )
+
+          integration = "crates/anthrosim-core/src/m9_integration_tests.rs"
+          replace_once(
+              integration,
+              '''    simulation::Simulation,\n''',
+              '''    simulation::{Simulation, SimulationError},\n''',
+          )
+          replace_once(
+              integration,
+              '''#[test]\nfn active_presence_round_trips_through_checkpoint_integrity() {\n    let checkpoint = active_checkpoint(9_001, 2);\n    let source_presence = checkpoint.temporary_mobility.clone();\n    let source_digest = checkpoint.state_digest64;\n\n    checkpoint.validate_invariants().unwrap();\n    let resumed = Simulation::from_checkpoint(checkpoint)\n        .unwrap()\n        .checkpoint_at_year(0)\n        .unwrap();\n\n    assert_eq!(resumed.temporary_mobility, source_presence);\n    assert_eq!(resumed.state_digest64, source_digest);\n    resumed.validate_invariants().unwrap();\n}\n''',
+              '''#[test]\nfn unconfigured_temporary_presence_is_rejected_by_resume() {\n    let checkpoint = active_checkpoint(9_001, 2);\n\n    assert!(matches!(\n        Simulation::from_checkpoint(checkpoint),\n        Err(SimulationError::ConfiguredTemporaryMobilityMismatch { .. })\n    ));\n}\n''',
+          )
+          replace_once(
+              integration,
+              '''#[test]\nfn active_temporary_household_is_excluded_from_m4_without_changing_residence() {\n    let seed = 9_002;\n    let baseline = Simulation::new(\n        ExperimentConfig::new(seed, 1)\n            .with_world(WorldConfig::new(4, 4))\n            .with_population(PopulationConfig::new(20).with_target_household_size(5))\n            .with_demography(stable_demography())\n            .with_resources(stable_resources()),\n    )\n    .unwrap()\n    .run_recorded()\n    .unwrap();\n\n    let checkpoint = active_checkpoint(seed, 1);\n    let household = HouseholdId::new(1);\n    let residence = checkpoint.population.household_location(household).unwrap();\n    let active = Simulation::from_checkpoint(checkpoint)\n        .unwrap()\n        .run_recorded()\n        .unwrap();\n\n    assert_eq!(\n        baseline.manifest.migration.households_evaluated\n            - active.manifest.migration.households_evaluated,\n        active.manifest.migration.decision_boundaries\n    );\n    assert_eq!(\n        active.checkpoint.population.household_location(household),\n        Some(residence)\n    );\n    assert_eq!(\n        active\n            .checkpoint\n            .temporary_mobility\n            .is_at_residence(household),\n        Some(false)\n    );\n    active.validate_invariants().unwrap();\n}\n''',
+              '''#[test]\nfn temporary_households_are_excluded_from_m4_without_changing_residence() {\n    let seed = 9_002;\n    let config = m9_config(seed, 1, 20, stable_demography());\n    let probe = Simulation::new(config.clone()).unwrap();\n    let household = HouseholdId::new(1);\n    let residence = probe.population().household_location(household).unwrap();\n    let household_count = probe.population().household_count() as u64;\n\n    let baseline = Simulation::new(config.clone())\n        .unwrap()\n        .run_recorded()\n        .unwrap();\n    let program = temporary_program(\n        &config,\n        TemporaryTriggerTiming::DepartureDay,\n        vec![0],\n        400,\n        0,\n        true,\n    );\n    let active = Simulation::new_with_temporary_mobility(config, program)\n        .unwrap()\n        .run_recorded()\n        .unwrap();\n\n    assert_eq!(\n        baseline.manifest.migration.households_evaluated,\n        household_count.saturating_mul(baseline.manifest.migration.decision_boundaries)\n    );\n    assert_eq!(active.manifest.migration.households_evaluated, 0);\n    assert_eq!(\n        active.checkpoint.population.household_location(household),\n        Some(residence)\n    );\n    assert_eq!(\n        active\n            .checkpoint\n            .temporary_mobility\n            .is_at_residence(household),\n        Some(false)\n    );\n}\n''',
+          )
+
+          # A real resume must carry the world-independent M9 definition in ExperimentConfig.\n          replace_once(
+              integration,
+              '''    let config = m9_config(9_003, 2, 40, stable_demography());\n    let program = temporary_program(\n        &config,\n        TemporaryTriggerTiming::DepartureDay,\n        vec![360],\n        20,\n        10,\n        true,\n    );\n\n    let uninterrupted = Simulation::new_with_temporary_mobility(config.clone(), program.clone())\n        .unwrap()\n        .run_recorded()\n        .unwrap();\n    let checkpoint = Simulation::new_with_temporary_mobility(config, program)\n        .unwrap()\n        .checkpoint_at_year(1)\n        .unwrap();\n''',
+              '''    let base_config = m9_config(9_003, 2, 40, stable_demography());\n    let probe = Simulation::new(base_config.clone()).unwrap();\n    let destination = unoccupied_destination(&probe);\n    let definition = crate::TemporaryMobilityConfig::new(\n        FocalRegion::new(\n            "m9-integration-resume-region",\n            FocalRegionSource::Synthetic,\n            vec![destination],\n        )\n        .unwrap(),\n        TemporaryMobilitySchedule::new(\n            "m9-integration-resume-schedule",\n            TemporaryTriggerTiming::DepartureDay,\n            vec![300],\n            100,\n        )\n        .unwrap(),\n        crate::TemporaryTravelModel::synthetic_validation_v1(),\n    )\n    .unwrap();\n    let config = base_config.with_temporary_mobility(definition);\n\n    let uninterrupted = Simulation::new(config.clone())\n        .unwrap()\n        .run_recorded()\n        .unwrap();\n    let checkpoint = Simulation::new(config)\n        .unwrap()\n        .checkpoint_at_year(1)\n        .unwrap();\n''',
+          )
+          PY
+
+      - name: Commit exact source changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/simulation.rs \
+                  crates/anthrosim-core/src/spatial_simulation.rs \
+                  crates/anthrosim-core/src/m9_integration_tests.rs
+          git commit -m "Close temporary mobility provenance escape hatch"
+          git push origin HEAD:audit/140-close-m9-provenance-escape
