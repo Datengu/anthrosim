@@ -84,10 +84,7 @@ fn retry_rejects_tampered_external_metrics_artifact() {
 
 #[test]
 fn retry_rejects_tampered_world_and_founder_artifacts() {
-    for (seed, artifact) in [
-        (14_303, "world.json"),
-        (14_304, "initial-population.json"),
-    ] {
+    for (seed, artifact) in [(14_303, "world.json"), (14_304, "initial-population.json")] {
         let root = temp_path(artifact);
         execute_ensemble(&root, settings(), vec![seed], false).expect("fresh ensemble");
         mutate_schema(&root.join(run_relative_dir(seed)).join(artifact));
