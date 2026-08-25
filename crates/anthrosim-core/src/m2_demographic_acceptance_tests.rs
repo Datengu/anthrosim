@@ -3,9 +3,7 @@ use crate::{
         AgeProbabilityBand, DemographyConfig, ParameterProvenance, PopulationConfig,
         PopulationInitialization, WorldConfig,
     },
-    demography::{
-        DemographyRngs, process_demographic_year, process_demographic_year_recorded,
-    },
+    demography::{DemographyRngs, process_demographic_year, process_demographic_year_recorded},
     events::{EventKind, EventLog},
     founder_initialization::{
         FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
@@ -48,12 +46,24 @@ fn model_born_child_receives_second_year_band_at_second_elapsed_interval() {
     };
     let mut rngs = DemographyRngs::new(RngFactory::new(11));
 
-    process_demographic_year(&mut population, &world, &config, 2 * DAYS_PER_YEAR, &mut rngs)
-        .expect("first child interval should execute");
+    process_demographic_year(
+        &mut population,
+        &world,
+        &config,
+        2 * DAYS_PER_YEAR,
+        &mut rngs,
+    )
+    .expect("first child interval should execute");
     assert_eq!(population.person(child).unwrap().death_day, None);
 
-    process_demographic_year(&mut population, &world, &config, 3 * DAYS_PER_YEAR, &mut rngs)
-        .expect("second child interval should execute");
+    process_demographic_year(
+        &mut population,
+        &world,
+        &config,
+        3 * DAYS_PER_YEAR,
+        &mut rngs,
+    )
+    .expect("second child interval should execute");
     assert_eq!(
         population.person(child).unwrap().death_day,
         Some(3 * DAYS_PER_YEAR)
@@ -79,12 +89,9 @@ fn founder_age_band_boundary_uses_interval_start_age_exactly() {
         ],
     );
     let population_config = declared_population_config(2);
-    let mut population = Population::initialize_declared_founder_state_v1(
-        population_config,
-        &definition,
-        &world,
-    )
-    .unwrap();
+    let mut population =
+        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
+            .unwrap();
     let config = DemographyConfig {
         schema_version: DemographyConfig::CURRENT_SCHEMA_VERSION,
         schedule_id: "founder-age-boundary".to_owned(),
@@ -315,11 +322,7 @@ fn move_female_household(
     destination: CellId,
 ) {
     population
-        .apply_household_relocations(
-            &[destination, CellId::INVALID],
-            &[0, 0],
-            world,
-        )
+        .apply_household_relocations(&[destination, CellId::INVALID], &[0, 0], world)
         .unwrap();
     let utility = MigrationUtilityBreakdown {
         resource_score_permille: 0,
