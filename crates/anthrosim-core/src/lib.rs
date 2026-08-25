@@ -9,6 +9,7 @@ pub mod demography;
 pub mod events;
 pub mod evidence;
 pub mod focal_region;
+pub mod founder_initialization;
 pub mod ids;
 pub mod invariants;
 pub mod landscape;
@@ -56,6 +57,10 @@ pub use evidence::{
     EvidenceUncertainty, ExternalInputEvidence, ParameterEvidenceLink, validate_evidence_catalog,
 };
 pub use focal_region::{FocalRegion, FocalRegionBindingError, FocalRegionError, FocalRegionSource};
+pub use founder_initialization::{
+    FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+    FounderPopulationError,
+};
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
     validate_checkpoint_invariants_with_world, validate_recorded_run_invariants,
