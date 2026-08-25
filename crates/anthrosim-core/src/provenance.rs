@@ -31,7 +31,7 @@ impl SourceRevisionIdentity {
     }
 }
 
-/// Append-only source lineage for checkpoint-resumed execution.
+/// Provenance boundary created whenever authoritative execution resumes from a checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResumeBoundary {
