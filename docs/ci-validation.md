@@ -13,11 +13,12 @@ The `CI` workflow (`.github/workflows/ci.yml`) owns the general Rust/application
 
 The dependency graph prevents formatting, lint, unit-test, or script failures from spending time on the expensive acceptance stages while keeping the release binary identical across downstream gates.
 
-## Independent reproducibility and research-artifact workflows
+## Independent reproducibility, security and research-artifact workflows
 
 The following workflow families remain separate from the main CI graph because each protects a distinct contract:
 
 - **Cross-platform determinism** (`cross-platform-determinism.yml`) — requires normalized authoritative outputs from the compact golden fixture to agree across Ubuntu, Windows and macOS.
+- **Dependency advisory audit** (`dependency-audit.yml`) — checks the committed Rust dependency graph against the current RustSec Advisory Database when dependency state changes and on a daily schedule, so newly disclosed applicable advisories are surfaced even without an AnthroSim source change. The warning/failure and remediation policy is documented in [`dependency-security.md`](dependency-security.md).
 - **Landscape preprocessing** (`landscape-preprocessing.yml`) — checks deterministic normalization/preprocessing of declared landscape inputs.
 - **Landscape loading determinism** (`landscape-loading.yml`) — verifies normalized landscape loading and landscape-bound execution remain deterministic and correctly bound.
 - **Spatial mechanism determinism** (`spatial-mechanisms.yml`) — validates versioned landscape-to-model transformations, mechanism identity and transformed spatial execution.
@@ -31,14 +32,16 @@ The following workflow families remain separate from the main CI graph because e
 
 These workflows complement rather than replace semantic validation inside the binaries. A green workflow shows that the corresponding contract passed in CI; artifact readers and research commands still validate the artifacts they consume.
 
-When a new independent workflow becomes part of the research-integrity or artifact contract, update this topology in the same change so the documented gate set does not drift from `.github/workflows/` again.
+When a new independent workflow becomes part of the research-integrity, security or artifact contract, update this topology in the same change so the documented gate set does not drift from `.github/workflows/` again.
 
 ## Protected `main` gate set
 
 Workflow existence and branch-protection enforcement are separate contracts. The exact status contexts that are intended to be required on `main`, the administrator-bypass policy and the deliberately non-required/path-filtered jobs are recorded in [`required-status-checks.md`](required-status-checks.md).
 
-Any change that adds, removes or renames an independent correctness, determinism, provenance, artifact-integrity or research-reproducibility job must review both this topology and the protected-main contract. The workspace test `required_status_checks_contract` checks that the documented required names still correspond to the current workflow job names and matrix operating systems; the live GitHub branch rule must additionally be verified after administrative changes.
+Any change that adds, removes or renames an independent correctness, determinism, provenance, artifact-integrity, dependency-security or research-reproducibility job must review both this topology and the protected-main contract. The workspace test `required_status_checks_contract` checks that the documented required names still correspond to the current workflow job names and matrix operating systems; the live GitHub branch rule must additionally be verified after administrative changes.
 
 ## Supply-chain rule
 
 Every third-party GitHub Action is pinned to an immutable full commit SHA with a human-readable release comment. Updates follow the reviewed process in `CONTRIBUTING.md`; mutable tags and branches are not accepted as CI dependencies.
+
+Tools installed inside a workflow must likewise use an explicit reviewed version and the tool's locked installation mode where available. The dependency-advisory job intentionally does **not** pin the RustSec advisory database itself: that database is external security intelligence whose freshness is the purpose of the scheduled control. A stale or frozen advisory database would defeat that contract.
