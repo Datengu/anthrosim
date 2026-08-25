@@ -18,7 +18,7 @@ function exactJsonEqual(left, right) {
 }
 
 export function validateSpatialArtifacts(bundle, runInfo) {
-  const { landscape, landscapeManifest, spatialMechanisms, spatialObservability } = bundle;
+  const { landscape, landscapeManifest, spatialMechanisms, spatialObservability, temporaryObservability } = bundle;
   if (!landscape && !landscapeManifest && !spatialMechanisms && !spatialObservability) {
     return { available: false };
   }
@@ -60,10 +60,20 @@ export function validateSpatialArtifacts(bundle, runInfo) {
   }
 
   if (spatialObservability) {
-    assert(spatialObservability.schemaVersion === 1,
+    assert(spatialObservability.schemaVersion === 2,
       `unsupported spatial observability schema ${spatialObservability.schemaVersion}`);
     assert(spatialObservability.provenance === "derived",
       "spatial observability is not labelled derived");
+    assert(spatialObservability.semantics?.populationLocationBasis === "persistent_residence",
+      "spatial population location basis must be persistent residence");
+    assert(spatialObservability.semantics?.occupancyIncludesTemporaryVisitors === false,
+      "spatial occupancy must explicitly exclude temporary visitors");
+    assert(spatialObservability.semantics?.occupancyIncludesTransit === false,
+      "spatial occupancy must explicitly exclude transit");
+    assert(spatialObservability.semantics?.birthCellAttribution === "persistent_residence",
+      "spatial birth attribution must be persistent residence");
+    assert(spatialObservability.semantics?.deathCellAttribution === "persistent_residence",
+      "spatial death attribution must be persistent residence");
     assert(spatialObservability.width === landscape.width &&
       spatialObservability.height === landscape.height,
     "spatial observability dimensions disagree with landscape");
@@ -93,6 +103,19 @@ export function validateSpatialArtifacts(bundle, runInfo) {
     }
   }
 
+  if (temporaryObservability) {
+    assert(temporaryObservability.schemaVersion === 1,
+      `unsupported temporary observability schema ${temporaryObservability.schemaVersion}`);
+    assert(temporaryObservability.source.seed === runInfo.seed,
+      "temporary observability seed disagrees with run");
+    assert(temporaryObservability.source.endDay === runInfo.endTime,
+      "temporary observability end day disagrees with run boundary");
+    assert(String(temporaryObservability.source.runStateDigest64) === String(runInfo.stateDigest64),
+      "temporary observability state digest disagrees with run");
+    assert(spatialObservability?.semantics?.physicalPresenceCompanionArtifact === "temporary-observability.json",
+      "spatial observability does not declare its M9 physical-presence companion");
+  }
+
   return {
     available: true,
     cellCount,
@@ -112,10 +135,10 @@ export function spatialOverlayOptions(bundle) {
   }
   if (bundle.spatialObservability) {
     options.push(
-      { value: "derived:occupancyPersistence", label: "Derived · occupancy persistence", provenance: "derived" },
-      { value: "derived:personDays", label: "Derived · living person-days", provenance: "derived" },
-      { value: "derived:terminalPopulation", label: "Derived · terminal population", provenance: "derived" },
-      { value: "derived:scarcityDeaths", label: "Derived · scarcity deaths", provenance: "derived" },
+      { value: "derived:occupancyPersistence", label: "Derived · residence occupancy persistence", provenance: "derived" },
+      { value: "derived:personDays", label: "Derived · resident living person-days", provenance: "derived" },
+      { value: "derived:terminalPopulation", label: "Derived · terminal resident population", provenance: "derived" },
+      { value: "derived:scarcityDeaths", label: "Derived · residence-attributed scarcity deaths", provenance: "derived" },
       { value: "derived:migrationPeopleOut", label: "Derived · migration people out", provenance: "derived" },
     );
   }
@@ -157,10 +180,10 @@ export function spatialOverlayDescription(bundle, overlay) {
     return `Normalized input from landscape.json · ${layer?.role ?? "unknown role"} · unit ${layer?.unit ?? "unknown"}${evidence}. Nodata remains missing; this is not simulated output.`;
   }
   const labels = {
-    "derived:occupancyPersistence": "fraction of observed run time that each cell contained at least one living simulated person",
-    "derived:personDays": "integral of living simulated population over time in each cell",
-    "derived:terminalPopulation": "living simulated population in each cell at the terminal checkpoint",
-    "derived:scarcityDeaths": "authoritative resource-scarcity death events aggregated by cell",
+    "derived:occupancyPersistence": "fraction of observed run time that each cell had at least one persistent resident; temporary visitors and transit are excluded",
+    "derived:personDays": "integral of persistent-resident living population over time in each cell; temporary visitors and transit are excluded",
+    "derived:terminalPopulation": "living persistent-resident population in each cell at the terminal checkpoint",
+    "derived:scarcityDeaths": "authoritative resource-scarcity death events attributed to persistent residence rather than physical death location",
     "derived:migrationPeopleOut": "people moved out of each origin cell across authoritative household-migration events",
   };
   return `Derived M8.5 observable from spatial-observability.json: ${labels[overlay]}. It is downstream analysis and cannot alter the simulation.`;
@@ -181,6 +204,7 @@ export function spatialCellDetails(bundle, cellId) {
     id,
     layers,
     report: bundle.spatialObservability?.cells?.[index] ?? null,
+    temporaryReport: bundle.temporaryObservability?.cells?.find((row) => Number(row.cell) === id) ?? null,
   };
 }
 

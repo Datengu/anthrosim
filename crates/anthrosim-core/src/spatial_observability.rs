@@ -20,6 +20,7 @@ pub struct SpatialObservabilityReport {
     pub schema_version: u32,
     pub provenance: MetricProvenance,
     pub source: SpatialObservabilitySource,
+    pub semantics: SpatialObservabilitySemantics,
     pub geometry: GridGeometry,
     pub width: u32,
     pub height: u32,
@@ -32,7 +33,24 @@ pub struct SpatialObservabilityReport {
 }
 
 impl SpatialObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpatialLocationAttribution {
+    PersistentResidence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialObservabilitySemantics {
+    pub population_location_basis: SpatialLocationAttribution,
+    pub occupancy_includes_temporary_visitors: bool,
+    pub occupancy_includes_transit: bool,
+    pub birth_cell_attribution: SpatialLocationAttribution,
+    pub death_cell_attribution: SpatialLocationAttribution,
+    pub physical_presence_companion_artifact: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -318,6 +336,18 @@ pub fn derive_spatial_observability(
                 .map(|binding| binding.spatial_model_semantics_id.clone()),
             spatial_config_identity: spatial.map(|binding| binding.config_identity.clone()),
         },
+        semantics: SpatialObservabilitySemantics {
+            population_location_basis: SpatialLocationAttribution::PersistentResidence,
+            occupancy_includes_temporary_visitors: false,
+            occupancy_includes_transit: false,
+            birth_cell_attribution: SpatialLocationAttribution::PersistentResidence,
+            death_cell_attribution: SpatialLocationAttribution::PersistentResidence,
+            physical_presence_companion_artifact: checkpoint
+                .experiment
+                .temporary_mobility
+                .as_ref()
+                .map(|_| "temporary-observability.json".to_owned()),
+        },
         geometry: landscape.geometry.clone(),
         width: landscape.width,
         height: landscape.height,
@@ -331,6 +361,10 @@ pub fn derive_spatial_observability(
                 .to_owned(),
             "per-cell unmet resource need is not recorded by the current resource system".to_owned(),
             "historical per-person condition between authoritative death/checkpoint observations is not recorded"
+                .to_owned(),
+            "spatial population, occupancy, person-day, birth and death cell observables use persistent residence and exclude temporary visitors and transit; use temporary-observability.json for M9 physical presence"
+                .to_owned(),
+            "Death.cell and spatial death counts are attributed to persistent residence, not necessarily the physical location of death while a household is away"
                 .to_owned(),
         ],
     })
