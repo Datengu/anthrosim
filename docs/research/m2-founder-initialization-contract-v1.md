@@ -52,11 +52,14 @@ A founder declaration contains:
 - household membership;
 - optional living female-parent and male-parent links;
 - optional signed pre-run last-birth day;
-- initial condition in permille.
+- initial condition in permille;
+- a deterministic serialized `contentDigest64` over all of the preceding scientifically consequential founder-definition content.
 
 The declared list must contain exactly the configured initial population and must fit the persistent person-record ceiling.
 
 Synthetic-only fields such as `targetHouseholdSize`, `syntheticMaxAgeYears` and `syntheticMalePermille` do not modify a declared founder population.
+
+A standalone founder-definition JSON may omit `contentDigest64`; loading it seals the declaration to the content observed at that input boundary. Serialization into an experiment, run manifest or checkpoint always writes the current deterministic digest.
 
 ## 4. Signed chronology
 
@@ -122,7 +125,7 @@ Initial `conditionPermille` is also materialized exactly. This does not resolve 
 
 ## 8. Provenance and evidence
 
-`initializationId` and `ParameterProvenance` are part of immutable experiment identity. The complete founder declaration is serialized with the experiment and therefore preserved in manifests/checkpoints.
+`initializationId`, `ParameterProvenance` and the complete founder contents are part of immutable experiment identity. The full founder declaration is serialized with the experiment and therefore preserved in manifests/checkpoints.
 
 The provenance enum is descriptive metadata, not proof. A declaration labelled `empirical_direct`, `empirical_derived` or `evidence_informed` is not automatically research-valid merely because that label is present.
 
@@ -135,13 +138,19 @@ Evidence closure for empirical parameters/initial conditions remains part of the
 - whether the founder state was calibrated to any output later used for validation;
 - alternative plausible founder states for initialization sensitivity.
 
-## 9. Determinism and checkpoint/resume
+## 9. Determinism, content identity and checkpoint/resume
 
 Declared founder initialization uses no synthetic founder RNG draws. Given the same world and declaration, materialization is deterministic.
 
 The full declaration remains embedded in `ExperimentConfig`, which is persisted into run manifests and checkpoints. Checkpoint resume revalidates the declaration against the reconstructed world and continues to use it as pre-run history where no later model-period birth has superseded it.
 
-The repair does not alter the existing synthetic founder RNG mapping when `synthetic_validation_v1` is selected.
+`contentDigest64` is computed deterministically from the founder-definition schema, initialization ID, provenance, genealogy-completeness status, household IDs/residences, person IDs, birth chronology, reproductive sex, household membership, parent links, pre-run birth history and initial condition. The digest field itself is excluded from its own calculation.
+
+A definition loaded from serialized form remembers the digest supplied by that artifact. If its otherwise-valid founder content is later changed without the corresponding integrity metadata being deliberately rewritten, validation fails with a content-identity mismatch. This closes the checkpoint loophole in which future-causal pre-run history could otherwise be altered while ordinary runtime Population state remained unchanged.
+
+The digest is a compact deterministic reproducibility/integrity identity. It is **not** a cryptographic signature, authenticity proof or protection against a person deliberately rewriting both content and integrity metadata.
+
+The repair does not alter the existing synthetic founder RNG mapping or legacy synthetic runtime state digest when `synthetic_validation_v1` is selected.
 
 ## 10. Fail-closed rules
 
@@ -150,6 +159,7 @@ The core rejects the following configuration mismatches:
 - `declared_founder_state_v1` without a founder definition;
 - `synthetic_validation_v1` carrying a founder definition;
 - a founder definition whose counts/IDs/chronology/parent relationships/households/locations/condition are invalid;
+- a serialized founder definition whose remembered content identity no longer matches its scientifically consequential contents;
 - active non-zero M4 kin weighting with declared genealogy marked `unspecified`.
 
 These rules prevent a malformed or incomplete research-facing initialization from silently falling back to synthetic/zero-history behaviour.
@@ -168,7 +178,9 @@ The implementation must retain regression tests demonstrating at least:
 - no fictitious pre-run birth appears in runtime birth accounting/events;
 - declared living direct-parent state can affect M4 on its first migration boundary;
 - kin-sensitive declared runs fail closed when genealogy completeness is unspecified;
-- checkpoint/resume preserves declared founder history and matches uninterrupted execution.
+- checkpoint/resume preserves declared founder history and matches uninterrupted execution;
+- serialized founder content identity changes when genealogy, residence, condition or pre-run birth history changes;
+- valid post-load mutation of sealed founder content is rejected rather than silently changing future behaviour.
 
 These are implementation/conceptual verification tests. They are not empirical demographic validation.
 
