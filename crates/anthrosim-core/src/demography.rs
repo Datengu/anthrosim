@@ -7,6 +7,7 @@ use thiserror::Error;
 use crate::{
     config::{AgeProbabilityBand, DemographyConfig, PROBABILITY_PER_MILLION},
     events::{DeathCause, EventKind, EventLog},
+    founder_initialization::FounderPopulationDefinition,
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, PopulationError, ReproductiveSex},
     rng::{RngFactory, RngStreamPosition},
@@ -226,6 +227,20 @@ pub(crate) fn process_demographic_year_recorded(
     rngs: &mut DemographyRngs,
     events: &mut EventLog,
 ) -> Result<DemographyStepOutcome, PopulationError> {
+    process_demographic_year_recorded_with_founder_history(
+        population, world, config, day, rngs, events, None,
+    )
+}
+
+pub(crate) fn process_demographic_year_recorded_with_founder_history(
+    population: &mut Population,
+    world: &World,
+    config: &DemographyConfig,
+    day: u64,
+    rngs: &mut DemographyRngs,
+    events: &mut EventLog,
+    founder_population: Option<&FounderPopulationDefinition>,
+) -> Result<DemographyStepOutcome, PopulationError> {
     if day < DAYS_PER_YEAR || !day.is_multiple_of(DAYS_PER_YEAR) {
         return Err(PopulationError::InternalInvariant {
             reason: "M2 demographic transition must run at a positive annual boundary",
@@ -315,8 +330,8 @@ pub(crate) fn process_demographic_year_recorded(
             continue;
         }
 
-        if let Some(last_birth_day) = population.last_birth_day_at_index(female_index)
-            && day.saturating_sub(last_birth_day) < executable_birth_spacing_days
+        if prior_birth_elapsed_days(population, female_index, day, founder_population)
+            .is_some_and(|elapsed| elapsed < executable_birth_spacing_days)
         {
             continue;
         }
@@ -423,6 +438,24 @@ pub(crate) fn process_demographic_year_recorded(
     }
 
     Ok(DemographyStepOutcome::Continue)
+}
+
+fn prior_birth_elapsed_days(
+    population: &Population,
+    female_index: usize,
+    day: u64,
+    founder_population: Option<&FounderPopulationDefinition>,
+) -> Option<u64> {
+    if let Some(last_birth_day) = population.last_birth_day_at_index(female_index) {
+        return day.checked_sub(last_birth_day);
+    }
+
+    let founder_population = founder_population?;
+    let person = population.person_id_at_index(female_index)?;
+    let last_birth_day = founder_population.last_birth_day(person)?;
+    let current_day = i64::try_from(day).ok()?;
+    let elapsed = current_day.checked_sub(last_birth_day)?;
+    u64::try_from(elapsed).ok()
 }
 
 fn same_day_migration_origins(events: &EventLog, day: u64) -> BTreeMap<HouseholdId, CellId> {
@@ -588,7 +621,10 @@ mod tests {
 
     use super::*;
     use crate::{
-        config::{PopulationConfig, WorldConfig},
+        config::{ParameterProvenance, PopulationConfig, PopulationInitialization, WorldConfig},
+        founder_initialization::{
+            FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+        },
         migration::MigrationUtilityBreakdown,
     };
 
@@ -746,6 +782,92 @@ mod tests {
             population.person(child).and_then(|person| person.death_day),
             Some(2 * DAYS_PER_YEAR)
         );
+    }
+
+    #[test]
+    fn declared_recent_pre_run_birth_blocks_first_boundary_fertility() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(94)).unwrap();
+        let mut definition = FounderPopulationDefinition::new(
+            "spacing-history-test-v1",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            vec![FounderHousehold {
+                id: HouseholdId::new(1),
+                location: CellId::new(1),
+            }],
+            vec![
+                FounderPerson {
+                    id: PersonId::new(1),
+                    birth_day: -(25 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: Some(-100),
+                    condition_permille: 1_000,
+                },
+                FounderPerson {
+                    id: PersonId::new(2),
+                    birth_day: -(30 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+            ],
+        );
+        let population_config = PopulationConfig::new(2)
+            .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
+        let mut config = DemographyConfig::synthetic_validation_v1();
+        for band in &mut config.mortality_bands {
+            band.annual_probability_per_million = 0;
+        }
+        for band in &mut config.fertility_bands {
+            band.annual_probability_per_million = PROBABILITY_PER_MILLION;
+        }
+
+        let mut recent = Population::initialize_declared_founder_state_v1(
+            population_config,
+            &definition,
+            &world,
+        )
+        .unwrap();
+        let mut recent_rngs = DemographyRngs::new(RngFactory::new(94));
+        let mut recent_events = EventLog::new();
+        process_demographic_year_recorded_with_founder_history(
+            &mut recent,
+            &world,
+            &config,
+            DAYS_PER_YEAR,
+            &mut recent_rngs,
+            &mut recent_events,
+            Some(&definition),
+        )
+        .unwrap();
+        assert_eq!(recent.summary().births_since_start, 0);
+
+        definition.people[0].last_birth_day = Some(-2_000);
+        let mut distant = Population::initialize_declared_founder_state_v1(
+            population_config,
+            &definition,
+            &world,
+        )
+        .unwrap();
+        let mut distant_rngs = DemographyRngs::new(RngFactory::new(94));
+        let mut distant_events = EventLog::new();
+        process_demographic_year_recorded_with_founder_history(
+            &mut distant,
+            &world,
+            &config,
+            DAYS_PER_YEAR,
+            &mut distant_rngs,
+            &mut distant_events,
+            Some(&definition),
+        )
+        .unwrap();
+        assert_eq!(distant.summary().births_since_start, 1);
     }
 
     #[test]
