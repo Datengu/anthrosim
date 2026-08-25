@@ -1,9 +1,8 @@
 use std::{fs, path::PathBuf, process::ExitCode};
 
 use anthrosim_core::{
-    DemographyObservabilityReport, Population, PopulationInitialization, SimulationCheckpoint, World,
-    derive_demography_observability,
-    rng::RngFactory,
+    DemographyObservabilityReport, Population, PopulationInitialization, SimulationCheckpoint,
+    World, derive_demography_observability, rng::RngFactory,
 };
 use clap::Parser;
 
