@@ -84,5 +84,5 @@ pub struct RunManifest {
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 10;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 11;
 }
