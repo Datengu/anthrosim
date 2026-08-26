@@ -5,89 +5,65 @@
 **Scientific status:** synthetic capability/verification benchmark, not archaeological validation  
 **Current classification:** `capability_distinguished`
 
-## Current regression reference after M2 demographic-time repair
+## Current regression reference — model semantics v8
 
-The M2 demographic-time repair changed authoritative population trajectories and advanced the global model identity to `anthrosim-model-semantics-v6`. The frozen M9.7 experiment was therefore rerun unchanged. The old exact values were not treated as calibration targets.
+The v8 M3 resource-time repair changed authoritative resource execution and therefore required the frozen M9.7 experiment to be rerun unchanged. The old exact state identities were not treated as calibration targets.
 
-The reviewed semantics-v6 reference execution is GitHub Actions workflow run `32895255573`, generated from branch head:
+Reviewed execution:
 
-`4480f062d9bee25b49f1ac4acda31a3c7a313e5c`
+- workflow run: `32917412358`;
+- branch head: `7e13d5ee82db0c65d5ac52e4e5501c812fc968b0`;
+- pull-request merge-ref build: `bdee1f2831d8c18a9798acc5756cc10d21df1d04`;
+- artifact: `9588720942`;
+- artifact SHA-256: `1d0616edcd8c36c3c3c214ddd2efa0fa6d8f0133d14e65b128c3bb9544b86696`;
+- aggregate canonical SHA-256: `30a9bc5e19c47f90290a3aab204ef18ab5b9754b0233d086f92e47aad678ba76`.
 
-The pull-request merge-ref build for that execution was:
+The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`.
 
-`add0152a9c6a14f263ae123eccbccf2f08c6bf74`
+### v8 result
 
-The complete uploaded artifact (`9581088637`) had SHA-256:
+The predeclared capability result is unchanged:
 
-`6c277db5e9b6cb4971556aa8c4f8c462f8bc02c2e04e17820f4d80acb4d4df32`
+- all **8/8** paired seeds pass every paired criterion;
+- paired resident person-days remain exactly equal between continuous and intermittent arms;
+- every continuous control has zero temporary journeys and zero visitor person-days;
+- every intermittent treatment again has exactly **270 days** with visitor presence;
+- intermittent treatments complete roughly **988–1,188 journeys**;
+- origin catchments cover **29–30 cells**;
+- travel burden remains positive in every treatment and no household is classified unreachable;
+- neither arm records permanent M4 migration or resource-scarcity death.
 
-The full aggregate had canonical SHA-256:
-
-`e24e17c99d17ee9456b8eef0ad5ac577c9e2e99e2f521abc9817666d304f3215`
-
-The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`; the original first observation remains preserved in Git history.
-
-### Semantics-v6 result
-
-The capability conclusion survived the upstream M2 repair:
-
-- all **8/8** paired seeds passed every predeclared paired criterion;
-- paired resident person-days remained exactly equal between the continuous and intermittent arms;
-- treatment total focal-region person-days differed from the paired control by about **2.8–3.6%**, still below the predeclared 5% ceiling;
-- treatment peak visitors remained about **38.7–49.4%** of paired control mean resident focal population, still above the 25% floor;
-- every treatment run again had exactly **270 days** with visitor presence;
-- every continuous control again had zero temporary journeys and zero visitor person-days;
-- treatment runs recorded approximately **988–1,188 completed journeys**;
-- treatment origin catchments covered **29–30 cells**;
-- travel burden remained positive in every treatment run and no household was classified unreachable;
-- neither arm recorded permanent M4 migration or resource-scarcity death.
-
-The aggregate medians under semantics v6 are:
+The aggregate values are exactly unchanged from the previous preserved capability result:
 
 - median total focal-person-day difference: **31 permille**;
 - maximum paired total focal-person-day difference: **36 permille**;
 - median intermittent peak-visitor share: **426 permille**;
 - minimum intermittent peak-visitor share: **387 permille**.
 
-The workflow again passed the independent non-statistical verification gates before the old exact reference was rejected:
+The workflow also passes the non-statistical replay gates before reference comparison:
 
-- duplicate intermittent replay was byte-exact;
-- the active annual checkpoint contained genuine in-progress temporary journeys;
-- resumed authoritative state and temporary observability exactly matched uninterrupted execution.
+- duplicate intermittent replay is exact;
+- the active annual checkpoint contains genuine in-progress temporary journeys;
+- resumed authoritative state and temporary observability exactly match uninterrupted execution.
 
-Thus the changed exact totals are downstream consequences of the corrected demographic trajectory, not evidence that M9 replay/resume or residence-versus-presence semantics became unstable.
+This is an informative negative sensitivity result for this particular upstream repair. Although v8 changes state/provenance identities, its corrected resource clock does **not** change the predeclared M9 capability distinction in this fixture. The benchmark disables permanent migration, records zero resource-scarcity deaths in both arms, uses zero seasonality scaling, and both arms share the same corrected resource semantics; therefore the paired temporary-presence result remains identical.
 
-## Original first observation
+## Historical references
 
-The original first workflow run was `32785683492`, with first-result artifact `9541411806` (`sha256:a09a051c3d92d4755c1efd48e91758fb0fe522d39a06413926ba1a4af9b017f4`). Its classification was also `capability_distinguished`.
+The first M9.7 observation and the later v6 demographic-time rebaseline are preserved in Git history. The v6 M2 repair changed exact population/presence totals while retaining `capability_distinguished`. The v8 rerun is stronger in a different way: the paired scientific metrics themselves reproduce exactly even though experiment and terminal-state identities change with the global model-semantics identity.
 
-That first execution satisfied every predeclared paired-seed criterion across all eight seeds. The intermittent arm added a sharply bounded temporary aggregation signal while keeping aggregate focal-region use close to the continuous-residence control:
-
-- all 8/8 paired seeds passed;
-- paired focal-region resident person-days were exactly equal between arms;
-- treatment total focal-region person-days differed from control by 2.9–3.6%, below the predeclared 5% ceiling;
-- treatment peak visitors were 39.5–49.4% of the paired control mean resident focal population, above the predeclared 25% floor;
-- every treatment run had exactly 270 days with visitor presence;
-- every continuous control had zero temporary journeys and zero visitor person-days;
-- treatment runs completed 990–1,188 temporary journeys;
-- treatment origin catchments covered 29–30 cells;
-- travel burden was positive in every treatment run and no household was classified unreachable;
-- neither arm recorded permanent M4 migration or resource-scarcity death.
-
-The independently replayed resident person-days, visitor person-days and peak visitors matched the M9.6 machine-readable observability report for every run.
-
-The original workflow also proved duplicate replay and active annual checkpoint/resume equivalence. Those exact first-observation values remain historical evaluation evidence, but they are no longer the current regression reference after the M2 model definition changed.
+These historical references are evaluation evidence, not calibration targets.
 
 ## What the current result establishes
 
-This remains a capability result. Under one controlled synthetic design, AnthroSim can represent two regimes with very similar aggregate focal-region use but materially different temporal occupancy structure, preserve the difference through authoritative state/events and checkpoint/resume, and expose it reproducibly through downstream observability and ordinary ensemble machinery.
+Under one controlled synthetic design, AnthroSim can represent two regimes with very similar aggregate focal-region use but materially different temporal occupancy structure, preserve that difference through authoritative state/events and checkpoint/resume, and expose it reproducibly through downstream observability and ordinary ensemble machinery.
 
-The semantics-v6 rerun adds a useful stronger statement about software/model robustness: the M9 capability distinction survived a consequential upstream correction to demographic timing even though exact population and presence totals changed.
+The v8 result additionally verifies that this particular capability distinction survives the corrected M3 resource-time implementation without numerical drift in its predeclared paired metrics.
 
-That does **not** establish invariance to all plausible demographic models. It shows this one predeclared M9 capability classification remained intact under the repaired M2 implementation.
+That does **not** establish invariance to all resource, demographic or temporary-mobility alternatives. It establishes only the behavior of this frozen capability benchmark under current semantics.
 
 ## What this result does not establish
 
-The benchmark is not evidence that intermittent aggregation, continuous residence, or any particular social motive explains a real archaeological site. The focal region, schedule, travel model and population are synthetic validation inputs. Archaeological interpretation remains a separate research task and would require evidence-grounded experiment design, uncertainty propagation, structural sensitivity, calibration/corroboration separation and appropriate domain review.
+The benchmark is not evidence that intermittent aggregation, continuous residence or any social motive explains a real archaeological site. The focal region, schedule, travel model and population are synthetic validation inputs. Archaeological interpretation would require question-specific evidence, uncertainty propagation, structural sensitivity, calibration/corroboration separation and domain review.
 
-The rebaseline is verification/reference maintenance after a declared model-semantics change. It is not empirical calibration.
+The v8 reference update is reproducibility maintenance after a declared model-semantics change. It is not empirical calibration.
