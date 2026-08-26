@@ -8,7 +8,7 @@ use crate::{
     events::{EventKind, EventLog},
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, PopulationError},
-    resources::{ResourceSystem, fixed_annual_quantity_at_resource_boundary},
+    resources::{ResourceSystem, fixed_annual_quantity_for_period},
     rng::{RngFactory, RngStreamPosition},
     temporary_mobility::TemporaryMobilityState,
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
@@ -136,7 +136,8 @@ pub(crate) struct MigrationBoundaryContext<'a> {
     pub resources: &'a ResourceSystem,
     pub migration: &'a MigrationConfig,
     pub annual_food_need: u32,
-    pub resource_periods_per_year: u16,
+    pub decision_periods_per_year: u16,
+    pub decision_index_in_year: u16,
     pub day: u64,
 }
 
@@ -287,12 +288,18 @@ impl MigrationSystem {
             resources,
             migration: config,
             annual_food_need,
-            resource_periods_per_year,
+            decision_periods_per_year,
+            decision_index_in_year,
             day,
         } = *context;
         validate_migration_config(config)?;
         if !config.enabled || population.living_count() == 0 {
             return Ok(());
+        }
+        if decision_periods_per_year != config.decision_periods_per_year {
+            return Err(MigrationError::InternalInvariant(
+                "migration decision schedule does not match configuration",
+            ));
         }
         self.prepare_snapshot(population, world)?;
         self.decision_boundaries = self
@@ -300,13 +307,13 @@ impl MigrationSystem {
             .checked_add(1)
             .ok_or(MigrationError::AccountingOverflow)?;
 
-        let period_need_per_person = fixed_annual_quantity_at_resource_boundary(
+        let period_need_per_person = fixed_annual_quantity_for_period(
             u64::from(annual_food_need),
-            resource_periods_per_year,
-            day,
+            decision_index_in_year,
+            decision_periods_per_year,
         )
         .ok_or(MigrationError::InternalInvariant(
-            "migration boundary does not align with a resource period",
+            "migration decision interval could not be allocated",
         ))?;
 
         for household_index in 0..population.household_count() {
@@ -429,13 +436,9 @@ impl MigrationSystem {
             }
             let choice_draw = draw_bounded(&mut rngs.choice, total_weight);
             let mut cursor = choice_draw;
-            let mut selected =
-                *self
-                    .evaluations
-                    .last()
-                    .ok_or(MigrationError::InternalInvariant(
-                        "positive weight has no candidates",
-                    ))?;
+            let mut selected = *self.evaluations.last().ok_or(
+                MigrationError::InternalInvariant("positive weight has no candidates"),
+            )?;
             for evaluation in &self.evaluations {
                 if cursor < evaluation.weight {
                     selected = *evaluation;
@@ -737,18 +740,14 @@ impl MigrationSystem {
             .destination_water_security_score_total
             .checked_add(u64::from(selected.utility.water_security_score_permille))
             .ok_or(MigrationError::AccountingOverflow)?;
-        let (origin_x, origin_y) =
-            world
-                .coordinates(origin)
-                .ok_or(MigrationError::InternalInvariant(
-                    "origin coordinates invalid",
-                ))?;
-        let (destination_x, destination_y) =
-            world
-                .coordinates(selected.cell)
-                .ok_or(MigrationError::InternalInvariant(
-                    "destination coordinates invalid",
-                ))?;
+        let (origin_x, origin_y) = world
+            .coordinates(origin)
+            .ok_or(MigrationError::InternalInvariant("origin coordinates invalid"))?;
+        let (destination_x, destination_y) = world
+            .coordinates(selected.cell)
+            .ok_or(MigrationError::InternalInvariant(
+                "destination coordinates invalid",
+            ))?;
         self.eastward_steps = self
             .eastward_steps
             .checked_add(u64::from(destination_x.saturating_sub(origin_x)))
@@ -818,8 +817,7 @@ impl MigrationSystem {
         population: &mut Population,
         world: &World,
     ) -> Result<(), MigrationError> {
-        self.post_move_cell_living
-            .copy_from_slice(&self.cell_living);
+        self.post_move_cell_living.copy_from_slice(&self.cell_living);
         for household_index in 0..population.household_count() {
             let destination = self.planned_destinations[household_index];
             if destination == CellId::INVALID {
@@ -972,8 +970,7 @@ impl MigrationSystem {
         system.origin_resource_score_total = state.origin_resource_score_total;
         system.destination_resource_score_total = state.destination_resource_score_total;
         system.origin_water_security_score_total = state.origin_water_security_score_total;
-        system.destination_water_security_score_total =
-            state.destination_water_security_score_total;
+        system.destination_water_security_score_total = state.destination_water_security_score_total;
         system.occupied_cell_delta_from_migration = state.occupied_cell_delta_from_migration;
         system.recorded_decision_traces = state.recorded_decision_traces;
         Ok(system)
@@ -1161,6 +1158,11 @@ pub fn validate_migration_config(config: &MigrationConfig) -> Result<(), Migrati
     if config.model_id.trim().is_empty() {
         return Err(MigrationConfigError::EmptyModelId);
     }
+    if config.decision_periods_per_year == 0 || config.decision_periods_per_year > 365 {
+        return Err(MigrationConfigError::InvalidDecisionPeriodsPerYear {
+            value: config.decision_periods_per_year,
+        });
+    }
     if config.candidate_radius_cells == 0 || config.candidate_radius_cells > 32 {
         return Err(MigrationConfigError::InvalidCandidateRadius {
             value: config.candidate_radius_cells,
@@ -1208,6 +1210,8 @@ pub enum MigrationConfigError {
     UnsupportedSchema { found: u32, supported: u32 },
     #[error("migration model ID must not be empty")]
     EmptyModelId,
+    #[error("migration decision periods per year must be in 1..=365, found {value}")]
+    InvalidDecisionPeriodsPerYear { value: u16 },
     #[error("candidate radius must be in 1..=32 cells, found {value}")]
     InvalidCandidateRadius { value: u16 },
     #[error("migration permille field {field} is out of range: {value}")]
@@ -1295,7 +1299,8 @@ mod tests {
                         resources: &resources,
                         migration: &experiment.migration,
                         annual_food_need: experiment.resources.annual_need_units_per_person,
-                        resource_periods_per_year: experiment.resources.periods_per_year,
+                        decision_periods_per_year: experiment.migration.decision_periods_per_year,
+                        decision_index_in_year: 0,
                         day: 91,
                     },
                     &mut rngs,
