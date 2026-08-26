@@ -82,14 +82,11 @@ The implementation includes controlled/metamorphic checks for:
 - fixed-condition scarcity survival equivalence under 1, 4, 12 and 365 M3 periods;
 - exact recovery of the configured reference-quarter mortality probability at `P = 4`;
 - M4 decision index/day alignment;
-- existing M4 first-boundary founder-kin and stay-utility acceptance tests under the independent decision clock; and
+- existing M4 first-boundary founder-kin and stay-utility acceptance tests under the independent decision clock;
+- identical merged-clock ordering in the ordinary and evidence-grounded spatial simulation hosts; and
 - ordinary checkpoint/resume and workspace invariants through the existing regression suite.
 
-On the pre-documentation code head `8e184e0295260471cfddce6d457e8897f06a3a47`, core CI confirmed:
-
-- `cargo fmt --check`: pass;
-- Clippy with warnings denied: pass; and
-- full workspace tests: pass.
+The focused model review also checked the exact-rational bounded draw used for scarcity mortality. Its accepted random-value set contains an integer multiple of the probability denominator, so the modulo mapping is unbiased; it can reject slightly more values than a minimal rejection sampler but does not approximate the requested rational probability.
 
 This is software/model-contract verification, not evidence that the response coefficients or clocks are empirically correct.
 
@@ -101,9 +98,71 @@ Because authoritative timing and checkpoint-continuation meaning change, the glo
 
 v8 checkpoints must therefore fail closed when loaded by a v9 build rather than being continued under silently different timing semantics.
 
-Frozen M7/M8/M9 references are not automatically rewritten. Each changed reference must be inspected and only rebaselined when its difference is attributable to the declared v9 repair rather than a new unexplained regression.
+The configuration schema versions also change, and the legacy condition-response wire field names are retained only as names: their v9 scientific meaning is the reference-quarter meaning declared in the response-time contract.
 
-## 6. Interpretation boundary
+## 6. Frozen-reference review and rebaseline
+
+Frozen references were not rewritten merely because v9 changed trajectories. Each failing reference was rerun unchanged, inspected, and rebaselined only after its difference was attributable to the declared timing repair.
+
+### M7.6 resource-variability reference
+
+The unchanged 18-point × 8-seed synthetic experiment completed all **144/144 runs** under v9.
+
+Generation evidence:
+
+- workflow run: `32923009965`;
+- branch head: `dbd73404f2c2f9e65d58c32e4f495acee4bb7e30`;
+- PR merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
+- artifact: `9590629317`;
+- artifact SHA-256: `799ce09b74cab05814593ed87e74da585cd6aee9982712385fc513b3346968d8`;
+- derived sweep identity: `anthrosim-sweep-v2-f467645573da673d`;
+- source definition SHA-256 remained `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`.
+
+The machine-readable reference records the unchanged definition and the changed v9 derived outputs. It is a synthetic regression snapshot, not calibration or empirical evidence.
+
+The regenerated reference was then independently accepted by the canonical M7.6 CI job on branch head `1570c211d629c932e9816cc41908e9503d41c479` (CI run `32924358049`).
+
+### M8.6 evidence-grounded spatial benchmark
+
+The four unchanged arms × eight declared seeds completed all **32/32 runs** under v9 with no degenerate arm.
+
+Generation evidence:
+
+- workflow run: `32923009999`;
+- branch head: `dbd73404f2c2f9e65d58c32e4f495acee4bb7e30`;
+- PR merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
+- artifact: `9590576288`;
+- artifact SHA-256: `909a4d1032c2f3da5a4c7f5c719008a70b6c04e268e9cdb2893f1cef7c04525d`;
+- aggregate canonical SHA-256: `fb90ad3a8870038d7f7e1ec42b34ffb3d1564be9255fc8f068b80673c35bb8c2`.
+
+The overall predeclared classification remains `fragile_spatial_structure`, with **no robust primary metric**. Under v9:
+
+- `migrationTotalDistanceCells`: fragile;
+- `cellTimeOccupiedPermille`: not distinctive;
+- `terminalPopulationHerfindahlPerMillion`: not distinctive;
+- `terminalLargestCellSharePermille`: fragile.
+
+The migration-distance effect exceeds the strong-arm magnitude threshold but fails the sign/cross-arm consistency criteria. It is therefore retained as fragile rather than being promoted to a robust result. This is a scientifically meaningful downstream change after separating the M4 decision clock; the model was not tuned to preserve an older classification.
+
+The regenerated M8.6 reference was independently accepted on branch head `1570c211d629c932e9816cc41908e9503d41c479` (workflow run `32924358052`).
+
+### Other downstream gates
+
+On the same `1570c211...` validation head:
+
+- cross-platform determinism: pass;
+- M9.7 controlled aggregation benchmark: pass;
+- spatial mechanism determinism: pass;
+- spatial observability: pass;
+- source provenance: pass;
+- landscape preprocessing/loading determinism: pass;
+- resumed Explorer compatibility: pass;
+- run-bundle packing: pass;
+- core format/Clippy/workspace tests, benchmarks, release build, performance/memory acceptance, 1000-run soak and M5/M6 integration: pass.
+
+The later provenance-ledger edits to `resources-v0.1.md` and `migration-v0.1.md` correct stale v8 wording only; they do not alter executable or frozen-reference content. The final PR head must nevertheless pass the same automated gates before merge.
+
+## 7. Interpretation boundary
 
 The repair removes a numerical/model-structure confound. It does not make `resources.periodsPerYear` scientifically irrelevant.
 
@@ -111,7 +170,9 @@ Legitimate scheduling sensitivity can remain because changing M3 settlement time
 
 The removed artifact is specifically the automatic multiplication of independent response/decision opportunities by the M3 boundary count.
 
-## 7. Deliberately unresolved linked findings
+Likewise, `migration.decisionPeriodsPerYear = 4` remains a synthetic model assumption. Making that decision rate explicit and independent does not validate four opportunities per year for any real population.
+
+## 8. Deliberately unresolved linked findings
 
 This change does **not** close the following findings:
 
@@ -121,14 +182,28 @@ This change does **not** close the following findings:
 
 No empirical calibration or archaeological case-study conclusion is introduced by this repair.
 
-## 8. Remaining merge evidence
+## 9. Focused review conclusion
 
-Before #204 can be marked completed, the final PR head must still demonstrate:
+The #204 review was restricted to the timing repair and its directly affected contracts/references rather than reopening a broad repository audit.
 
-- complete required CI/determinism/reference workflow results;
-- explicit review and justified v9 updates for any frozen references that changed;
-- synchronized scientific-model, ODD and ODD+D documentation;
-- focused PR diff/review with no unresolved blocker; and
-- exact-head merge evidence.
+Reviewed areas include:
 
-This record should be updated if the final verification phase discovers a material change to the declared v9 contract.
+- configuration/schema and default clock semantics;
+- elapsed-time condition allocation;
+- exact-rational scarcity survival conversion and RNG comparison;
+- M4 decision-period demand and day/index reconciliation;
+- ordinary and spatial merged schedulers, including one-time same-day M9 processing;
+- v9 model-semantics compatibility;
+- controlled acceptance tests;
+- M7/M8 reference provenance and classification changes;
+- ODD, ODD+D, scientific-model, M3 and M4 provenance documentation.
+
+No blocking contradiction or unexplained trajectory/reference change remained after that focused review. GitHub reported no unresolved inline review threads or submitted-review blockers on the draft PR during this review.
+
+## 10. Merge condition and scientific claim boundary
+
+The executable/reference validation point at `1570c211...` satisfies the substantive #204 acceptance surface. Because this TRACE record and the final M3/M4 provenance wording themselves create later documentation-only commits, the **actual PR head immediately before merge must still pass the required CI/determinism/reference workflow matrix**.
+
+If that final exact-head matrix is green and no new review blocker appears, #204 can be considered implemented by the merged PR.
+
+That closure means only that AnthroSim now states and tests the annual/elapsed-time meaning of these response processes independently of arbitrary M3 boundary count. It is **not** a claim that the chosen reference-quarter physiology/mortality semantics, the four-per-year M4 default, or any resulting human/archaeological trajectory is empirically validated.
