@@ -17,10 +17,11 @@ pub enum EventProvenance {
 #[serde(rename_all = "snake_case")]
 pub enum DeathCause {
     DemographicMortality,
-    /// General mortality mediated by the shared condition state. A low condition may reflect
-    /// multiple explicit upstream mechanisms (currently M3 resource balance and M4 travel cost),
-    /// so this cause must not be interpreted as proof of resource scarcity.
-    ConditionMediated,
+    /// Historical Rust variant name retained to minimize internal churn. In v10 this serializes as
+    /// `condition_mediated`: the shared condition may reflect multiple explicit upstream causes,
+    /// so the event must not be interpreted as proof of resource scarcity.
+    #[serde(rename = "condition_mediated")]
+    ResourceScarcity,
 }
 
 /// Explicit M9 reasons why a scheduled temporary journey did not start.
