@@ -1,8 +1,10 @@
 # M3 resource-time contract v1
 
-**Status:** normative executable contract for `anthrosim-model-semantics-v8`  
+**Status:** normative executable contract for `anthrosim-model-semantics-v8`; retained as the v8 annual resource-accounting contract under v9  
 **Scope:** resource-period boundaries, annual quantity allocation, seasonal regeneration, M3/M4 demand alignment, and zero-demand condition handling  
 **Scientific status:** implementation/model-contract specification; **not empirical validation**
+
+> **v9 timing note:** v8 deliberately left condition-response frequency, scarcity-mortality opportunity frequency and M4 opportunity frequency coupled to `resources.periodsPerYear`. That limitation was subsequently repaired by [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). The annual-quantity, seasonal-integration and zero-demand rules below remain the historical and normative basis that v9 builds on; where M4 interval demand or response timing differs, the v9 response-time contract takes precedence.
 
 ## Purpose
 
@@ -13,9 +15,9 @@ M3 previously mixed several incompatible meanings of a “resource period”:
 - regeneration sampled one seasonal endpoint and then divided the sampled annual value by period count; and
 - a zero-demand interval implicitly treated `0 / 0` as fully supplied and therefore improved condition.
 
-Those rules made annual totals and downstream behavior depend on numerical scheduling details in ways that were not part of the intended resource hypothesis. v8 defines one explicit time/accounting contract shared across M3 and M4.
+Those rules made annual totals and downstream behavior depend on numerical scheduling details in ways that were not part of the intended resource hypothesis. v8 defines one explicit time/accounting contract shared across M3 and M4 as they existed under v8.
 
-This contract addresses #180, #189 and #199. It does **not** resolve #204, #200, #208 or the remaining downstream acceptance scope of #201.
+This contract addresses #180, #189 and #199. Under v8 it did **not** resolve #204, #200, #208 or the remaining downstream acceptance scope of #201. #204 is resolved for v9 by the separate response-time contract linked above; #200, #208 and the remaining #201 scope remain separate.
 
 ## 1. Authoritative resource-period boundaries
 
@@ -67,13 +69,13 @@ This is intentionally different from assigning an integer remainder to the first
 
 ## 3. M3 demand and M4 resource-support demand
 
-`annualNeedUnitsPerPerson` is a fixed annual quantity and uses the allocation rule above.
+Under v8, `annualNeedUnitsPerPerson` is a fixed annual quantity and uses the allocation rule above.
 
-At a resource boundary, M3 and M4 must use the **same current-period per-person need**. M4 is not allowed to derive a separate `ceil(annual / P)` approximation.
+At a v8 resource boundary, M3 and M4 used the **same current-period per-person need**. M4 was not allowed to derive a separate `ceil(annual / P)` approximation.
 
-This does not mean M4's resource utility is empirically validated. It means the decision model and the resource-consumption model no longer disagree about the amount of demand associated with the same simulated interval.
+Under v9 the annual-allocation rule is retained, but M4 has an independent decision clock. Its resource-support demand is therefore allocated over the M4 decision interval rather than requiring an M3 resource boundary; see [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
 
-A resource boundary that cannot be reconciled to the configured resource-period schedule is an internal model error rather than an invitation to guess a period demand.
+This does not mean M4's resource utility is empirically validated. It means the decision model and the resource-consumption model use one declared annual-quantity allocation rule rather than independent rounding approximations.
 
 ## 4. Seasonal regeneration is mean-preserving redistribution
 
@@ -119,28 +121,30 @@ When a household's executable need for a resource interval is zero, that interva
 
 `condition_after = condition_before`
 
-Zero need is not evidence of full provisioning and therefore does not trigger `conditionRecoveryPerPeriod`.
+Zero need is not evidence of full provisioning and therefore does not trigger condition recovery.
 
 For positive need:
 
-- full supply retains the configured recovery rule;
-- partial supply retains the configured proportional deficit/loss rule.
+- full supply applies the configured condition-recovery rule;
+- partial supply applies the configured proportional deficit/loss rule.
 
 This fixes the prior accidental `0 / 0 -> fully supplied` behavior.
 
-Important limitation: condition recovery/loss parameters remain specified **per resource period**, and scarcity mortality remains evaluated at resource boundaries. Therefore changing `periodsPerYear` can still change annual physiological and mortality opportunity counts. That is the distinct #204 timing defect and remains open after this contract.
+Under v8 the recovery/loss coefficients were still executed once per configured M3 resource period, so changing `periodsPerYear` changed annual physiological opportunity counts. v9 supersedes only that timing interpretation: the historical fields now represent reference-quarter response coefficients converted over elapsed M3 intervals. The zero-demand rule above remains unchanged. See [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
 
 ## 7. Mortality and condition-cause boundary
 
-This slice does not redesign scarcity mortality. After the M3 condition update, the existing resource-boundary mortality draw still reads the person's current shared condition state.
+The v8 slice did not redesign scarcity mortality. After the M3 condition update, the resource-boundary mortality draw read the person's current shared condition state.
 
-Accordingly, #200 remains open: condition damage created by M4 travel can still influence a later death recorded under the broad `ResourceScarcity` cause. Cause decomposition belongs to the next condition/mortality slice.
+v9 subsequently repairs the **elapsed-time probability conversion** so changing only the M3 partition no longer multiplies fixed-condition annual survival risk. It does not repair the causal attribution of the shared condition state.
 
-Likewise, this contract does not resolve coincident M3/M2 competing-risk attribution (#208).
+Accordingly, #200 remains open: condition damage created by M4 travel can still influence a later death recorded under the broad `ResourceScarcity` cause. Cause decomposition belongs to a separate condition/mortality slice.
+
+Likewise, this contract and the v9 response-time repair do not resolve coincident M3/M2 competing-risk attribution (#208).
 
 ## 8. Model-semantics compatibility
 
-The changes in this contract alter authoritative trajectories. In particular, they can change:
+The changes originally defined by this contract altered authoritative trajectories. In particular, they could change:
 
 - within-year demand timing;
 - regeneration timing;
@@ -149,28 +153,32 @@ The changes in this contract alter authoritative trajectories. In particular, th
 - scarcity deaths; and
 - M4 resource scores and therefore relocation choices.
 
-`MODEL_SEMANTICS_ID` therefore changes from `anthrosim-model-semantics-v7` to `anthrosim-model-semantics-v8`.
+`MODEL_SEMANTICS_ID` therefore changed from `anthrosim-model-semantics-v7` to `anthrosim-model-semantics-v8` for this repair.
 
-Package versioning remains separate and is not bumped merely for this development slice.
+The later #204 response-time repair changes the identity again from v8 to v9; see [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
 
-Checkpoints created under v7 are scientifically incompatible with v8 continuation and must fail closed under the existing model-semantics compatibility boundary.
+Package versioning remains separate and is not bumped merely for these development slices.
+
+Checkpoints created under an older model-semantics identity are scientifically incompatible with continuation under a newer identity and must fail closed under the existing compatibility boundary.
 
 ## 9. Required verification
 
-The v8 implementation must verify at minimum:
+The v8 implementation verifies at minimum:
 
 - exact annual conservation for fixed quantities under `P = 1, 3, 4, 5, 12, 365`;
 - very small and non-divisible quantities, including annual quantity `1` with four periods;
-- M3 and M4 resolving the same current-period need at every legitimate resource boundary;
+- v8 M3/M4 resolving the same current-period need at every legitimate shared resource boundary;
 - zero-amplitude seasonal regeneration reducing exactly to fixed elapsed-day allocation;
 - annual seasonal potential invariant to phase and tested resource-period resolutions when capacity is not binding;
 - phase changing within-year timing when amplitude is non-zero;
 - zero-demand intervals leaving reduced condition unchanged;
 - positive fully supplied and undersupplied intervals retaining their declared condition directions;
-- deterministic checkpoint/resume and cross-platform behavior under v8; and
-- explicit review of frozen M7/M8/M9 references whose authoritative outputs may change because the semantics changed.
+- deterministic checkpoint/resume and cross-platform behavior under the applicable model-semantics identity; and
+- explicit review of frozen M7/M8/M9 references whose authoritative outputs change because semantics changed.
 
-A frozen reference may be updated only after its difference is explained by this declared v8 contract. Reference failure is evidence to inspect, not an automatic instruction to rebaseline.
+The additional v9 timing verification matrix is normative in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
+
+A frozen reference may be updated only after its difference is explained by the declared contract. Reference failure is evidence to inspect, not an automatic instruction to rebaseline.
 
 ## 10. Verification versus empirical validation
 

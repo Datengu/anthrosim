@@ -1,12 +1,12 @@
 use std::sync::OnceLock;
 
+use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     config::{PROBABILITY_PER_MILLION, ResourceConfig},
-    demography::draw_per_million,
     events::{DeathCause, EventKind, EventLog},
     ids::HouseholdId,
     population::{Population, PopulationError},
@@ -18,6 +18,7 @@ use crate::{
 };
 
 const DAYS_PER_YEAR: u64 = 365;
+const REFERENCE_RESPONSE_PERIODS_PER_YEAR: u16 = 4;
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 static SEASONAL_PREFIX_BY_AMPLITUDE: OnceLock<Vec<Vec<u64>>> = OnceLock::new();
@@ -79,6 +80,12 @@ struct ResourceDemandClaim {
     household_index: usize,
     cell_index: usize,
     need: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProbabilityFraction {
+    numerator: u128,
+    denominator: u128,
 }
 
 impl ResourceSystem {
@@ -228,6 +235,25 @@ impl ResourceSystem {
                 periods_per_year: config.periods_per_year,
             });
         }
+        let (period_start, period_end) =
+            resource_period_day_bounds(period_index_in_year, config.periods_per_year).ok_or(
+                ResourceError::InvalidPeriodIndex {
+                    index: period_index_in_year,
+                    periods_per_year: config.periods_per_year,
+                },
+            )?;
+        let interval_recovery = u16::try_from(reference_quarter_quantity_for_interval(
+            u64::from(config.condition_recovery_per_period),
+            period_start,
+            period_end,
+        )?)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+        let interval_max_loss = u16::try_from(reference_quarter_quantity_for_interval(
+            u64::from(config.max_condition_loss_per_period),
+            period_start,
+            period_end,
+        )?)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
 
         let stock_before = self.total_food_stock();
         let regenerated = self.regenerate(world, config, period_index_in_year)?;
@@ -361,9 +387,6 @@ impl ResourceSystem {
                 .ok_or(ResourceError::AccountingOverflow)?;
         }
 
-        // Integer proportional allocation can leave fewer than one unit per competing claim
-        // undistributed. Claims are stable by household ID, then home before visitor, so the
-        // bounded remainder remains deterministic while disabled M9 retains the legacy order.
         for (claim_index, claim) in claims.iter().enumerate() {
             if claim_harvest[claim_index] >= claim.need {
                 continue;
@@ -437,9 +460,6 @@ impl ResourceSystem {
                 ResourceError::InternalInvariant("living person has no condition state"),
             )?;
             let updated = if need == 0 {
-                // No modeled energetic/resource requirement in this interval is not evidence of
-                // positive provisioning. Keep condition neutral rather than treating 0/0 as a
-                // fully supplied recovery event.
                 current
             } else {
                 let supplied_permille = harvest
@@ -450,12 +470,10 @@ impl ResourceSystem {
                     ))?
                     .min(u64::from(PERMILLE_MAX));
                 if supplied_permille >= u64::from(PERMILLE_MAX) {
-                    current
-                        .saturating_add(config.condition_recovery_per_period)
-                        .min(PERMILLE_MAX)
+                    current.saturating_add(interval_recovery).min(PERMILLE_MAX)
                 } else {
                     let deficit = u64::from(PERMILLE_MAX) - supplied_permille;
-                    let loss_numerator = deficit * u64::from(config.max_condition_loss_per_period);
+                    let loss_numerator = deficit * u64::from(interval_max_loss);
                     let loss = if loss_numerator == 0 {
                         0
                     } else {
@@ -480,12 +498,17 @@ impl ResourceSystem {
                 ResourceError::InternalInvariant("living person has no condition state"),
             )?;
             let deficit = u64::from(PERMILLE_MAX - condition);
-            let probability = u32::try_from(
+            let reference_probability = u32::try_from(
                 deficit * u64::from(config.max_scarcity_mortality_probability_per_million)
                     / u64::from(PERMILLE_MAX),
             )
             .map_err(|_| ResourceError::AccountingOverflow)?;
-            if draw_per_million(scarcity_rng, probability) {
+            let interval_probability = reference_quarter_probability_for_interval(
+                reference_probability,
+                period_start,
+                period_end,
+            )?;
+            if draw_probability_fraction(scarcity_rng, interval_probability) {
                 let person = population.person_id_at_index(person_index).ok_or(
                     ResourceError::InternalInvariant("living person has no stable ID"),
                 )?;
@@ -508,7 +531,9 @@ impl ResourceSystem {
                             cell,
                             cause: DeathCause::ResourceScarcity,
                             condition_permille: condition,
-                            probability_per_million: probability,
+                            probability_per_million: probability_fraction_per_million_ceil(
+                                interval_probability,
+                            )?,
                         },
                     );
                 }
@@ -679,9 +704,6 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
 }
 
 /// Exact half-open day offsets for one resource period within a 365-day model year.
-///
-/// Period `i` is `[floor(i*365/P), floor((i+1)*365/P))`. This is the same boundary
-/// construction used by the authoritative scheduler and M9 resource-presence accounting.
 pub(crate) fn resource_period_day_bounds(
     period_index_in_year: u16,
     periods_per_year: u16,
@@ -697,10 +719,6 @@ pub(crate) fn resource_period_day_bounds(
 }
 
 /// Allocate a fixed annual integer quantity over the scheduler's actual elapsed-day periods.
-///
-/// The cumulative rule `floor(annual * elapsed / 365)` guarantees that all period shares sum
-/// exactly to `annual` while respecting the one-day length differences created by integer period
-/// boundaries. This is used for M3 per-person need and is also the canonical M4 demand share.
 pub(crate) fn fixed_annual_quantity_for_period(
     annual: u64,
     period_index_in_year: u16,
@@ -715,9 +733,6 @@ pub(crate) fn fixed_annual_quantity_for_period(
 }
 
 /// Resolve the fixed annual share corresponding to an actual resource boundary day.
-///
-/// M4 calls this after M3 on the same boundary so both processes reason about the exact same
-/// per-person period demand rather than using independent rounding rules.
 pub(crate) fn fixed_annual_quantity_at_resource_boundary(
     annual: u64,
     periods_per_year: u16,
@@ -742,6 +757,170 @@ pub(crate) fn fixed_annual_quantity_at_resource_boundary(
         return None;
     }
     fixed_annual_quantity_for_period(annual, index, periods_per_year)
+}
+
+/// Convert one reference-quarter response quantity into the amount attributable to any half-open
+/// interval in the model year. The four reference intervals are exactly the canonical scheduler
+/// quarters [0,91), [91,182), [182,273), [273,365). Linear cumulative allocation inside each
+/// reference quarter preserves the configured amount at every quarter boundary and conserves four
+/// times the reference quantity over a complete year, regardless of M3 partitioning.
+fn reference_quarter_quantity_for_interval(
+    reference_quantity: u64,
+    start: u64,
+    end: u64,
+) -> Result<u64, ResourceError> {
+    if start > end || end > DAYS_PER_YEAR {
+        return Err(ResourceError::InternalInvariant(
+            "response interval is outside the model year",
+        ));
+    }
+    let mut total = 0_u64;
+    for quarter in 0..REFERENCE_RESPONSE_PERIODS_PER_YEAR {
+        let (quarter_start, quarter_end) =
+            resource_period_day_bounds(quarter, REFERENCE_RESPONSE_PERIODS_PER_YEAR).ok_or(
+                ResourceError::InternalInvariant("reference response quarter is invalid"),
+            )?;
+        let overlap_start = start.max(quarter_start);
+        let overlap_end = end.min(quarter_end);
+        if overlap_start >= overlap_end {
+            continue;
+        }
+        let quarter_length = quarter_end - quarter_start;
+        let local_start = overlap_start - quarter_start;
+        let local_end = overlap_end - quarter_start;
+        let before = u64::try_from(
+            u128::from(reference_quantity) * u128::from(local_start) / u128::from(quarter_length),
+        )
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+        let after = u64::try_from(
+            u128::from(reference_quantity) * u128::from(local_end) / u128::from(quarter_length),
+        )
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+        total = total
+            .checked_add(
+                after
+                    .checked_sub(before)
+                    .ok_or(ResourceError::AccountingOverflow)?,
+            )
+            .ok_or(ResourceError::AccountingOverflow)?;
+    }
+    Ok(total)
+}
+
+/// Exact conditional death probability for an arbitrary interval when `reference_probability` is
+/// the conditional probability over each canonical reference quarter at fixed condition.
+///
+/// Within a reference quarter, cumulative incidence is linear in elapsed days. Conditional
+/// survival over a sub-interval is therefore an exact rational ratio. Multiplying at most four
+/// overlapping quarter ratios makes the complete-year survival `(1-q)^4` independent of how M3
+/// partitions the year, while P=4 reproduces q exactly at every reference-quarter boundary.
+fn reference_quarter_probability_for_interval(
+    reference_probability: u32,
+    start: u64,
+    end: u64,
+) -> Result<ProbabilityFraction, ResourceError> {
+    if reference_probability > PROBABILITY_PER_MILLION || start > end || end > DAYS_PER_YEAR {
+        return Err(ResourceError::InternalInvariant(
+            "scarcity probability interval is invalid",
+        ));
+    }
+    if start == end || reference_probability == 0 {
+        return Ok(ProbabilityFraction {
+            numerator: 0,
+            denominator: 1,
+        });
+    }
+
+    let probability = u128::from(reference_probability);
+    let scale = u128::from(PROBABILITY_PER_MILLION);
+    let mut survival_numerator = 1_u128;
+    let mut survival_denominator = 1_u128;
+
+    for quarter in 0..REFERENCE_RESPONSE_PERIODS_PER_YEAR {
+        let (quarter_start, quarter_end) =
+            resource_period_day_bounds(quarter, REFERENCE_RESPONSE_PERIODS_PER_YEAR).ok_or(
+                ResourceError::InternalInvariant("reference mortality quarter is invalid"),
+            )?;
+        let overlap_start = start.max(quarter_start);
+        let overlap_end = end.min(quarter_end);
+        if overlap_start >= overlap_end {
+            continue;
+        }
+        let quarter_length = quarter_end - quarter_start;
+        let local_start = overlap_start - quarter_start;
+        let local_end = overlap_end - quarter_start;
+        let base = scale
+            .checked_mul(u128::from(quarter_length))
+            .ok_or(ResourceError::AccountingOverflow)?;
+        let segment_numerator = base
+            .checked_sub(
+                probability
+                    .checked_mul(u128::from(local_end))
+                    .ok_or(ResourceError::AccountingOverflow)?,
+            )
+            .ok_or(ResourceError::AccountingOverflow)?;
+        let segment_denominator = base
+            .checked_sub(
+                probability
+                    .checked_mul(u128::from(local_start))
+                    .ok_or(ResourceError::AccountingOverflow)?,
+            )
+            .ok_or(ResourceError::AccountingOverflow)?;
+        if segment_denominator == 0 {
+            return Err(ResourceError::InternalInvariant(
+                "scarcity survival denominator is zero",
+            ));
+        }
+        survival_numerator = survival_numerator
+            .checked_mul(segment_numerator)
+            .ok_or(ResourceError::AccountingOverflow)?;
+        survival_denominator = survival_denominator
+            .checked_mul(segment_denominator)
+            .ok_or(ResourceError::AccountingOverflow)?;
+    }
+
+    Ok(ProbabilityFraction {
+        numerator: survival_denominator
+            .checked_sub(survival_numerator)
+            .ok_or(ResourceError::AccountingOverflow)?,
+        denominator: survival_denominator,
+    })
+}
+
+fn draw_probability_fraction(rng: &mut ChaCha8Rng, probability: ProbabilityFraction) -> bool {
+    if probability.numerator == 0 {
+        return false;
+    }
+    if probability.numerator >= probability.denominator {
+        return true;
+    }
+    draw_bounded_u128(rng, probability.denominator) < probability.numerator
+}
+
+fn draw_bounded_u128<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u128) -> u128 {
+    debug_assert!(upper_exclusive > 0);
+    let acceptance_limit = u128::MAX - (u128::MAX % upper_exclusive);
+    loop {
+        let draw = (u128::from(rng.next_u64()) << 64) | u128::from(rng.next_u64());
+        if draw < acceptance_limit {
+            return draw % upper_exclusive;
+        }
+    }
+}
+
+fn probability_fraction_per_million_ceil(
+    probability: ProbabilityFraction,
+) -> Result<u32, ResourceError> {
+    if probability.numerator == 0 {
+        return Ok(0);
+    }
+    let scaled = probability
+        .numerator
+        .checked_mul(u128::from(PROBABILITY_PER_MILLION))
+        .ok_or(ResourceError::AccountingOverflow)?
+        .div_ceil(probability.denominator)
+        .min(u128::from(PROBABILITY_PER_MILLION));
+    u32::try_from(scaled).map_err(|_| ResourceError::AccountingOverflow)
 }
 
 fn seasonal_prefix_table() -> &'static [Vec<u64>] {
@@ -791,12 +970,6 @@ fn seasonal_cumulative_weight(offset: u64, phase: u16, amplitude: u16) -> Option
     }
 }
 
-/// Allocate one mean-preserving annual regeneration quantity into an actual resource period.
-///
-/// The existing triangular seasonal curve is integrated over every integer model day in the
-/// half-open interval and normalized by the complete 365-day curve. Phase therefore changes the
-/// timing of production but not its unconstrained annual total. At zero amplitude this reduces
-/// exactly to `fixed_annual_quantity_for_period`.
 fn seasonal_annual_quantity_for_period(
     annual: u64,
     period_index_in_year: u16,
@@ -910,7 +1083,6 @@ pub(crate) fn duration_weighted_needs(
                 .checked_add(1)
                 .ok_or(ResourceError::AccountingOverflow)?;
         } else {
-            // Exact fractional ties resolve to home provisioning first.
             home_need = home_need
                 .checked_add(1)
                 .ok_or(ResourceError::AccountingOverflow)?;
@@ -973,11 +1145,6 @@ fn scaled_seasonal_factor_permille(
     )
 }
 
-/// Integer triangular seasonal factor centred on a cell's phase.
-///
-/// A zero amplitude returns 1000. At amplitude 1000 the conceptual peak is
-/// 2000 and the opposite point in the year reaches zero. This is deliberately
-/// synthetic and exists to exercise temporal renewable-resource variation.
 fn seasonal_factor_permille(day_of_year: u16, phase: u16, amplitude: u16) -> u16 {
     let direct = u16::abs_diff(day_of_year, phase);
     let wrapped = 365_u16.saturating_sub(direct);
@@ -1087,6 +1254,83 @@ mod tests {
     }
 
     #[test]
+    fn reference_quarter_condition_budget_is_partition_invariant() {
+        for periods in [1_u16, 4, 12, 365] {
+            let total = (0..periods)
+                .map(|index| {
+                    let (start, end) = resource_period_day_bounds(index, periods).unwrap();
+                    reference_quarter_quantity_for_interval(25, start, end).unwrap()
+                })
+                .sum::<u64>();
+            assert_eq!(total, 100, "periods={periods}");
+        }
+        let quarterly = (0..4)
+            .map(|index| {
+                let (start, end) = resource_period_day_bounds(index, 4).unwrap();
+                reference_quarter_quantity_for_interval(25, start, end).unwrap()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(quarterly, vec![25, 25, 25, 25]);
+    }
+
+    fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
+        while b != 0 {
+            let remainder = a % b;
+            a = b;
+            b = remainder;
+        }
+        a
+    }
+
+    fn composed_survival_for_partition(reference_probability: u32, periods: u16) -> (u128, u128) {
+        let mut numerator = 1_u128;
+        let mut denominator = 1_u128;
+        for index in 0..periods {
+            let (start, end) = resource_period_day_bounds(index, periods).unwrap();
+            let death =
+                reference_quarter_probability_for_interval(reference_probability, start, end)
+                    .unwrap();
+            let mut segment_numerator = death.denominator - death.numerator;
+            let mut segment_denominator = death.denominator;
+            let cross_a = gcd_u128(segment_numerator, denominator);
+            segment_numerator /= cross_a;
+            denominator /= cross_a;
+            let cross_b = gcd_u128(segment_denominator, numerator);
+            segment_denominator /= cross_b;
+            numerator /= cross_b;
+            numerator *= segment_numerator;
+            denominator *= segment_denominator;
+            let common = gcd_u128(numerator, denominator);
+            numerator /= common;
+            denominator /= common;
+        }
+        (numerator, denominator)
+    }
+
+    #[test]
+    fn fixed_condition_scarcity_survival_is_partition_invariant() {
+        for reference_probability in [0_u32, 200_000, 500_000, 1_000_000] {
+            let baseline = composed_survival_for_partition(reference_probability, 4);
+            for periods in [1_u16, 4, 12, 365] {
+                assert_eq!(
+                    composed_survival_for_partition(reference_probability, periods),
+                    baseline,
+                    "q={reference_probability}, periods={periods}"
+                );
+            }
+        }
+        let q = 200_000_u32;
+        for quarter in 0..4_u16 {
+            let (start, end) = resource_period_day_bounds(quarter, 4).unwrap();
+            let probability = reference_quarter_probability_for_interval(q, start, end).unwrap();
+            assert_eq!(
+                probability_fraction_per_million_ceil(probability).unwrap(),
+                q
+            );
+        }
+    }
+
+    #[test]
     fn boundary_lookup_returns_the_same_fixed_share_as_period_index() {
         for periods in [1_u16, 3, 4, 5, 12, 365] {
             for index in 0..periods {
@@ -1131,6 +1375,60 @@ mod tests {
                     fixed_annual_quantity_for_period(1_001, index, periods)
                 );
             }
+        }
+    }
+
+    fn one_person_condition_run(periods: u16, fully_supplied: bool) -> u16 {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(211)).unwrap();
+        let mut population = Population::initialize(
+            PopulationConfig::new(1).with_target_household_size(1),
+            &world,
+            RngFactory::new(211),
+        )
+        .unwrap();
+        assert!(population.set_condition_at_index(0, if fully_supplied { 500 } else { 1_000 }));
+        let mut config = ResourceConfig::synthetic_validation_v1();
+        config.periods_per_year = periods;
+        config.annual_need_units_per_person = 365;
+        config.annual_regeneration_units_per_productivity = 0;
+        config.condition_recovery_per_period = 25;
+        config.max_condition_loss_per_period = 100;
+        config.max_scarcity_mortality_probability_per_million = 0;
+        let mut system = ResourceSystem::initialize(&world, &config).unwrap();
+        system
+            .cell_food_stock
+            .fill(if fully_supplied { 1_000 } else { 0 });
+        system.initial_food_stock = if fully_supplied { 1_000 } else { 0 };
+        let mut rngs = ResourceRngs::new(RngFactory::new(211));
+        for index in 0..periods {
+            let (_, day) = resource_period_day_bounds(index, periods).unwrap();
+            system
+                .process_period(
+                    &mut population,
+                    &world,
+                    &config,
+                    index,
+                    day,
+                    &mut rngs.scarcity_mortality,
+                )
+                .unwrap();
+        }
+        population.condition_at_index(0).unwrap()
+    }
+
+    #[test]
+    fn condition_response_does_not_multiply_with_resource_partition() {
+        for periods in [1_u16, 4, 12, 365] {
+            assert_eq!(
+                one_person_condition_run(periods, true),
+                600,
+                "recovery P={periods}"
+            );
+            assert_eq!(
+                one_person_condition_run(periods, false),
+                600,
+                "loss P={periods}"
+            );
         }
     }
 

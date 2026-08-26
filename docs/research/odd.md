@@ -1,11 +1,11 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** v0.3.0 package / post-M9 scientific-hardening line  
+**AnthroSim baseline:** v0.3.0 package / post-M9 scientific-hardening line / model semantics v9  
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
-This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated. The repaired M2 annual transition semantics are specified more precisely in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), while day-zero founder reproductive/genealogical state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). The post-M9 M3 resource-period and annual-quantity semantics are specified in [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md).
+This document gives AnthroSim's model description in the seven-element ODD 2020 structure. The detailed normative semantics remain in [`../scientific-model.md`](../scientific-model.md); this document is the standards-facing description and index. It is intentionally explicit when a mechanism is synthetic, absent or not empirically validated. The repaired M2 annual transition semantics are specified more precisely in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), while day-zero founder reproductive/genealogical state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M3 annual resource accounting remains specified in [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md), while v9 elapsed condition/scarcity response and independent M4 decision timing are specified in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
 
 ODD describes the model. It does not by itself establish that the model is fit for a real archaeological or anthropological inference. Evaluation evidence is tracked separately in [`trace.md`](trace.md), while human decision assumptions are expanded in [`odd-d.md`](odd-d.md).
 
@@ -86,12 +86,16 @@ Authoritative time is integer days.
 - M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality/fertility bands are selected from age at the start of `[t-365,t)`, not age at `t`.
 - M2 mortality is drawn before fertility; the current fertility probability is therefore conditional on surviving the annual demographic mortality transition, subject also to spacing and parent-availability filters.
 - Declared founders may carry signed pre-run birth-history timing before day 0; this initial-condition chronology can constrain later M2 birth spacing without being recorded as a model-period birth event.
-- For `P = periodsPerYear`, M3 resource period `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within the model year. Fixed annual integer quantities are allocated by cumulative elapsed days so their complete-year shares conserve exactly.
-- M3 resource settlement, condition update and scarcity processing occur at the end of those configured resource intervals. Seasonal regeneration integrates the synthetic daily seasonal curve over the actual interval and normalizes it to preserve unconstrained annual potential.
-- M4 permanent migration is evaluated at eligible resource boundaries and uses the same current-period per-person demand allocation as M3 when computing its resource-support cue.
+- For `P = resources.periodsPerYear`, M3 resource interval `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within the model year. Fixed annual integer quantities are allocated by cumulative elapsed days so their complete-year shares conserve exactly.
+- M3 resource settlement occurs at the end of those configured intervals. Seasonal regeneration integrates the synthetic daily seasonal curve over the actual interval and normalizes it to preserve unconstrained annual potential.
+- M3 condition recovery/loss coefficients and the condition-mediated scarcity probability are interpreted against four fixed reference-quarter intervals, then converted deterministically to the actual elapsed M3 interval. Changing only `P` therefore does not multiply the complete-year response budget or fixed-condition survival probability merely by creating more M3 boundaries.
+- For `D = migration.decisionPeriodsPerYear`, M4 permanent-migration opportunity `j` occurs at `floor((j+1)*365/D)` within the model year. The synthetic default is four opportunities/year. This clock is independent of M3 `P`.
+- M4 resource support allocates annual per-person need over its own current decision interval using the same cumulative elapsed-day allocation rule rather than requiring an M3 resource boundary.
 - M9 transitions and starts can occur on deterministic journey days and can span annual checkpoints.
 
-When processes share a day, the declared ordering is scientifically consequential and is part of the model definition. The annual M2 contract is intentionally coarse and must not be described as continuous-time mortality/fertility hazard execution. The M3 annual-quantity repair likewise does not yet make `periodsPerYear` a purely numerical resolution parameter: condition recovery/loss, scarcity-mortality and M4 decision opportunities remain boundary-frequency dependent pending the separate #204 repair.
+When M3 and M4 share a day, the declared subannual ordering is M3 settlement/condition/survival, then due M9 day processing, then M4 permanent migration. Either process may otherwise occur alone. The annual M2 transition follows the year's subannual processing. The annual M2 contract remains intentionally coarse and must not be described as continuous-time mortality/fertility hazard execution.
+
+The v9 response-time repair removes the specific artifact where finer M3 partition automatically created more physiological, scarcity-mortality or M4 opportunities. It does **not** make `resources.periodsPerYear` scientifically irrelevant: changing settlement times can still change stock, evolving condition, extinction timing, M9 demand attribution and the state observed by later M4 decisions. Such remaining scheduling sensitivity is part of model evaluation rather than hidden rate multiplication.
 
 ### Space
 
@@ -107,31 +111,32 @@ Persistent identity and explicit residence/presence separation allow causal hist
 
 ## 3. Process overview and scheduling
 
-The baseline annual/subannual causal sequence is:
+Within a model year, AnthroSim merges the independent fixed M3 and M4 schedules. At each next due fixed day:
 
-1. settle elapsed resource demand and regeneration at a resource boundary;
-2. update supply, unmet need, condition and resource-linked survival according to the configured M3 semantics;
-3. process due M9 temporary journey transitions/start decisions;
-4. evaluate eligible M4 permanent-migration decisions from the declared shared pre-move state, comparing an explicit zero-action-cost stay utility with candidate residence utility minus relocation-only travel, uncertainty and relocation-risk costs;
+1. process any due M9 temporary journey boundaries strictly before that fixed day;
+2. if an M3 resource boundary is due, settle elapsed resource demand/regeneration, update condition and apply the elapsed M3 condition-mediated survival semantics;
+3. process due M9 temporary journey transitions/start decisions for that day;
+4. if an M4 decision boundary is due, evaluate eligible permanent-migration decisions from the declared shared pre-move state, comparing an explicit zero-action-cost stay utility with candidate residence utility minus relocation-only travel, uncertainty and relocation-risk costs;
 5. apply selected permanent moves according to the simultaneous-movement contract;
-6. at annual boundaries, execute the M2 discrete transition for `[t-365,t)`: use interval-start age bands, draw mortality, then evaluate conditional fertility/parentage among survivors;
+6. after the year's subannual schedules complete, execute the M2 discrete transition for `[t-365,t)`: use interval-start age bands, draw mortality, then evaluate conditional fertility/parentage among survivors;
 7. update authoritative events/checkpoint/derived observability as specified by the run lifecycle.
 
-Under the v8 resource-time contract, step 1 uses the exact elapsed-day resource interval rather than an assumed equal fraction of a year. Fixed annual need and other fixed annual integer quantities use cumulative elapsed-day allocation, while seasonal regeneration uses the integrated/normalized seasonal weight for that same interval. Step 4 reads the same current-period demand share when evaluating M4 resource support; M4 does not maintain a separate `ceil(annual/P)` demand interpretation.
+Under the v8 resource-time contract, M3 uses exact elapsed-day resource intervals, cumulative elapsed-day allocation for fixed annual quantities, integrated/normalized seasonal regeneration, and zero-demand condition neutrality. Under v9, condition response and the condition-mediated scarcity probability are converted from explicit reference-quarter coefficients to the actual M3 interval, while M4 receives its own fixed decision schedule. M4's resource-support denominator is the annual need allocated over the M4 decision interval, not an independent `ceil(annual/P)` approximation and not an M3-period side effect.
 
-For a zero-demand interval, M3 leaves condition unchanged rather than treating `0/0` as fully supplied recovery. Positive-demand intervals retain the configured recovery/deficit rules. The frequency of those physiological updates and scarcity-mortality opportunities remains a distinct unresolved timing assumption (#204).
+For a zero-demand M3 interval, condition remains unchanged rather than treating `0/0` as fully supplied recovery. For positive demand, the existing supply-dependent recovery/loss rule is applied to the elapsed response amount. At fixed condition, scarcity survival across a full year composes identically under tested `P = 1, 4, 12, 365`; evolving-condition trajectories may still differ because state changes occur at different times.
 
 M9 duration-aware resource accounting can attribute elapsed person-days to residence, focal-region visitation or transit according to its declared provisioning proxy. Temporary mobility does not by itself redefine persistent residence or M2 parentage locality.
 
 When M4 and M2 share annual-boundary day `t`, a just-entered M4 destination contributes zero elapsed exposure to `[t-365,t)`. M2 therefore reconstructs parentage locality from persistent residence immediately before that same-day M4 relocation. A newborn is nevertheless stored at the female parent's current boundary-state residence after M4. M2 demographic `Death.cell` retains its existing boundary-state residence meaning because current M2 mortality is not spatially parameterized.
 
-Permanent M4 relocation is atomic at the decision boundary; M9 temporary travel is duration-bearing.
+Permanent M4 relocation is atomic at its decision boundary; M9 temporary travel is duration-bearing.
 
 The detailed same-day ordering and lifecycle contracts are specified in:
 
 - [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md)
 - [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md)
 - [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md)
+- [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md)
 - [`temporary-mobility-v1.md`](temporary-mobility-v1.md)
 - [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md)
 - [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md)
@@ -158,13 +163,15 @@ Higher-level labels such as settlement, ritual centre, polity, refuge or migrati
 
 ### 4.3 Adaptation
 
-M4 provides a limited adaptive response: pressured households may relocate to locally evaluated alternatives. M9 baseline temporary mobility follows configured trigger/scheduling semantics rather than a general adaptive theory of gathering motives.
+M4 provides a limited adaptive response: pressured households may relocate to locally evaluated alternatives when an explicit M4 decision opportunity occurs. M9 baseline temporary mobility follows configured trigger/scheduling semantics rather than a general adaptive theory of gathering motives.
 
 No general behavioural learning, cultural adaptation or evolving strategy is present in v0.3.0.
 
 ### 4.4 Objectives
 
-M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a narrow direct-parent/kin proxy are treated as residence-state terms. The resource-support term compares available dynamic stock against the same current-period per-person demand allocated by M3 for that boundary. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
+M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a narrow direct-parent/kin proxy are treated as residence-state terms. The resource-support term compares available dynamic stock against annual per-person resource need allocated over the current **M4 decision interval**. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
+
+The M4 opportunity clock itself is a model assumption: `migration.decisionPeriodsPerYear` is independently configurable and defaults to four/year in the synthetic validation baseline. Neither the utility equation nor that opportunity frequency is claimed to reproduce real human decision cognition/rates.
 
 This is a mechanism-testing objective function, not a claim that real people maximize this utility or consciously calculate or partition these terms in this way.
 
@@ -176,7 +183,7 @@ Absence of learning is a declared null assumption, not evidence that learning wa
 
 ### 4.6 Prediction
 
-Households do not run explicit forward simulations of future resource or social states. M4 evaluates current/proxy candidate conditions and deterministic uncertainty. M9 follows its configured journey timing/travel semantics.
+Households do not run explicit forward simulations of future resource or social states. M4 evaluates current/proxy candidate conditions and deterministic uncertainty at its current decision boundary. M9 follows its configured journey timing/travel semantics.
 
 ### 4.7 Sensing
 
@@ -295,21 +302,23 @@ Primary implementation: `crates/anthrosim-core/src/population.rs`, `crates/anthr
 
 ### M3 — renewable resources, condition and scarcity
 
-Maintains dynamic cell food stock, regeneration, household/cell demand, supply allocation, individual condition response and configured scarcity-related survival mechanism. Quantities are abstract units unless a future evidence-grounded configuration establishes a defensible unit mapping.
+Maintains dynamic cell food stock, regeneration, household/cell demand, supply allocation, individual condition response and configured condition-mediated survival mechanism. Quantities are abstract units unless a future evidence-grounded configuration establishes a defensible unit mapping.
 
-Under the v8 time/accounting contract, resource-period boundaries are exact half-open integer-day intervals. Fixed annual integer quantities are allocated by cumulative elapsed days so the complete-year total is conserved. The synthetic seasonal curve redistributes unconstrained annual regeneration potential through those intervals using integrated daily weights rather than a single endpoint sample. M3 and M4 share the same current-period per-person demand allocation. An interval with zero executable demand is condition-neutral rather than a free recovery event.
+Under the v8 time/accounting contract, resource-period boundaries are exact half-open integer-day intervals. Fixed annual integer quantities are allocated by cumulative elapsed days so the complete-year total is conserved. The synthetic seasonal curve redistributes unconstrained annual regeneration potential through those intervals using integrated daily weights rather than a single endpoint sample. An interval with zero executable demand is condition-neutral rather than a free recovery event.
 
-These changes do not yet remove every dependency on `periodsPerYear`: condition recovery/loss, scarcity-mortality opportunities and M4 decision opportunities remain per resource boundary pending the distinct #204 repair. Resource/travel contributions to shared condition/death attribution (#200) and coincident M3/M2 mortality attribution (#208) also remain separate open limitations.
+Under v9, the historical condition recovery/loss and maximum scarcity-probability fields are explicit reference-quarter coefficients converted over the actual elapsed M3 interval. At fixed supply/condition, changing only `resources.periodsPerYear` does not multiply the annual condition-response budget or fixed-condition survival probability. This timing repair does not solve shared-condition cause attribution (#200) or coincident M3/M2 competing-risk attribution (#208).
 
-Primary specifications: [`resources-v0.1.md`](resources-v0.1.md), [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md).  
-Primary implementation: `crates/anthrosim-core/src/resources.rs` and resource/config code.
+Primary specifications: [`resources-v0.1.md`](resources-v0.1.md), [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).  
+Primary implementation: `crates/anthrosim-core/src/resources.rs` and resource/config/scheduler code.
 
 ### M4 — permanent household migration
 
-Evaluates pressured households against bounded local alternatives. The current explicit stay counterfactual contains residence-state resource/water/kin terms only; relocation candidates evaluate their destination residence terms and then subtract relocation-only travel/terrain, uncertainty and relocation-risk costs before the minimum-improvement and stochastic weighted-choice steps. The resource-support term uses the same current M3 period demand for the shared boundary. Selected moves change persistent residence.
+Evaluates pressured households against bounded local alternatives on an independent fixed annual decision schedule controlled by `migration.decisionPeriodsPerYear` (synthetic default four/year). The explicit stay counterfactual contains residence-state resource/water/kin terms only; relocation candidates evaluate their destination residence terms and then subtract relocation-only travel/terrain, uncertainty and relocation-risk costs before the minimum-improvement and stochastic weighted-choice steps.
 
-Primary specification: [`migration-v0.1.md`](migration-v0.1.md).  
-Primary implementation: `crates/anthrosim-core/src/migration.rs` and related spatial/migration code.
+The resource-support term uses annual per-person need allocated over the current M4 decision interval using the same cumulative elapsed-day annual-allocation rule as M3. M4 therefore does not depend on the number of M3 resource boundaries for its opportunity count or demand denominator. Selected moves change persistent residence.
+
+Primary specifications: [`migration-v0.1.md`](migration-v0.1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).  
+Primary implementation: `crates/anthrosim-core/src/migration.rs`, `crates/anthrosim-core/src/simulation.rs`, `crates/anthrosim-core/src/spatial_simulation.rs` and related spatial/migration code.
 
 ### M5–M7 — observability and experiment infrastructure
 

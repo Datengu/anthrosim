@@ -6,20 +6,20 @@ This document records the historical M8.6 terrain null-model result and the revi
 
 The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.
 
-## Current regression reference — model semantics v8
+## Current regression reference — model semantics v9
 
-The M3 resource-time repair (#180, #189, #199) advanced the authoritative model identity to `anthrosim-model-semantics-v8`. The frozen M8.6 experiment was therefore rerun unchanged rather than tuning the repaired M3 implementation back toward v7 outputs.
+The #204 response-time repair advanced the authoritative model identity to `anthrosim-model-semantics-v9`. The frozen M8.6 experiment was therefore rerun unchanged rather than tuning the repaired timing implementation toward v8 outputs.
 
 Reviewed execution:
 
-- workflow run: `32917412247`;
-- branch head: `7e13d5ee82db0c65d5ac52e4e5501c812fc968b0`;
-- pull-request merge-ref build: `bdee1f2831d8c18a9798acc5756cc10d21df1d04`;
-- artifact: `9588696469`;
-- artifact SHA-256: `7beb866c91f36be7c26b2195e2b07a5910e0cb563d2da4ea690522d908255f8b`;
-- aggregate canonical SHA-256: `61f7965f875ba212778f6911261334c39cb9a340bd4717317441526fc80be811`.
+- workflow run: `32923009999`;
+- branch head: `dbd73404f2c2f9e65d58c32e4f495acee4bb7e30`;
+- pull-request merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
+- artifact: `9590576288`;
+- artifact SHA-256: `909a4d1032c2f3da5a4c7f5c719008a70b6c04e268e9cdb2893f1cef7c04525d`;
+- aggregate canonical SHA-256: `fb90ad3a8870038d7f7e1ec42b34ffb3d1564be9255fc8f068b80673c35bb8c2`.
 
-The source terrain identity, evidence catalogue and spatial-transform semantics are unchanged. Only the upstream global model semantics changed.
+The source terrain identity, evidence catalogue and spatial-transform semantics are unchanged. The relevant upstream change is the global M3/M4 response-time model: M3 settlement resolution no longer multiplies physiological/scarcity response opportunity, and M4 has an independent permanent-migration decision clock.
 
 All 32 runs completed the configured duration; no arm was degenerate. The overall predeclared classification remains:
 
@@ -27,26 +27,32 @@ All 32 runs completed the configured duration; no arm was degenerate. The overal
 
 Current primary-metric results are:
 
-| Primary metric | v8 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+| Primary metric | v9 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
 | --- | --- | ---: | ---: |
-| total migration distance | not distinctive | 8.81% | 2 / 6 / 0 |
-| cell-time occupied | not distinctive | 2.28% | 4 / 4 / 0 |
-| terminal population Herfindahl | not distinctive | 8.16% | 5 / 3 / 0 |
-| terminal largest-cell share | fragile | 24.54% | 5 / 3 / 0 |
+| total migration distance | fragile | 11.83% | 3 / 5 / 0 |
+| cell-time occupied | not distinctive | 1.39% | 3 / 5 / 0 |
+| terminal population Herfindahl | not distinctive | 9.24% | 7 / 1 / 0 |
+| terminal largest-cell share | fragile | 11.38% | 5 / 3 / 0 |
 
-The v8 result therefore contains **no robust primary metric**. Terminal largest-cell share remains fragile; the other three metrics are not distinctive under the predeclared criteria.
+The v9 result therefore contains **no robust primary metric**. Total migration distance and terminal largest-cell share are fragile; cell-time occupied and terminal population Herfindahl are not distinctive under the predeclared criteria.
 
-This is a meaningful change from the v7 reference rather than a cosmetic checksum update. Correcting seasonal resource timing and making M3/M4 share one current-period demand changes resource exposure and relocation decisions throughout the 100-year trajectories. The strong-terrain migration-distance comparison, for example, changes from a small positive median under v7 to a small negative median under v8, while still failing the predeclared robust-effect magnitude threshold. The broader benchmark conclusion remains fragile rather than robust.
+This is a meaningful scientific-regression change, not a checksum-only update. Under v8, total migration distance was not distinctive in the then-current reference; earlier model-semantics versions had at times classified it as robust. Under v9 it exceeds the strong-arm median-effect magnitude threshold but fails sign-consistency and cross-arm direction criteria, so it is explicitly **fragile**, not robust. This is consistent with the repaired model definition: permanent-migration opportunities now arise from their own four-per-year default clock rather than being structurally tied to M3 settlement boundaries, while the resource/condition state observed at those decisions can still differ through legitimate elapsed-state dynamics.
+
+The important benchmark-level conclusion is unchanged: the terrain-only null model does not produce a seed-stable robust primary spatial effect under the predeclared criteria.
 
 ## Previous verification references
 
+### v8 — M3 resource-time accounting repair
+
+The v8 reference followed the M3 annual-quantity/seasonal-accounting repair. It also classified the overall benchmark as `fragile_spatial_structure`, with no robust primary metric and terminal largest-cell share fragile. Total migration distance was not distinctive. That exact reference remains preserved in Git history and was superseded because v9 changes the authoritative response/opportunity clocks.
+
 ### v7 — M4 stay/relocation comparator repair
 
-The v7 repair removed relocation-only costs from the stay counterfactual. Its reviewed M8.6 reference also classified the overall benchmark as `fragile_spatial_structure`, with no robust metrics and terminal largest-cell share fragile. That result is preserved in Git history and was superseded because v8 changes upstream M3 resource timing.
+The v7 repair removed relocation-only costs from the stay counterfactual. Its reviewed M8.6 reference also classified the overall benchmark as `fragile_spatial_structure`, with no robust metrics and terminal largest-cell share fragile.
 
 ### v6 — M2 demographic-time repair
 
-The v6 M2 repair changed demographic trajectories enough that total migration distance temporarily met the benchmark's robust criterion, while terminal largest-cell share remained fragile. This was preserved at the time rather than tuned away. The later v7 and v8 repairs demonstrate why a preserved scientific regression suite is valuable: downstream classifications can reveal dependence on upstream causal semantics.
+The v6 M2 repair changed demographic trajectories enough that total migration distance met the benchmark's robust criterion, while terminal largest-cell share remained fragile. This was preserved at the time rather than tuned away. Later rebaselines demonstrate why a preserved scientific regression suite is valuable: downstream classifications can reveal dependence on upstream causal semantics.
 
 ### Original first observation
 
@@ -58,12 +64,12 @@ The defensible current interpretation is bounded:
 
 - real-world-derived terrain can propagate through the deterministic model and alter simulated trajectories;
 - exact spatial effects are sensitive to upstream demographic, resource and migration semantics;
-- under current v8 semantics this terrain-only benchmark provides no robust primary spatial effect under its predeclared criteria;
-- terminal largest-cell concentration remains fragile across seeds;
+- under current v9 semantics this terrain-only benchmark provides no robust primary spatial effect under its predeclared criteria;
+- total migration distance and terminal largest-cell concentration are both fragile across seeds/arms;
 - a visually plausible single run is inadequate evidence;
 - none of these synthetic benchmark effects validates the terrain-cost transformation as a historical human movement law.
 
-The v8 rebaseline is scientifically useful precisely because the repaired resource clock weakened/reoriented some previously observed effects instead of preserving them artificially.
+The v9 rebaseline is scientifically useful precisely because repairing a numerical/scheduling confound was allowed to alter downstream classifications instead of preserving an older result artificially.
 
 ## What this does not establish
 
@@ -94,4 +100,4 @@ The dedicated workflow preserves its generated artifact even when a frozen-refer
 
 ## M8 scientific conclusion
 
-M8 continues to demonstrate the generic evidence-grounded spatial execution path, while the v6→v7→v8 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal semantics must be allowed to change those results; they must not be tuned back toward an older reference merely for apparent stability.
+M8 continues to demonstrate the generic evidence-grounded spatial execution path, while the v6→v7→v8→v9 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal semantics must be allowed to change those results; they must not be tuned back toward an older reference merely for apparent stability.

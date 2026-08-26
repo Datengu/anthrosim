@@ -1,6 +1,6 @@
 # v0.1 migration-model provenance and evidence boundary
 
-**Status:** M4 synthetic validation baseline  
+**Status:** M4 synthetic validation baseline, executable timing refined by the [M3/M4 response-time contract v1](m3-response-time-contract-v1.md)  
 **Scientific status:** unvalidated  
 **Runtime empirical dataset:** none
 
@@ -19,16 +19,23 @@ M4 should make it possible to ask engineering/model questions such as:
 - can co-resident household members relocate together without an allocation-heavy object graph?
 - can travel impose an explicit cost rather than make movement free?
 - can migration metrics expose distance, direction, origin/destination conditions and spatial fragmentation?
+- can permanent-migration opportunity frequency be specified independently of M3 resource-settlement resolution?
 
-Passing those checks does not establish that the current thresholds or utility weights describe any real hunter-gatherer population.
+Passing those checks does not establish that the current thresholds, decision frequency or utility weights describe any real hunter-gatherer population.
 
 ## Decision schedule
 
-Migration is evaluated after each M3 resource period, after resource regeneration, household acquisition/sharing, condition change and scarcity mortality. Only surviving households evaluate movement. The annual M2 demographic boundary follows the resource/migration periods.
+M4 permanent migration has its own explicit fixed decision clock, `migration.decisionPeriodsPerYear`. The synthetic validation default is four opportunities per 365-day model year. This clock is intentionally independent of M3 `resources.periodsPerYear`: increasing resource-settlement resolution must not silently create more permanent-migration opportunities.
+
+The authoritative scheduler merges the M3 and M4 fixed clocks. On a day where both are due, elapsed M3 resource settlement/condition/scarcity processing occurs first, then due M9 temporary-mobility processing, then M4. On an M4-only decision day, M4 can therefore observe the current resource/condition state without requiring a new M3 settlement on that same day. The annual M2 demographic transition follows the completed subannual schedule at the year boundary. Only surviving households eligible under the current temporary-presence rules evaluate permanent movement.
+
+M4's resource-support cue allocates annual food need over the M4 decision interval itself, using the same cumulative elapsed-day annual-quantity rule used by M3. It does not assume that a decision boundary is also an M3 resource boundary. The runtime checks that the declared M4 decision index, configured decision frequency and actual decision day agree; inconsistency fails closed.
 
 All households at one migration boundary make decisions against the same pre-move snapshot. Planned household relocations are then applied simultaneously in a single packed population pass. This avoids a household-ID ordering artefact in which an early mover changes the state observed by later decision makers.
 
 Movement currently completes at that decision boundary rather than creating a persistent en-route state. The completed move applies a condition cost proportional to distance. This is an explicit computational approximation, not a claim that real movement is instantaneous.
+
+The decision clock itself remains a scientific assumption. Separating it from M3 removes an accidental numerical coupling; it does not establish that four permanent-relocation opportunities per year are empirically correct.
 
 ## Bounded local knowledge
 
@@ -65,7 +72,7 @@ The following describe the state of residing at a cell and therefore apply both 
 
 | Factor | Current interpretation | Evidence status |
 |---|---|---|
-| Resource score | Dynamic M3 food stock relative to local period demand after adding the moving household where applicable | Synthetic validation proxy |
+| Resource score | Dynamic M3 food stock relative to the M4 decision interval's allocated annual demand after adding the moving household where applicable | Synthetic validation proxy |
 | Water/security score | Weighted water accessibility plus inverse environmental stress | Synthetic validation proxy |
 | Kin score | Presence of a bounded set of known, living direct-parent locations outside the household | Minimal genealogical proxy |
 
@@ -154,6 +161,7 @@ The occupied-cell delta is a spatial fragmentation/concentration indicator attri
 | Parameter | Default |
 |---|---:|
 | Migration enabled | true |
+| Decision periods per year | 4 |
 | Candidate radius | 3 cells |
 | Condition pressure threshold | 900 permille |
 | Resource pressure threshold | 850 permille |
@@ -183,6 +191,8 @@ Once the milestone acceptance tests and CI pass, it is legitimate to say that th
 - increasing only candidate travel/terrain cost cannot make that candidate more attractive;
 - identical configuration/seed yields identical migration decisions and traces;
 - worsened local resource/condition state directionally increases relocation pressure under otherwise equal inputs;
+- changing only M3 resource-period count does not multiply the configured M4 decision-opportunity count;
+- changing `migration.decisionPeriodsPerYear` changes M4 opportunity frequency independently of M3 settlement resolution;
 - living household members relocate together and packed population/occupancy invariants continue to reconcile;
 - selected moves impose explicit condition costs;
 - migration remains benchmarkable at the v0.1 population target.

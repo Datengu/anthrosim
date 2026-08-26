@@ -8,7 +8,10 @@ use crate::{
     events::{EventKind, EventLog},
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, PopulationError},
-    resources::{ResourceSystem, fixed_annual_quantity_at_resource_boundary},
+    resources::{
+        ResourceSystem, fixed_annual_quantity_at_resource_boundary,
+        fixed_annual_quantity_for_period,
+    },
     rng::{RngFactory, RngStreamPosition},
     temporary_mobility::TemporaryMobilityState,
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
@@ -136,7 +139,8 @@ pub(crate) struct MigrationBoundaryContext<'a> {
     pub resources: &'a ResourceSystem,
     pub migration: &'a MigrationConfig,
     pub annual_food_need: u32,
-    pub resource_periods_per_year: u16,
+    pub decision_periods_per_year: u16,
+    pub decision_index_in_year: u16,
     pub day: u64,
 }
 
@@ -287,12 +291,18 @@ impl MigrationSystem {
             resources,
             migration: config,
             annual_food_need,
-            resource_periods_per_year,
+            decision_periods_per_year,
+            decision_index_in_year,
             day,
         } = *context;
         validate_migration_config(config)?;
         if !config.enabled || population.living_count() == 0 {
             return Ok(());
+        }
+        if decision_periods_per_year != config.decision_periods_per_year {
+            return Err(MigrationError::InternalInvariant(
+                "migration decision schedule does not match configuration",
+            ));
         }
         self.prepare_snapshot(population, world)?;
         self.decision_boundaries = self
@@ -300,14 +310,27 @@ impl MigrationSystem {
             .checked_add(1)
             .ok_or(MigrationError::AccountingOverflow)?;
 
-        let period_need_per_person = fixed_annual_quantity_at_resource_boundary(
+        let period_need_per_person = fixed_annual_quantity_for_period(
             u64::from(annual_food_need),
-            resource_periods_per_year,
+            decision_index_in_year,
+            decision_periods_per_year,
+        )
+        .ok_or(MigrationError::InternalInvariant(
+            "migration decision interval could not be allocated",
+        ))?;
+        let boundary_need_per_person = fixed_annual_quantity_at_resource_boundary(
+            u64::from(annual_food_need),
+            decision_periods_per_year,
             day,
         )
         .ok_or(MigrationError::InternalInvariant(
-            "migration boundary does not align with a resource period",
+            "migration decision day does not align with its declared schedule",
         ))?;
+        if boundary_need_per_person != period_need_per_person {
+            return Err(MigrationError::InternalInvariant(
+                "migration decision index and boundary day disagree",
+            ));
+        }
 
         for household_index in 0..population.household_count() {
             let members = self.living_members[household_index];
@@ -1161,6 +1184,11 @@ pub fn validate_migration_config(config: &MigrationConfig) -> Result<(), Migrati
     if config.model_id.trim().is_empty() {
         return Err(MigrationConfigError::EmptyModelId);
     }
+    if config.decision_periods_per_year == 0 || config.decision_periods_per_year > 365 {
+        return Err(MigrationConfigError::InvalidDecisionPeriodsPerYear {
+            value: config.decision_periods_per_year,
+        });
+    }
     if config.candidate_radius_cells == 0 || config.candidate_radius_cells > 32 {
         return Err(MigrationConfigError::InvalidCandidateRadius {
             value: config.candidate_radius_cells,
@@ -1208,6 +1236,8 @@ pub enum MigrationConfigError {
     UnsupportedSchema { found: u32, supported: u32 },
     #[error("migration model ID must not be empty")]
     EmptyModelId,
+    #[error("migration decision periods per year must be in 1..=365, found {value}")]
+    InvalidDecisionPeriodsPerYear { value: u16 },
     #[error("candidate radius must be in 1..=32 cells, found {value}")]
     InvalidCandidateRadius { value: u16 },
     #[error("migration permille field {field} is out of range: {value}")]
@@ -1295,7 +1325,8 @@ mod tests {
                         resources: &resources,
                         migration: &experiment.migration,
                         annual_food_need: experiment.resources.annual_need_units_per_person,
-                        resource_periods_per_year: experiment.resources.periods_per_year,
+                        decision_periods_per_year: experiment.migration.decision_periods_per_year,
+                        decision_index_in_year: 0,
                         day: 91,
                     },
                     &mut rngs,
