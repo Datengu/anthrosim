@@ -355,11 +355,12 @@ pub struct ResourceConfig {
     /// Legacy wire name retained for input compatibility. Under schema v4 this is the maximum
     /// condition loss over one reference quarter-year and is rescaled by elapsed duration.
     pub max_condition_loss_per_period: u16,
-    /// Maximum general condition-mediated mortality probability at zero condition over one
-    /// reference quarter-year. The shared condition state may reflect multiple explicit upstream
-    /// mechanisms, currently including M3 resource balance and M4 permanent-travel cost. The
-    /// executable interval probability is survival-equivalent and duration-scaled.
-    pub max_condition_mortality_probability_per_million: u32,
+    /// Historical Rust field name retained to minimize execution-code churn. In v10 configuration
+    /// this serializes only as `maxConditionMortalityProbabilityPerMillion`; no alias accepts the
+    /// former scarcity-specific wire name. The shared condition may reflect M3 resource balance,
+    /// M4 permanent-travel cost, and any future explicitly documented condition pathway.
+    #[serde(rename = "maxConditionMortalityProbabilityPerMillion")]
+    pub max_scarcity_mortality_probability_per_million: u32,
 }
 
 impl ResourceConfig {
@@ -379,7 +380,7 @@ impl ResourceConfig {
             cell_stock_capacity_years: 10,
             condition_recovery_per_period: 25,
             max_condition_loss_per_period: 200,
-            max_condition_mortality_probability_per_million: 200_000,
+            max_scarcity_mortality_probability_per_million: 200_000,
         }
     }
 
