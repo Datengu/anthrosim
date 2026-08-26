@@ -1,13 +1,13 @@
 # AnthroSim ODD+D human decision-making supplement
 
 **Protocol:** ODD+D (Müller et al. 2013)  
-**AnthroSim baseline:** v0.3.0 / completed M9  
+**AnthroSim baseline:** v0.3.0 / completed M9 / post-M9 v9 scientific-hardening semantics  
 **Status:** formal living supplement to [`odd.md`](odd.md)  
 **Scientific status:** current human-decision mechanisms are synthetic / unvalidated
 
 ODD+D extends ODD so assumptions about human decision-making are not hidden inside equations or generic terms such as “agent behaviour”. AnthroSim uses this document to state what its people/households are actually assumed to know, choose, optimize, learn and socially respond to — and, equally importantly, what is **not** represented.
 
-The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure. Founder reproductive/parent state that predates day 0 is separately governed by [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
+The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure. Founder reproductive/parent state that predates day 0 is separately governed by [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M4's independent permanent-relocation opportunity clock and its relationship to M3 resource integration are normative in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
 
 ---
 
@@ -36,17 +36,19 @@ Decision-relevant entities/state include:
 - stochastic uncertainty/choice streams;
 - externally supplied spatial transformations and experiment configuration.
 
-Important exogenous/model-fixed factors include utility weights, pressure thresholds, candidate radius, minimum utility improvement, uncertainty/risk parameters, travel-cost semantics and M9 participation/timing configuration. These are not learned by agents in the current baseline.
+Important exogenous/model-fixed factors include utility weights, pressure thresholds, candidate radius, minimum utility improvement, uncertainty/risk parameters, travel-cost semantics, the explicit M4 decision opportunity frequency (`migration.decisionPeriodsPerYear`) and M9 participation/timing configuration. These are not learned by agents in the current baseline.
 
 ### I.iii Process overview and scheduling
 
-At eligible M4 boundaries, households are first tested for relocation pressure. Pressured households compare the utility of staying with bounded local alternatives using a shared pre-move snapshot. The stay action evaluates residence-state terms only; candidate actions evaluate the same destination residence terms and then pay relocation-only travel, uncertainty and relocation-risk costs. Alternatives that exceed the configured minimum improvement over the stay action become eligible; one is selected through weighted deterministic stochastic choice. Selected moves are then applied simultaneously.
+At each configured M4 decision boundary, households are first tested for relocation pressure. Pressured households compare the utility of staying with bounded local alternatives using a shared pre-move snapshot. The stay action evaluates residence-state terms only; candidate actions evaluate the same destination residence terms and then pay relocation-only travel, uncertainty and relocation-risk costs. Alternatives that exceed the configured minimum improvement over the stay action become eligible; one is selected through weighted deterministic stochastic choice. Selected moves are then applied simultaneously.
+
+M4 decision opportunities are scheduled independently from M3 resource integration. `migration.decisionPeriodsPerYear` controls the M4 opportunity count, while `resources.periodsPerYear` controls M3 resource settlement. M4's resource-support cue allocates annual per-person need over the current **M4 decision interval** using the same elapsed-day annual-allocation rule as M3. Changing only M3 partition therefore does not automatically add more permanent-migration decisions.
 
 M9 journey starts/transitions occur according to the declared temporary-mobility configuration and travel semantics. M9 does not currently simulate a cognitive deliberation in which a household weighs social motives and decides whether to attend.
 
-When the final M4 boundary of a model year and M2 occur on the same day, M2 does not reinterpret the just-entered destination as residence throughout the elapsed demographic interval. Parentage locality is reconstructed from the pre-M4 persistent residence for that boundary. The newborn's stored residence remains the mother's boundary-state persistent residence after M4. This is a temporal model contract, not a claim about conscious mate choice.
+When M3 and M4 share a fixed day, the executable subannual order is M3 settlement/condition/survival, then due M9 day processing, then M4 permanent-migration decision. Either M3 or M4 may otherwise occur alone. When the final M4 boundary of a model year and M2 occur on the same day, M2 does not reinterpret the just-entered destination as residence throughout the elapsed demographic interval. Parentage locality is reconstructed from the pre-M4 persistent residence for that boundary. The newborn's stored residence remains the mother's boundary-state persistent residence after M4. This is a temporal model contract, not a claim about conscious mate choice.
 
-Scheduling details are part of the model and are specified in [`odd.md`](odd.md), [`../scientific-model.md`](../scientific-model.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and the M9 research contracts.
+Scheduling details are part of the model and are specified in [`odd.md`](odd.md), [`../scientific-model.md`](../scientific-model.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md) and the M9 research contracts.
 
 ---
 
@@ -72,6 +74,7 @@ The model intentionally separates:
 |---|---|
 | M4 relocation pressure | Synthetic heuristic based on condition/resource deficits. |
 | M4 stay/candidate utility | Synthetic residence-state utility plus relocation-only action costs; not validated psychology. |
+| M4 decision frequency | Explicit independently configured opportunity clock; synthetic default four/year, not an empirical relocation rate. |
 | M4 local information horizon | Explicit bounded-information assumption; current radius synthetic unless evidence-grounded. |
 | M4 kin contribution | Narrow direct-parent-location proxy; declared founder parent state can exist from the first boundary, but the proxy is not a theory of kinship, alliance or social obligation. |
 | M4 uncertainty | Stochastic candidate-action proxy; not calibrated perception or risk cognition. |
@@ -116,7 +119,7 @@ This is an **instrumental model rule**, not evidence that historical people cons
 
 #### Decision rules and adaptation
 
-Positive relocation pressure activates the M4 decision opportunity. The decision rule itself is fixed during a run. Households adapt by changing residence, but do not adapt the decision algorithm, weights, thresholds or information strategy.
+Positive relocation pressure activates an M4 decision when a configured M4 opportunity boundary occurs. The decision rule itself is fixed during a run. Households adapt by changing residence, but do not adapt the decision algorithm, weights, thresholds, opportunity frequency or information strategy.
 
 #### Social norms and cultural values
 
@@ -134,9 +137,11 @@ M2 parentage is local in the narrow mechanistic sense of persistent pre-M4 resid
 
 #### Temporal aspects
 
-M4 opportunities occur at eligible resource boundaries rather than continuously. M9 follows configured journey timing. The frequency of decision opportunities can alter system behaviour and therefore requires temporal-resolution/scheduling sensitivity for relevant claims.
+M4 opportunities occur on an explicit fixed annual decision schedule rather than continuously. `migration.decisionPeriodsPerYear` defines that schedule independently of M3's `resources.periodsPerYear`; the synthetic validation default is four opportunities per year. Changing the M4 frequency is therefore an intentional behavioural-model change, while changing only M3 integration resolution does not automatically create additional relocation opportunities.
 
-M2 is likewise a coarse annual discrete transition, not continuous reproductive/death decision-making. Its schedule age is read at the start of `[t-365,t)`, mortality has declared priority, and fertility is conditional on surviving that annual transition. Those are model semantics rather than behavioural assertions.
+The opportunity rate remains a synthetic model assumption, not an empirical estimate of how often real households reconsidered permanent residence. Relevant research claims must test plausible alternative M4 opportunity frequencies and the interaction between those fixed decision days and evolving resource/condition state.
+
+M9 follows configured journey timing. M2 is likewise a coarse annual discrete transition, not continuous reproductive/death decision-making. Its schedule age is read at the start of `[t-365,t)`, mortality has declared priority, and fertility is conditional on surviving that annual transition. Those are model semantics rather than behavioural assertions.
 
 #### Uncertainty
 
@@ -168,7 +173,7 @@ The baseline does not distinguish different members' perceptions or noisy measur
 
 Households do not make explicit forecasts of future population, weather, resource regeneration, crowding or other households' choices.
 
-M4 uses current/proxy candidate state. Simultaneous movers do not anticipate one another's same-boundary arrival. This is a consequential null assumption and should be sensitivity-tested where crowding/coordination matters.
+M4 uses current/proxy candidate state at its own configured decision boundary. Simultaneous movers do not anticipate one another's same-boundary arrival. This is a consequential null assumption and should be sensitivity-tested where crowding/coordination matters.
 
 ### II.vi Interaction
 
@@ -215,11 +220,13 @@ Interpretive labels are not automatic. A cluster of households, repeated visits 
 The detailed scientific semantics are in [`../scientific-model.md`](../scientific-model.md). Principal decision-related implementation lives in the M4/M9 core modules, including:
 
 - `crates/anthrosim-core/src/migration.rs`
+- `crates/anthrosim-core/src/simulation.rs`
+- `crates/anthrosim-core/src/spatial_simulation.rs`
 - `crates/anthrosim-core/src/temporary_mobility.rs`
 - `crates/anthrosim-core/src/temporary_travel.rs`
 - related configuration/spatial modules.
 
-M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`. Pre-run founder reproductive and direct-parent state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md).
+M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`. Pre-run founder reproductive and direct-parent state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M4 opportunity timing, decision-interval resource demand and merged M3/M4 scheduling are specified in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
 
 Implementation names should remain close to scientific terms so reviewers can trace ODD+D concepts into code.
 
@@ -241,14 +248,15 @@ Evidence used to construct or calibrate a decision rule must be distinguished fr
 
 The current decision-related submodels are:
 
-1. M4 relocation-pressure calculation;
-2. M4 candidate enumeration/information horizon;
-3. M4 residence-state utility and explicit stay-action comparison;
-4. M4 relocation-only action costs and candidate utility;
-5. M4 stochastic destination choice;
-6. M4 simultaneous move application/travel condition effect;
-7. M9 configured participation/start semantics;
-8. M9 travel/duration/temporary-presence lifecycle.
+1. M4 independent decision-opportunity scheduling;
+2. M4 relocation-pressure calculation;
+3. M4 candidate enumeration/information horizon;
+4. M4 residence-state utility and explicit stay-action comparison;
+5. M4 relocation-only action costs and candidate utility;
+6. M4 stochastic destination choice;
+7. M4 simultaneous move application/travel condition effect;
+8. M9 configured participation/start semantics;
+9. M9 travel/duration/temporary-presence lifecycle.
 
 Each submodel's equations and exact semantics remain normative in the detailed scientific/model-specific documents rather than being duplicated here.
 
