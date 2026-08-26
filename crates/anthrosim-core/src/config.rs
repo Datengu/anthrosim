@@ -36,7 +36,7 @@ pub struct ExperimentConfig {
 }
 
 impl ExperimentConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 8;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 9;
 
     #[must_use]
     pub fn new(seed: u64, duration_years: u64) -> Self {
@@ -331,8 +331,9 @@ impl Default for DemographyConfig {
 ///
 /// All resource quantities are abstract integer units. This configuration is
 /// an engine-validation mechanism, not a calibrated caloric or palaeoecological
-/// reconstruction. The explicit productivity scale exists for controlled
-/// sensitivity experiments such as otherwise-equal poor versus rich worlds.
+/// reconstruction. `periods_per_year` controls M3 settlement/integration only;
+/// condition and scarcity-mortality response coefficients below are interpreted
+/// against a fixed quarter-year reference interval and rescaled by elapsed days.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceConfig {
@@ -347,13 +348,21 @@ pub struct ResourceConfig {
     /// 0 removes the seasonal swing; 1000 preserves the synthetic v0.1 baseline.
     pub seasonality_scale_permille: u16,
     pub cell_stock_capacity_years: u16,
+    /// Legacy wire name retained for input compatibility. Under schema v3 this is the maximum
+    /// condition recovery over one reference quarter-year (365/4 days), not over an arbitrary
+    /// configured resource period. M3 rescales it by actual elapsed interval duration.
     pub condition_recovery_per_period: u16,
+    /// Legacy wire name retained for input compatibility. Under schema v3 this is the maximum
+    /// condition loss over one reference quarter-year and is rescaled by elapsed duration.
     pub max_condition_loss_per_period: u16,
+    /// Maximum scarcity-mortality probability at zero condition over one reference quarter-year.
+    /// The executable interval probability is survival-equivalent and duration-scaled; changing
+    /// `periods_per_year` therefore changes evaluation resolution, not the nominal annual hazard.
     pub max_scarcity_mortality_probability_per_million: u32,
 }
 
 impl ResourceConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 
     #[must_use]
     pub fn synthetic_validation_v1() -> Self {
@@ -417,6 +426,9 @@ pub struct MigrationConfig {
     pub model_id: String,
     pub provenance: ParameterProvenance,
     pub enabled: bool,
+    /// Independent M4 permanent-relocation decision clock. This is intentionally separate from
+    /// M3 `periods_per_year`; the default retains four decision opportunities per model year.
+    pub decision_periods_per_year: u16,
     pub candidate_radius_cells: u16,
     pub condition_pressure_threshold_permille: u16,
     pub resource_pressure_threshold_permille: u16,
@@ -433,7 +445,7 @@ pub struct MigrationConfig {
 }
 
 impl MigrationConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub fn synthetic_validation_v1() -> Self {
@@ -442,6 +454,7 @@ impl MigrationConfig {
             model_id: "synthetic_validation_v1".to_owned(),
             provenance: ParameterProvenance::SyntheticValidation,
             enabled: true,
+            decision_periods_per_year: 4,
             candidate_radius_cells: 3,
             condition_pressure_threshold_permille: 900,
             resource_pressure_threshold_permille: 850,
@@ -467,6 +480,12 @@ impl MigrationConfig {
     #[must_use]
     pub const fn with_candidate_radius_cells(mut self, radius: u16) -> Self {
         self.candidate_radius_cells = radius;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_decision_periods_per_year(mut self, periods: u16) -> Self {
+        self.decision_periods_per_year = periods;
         self
     }
 }
