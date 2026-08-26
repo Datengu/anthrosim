@@ -53,6 +53,7 @@ The repair is intentionally fail-closed rather than aliasing the old cause seman
 - checkpoint schema 9 -> 10;
 - manifest schema 10 -> 11;
 - sweep derived-analysis schema 2 -> 3;
+- M7.6 derived reference snapshot schema 2 -> 3;
 - M8 spatial-observability schema 2 -> 3;
 - M8 benchmark aggregate/reference schema 1 -> 2;
 - M9 benchmark aggregate/reference schema 1 -> 2.
@@ -77,18 +78,34 @@ Research-facing derived surfaces that previously repeated scarcity-attributed de
 
 - sweep derived JSON uses `conditionMortalityDeaths` and `meanConditionMortalityDeathsCompletedOnly`;
 - sweep derived CSV uses `condition_mortality_deaths` and `mean_condition_mortality_deaths_completed_only`;
+- the canonical M7.6 derived reference and CI projection use `meanConditionMortalityDeathsCompletedOnly`;
 - M8 spatial observability uses `conditionMortalityDeaths` at per-cell and summary level;
 - M8 benchmark aggregation uses `conditionMortalityDeaths`;
 - M9 benchmark replay/aggregation uses `conditionMortalityDeaths` and `noConditionMortalityDeaths`;
 - ODD, ODD+D, the scientific model, resource-model documentation, M8 observability documentation and M9 benchmark documentation now state the v10 shared-condition causal boundary.
 
-Regression assertions require the new JSON/CSV names and reject the former derived scarcity-death names where those wire surfaces changed.
+Regression assertions require the new JSON/CSV names and reject the former derived scarcity-death names where those wire surfaces changed. The M7.6 CI gate additionally requires derived-analysis schema 3 and a v10/schema-3 frozen reference.
 
 Legitimate upstream resource terminology remains. `resource scarcity`, unmet need, stock, harvest, consumption and resource interventions still describe the M3 resource mechanism. Private Rust identifiers and the historical RNG stream label may also retain `scarcity` for execution compatibility; they are not public scientific cause labels.
 
 ## 7. Frozen-reference causal review
 
-The numerical condition hazard was intentionally not retuned. Frozen M8.6 and M9.7 outputs were therefore regenerated and inspected before rebaselining rather than being overwritten automatically.
+The numerical condition hazard was intentionally not retuned. Frozen M7.6, M8.6 and M9.7 outputs were therefore regenerated and inspected before rebaselining rather than being overwritten automatically.
+
+### M7.6
+
+Reviewed execution before rebaseline:
+
+- workflow run: `32931457083`;
+- branch head: `f18b3d1d3242f363891affb9d1e55892b74fc6df`;
+- merge-ref build: `de045e09e4a9550ea1d964ac644c22e0dac31e44`;
+- derived artifact: `9593578301`;
+- artifact SHA-256: `1356300fe21d029f7a5c0a8e1f0c3db36d23fbf1d906cb5bdd522b24f1a2667e`;
+- generated sweep: `anthrosim-sweep-v2-e119a09bf3eb0393`.
+
+All **144/144** planned runs completed across all 18 parameter points. Every frozen point-level scientific value matches the v9 reference exactly, including living population, occupied cells, mean condition, mortality count, unmet need, permanent-migration counts/distances and pooled move distance. The workflow failure occurred only because its projection still requested the removed `meanResourceScarcityDeathsCompletedOnly` key from schema-3 `points.json`.
+
+The M7.6 reference therefore changes only declared reference schema/model-semantics identity, sweep/source identities and the mortality field name. The unchanged numerical count is now correctly described as `meanConditionMortalityDeathsCompletedOnly`; it is not an event-level resource-scarcity death estimate.
 
 ### M8.6
 
@@ -128,7 +145,9 @@ Early intermediate heads exposed ordinary implementation/maintenance defects rat
 - inherited head `a329f68f3278a600dece4193b9a6179d4e981180` passed Clippy and the broad workspace test body, including all five issue-#200 causal acceptance tests, but two stale spatial-observability assertions still expected schema 2 instead of 3;
 - the M8.6 and M9.7 workflows on `a329f68...` completed their scientific executions successfully and failed only because the deliberately frozen references still expected benchmark schema 1. Those artifacts were the reviewed material described above.
 
-The stale spatial schema guards were updated to 3 only after confirming production output had intentionally advanced. M8/M9 references were rebaselined only after the causal/numerical review above.
+On later head `f18b3d1d3242f363891affb9d1e55892b74fc6df`, every dedicated PR workflow passed: M8.6, M9.7, spatial observability, M8.6 data preparation, cross-platform determinism, spatial mechanism determinism, landscape loading, landscape preprocessing, source provenance, resumed-Explorer compatibility and deterministic bundle integration. Umbrella CI passed formatting, Clippy, the complete workspace tests, Explorer/script validation, release build, core benchmarks, the 1000-run soak, performance/memory acceptance and M5/M6 bundle integration. Its sole failure was the stale M7.6 scarcity-named projection described above; the underlying 144-run M7.6 execution itself completed successfully and supplied the reviewed v10 artifact.
+
+The stale spatial and M7.6 schema/terminology guards were updated only after confirming production output had intentionally advanced and the numerical scientific outputs were unchanged. M7/M8/M9 references were rebaselined only after the causal/numerical reviews above.
 
 The authoritative final software-verification evidence is the GitHub Actions suite attached to the eventual PR branch head after these documentation/reference changes. Before merge it must be green on that exact head, including umbrella CI/Clippy/workspace tests and the dedicated spatial, M8.6, M9.7, soak/performance/memory/bundle checks that the repository requires. A green suite is implementation/regression evidence only; it is not empirical validation.
 
