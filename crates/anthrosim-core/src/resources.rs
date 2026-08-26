@@ -334,9 +334,12 @@ impl ResourceSystem {
                     });
                 }
                 if visiting_need > 0 {
-                    let destination = presence.visitor_destination.ok_or(
-                        ResourceError::InternalInvariant("visiting demand has no destination"),
-                    )?;
+                    let destination =
+                        presence
+                            .visitor_destination
+                            .ok_or(ResourceError::InternalInvariant(
+                                "visiting demand has no destination",
+                            ))?;
                     let destination_index = cell_index_for(world, destination)?;
                     if destination_index == residence_index {
                         return Err(ResourceError::InternalInvariant(
@@ -1014,14 +1017,14 @@ fn validate_temporary_resource_period(
                 periods_per_year,
             },
         )?;
-    let year_start = day
-        .checked_sub(current_offset)
-        .ok_or(ResourceError::TemporaryPeriodBoundaryMismatch {
-            expected_start: 0,
-            expected_end: current_offset,
-            actual_start: period.start_day,
-            actual_end: period.end_day,
-        })?;
+    let year_start =
+        day.checked_sub(current_offset)
+            .ok_or(ResourceError::TemporaryPeriodBoundaryMismatch {
+                expected_start: 0,
+                expected_end: current_offset,
+                actual_start: period.start_day,
+                actual_end: period.end_day,
+            })?;
     let expected_start = year_start
         .checked_add(previous_offset)
         .ok_or(ResourceError::AccountingOverflow)?;
