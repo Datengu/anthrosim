@@ -26,7 +26,7 @@ Both arms use the same eight paired seeds (`9701`–`9708`) and the same:
 - 70-cell synthetic focal region (`CellId` 1–70);
 - M9.4 synthetic-validation travel model.
 
-The deliberately low resource demand and disabled permanent migration isolate the M9 presence distinction. The benchmark must record any resource-scarcity death or permanent migration as a failure of the intended controlled conditions rather than silently accepting a confounded comparison.
+The deliberately low resource demand and disabled permanent migration isolate the M9 presence distinction. The benchmark must record any **condition-mediated death** or permanent migration as a failure of the intended controlled conditions rather than silently accepting a confounded comparison. Under model semantics v10, this death criterion is intentionally causal-neutral: it checks that the shared condition-mortality pathway stayed inactive, not that a death was or was not uniquely caused by food scarcity.
 
 Founder household residences remain whatever the existing deterministic `SyntheticValidationV1` initializer produces. No benchmark-specific population-placement rule is added. The continuously resident focal population is therefore the deterministic set of households whose initialized persistent residence lies inside the predeclared 70-cell region. This set is fixed by the paired seed and is identical between arms.
 
@@ -87,7 +87,7 @@ The benchmark analysis records at minimum:
 - travel days, accumulated travel cost and route-edge distance;
 - explicit not-started/unreachable outcomes;
 - permanent M4 migration count separately;
-- resource-scarcity deaths separately.
+- condition-mediated deaths separately.
 
 Transit is never assigned to a synthetic occupied cell.
 
@@ -104,7 +104,7 @@ The benchmark is classified **`capability_distinguished`** only if all of the fo
 7. treatment total focal-region person-days differ from paired control by no more than 50 permille (5%);
 8. treatment peak visitors are at least 250 permille (25%) of the paired control's mean continuously resident focal population;
 9. the treatment has a non-empty origin catchment and positive travel burden in every seed;
-10. neither arm records a permanent M4 migration or resource-scarcity death;
+10. neither arm records a permanent M4 migration or condition-mediated death;
 11. an identical-input duplicate execution reproduces the same authoritative state digest, events and temporary-observability report;
 12. the day-365 checkpoint contains at least one active temporary journey;
 13. resuming that active checkpoint to year 10 reproduces the uninterrupted run's final authoritative state digest, events and temporary-observability report.
