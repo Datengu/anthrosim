@@ -1214,7 +1214,16 @@ mod tests {
             build_sweep_manifest(small_settings(), vec![1, 2, 3], dimensions).expect("sweep");
         let point = &sweep.points[0];
         let rows = vec![
-            derived_row(&sweep, point, 1, "completed", Some(StopReason::DurationReached), Some(10), Some(4), Some(2)),
+            derived_row(
+                &sweep,
+                point,
+                1,
+                "completed",
+                Some(StopReason::DurationReached),
+                Some(10),
+                Some(4),
+                Some(2),
+            ),
             derived_row(&sweep, point, 2, "failed", None, None, None, None),
             derived_row(&sweep, point, 3, "incomplete", None, None, None, None),
         ];
@@ -1231,10 +1240,19 @@ mod tests {
             summary.mean_final_living_population_scientifically_eligible_only,
             Some(10.0)
         );
-        assert_eq!(summary.mean_births_since_start_scientifically_eligible_only, Some(4.0));
-        assert_eq!(summary.mean_deaths_since_start_scientifically_eligible_only, Some(2.0));
+        assert_eq!(
+            summary.mean_births_since_start_scientifically_eligible_only,
+            Some(4.0)
+        );
+        assert_eq!(
+            summary.mean_deaths_since_start_scientifically_eligible_only,
+            Some(2.0)
+        );
         assert_eq!(summary.source_scientifically_eligible_run_ids.len(), 1);
-        assert!(summary.source_scientifically_eligible_run_ids[0].ends_with("seed-00000000000000000001"));
+        assert!(
+            summary.source_scientifically_eligible_run_ids[0]
+                .ends_with("seed-00000000000000000001")
+        );
     }
 
     #[test]
@@ -1324,8 +1342,7 @@ mod tests {
         assert_eq!(summary.source_scientifically_eligible_run_ids.len(), 2);
         assert_eq!(summary.source_operationally_censored_run_ids.len(), 1);
         assert!(
-            summary.source_operationally_censored_run_ids[0]
-                .ends_with("seed-00000000000000000003")
+            summary.source_operationally_censored_run_ids[0].ends_with("seed-00000000000000000003")
         );
     }
 
@@ -1340,8 +1357,7 @@ mod tests {
             disable_migration: vec![],
             migration_radius: vec![],
         };
-        let sweep =
-            build_sweep_manifest(small_settings(), vec![1, 2], dimensions).expect("sweep");
+        let sweep = build_sweep_manifest(small_settings(), vec![1, 2], dimensions).expect("sweep");
         let point = &sweep.points[0];
         let rows = vec![
             derived_row(
@@ -1414,8 +1430,16 @@ mod tests {
         assert!(runs.iter().all(|row| row.end_day == Some(0)));
         assert_eq!(points.len(), 2);
         assert!(points.iter().all(|row| row.completed_runs == 2));
-        assert!(points.iter().all(|row| row.scientifically_eligible_runs == 2));
-        assert!(points.iter().all(|row| row.operationally_censored_runs == 0));
+        assert!(
+            points
+                .iter()
+                .all(|row| row.scientifically_eligible_runs == 2)
+        );
+        assert!(
+            points
+                .iter()
+                .all(|row| row.operationally_censored_runs == 0)
+        );
         assert!(
             points
                 .iter()
@@ -1451,13 +1475,10 @@ mod tests {
             row.get("meanConditionMortalityDeathsScientificallyEligibleOnly")
                 .is_some()
         }));
-        assert!(
-            points_json
-                .as_array()
-                .unwrap()
-                .iter()
-                .all(|row| row.get("meanResourceScarcityDeathsScientificallyEligibleOnly").is_none())
-        );
+        assert!(points_json.as_array().unwrap().iter().all(|row| {
+            row.get("meanResourceScarcityDeathsScientificallyEligibleOnly")
+                .is_none()
+        }));
 
         let runs_csv = fs::read_to_string(root.join("analysis/runs.csv")).expect("runs csv");
         assert!(runs_csv.contains("condition_mortality_deaths"));
@@ -1467,7 +1488,9 @@ mod tests {
         assert!(runs_csv.contains("end_day"));
         assert!(!runs_csv.contains("resource_scarcity_deaths"));
         let points_csv = fs::read_to_string(root.join("analysis/points.csv")).expect("points csv");
-        assert!(points_csv.contains("mean_condition_mortality_deaths_scientifically_eligible_only"));
+        assert!(
+            points_csv.contains("mean_condition_mortality_deaths_scientifically_eligible_only")
+        );
         assert!(!points_csv.contains("mean_resource_scarcity_deaths_scientifically_eligible_only"));
 
         assert!(root.join("analysis/runs.csv").is_file());
