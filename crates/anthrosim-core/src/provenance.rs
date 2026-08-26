@@ -105,7 +105,7 @@ impl ResumeLineage {
                     artifact_day,
                 });
             }
-            if boundary.boundary_day % DAYS_PER_YEAR != 0
+            if !boundary.boundary_day.is_multiple_of(DAYS_PER_YEAR)
                 || boundary.boundary_completed_years != boundary.boundary_day / DAYS_PER_YEAR
             {
                 return Err(ResumeLineageError::InvalidBoundaryTime {
@@ -119,18 +119,18 @@ impl ResumeLineage {
                     boundary_day: boundary.boundary_day,
                 });
             }
-            if let Some(previous) = previous_continuation {
-                if previous != &boundary.source {
-                    return Err(ResumeLineageError::BrokenSourceChain);
-                }
+            if let Some(previous) = previous_continuation
+                && previous != &boundary.source
+            {
+                return Err(ResumeLineageError::BrokenSourceChain);
             }
             previous_boundary_day = Some(boundary.boundary_day);
             previous_continuation = Some(&boundary.continuation);
         }
-        if let Some(last) = self.boundaries.last() {
-            if &last.continuation != artifact_identity {
-                return Err(ResumeLineageError::ArtifactIdentityMismatch);
-            }
+        if let Some(last) = self.boundaries.last()
+            && &last.continuation != artifact_identity
+        {
+            return Err(ResumeLineageError::ArtifactIdentityMismatch);
         }
         Ok(())
     }
@@ -146,7 +146,7 @@ impl ResumeLineage {
                 artifact_day,
             });
         }
-        if boundary.boundary_day % DAYS_PER_YEAR != 0
+        if !boundary.boundary_day.is_multiple_of(DAYS_PER_YEAR)
             || boundary.boundary_completed_years != boundary.boundary_day / DAYS_PER_YEAR
         {
             return Err(ResumeLineageError::InvalidBoundaryTime {
