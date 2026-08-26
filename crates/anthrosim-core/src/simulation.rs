@@ -398,58 +398,90 @@ impl Simulation {
         }
 
         for year in current_year.saturating_add(1)..=target_year {
-            let periods = u64::from(self.config.resources.periods_per_year);
             let year_start_day = (year - 1).saturating_mul(DAYS_PER_YEAR);
+            let mut resource_index = 0_u16;
+            let mut migration_index = 0_u16;
 
-            for period_index in 0..self.config.resources.periods_per_year {
-                let period_number = u64::from(period_index) + 1;
-                let day = year_start_day
-                    .saturating_add(period_number.saturating_mul(DAYS_PER_YEAR) / periods);
+            loop {
+                let resource_day = fixed_schedule_boundary_day(
+                    year_start_day,
+                    resource_index,
+                    self.config.resources.periods_per_year,
+                );
+                let migration_day = if self.config.migration.enabled {
+                    fixed_schedule_boundary_day(
+                        year_start_day,
+                        migration_index,
+                        self.config.migration.decision_periods_per_year,
+                    )
+                } else {
+                    None
+                };
+                let next_day = match (resource_day, migration_day) {
+                    (Some(resource_day), Some(migration_day)) => Some(resource_day.min(migration_day)),
+                    (Some(resource_day), None) => Some(resource_day),
+                    (None, Some(migration_day)) => Some(migration_day),
+                    (None, None) => None,
+                };
+                let Some(day) = next_day else {
+                    break;
+                };
+
                 self.process_temporary_boundaries_before(day)?;
                 self.time = SimTime::from_days(day);
-                let temporary_resource_period = self
-                    .temporary_mobility
-                    .resource_period_snapshot(day, &self.world)?;
-                let outcome = self.resources.process_period_recorded_with_presence(
-                    &mut self.population,
-                    &ResourcePeriodContext {
-                        world: &self.world,
-                        config: &self.config.resources,
-                        period_index_in_year: period_index,
-                        day,
-                    },
-                    &mut self.resource_rngs.scarcity_mortality,
-                    &mut self.events,
-                    temporary_resource_period.as_ref(),
-                )?;
-                self.temporary_mobility.complete_resource_period(day)?;
-                self.temporary_mobility
-                    .reconcile_after_population_change(&self.population);
-                if outcome == ResourceStepOutcome::PopulationExtinct {
-                    self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
-                    self.record_metric_snapshot();
-                    return Ok(self.terminal_stop_reason);
+
+                if resource_day == Some(day) {
+                    let temporary_resource_period = self
+                        .temporary_mobility
+                        .resource_period_snapshot(day, &self.world)?;
+                    let outcome = self.resources.process_period_recorded_with_presence(
+                        &mut self.population,
+                        &ResourcePeriodContext {
+                            world: &self.world,
+                            config: &self.config.resources,
+                            period_index_in_year: resource_index,
+                            day,
+                        },
+                        &mut self.resource_rngs.scarcity_mortality,
+                        &mut self.events,
+                        temporary_resource_period.as_ref(),
+                    )?;
+                    resource_index = resource_index.saturating_add(1);
+                    self.temporary_mobility.complete_resource_period(day)?;
+                    self.temporary_mobility
+                        .reconcile_after_population_change(&self.population);
+                    if outcome == ResourceStepOutcome::PopulationExtinct {
+                        self.terminal_stop_reason = Some(StopReason::PopulationExtinct);
+                        self.record_metric_snapshot();
+                        return Ok(self.terminal_stop_reason);
+                    }
                 }
+
                 self.temporary_mobility.process_day(
                     day,
                     &self.population,
                     &self.world,
                     &mut self.events,
                 )?;
-                self.migration.process_boundary_recorded_with_presence(
-                    &mut self.population,
-                    &MigrationBoundaryContext {
-                        world: &self.world,
-                        resources: &self.resources,
-                        migration: &self.config.migration,
-                        annual_food_need: self.config.resources.annual_need_units_per_person,
-                        resource_periods_per_year: self.config.resources.periods_per_year,
-                        day,
-                    },
-                    &mut self.migration_rngs,
-                    &mut self.events,
-                    Some(&self.temporary_mobility),
-                )?;
+
+                if migration_day == Some(day) {
+                    self.migration.process_boundary_recorded_with_presence(
+                        &mut self.population,
+                        &MigrationBoundaryContext {
+                            world: &self.world,
+                            resources: &self.resources,
+                            migration: &self.config.migration,
+                            annual_food_need: self.config.resources.annual_need_units_per_person,
+                            decision_periods_per_year: self.config.migration.decision_periods_per_year,
+                            decision_index_in_year: migration_index,
+                            day,
+                        },
+                        &mut self.migration_rngs,
+                        &mut self.events,
+                        Some(&self.temporary_mobility),
+                    )?;
+                    migration_index = migration_index.saturating_add(1);
+                }
             }
 
             self.time = SimTime::from_years(year);
@@ -643,6 +675,16 @@ impl Simulation {
             state_digest64: state_digest,
         }
     }
+}
+
+fn fixed_schedule_boundary_day(year_start_day: u64, index: u16, periods: u16) -> Option<u64> {
+    if periods == 0 || index >= periods {
+        return None;
+    }
+    let offset = (u64::from(index) + 1)
+        .checked_mul(DAYS_PER_YEAR)?
+        .checked_div(u64::from(periods))?;
+    year_start_day.checked_add(offset)
 }
 
 fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError> {
@@ -1167,7 +1209,47 @@ mod tests {
         assert_eq!(manifest.resources.periods_processed, 40);
         assert_eq!(manifest.resources.unmet_need, 0);
         assert_eq!(manifest.migration.moves_completed, 0);
+        assert_eq!(manifest.migration.decision_boundaries, 40);
         assert!(manifest.resume_lineage.boundaries.is_empty());
+    }
+
+    #[test]
+    fn resource_partition_no_longer_changes_migration_opportunity_count() {
+        for resource_periods in [1_u16, 4, 12, 365] {
+            let mut resources = no_pressure_resources();
+            resources.periods_per_year = resource_periods;
+            let migration = MigrationConfig::synthetic_validation_v1()
+                .with_decision_periods_per_year(4);
+            let config = ExperimentConfig::new(70 + u64::from(resource_periods), 2)
+                .with_world(WorldConfig::new(4, 4))
+                .with_population(PopulationConfig::new(64))
+                .with_demography(no_event_demography())
+                .with_resources(resources)
+                .with_migration(migration);
+            let manifest = Simulation::new(config).unwrap().run().unwrap();
+            assert_eq!(manifest.resources.periods_processed, u64::from(resource_periods) * 2);
+            assert_eq!(manifest.migration.decision_boundaries, 8);
+        }
+    }
+
+    #[test]
+    fn migration_decision_clock_is_explicit_and_independent() {
+        for decision_periods in [1_u16, 4, 12] {
+            let migration = MigrationConfig::synthetic_validation_v1()
+                .with_decision_periods_per_year(decision_periods);
+            let config = ExperimentConfig::new(90 + u64::from(decision_periods), 2)
+                .with_world(WorldConfig::new(4, 4))
+                .with_population(PopulationConfig::new(64))
+                .with_demography(no_event_demography())
+                .with_resources(no_pressure_resources())
+                .with_migration(migration);
+            let manifest = Simulation::new(config).unwrap().run().unwrap();
+            assert_eq!(manifest.resources.periods_processed, 8);
+            assert_eq!(
+                manifest.migration.decision_boundaries,
+                u64::from(decision_periods) * 2
+            );
+        }
     }
 
     #[test]
@@ -1192,7 +1274,7 @@ mod tests {
             run.events()
                 .events
                 .iter()
-                .all(|event| { event.provenance == EventProvenance::Authoritative })
+                .all(|event| event.provenance == EventProvenance::Authoritative)
         );
     }
 
