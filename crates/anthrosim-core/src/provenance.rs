@@ -189,7 +189,10 @@ pub enum ResumeLineageError {
     #[error("model semantics {found} are incompatible; this build requires {supported}")]
     UnsupportedModelSemantics { found: String, supported: String },
     #[error("resume boundary day {boundary_day} lies after artifact day {artifact_day}")]
-    BoundaryAfterArtifact { boundary_day: u64, artifact_day: u64 },
+    BoundaryAfterArtifact {
+        boundary_day: u64,
+        artifact_day: u64,
+    },
     #[error(
         "resume boundary day {boundary_day} does not match completed years {boundary_completed_years}"
     )]
