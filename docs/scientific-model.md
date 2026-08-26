@@ -1,9 +1,9 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line
+**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v9
 **Scientific status:** exploratory / unvalidated
 
-This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource timing contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
+This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
 
 ## 1. Purpose
 
@@ -65,13 +65,17 @@ Dynamic renewable-resource stock remains separate from immutable/model-facing wo
 
 ### Time
 
-Authoritative simulation time is represented in integer days. M2 baseline demography is an annual discrete transition. Resource/condition/scarcity processing occurs at configured subannual resource boundaries.
+Authoritative simulation time is represented in integer days. M2 baseline demography is an annual discrete transition.
 
-For `P = periodsPerYear`, M3 resource period `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within a 365-day model year. A fixed annual integer quantity `Q` is allocated cumulatively as `floor(Q*t/365)` so period shares conserve the annual quantity exactly against actual elapsed model days. The synthetic seasonal curve is integrated over those same intervals and normalized by its complete-year weight so seasonal phase redistributes unconstrained annual regeneration potential rather than silently changing the annual baseline. Normative semantics are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md).
+For `P = resources.periodsPerYear`, M3 resource interval `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within a 365-day model year. A fixed annual integer quantity `Q` is allocated cumulatively as `floor(Q*t/365)` so period shares conserve the annual quantity exactly against actual elapsed model days. The synthetic seasonal curve is integrated over those same intervals and normalized by its complete-year weight so seasonal phase redistributes unconstrained annual regeneration potential rather than silently changing the annual baseline. Normative annual resource semantics are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md).
 
-M4 permanent relocation remains atomic at its decision boundary. Its resource-support term uses the same current-period per-person demand allocation M3 just used for that resource boundary. M9 temporary journeys are explicitly duration-bearing: departure, arrival, visiting duration, return departure and completion occur on deterministic days, and journeys can remain active across an annual checkpoint. When multiple processes share a day, elapsed resource accounting settles first, then due temporary transitions/start decisions, then eligible at-residence M4 permanent migration, then annual M2 demography where applicable.
+M3 resource settlement, condition response and condition-mediated scarcity survival occur at the configured M3 interval ends. Under v9, the historical `conditionRecoveryPerPeriod`, `maxConditionLossPerPeriod` and `maxScarcityMortalityProbabilityPerMillion` fields have an explicit **reference-quarter** interpretation against `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. Condition response is allocated cumulatively over actual elapsed M3 intervals, and fixed-condition scarcity survival is converted through exact integer-rational conditional survival. Thus changing only `P` does not multiply the complete-year response budget or fixed-condition mortality probability merely by adding more M3 boundaries.
 
-These schedules are model approximations and are scientifically consequential assumptions, not claims that real births, deaths, gathering, travel or physiological change occur synchronously. The v8 resource-time repair does not yet make `periodsPerYear` a purely numerical resolution control: condition recovery/loss, scarcity-mortality opportunities and M4 decision opportunities remain per resource boundary pending #204.
+M4 permanent relocation remains atomic at its decision boundary, but its opportunity clock is now independent of M3. For `D = migration.decisionPeriodsPerYear`, decision interval `j` uses `[floor(j*365/D), floor((j+1)*365/D))`; the synthetic default is `D = 4`. M4's resource-support term uses annual per-person need allocated over the current M4 decision interval using the same cumulative elapsed-day annual-allocation rule as M3. The runtime reconciles M4 decision index and actual decision day rather than assuming every resource boundary is a migration boundary.
+
+M9 temporary journeys are explicitly duration-bearing: departure, arrival, visiting duration, return departure and completion occur on deterministic days, and journeys can remain active across an annual checkpoint. Within each year the authoritative hosts merge the independent M3 and M4 fixed schedules. At a shared M3/M4 day, elapsed M3 resource/condition/survival processing occurs first, then due M9 transitions/start processing, then M4 permanent migration. Either M3 or M4 may otherwise occur alone. M2 annual demography follows the year's subannual processing.
+
+These schedules are model approximations and are scientifically consequential assumptions, not claims that real births, deaths, gathering, travel or physiological change occur synchronously. The v9 repair removes the specific hidden-rate artifact in which increasing M3 `periodsPerYear` automatically created more condition/scarcity/M4 opportunities. It does **not** make M3 resolution causally irrelevant: changing settlement timing can still alter stock, evolving condition, extinction timing, M9 demand attribution and state observed by later fixed M4 decisions. Normative response/decision timing is in [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md).
 
 ### Space
 
@@ -81,22 +85,23 @@ M9 focal regions are identity-bearing bindings over declared cell sets. Temporar
 
 ## 3. Process overview and scheduling
 
-The baseline M2–M4 process remains: subannual renewable-resource settlement updates household supply/condition/scarcity survival, surviving pressured households may make bounded permanent-migration decisions from a shared pre-move snapshot, selected permanent moves are applied simultaneously, and the final period is followed by the annual demographic boundary.
+Within each model year, the main `Simulation` host and `SpatialLandscapeSimulation` use the same merged fixed-boundary contract:
 
-M9 overlays temporary mobility without changing the meaning of M4 permanent migration. The governing same-day order is:
+1. identify the next due M3 resource boundary and M4 permanent-migration boundary;
+2. process M9 temporary journey boundaries strictly before that fixed day;
+3. if M3 is due, settle the elapsed resource interval using duration-aware residence/visitor/transit person-days, update condition, and apply the elapsed condition-mediated scarcity-survival probability;
+4. process due M9 temporary transitions/start decisions for that day;
+5. if M4 is due, evaluate permanent migration only for eligible households physically at residence, using the M4 decision interval's resource-support demand;
+6. apply selected permanent moves simultaneously;
+7. after the year's subannual schedules complete, run M2 annual demography.
 
-1. settle the elapsed resource interval using duration-aware residence/visitor/transit person-days;
-2. complete any due temporary transitions and evaluate/start due temporary journeys;
-3. evaluate M4 permanent migration only for eligible households physically at residence;
-4. run M2 annual demography if this is an annual boundary.
-
-Under v8, step 1 uses the exact scheduler interval rather than an assumed equal fraction of a year. Fixed annual quantities use cumulative elapsed-day allocation; seasonal regeneration uses the integrated/normalized seasonal weight over that same half-open interval. A zero-demand interval is condition-neutral rather than a full-supply recovery event. Step 3 evaluates resource support using the same current-period demand share as M3, eliminating the former independent M4 `ceil(annual/P)` interpretation.
+Under the v8 annual resource-accounting contract, M3 uses exact scheduler intervals, cumulative elapsed-day allocation for fixed annual quantities, integrated/normalized seasonal regeneration and zero-demand condition neutrality. Under v9, condition recovery/loss and condition-mediated scarcity probability are converted from declared reference-quarter coefficients to the actual M3 interval. M4 receives its own opportunity count and its own current decision-interval demand share. It no longer maintains the former `ceil(annual/P)` approximation or inherits an opportunity from every M3 boundary.
 
 Temporary lifecycle state progresses through departure, outbound transit, visiting, return departure, return transit and completion. Focal-region identity, residence, destination, timing and people affected remain stable across a journey's authoritative event history. Transit uses an explicit home-provisioning resource proxy rather than an invented route cell.
 
 M2 mortality/fertility remains annual and residence-based. Births inherit household residence. If a person dies while the household is away, temporary-presence state is updated so visitor/transit counts remain correct; `Death.cell` remains a residence attribution field and must not be read as an observed physical death location.
 
-Scheduling is part of the model definition and must be included in sensitivity/validation work. Detailed contracts are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md), [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md), [`research/m9-temporary-travel-semantics-v1.md`](research/m9-temporary-travel-semantics-v1.md), and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
+Scheduling is part of the model definition and must be included in sensitivity/validation work. Detailed contracts are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md), [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md), [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md), [`research/m9-temporary-travel-semantics-v1.md`](research/m9-temporary-travel-semantics-v1.md), and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
 
 ## 4. Design concepts
 
@@ -108,7 +113,9 @@ M3 allows local density and environmental productivity to create different condi
 
 ### Adaptation / decision-making
 
-M4 uses an interpretable bounded local utility model. A household only evaluates cells within a configured Manhattan radius (three cells by default), so destination discovery does not become a global best-cell search as the world grows. Remaining at the origin is represented by the origin utility against which candidate improvement is compared. Its dynamic-resource score compares stock to the same current-period demand allocated by M3 for that boundary.
+M4 uses an interpretable bounded local utility model. A household only evaluates cells within a configured Manhattan radius (three cells by default), so destination discovery does not become a global best-cell search as the world grows. Remaining at the origin is represented by the origin utility against which candidate improvement is compared. Its dynamic-resource score compares stock to annual per-person need allocated over the current M4 decision interval.
+
+M4 opportunity frequency is itself explicit model structure. `migration.decisionPeriodsPerYear` controls how many fixed opportunities occur in a complete year, independent of M3 resource partition. The synthetic validation default is four/year. This is not a calibrated estimate of how often historical households reconsidered permanent residence.
 
 The implemented synthetic candidate utility is conceptually:
 
@@ -124,7 +131,7 @@ candidate utility
 
 A candidate must exceed the configured minimum improvement over staying. Eligible alternatives receive weights proportional to utility improvement, and one is selected through the named deterministic `migration/choice` random stream.
 
-This is not deterministic optimization: several locally acceptable destinations can compete. It is also not a cognitive model of deliberation. The current factors, functional form, thresholds and weights are transparent synthetic assumptions.
+This is not deterministic optimization: several locally acceptable destinations can compete. It is also not a cognitive model of deliberation. The current factors, functional form, thresholds, weights and decision opportunity rate are transparent synthetic assumptions.
 
 ### Relocation pressure
 
@@ -161,7 +168,7 @@ This is deliberately narrow. It is not a model of clans, lineages, bilateral kin
 
 M4 permanent migration and M9 temporary mobility have different travel abstractions.
 
-For M4, candidate utility includes distance/terrain travel penalty and relocation risk, and a selected permanent move completes atomically at that boundary with a condition cost. It has no persistent en-route state.
+For M4, candidate utility includes distance/terrain travel penalty and relocation risk, and a selected permanent move completes atomically at that decision boundary with a condition cost. It has no persistent en-route state.
 
 For M9, temporary travel is explicitly duration-bearing. The household can remain in outbound or return transit for deterministic intervals before/after visiting. Travel cost/duration is derived from the declared world/focal-region binding and travel configuration; transit does not pretend to know a route cell. The current M9 null mechanism does not add route memory, camps, movement mortality, convoy structure or a cultural motive for travel.
 
@@ -175,9 +182,9 @@ M2 parent selection is intentionally minimal: a male parent must be alive, insid
 
 ### Simultaneous movement
 
-All household decisions at one boundary use the same pre-move snapshot. Planned moves are applied only after candidate evaluation has finished for every household.
+All household decisions at one M4 boundary use the same pre-move snapshot. Planned moves are applied only after candidate evaluation has finished for every household.
 
-This prevents household-ID order from changing the information seen by later households. It also means multiple households can independently choose the same destination without anticipating one another's simultaneous arrival. Resulting crowding is experienced during subsequent resource periods rather than being solved by a hidden global coordinator.
+This prevents household-ID order from changing the information seen by later households. It also means multiple households can independently choose the same destination without anticipating one another's simultaneous arrival. Resulting crowding is experienced during subsequent resource settlement rather than being solved by a hidden global coordinator.
 
 That simultaneous-arrival assumption is scientifically consequential and should be included in later sensitivity work.
 
@@ -190,7 +197,7 @@ All stochasticity comes from seeded named deterministic streams.
 - M3: independent `resources/scarcity_mortality` stream;
 - M4: independent `migration/choice` and `migration/uncertainty` streams.
 
-Resource-period allocation, seasonal integration, resource regeneration, household demand/allocation, condition updates, candidate enumeration and integer utility calculations are deterministic conditional on state/configuration. Scarcity mortality, candidate uncertainty and weighted destination choice are stochastic but reproducible through their named streams.
+Resource-period allocation, seasonal integration, resource regeneration, household demand/allocation, elapsed condition response, candidate enumeration and integer utility calculations are deterministic conditional on state/configuration. Scarcity mortality, candidate uncertainty and weighted destination choice are stochastic but reproducible through their named streams. The v9 scarcity draw uses the exact rational interval probability derived from the reference-quarter condition probability rather than first rounding the draw threshold to parts per million.
 
 ### Observation
 
@@ -238,11 +245,11 @@ The first executable preset is therefore named `synthetic_validation_v1`, not `h
 
 Mortality is represented by a transparent piecewise age-specific annual event-probability schedule. Fertility is represented by an age-specific annual live-birth opportunity probability plus explicit minimum birth spacing. Probabilities are integer parts per million. Completed family size, survivorship and life expectancy are outputs/validation quantities rather than values directly forced on individuals.
 
-M3 scarcity mortality remains separate rather than silently changing baseline demographic schedules. There is no direct food-to-fertility multiplier; introducing one requires an explicit hypothesis/evidence basis.
+M3 condition-mediated mortality remains separate rather than silently changing baseline demographic schedules. There is no direct food-to-fertility multiplier; introducing one requires an explicit hypothesis/evidence basis.
 
 ### Food, resource renewal, condition and scarcity survival (M3 — implemented synthetic baseline)
 
-M3 maintains one dynamic integer food-stock value per world cell. Its normative v8 timing/accounting contract is [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md).
+M3 maintains one dynamic integer food-stock value per world cell. Its normative annual resource-accounting contract is [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md); its v9 condition/scarcity response-time contract is [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md).
 
 For `P` resource periods/year, period `i` covers:
 
@@ -264,9 +271,11 @@ All arithmetic remains integer/fixed-point. Regeneration cannot raise a cell abo
 
 Living-person resource need is aggregated into households and cells. If total cell supply is insufficient, co-located households receive a proportional share according to household need. Within a household, the period supply fraction is shared equally among living members for condition change. Harvest is treated as immediate consumption; explicit storage, spoilage, waste and exchange are deferred. M9 may split a household's current-period demand between residence and visitor destination under its separate duration-aware provisioning contract.
 
-For positive-demand intervals, full supply allows bounded condition recovery and deficit causes condition loss proportional to missing supply. A zero-demand interval is condition-neutral: it cannot turn an integer `0/0` into free recovery. Scarcity mortality remains a separate probability proportional to condition deficit, capped by the configured maximum. These are transparent synthetic response rules, not calibrated human physiology.
+For positive-demand intervals, full supply allows bounded condition recovery and deficit causes condition loss proportional to missing supply. A zero-demand interval is condition-neutral: it cannot turn an integer `0/0` into free recovery. The historical recovery/loss fields are v9 reference-quarter coefficients; an elapsed M3 interval receives only the corresponding fraction of that response budget. A continuously applicable response therefore sums to four reference-quarter quantities over a full year regardless of tested M3 partition.
 
-The v8 annual-quantity repair does **not** resolve every resource-frequency effect. Condition recovery/loss and scarcity mortality are still evaluated per resource boundary, and M4 gets a decision opportunity at eligible resource boundaries; #204 therefore remains open. Shared condition can still combine M3 and M4 travel damage before broad resource-scarcity death attribution (#200), and coincident M3/M2 mortality remains a separate competing-risk attribution issue (#208).
+Condition-mediated scarcity mortality uses the current condition deficit to calculate a reference-quarter probability. v9 converts that probability to the actual M3 interval with exact rational conditional survival. At fixed condition, complete-year survival is the same composition of four reference-quarter survivals under tested `P = 1, 4, 12, 365`; finer M3 partition does not itself multiply mortality opportunity. The recorded event probability is a deterministic parts-per-million view of the exact rational interval probability.
+
+This timing repair does **not** resolve every resource/condition issue. Shared condition can still combine M3 and M4 travel damage before a broadly labelled `ResourceScarcity` death (#200), and coincident M3/M2 mortality remains a separate competing-risk attribution issue (#208). Evolving condition/resource trajectories can also remain resolution-sensitive because state is settled at different days even though the hidden rate multiplier has been removed.
 
 ### Households (minimal M2–M4 baseline)
 
@@ -274,11 +283,13 @@ Households provide co-residence/location consistency, resource sharing and the M
 
 ### Migration (M4 — implemented synthetic baseline)
 
-Surviving households whose condition and/or local resource support create positive relocation pressure compare staying with cells inside a bounded Manhattan information radius.
+Surviving households whose condition and/or local resource support create positive relocation pressure compare staying with cells inside a bounded Manhattan information radius at explicit fixed M4 opportunity boundaries.
+
+`migration.decisionPeriodsPerYear` defines the M4 opportunity clock independently of M3 resource resolution; the synthetic validation default is four opportunities/year. The decision interval uses the same deterministic 365-day boundary construction as other fixed schedules. Changing `resources.periodsPerYear` alone therefore does not change how many permanent-migration decisions are available.
 
 Candidate utility uses:
 
-- current dynamic resource stock relative to the same current-period per-person demand share used by M3, after adding the moving household;
+- current dynamic resource stock relative to annual per-person need allocated over the current M4 decision interval, after adding the moving household;
 - a synthetic water/security score using water accessibility and inverse environmental stress;
 - a deliberately narrow bounded living-direct-parent location proxy;
 - distance and terrain movement cost;
@@ -289,7 +300,7 @@ Candidate evaluation is not global optimization. Alternatives must improve suffi
 
 All households decide from one pre-move snapshot. Selected households then relocate simultaneously. Living members move together, their condition pays the travel cost, current household location changes, and occupancy is rebuilt. Dead records keep location at death.
 
-There is no hard-coded historical destination or route, route memory, seasonal mobility tradition, clan/tribe institution or claim that synthetic M4 weights reproduce real mobility behaviour. M4 itself has no persistent en-route state; M9 temporary mobility adds a separate duration-bearing transit/visiting lifecycle without changing permanent-migration semantics.
+There is no hard-coded historical destination or route, route memory, seasonal mobility tradition, clan/tribe institution or claim that synthetic M4 weights or four-per-year default reproduce real mobility behaviour. M4 itself has no persistent en-route state; M9 temporary mobility adds a separate duration-bearing transit/visiting lifecycle without changing permanent-migration semantics.
 
 ### Evidence-grounded spatial execution (M8 — implemented; v0.2.0 release baseline)
 
@@ -307,11 +318,16 @@ Before scientific validation, implementation must satisfy:
 - persistent record accounting: `initial + births = person records`;
 - exact cumulative resource accounting: `initial stock + regeneration - harvest = final stock`;
 - exact conservation of fixed annual integer resource quantities across scheduler-aligned periods;
-- M3/M4 agreement on current-period per-person demand at every legitimate shared resource boundary;
+- exact allocation of M4 annual demand over the declared M4 decision interval, with decision index/day reconciliation;
 - zero-amplitude seasonal allocation reducing exactly to fixed elapsed-day allocation;
 - unconstrained seasonal annual potential remaining invariant to phase and tested resource-period resolutions while non-zero seasonality can change within-year timing;
 - resource need accounting: positive demand must reconcile to consumption plus unmet need;
 - zero-demand intervals must not create condition recovery;
+- reference-quarter condition-response budgets must remain invariant to tested M3 partitions when supply regime is held fixed;
+- fixed-condition scarcity survival must compose identically across tested `P = 1, 4, 12, 365`, and `P = 4` must reproduce the configured reference-quarter probability exactly;
+- changing only M3 `resources.periodsPerYear` while holding M4 `decisionPeriodsPerYear` fixed must not change the number of configured M4 opportunities per complete year;
+- changing M4 `decisionPeriodsPerYear` must change M4 opportunity count independently of M3 resolution;
+- both ordinary and spatial-landscape simulation hosts must obey the same independent-clock scheduler;
 - valid stable IDs and genealogy references after parent death;
 - no death before birth;
 - no self-parent, duplicate-parent, wrong-reproductive-sex parent or non-older parent relationships;
@@ -349,11 +365,12 @@ A research-capable demographic/resource/migration configuration will require, as
 - evidence-grounded or explicitly hypothetical relationships between resources, condition, fertility and mortality;
 - comparison of survivorship, age-specific mortality, fertility, birth spacing and growth against declared calibration/validation targets;
 - independent empirical or archaeological patterns appropriate to resource/condition claims;
-- evidence on mobility scale, settlement duration/relocation frequency and information horizon where movement is part of the claim;
+- evidence on mobility scale, settlement duration/relocation frequency, **decision-opportunity frequency** and information horizon where movement is part of the claim;
 - explicit treatment of analogy limits when ethnographic mobility evidence is used;
 - defensible travel/terrain costs and social/kin assumptions;
-- sensitivity to simultaneous-arrival crowding, M4 atomic permanent relocation, and M9 temporary-journey duration/transit assumptions;
-- explicit examination of annual/subannual scheduling effects, including the still-open physiological/mortality/decision opportunity frequency effects of #204;
+- sensitivity to simultaneous-arrival crowding, M4 atomic permanent relocation, M4 `decisionPeriodsPerYear`, and M9 temporary-journey duration/transit assumptions;
+- explicit examination of annual/subannual scheduling effects even after the v9 hidden-rate repair, because different M3 settlement days can still change evolving state and later process exposure;
+- explicit examination of shared-condition resource-versus-travel attribution (#200) and coincident M3/M2 competing-risk attribution (#208) where those outputs matter;
 - explicit examination of initialization transients and initial resource stock;
 - calibration only where justified by a stated research question;
 - global/local sensitivity analysis;
@@ -369,6 +386,6 @@ The first v0.1 resource-variability experiment, the M8 evidence-grounded terrain
 
 The M8 result showed that a declared terrain-only transformation could perturb spatial outcomes without yielding a stable directional effect across seeds. The M9 result showed that continuous residence and intermittent temporary aggregation can produce measurably different physical-presence histories under frozen synthetic assumptions while remaining deterministic and checkpoint-replayable.
 
-Post-M9 scientific hardening is repairing known causal/model-contract defects before those reference capabilities are used for stronger inference. The v8 M3 resource-time repair establishes coherent annual quantity and seasonal timing semantics but deliberately leaves the separate condition/mortality/decision-frequency cluster unresolved.
+Post-M9 scientific hardening is repairing known causal/model-contract defects before those reference capabilities are used for stronger inference. The v8 M3 resource-time repair established coherent annual quantity and seasonal timing semantics. The v9 #204 response-time repair then separates M3 integration resolution from elapsed condition/scarcity response and from the M4 permanent-migration opportunity clock. This removes one hidden temporal confound while leaving the separately tracked condition-cause (#200) and coincident competing-risk (#208) questions open.
 
 None of these results or repairs establishes an archaeological explanation. The next mechanism or experiment is intentionally question-led: identify a real discriminating research question, state competing hypotheses and observables, determine which assumptions/evidence can constrain them, then add only the missing capability required for that comparison. Negative, fragile and equifinal results remain valid outcomes and must not be tuned away.
