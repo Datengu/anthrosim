@@ -1,6 +1,6 @@
 # v0.1 resource-model provenance and evidence boundary
 
-**Status:** M3 synthetic validation baseline, executable timing refined by the [M3 resource-time contract v1](m3-resource-time-contract-v1.md)  
+**Status:** M3 synthetic validation baseline, executable timing refined by the [M3 resource-time contract v1](m3-resource-time-contract-v1.md) and [M3/M4 response-time contract v1](m3-response-time-contract-v1.md)  
 **Scientific status:** unvalidated  
 **Runtime empirical dataset:** none
 
@@ -21,7 +21,8 @@ Its purpose is to answer engineering/model questions such as:
 - does household sharing reconcile exactly with acquisition and need?
 - can persistent scarcity reduce condition and increase mortality pressure?
 - do otherwise-equal richer and zero-productivity test environments differ in the expected direction?
-- can M3 and M4 use one consistent definition of current-period demand?
+- can M3 and M4 use one consistent elapsed-time allocation rule for annual demand while retaining independent clocks?
+- can changing M3 settlement resolution avoid silently multiplying condition, scarcity-mortality and M4 decision opportunity rates?
 - can the system do this at the target population scale without global pairwise searches?
 
 Passing those tests does not establish that the parameter values describe any real hunter-gatherer population.
@@ -33,19 +34,19 @@ Passing those tests does not establish that the parameter values describe any re
 | Cell baseline productivity | 0..1000 synthetic index | M1 synthetic validation | Relative environmental input, not biomass/NPP/calories |
 | Cell dynamic food stock | abstract integer units | M3 synthetic validation | Finite renewable stock, not kg or kcal |
 | Person annual need | abstract units/person/year | M3 synthetic validation | Fixed annual demand scale, not human caloric requirement |
-| Resource periods | periods/year | explicit model choice | Default 4; exact half-open integer-day scheduler intervals, not assumed equal-duration quarters |
+| Resource periods | M3 settlements/year | explicit model choice | Default 4; exact half-open integer-day integration/settlement intervals, not M4 opportunity frequency |
 | Productivity scale | permille | experimental control | Multiplies synthetic productivity; not an empirical productivity estimate |
-| Seasonality scale | permille | experimental control | Scales timing variation of the synthetic seasonal curve; v8 treats seasonality as mean-preserving redistribution of annual regeneration |
+| Seasonality scale | permille | experimental control | Scales timing variation of the synthetic seasonal curve; v8+ treats seasonality as mean-preserving redistribution of annual regeneration |
 | Stock capacity | years of baseline synthetic regeneration | synthetic rule | Numerical stock ceiling, not ecological carrying capacity |
 | Condition | 0..1000 permille | synthetic mediator | Not BMI, body-fat percentage, nutritional biomarker or clinical health score |
-| Condition recovery/loss | permille/resource period | synthetic response rule | Not calibrated physiology; still period-frequency dependent pending #204 |
-| Scarcity mortality maximum | probability per million/resource boundary | synthetic response rule | Additional mortality mechanism, not an empirical starvation schedule; opportunity frequency still depends on `periodsPerYear` pending #204 |
+| Condition recovery/loss | permille/reference quarter | synthetic response rule | Legacy `...PerPeriod` wire names are retained, but v9 interprets values against one of four canonical response quarters and rescales them by elapsed M3 interval |
+| Scarcity mortality maximum | probability per million/reference quarter at zero condition | synthetic response rule | Additional condition-mediated mortality mechanism; v9 converts the reference probability to an exact survival-equivalent probability for the elapsed M3 interval |
 
 ## Executable time/accounting contract
 
-The normative executable definition is [M3 resource-time contract v1](m3-resource-time-contract-v1.md).
+The normative annual resource-allocation definition is [M3 resource-time contract v1](m3-resource-time-contract-v1.md). The independent response/opportunity timing semantics introduced by v9 are normative in [M3/M4 response-time contract v1](m3-response-time-contract-v1.md).
 
-For `P = periodsPerYear`, resource period `i` is the half-open interval:
+For `P = periodsPerYear`, M3 resource period `i` is the half-open interval:
 
 `[ floor(i * 365 / P), floor((i + 1) * 365 / P) )`.
 
@@ -55,9 +56,9 @@ A fixed annual integer quantity `Q` is allocated by cumulative elapsed days:
 
 and the period share is `C_Q(end) - C_Q(start)`.
 
-This means the default four-period schedule has durations `91, 91, 91, 92` days. An annual need of `100` therefore executes as `24, 25, 25, 26` units per person across the four periods. This is an integer conservation rule tied to actual model time, not an empirical claim about seasonal human consumption.
+This means the default four-period M3 schedule has durations `91, 91, 91, 92` days. An annual need of `100` therefore executes as `24, 25, 25, 26` units per person across those four M3 periods. This is an integer conservation rule tied to actual model time, not an empirical claim about seasonal human consumption.
 
-M4 uses the same current-period demand allocation when evaluating local resource support. It no longer substitutes an independent `ceil(annual / periods)` approximation.
+M4 uses the same cumulative annual-quantity rule for its resource-support cue, but applies it to the independently configured M4 decision interval. When M3 and M4 both use the default four-per-year clocks their demand shares coincide; when their frequencies differ, each process uses the annual share corresponding to its own elapsed interval rather than pretending the clocks are the same.
 
 ## Implemented causal assumptions
 
@@ -85,7 +86,7 @@ This asserts a transparent finite-resource competition mechanism without modelli
 
 ### Household pooling and sharing
 
-Acquired resource is pooled at household level. Every living member receives the same supply fraction during a positive-demand period. Harvest is consumed immediately.
+Acquired resource is pooled at household level. Every living member receives the same supply fraction during a positive-demand M3 interval. Harvest is consumed immediately.
 
 This is a deliberately minimal sharing rule. It is not a claim that real forager households distribute food equally. Age/sex/status asymmetry, donor-recipient networks, inter-household sharing, storage, spoilage, waste and trade are absent.
 
@@ -97,24 +98,28 @@ A **zero-demand** interval is explicitly condition-neutral. It does not interpre
 
 Condition is a causal mediator chosen so resource scarcity does not directly rewrite baseline demographic schedules. The numerical response is synthetic and not currently mapped to measured human physiology.
 
-Important unresolved timing boundary: `conditionRecoveryPerPeriod` and `maxConditionLossPerPeriod` are still per-period quantities. Changing `periodsPerYear` therefore changes the number of physiological update opportunities in a year. That is #204 and is not claimed to be solved by the v8 annual resource-accounting repair.
+Under v9, the historical `conditionRecoveryPerPeriod` and `maxConditionLossPerPeriod` serialized fields are **reference-quarter response quantities**. The model has four canonical response quarters `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. For each actual M3 interval, the executable response budget is the deterministic cumulative share attributable to the elapsed overlap with those reference quarters. Holding supply status otherwise fixed, a full model year therefore receives the same configured response budget under tested M3 partitions of 1, 4, 12 and 365 rather than multiplying the response by the number of M3 boundaries.
+
+This repair removes the former numerical opportunity-count artifact. It does not require complete trajectory invariance when resource settlement is changed: stock timing, capacity clipping, changing supply fractions, M9 presence, condition state and extinction can legitimately evolve differently when state is observed/settled at different times.
 
 ### Mortality response
 
-At each resource boundary, an individual's additional scarcity-mortality probability increases with condition deficit. This draw uses its own deterministic named random stream and is additive in scheduling to the annual M2 baseline mortality process.
+Condition-mediated scarcity mortality is evaluated when M3 settles an elapsed resource interval. The configured `maxScarcityMortalityProbabilityPerMillion` now means the conditional probability at zero condition over one canonical reference quarter, with the actual condition deficit scaling that reference probability as before.
 
-This is an explicit hypothesis-bearing link:
+For an arbitrary M3 interval, v9 converts the reference-quarter probability to an exact rational conditional probability from the elapsed interval's survival ratio. At fixed condition, composing all M3 intervals over a complete year therefore gives the same survival probability for tested partitions 1, 4, 12 and 365, equal to four reference-quarter survivals. At the default four-period clock the executable interval probability is exactly the configured reference-quarter probability after condition scaling.
+
+The actual stochastic draw uses the exact rational probability. The authoritative death event's parts-per-million field is an observability representation of that interval probability and uses a deterministic ceiling; it is not the quantity used to decide the draw.
+
+This remains an explicit hypothesis-bearing link:
 
 > sustained nutritional/resource shortfall can worsen condition and thereby increase mortality pressure.
 
-The current linear probability function and maximum probability are placeholders. They must not be interpreted as an estimate of real starvation mortality.
+The current condition-deficit function and maximum probability are placeholders. They must not be interpreted as an estimate of real starvation mortality.
 
-Two related limitations remain explicit after the resource-time repair:
+Two related limitations remain explicit after #204:
 
-- scarcity-mortality opportunity count is still tied to `periodsPerYear` pending #204;
-- the shared condition state can include M4 travel costs, so a later death can be recorded under the broad `ResourceScarcity` cause even when travel contributed to the deficit (#200).
-
-Competing-risk attribution when an M3 and M2 mortality boundary coincide is separately tracked by #208.
+- the shared condition state can include M4 travel costs, so a later death can be recorded under the broad `ResourceScarcity` cause even when travel contributed to the deficit (#200);
+- competing-risk attribution when an M3 and M2 mortality boundary coincide remains separately tracked by #208.
 
 ### Fertility
 
@@ -126,15 +131,17 @@ M3 does **not** modify fertility as a function of resources or condition. Food a
 
 | Parameter | Default |
 |---|---:|
-| Resource periods per year | 4 |
+| M3 resource settlements per year | 4 |
 | Annual need per person | 100 abstract units |
 | Annual regeneration units per productivity point | 1 |
 | Productivity scale | 1000 permille |
 | Seasonality scale | 1000 permille |
 | Cell stock capacity | 10 synthetic baseline-regeneration years |
-| Condition recovery per fully supplied positive-demand period | 25 permille |
-| Maximum condition loss per positive-demand period | 200 permille |
-| Maximum scarcity-mortality probability | 200,000 per million per resource boundary |
+| Condition recovery per fully supplied reference quarter | 25 permille |
+| Maximum condition loss per reference quarter | 200 permille |
+| Maximum scarcity-mortality probability at zero condition per reference quarter | 200,000 per million |
+
+M4's synthetic default is separately four permanent-migration decision periods per year; that value belongs to `MigrationConfig`, not to M3 resource resolution.
 
 These values were selected to exercise the system across surplus/scarcity regimes and are **not empirical estimates**.
 
@@ -147,9 +154,12 @@ Once the relevant CI and acceptance tests pass, it is legitimate to say that the
 - fixed annual integer quantities conserve exactly across the scheduler's resource periods;
 - zero-amplitude seasonal allocation reduces to the fixed elapsed-day allocation;
 - unconstrained seasonal annual potential is invariant to phase and tested period resolutions while within-year timing can differ;
-- M3 and M4 resolve the same current-period demand;
+- M3 and M4 use the same cumulative elapsed-time rule for annual demand on their respective clocks;
 - positive-demand period demand reconciles to consumption plus unmet need;
 - zero-demand intervals do not create condition recovery;
+- controlled full-supply and full-deficit condition-response budgets do not multiply when M3 is partitioned into 1, 4, 12 or 365 intervals;
+- fixed-condition scarcity survival is equivalent under tested M3 partitions 1, 4, 12 and 365;
+- changing M3 resource resolution does not itself change the configured M4 opportunity count;
 - zero sustained resources can lower condition and survival under a configured severe synthetic shock;
 - an otherwise-equal positive-resource test case can support better survival/condition than a zero-productivity case; and
 - resource processing remains local/data-oriented rather than global pairwise interaction.
