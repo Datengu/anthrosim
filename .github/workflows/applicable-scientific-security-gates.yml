@@ -1,0 +1,177 @@
+name: Applicable scientific/security gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  classify:
+    if: ${{ github.event_name == 'pull_request' }}
+    name: Classify applicable scientific/security gates
+    runs-on: ubuntu-latest
+    outputs:
+      m8_required: ${{ steps.classify.outputs.m8_required }}
+      m9_required: ${{ steps.classify.outputs.m9_required }}
+      rustsec_required: ${{ steps.classify.outputs.rustsec_required }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Validate classifier
+        run: |
+          python3 -m py_compile scripts/classify-applicable-pr-gates.py
+          python3 scripts/classify-applicable-pr-gates.py --self-test
+
+      - name: Fetch complete rename-aware pull-request change set
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          expected_count="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '.changed_files'
+          )"
+          test "$expected_count" -gt 0
+
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            > changed-file-pages.json
+
+          actual_count="$(jq '[.[][]] | length' changed-file-pages.json)"
+          if [[ "$actual_count" != "$expected_count" ]]; then
+            echo "GitHub changed-file listing is incomplete: expected ${expected_count} file object(s), retrieved ${actual_count}; refusing gate classification" >&2
+            exit 1
+          fi
+
+          # A rename can remove a scientifically sensitive path while the new path
+          # itself appears unrelated. Classify both identities so either side can
+          # make an expensive gate applicable.
+          jq -r '.[][] | .filename, (.previous_filename // empty)' \
+            changed-file-pages.json > changed-files.txt
+          test -s changed-files.txt
+          LC_ALL=C sort -u changed-files.txt -o changed-files.txt
+          cat changed-files.txt
+
+      - name: Classify gate applicability
+        id: classify
+        run: |
+          set -euo pipefail
+          python3 scripts/classify-applicable-pr-gates.py \
+            --changed-files changed-files.txt \
+            --github-output "$GITHUB_OUTPUT"
+
+  m8:
+    name: M8.6 applicable gate
+    needs: classify
+    if: ${{ needs.classify.outputs.m8_required == 'true' }}
+    uses: ./.github/workflows/m8-spatial-benchmark.yml
+
+  m9:
+    name: M9.7 applicable gate
+    needs: classify
+    if: ${{ needs.classify.outputs.m9_required == 'true' }}
+    uses: ./.github/workflows/m9-aggregation-benchmark.yml
+
+  rustsec:
+    name: RustSec applicable gate
+    needs: classify
+    if: ${{ needs.classify.outputs.rustsec_required == 'true' }}
+    uses: ./.github/workflows/dependency-audit.yml
+
+  applicable-gates:
+    name: Applicable scientific/security gates
+    if: ${{ always() }}
+    needs: [classify, m8, m9, rustsec]
+    runs-on: ubuntu-latest
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      CLASSIFY_RESULT: ${{ needs.classify.result }}
+      M8_REQUIRED: ${{ needs.classify.outputs.m8_required }}
+      M8_RESULT: ${{ needs.m8.result }}
+      M9_REQUIRED: ${{ needs.classify.outputs.m9_required }}
+      M9_RESULT: ${{ needs.m9.result }}
+      RUSTSEC_REQUIRED: ${{ needs.classify.outputs.rustsec_required }}
+      RUSTSEC_RESULT: ${{ needs.rustsec.result }}
+      CHANGED_COUNT: ${{ needs.classify.outputs.changed_count }}
+    steps:
+      - name: Enforce applicable gate dispositions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            {
+              echo "### Applicable scientific/security gates"
+              echo
+              echo "Post-merge continuity status for protected \`main\`."
+              echo "Applicability was enforced on the pull request before merge; release-specific exact-SHA reruns remain a separate release requirement."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [[ "$CLASSIFY_RESULT" != "success" ]]; then
+            echo "gate classification did not succeed: ${CLASSIFY_RESULT}" >&2
+            exit 1
+          fi
+
+          check_gate() {
+            local label="$1"
+            local required="$2"
+            local result="$3"
+            if [[ "$required" == "true" ]]; then
+              if [[ "$result" != "success" ]]; then
+                echo "${label} is applicable but did not succeed (result=${result})" >&2
+                exit 1
+              fi
+              printf '%s\tPASS\n' "$label"
+            elif [[ "$required" == "false" ]]; then
+              if [[ "$result" != "skipped" ]]; then
+                echo "${label} was classified N/A but reusable gate result was ${result}, expected skipped" >&2
+                exit 1
+              fi
+              printf '%s\tN/A\n' "$label"
+            else
+              echo "${label} has ambiguous applicability value: ${required}" >&2
+              exit 1
+            fi
+          }
+
+          {
+            echo "### Applicable scientific/security gates"
+            echo
+            echo "Changed files classified: ${CHANGED_COUNT}"
+            echo
+            echo '| Gate | Disposition |'
+            echo '| --- | --- |'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          m8_disposition="N/A"
+          m9_disposition="N/A"
+          rustsec_disposition="N/A"
+          if [[ "$M8_REQUIRED" == "true" ]]; then m8_disposition="PASS"; fi
+          if [[ "$M9_REQUIRED" == "true" ]]; then m9_disposition="PASS"; fi
+          if [[ "$RUSTSEC_REQUIRED" == "true" ]]; then rustsec_disposition="PASS"; fi
+
+          check_gate "M8.6 terrain null-model benchmark" "$M8_REQUIRED" "$M8_RESULT"
+          check_gate "M9.7 controlled aggregation benchmark" "$M9_REQUIRED" "$M9_RESULT"
+          check_gate "RustSec dependency audit" "$RUSTSEC_REQUIRED" "$RUSTSEC_RESULT"
+
+          {
+            echo "| M8.6 terrain null-model benchmark | ${m8_disposition} |"
+            echo "| M9.7 controlled aggregation benchmark | ${m9_disposition} |"
+            echo "| RustSec dependency audit | ${rustsec_disposition} |"
+          } >> "$GITHUB_STEP_SUMMARY"

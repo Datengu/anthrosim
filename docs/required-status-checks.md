@@ -29,6 +29,7 @@ This contract is separate from the complete CI topology in `docs/ci-validation.m
 21. `Deterministic completed-run ZIP`
 22. `Automatic Git source identity`
 23. `New-directory resume Explorer compatibility`
+24. `Applicable scientific/security gates`
 
 The three platform-specific matrix jobs are required individually as well as their comparison jobs. Requiring only a downstream comparison is insufficient because a failed matrix dependency can leave a comparison job skipped/neutral rather than proving that every platform succeeded.
 
@@ -44,23 +45,37 @@ The intended `main` protection also requires:
 
 If GitHub displays a setting such as **Do not allow bypassing the above settings**, **Include administrators**, or equivalent wording, it must be configured so repository administrators cannot merge while the required checks are pending/failing.
 
+## Applicable path-dependent scientific/security gates
+
+`M8.6`, `M9.7` and `RustSec` remain conditional work, but their **disposition is no longer human-only**. The always-present `Applicable scientific/security gates` context is the protected-main enforcement point.
+
+For every pull request it obtains the complete changed-file set from the GitHub API, verifies the retrieved file-object count matches GitHub's pull-request metadata, includes both the current and previous path for renamed files, applies the repository's versioned path classification, and then:
+
+- invokes `Execute predeclared terrain null-model benchmark` when M8.6-relevant files changed;
+- invokes `Execute predeclared M9.7 aggregation benchmark` when M9.7-relevant files changed;
+- invokes `RustSec dependency audit` when dependency state changed;
+- records an explicit `N/A` for each gate that is not applicable.
+
+A relevant gate that fails, is cancelled or otherwise does not complete successfully makes the always-present context fail. Classification failure/ambiguity also fails closed. Changes to the classifier or aggregator themselves force **all three** conditional gates so the enforcement policy cannot weaken its own review surface.
+
+The three expensive underlying job names are intentionally **not** required status contexts themselves. They may be absent/skipped when not applicable; branch protection requires the aggregator, whose own successful result proves either `PASS` or explicit `N/A` for each one.
+
+The aggregator also emits a lightweight success on every push to protected `main`. This gives the merged commit a continuity context without rerunning all expensive conditional gates. A named release still requires release-specific exact-SHA M8.6/M9.7/RustSec evidence under the release policy; the post-merge continuity result does not substitute for those release reruns.
+
+After the aggregator is merged, the live GitHub `main` branch protection must be updated to require `Applicable scientific/security gates`. Until that administrative reconciliation is complete, issue #175 is not governance-complete even though the repository-side workflow exists.
+
 ## Checks deliberately not globally required
 
-The following jobs are useful but are not part of the global protected set:
+The following scale/performance jobs remain useful but are not part of the global protected set:
 
 - `Core benchmarks`;
 - `1000-run ensemble soak`;
 - `Performance and memory acceptance`;
-- `Regenerate pinned open terrain input`;
-- `Execute predeclared terrain null-model benchmark`;
-- `Execute predeclared M9.7 aggregation benchmark`;
-- `RustSec dependency audit`.
+- `Regenerate pinned open terrain input`.
 
-The first three are scale/performance gates whose failure is still taken seriously during release work but which are not necessary as everyday branch-protection contexts. The M8.6 and M9.7 benchmark jobs are path-filtered: globally requiring a path-filtered check can block unrelated pull requests waiting for a context that never runs.
+The first three are scale/performance gates whose failure is still taken seriously during release work but which are not necessary as everyday branch-protection contexts. `Regenerate pinned open terrain input` is a data-maintenance path rather than an ordinary merge gate.
 
-`RustSec dependency audit` is likewise deliberately not globally required because its pull-request trigger is restricted to Cargo dependency state and the audit workflow itself, while its daily scheduled run detects advisories disclosed after merge. Dependency-changing pull requests must treat a failed audit as blocking even though unrelated pull requests do not receive that status context.
-
-Named releases may impose a stronger release checklist than ordinary branch protection. In particular, `v0.2.0` required an explicit M8.6 canonical scientific regression run even though that path-filtered job was not globally required. The planned M9 `v0.3.0` release must likewise explicitly rerun the preserved M9.7 scientific regression benchmark as part of release verification rather than making its path-filtered context globally mandatory.
+Named releases may impose a stronger release checklist than ordinary branch protection. The release-tag workflow separately verifies the exact release candidate and its release-specific scientific/security dispositions before a missing SemVer tag can be created.
 
 ## Maintenance rule
 
