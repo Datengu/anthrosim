@@ -23,7 +23,7 @@ This is deliberately narrower than empirical demographic validation.
 
 PR #236 does not change the v7 demographic transition equations or human decision rules. It adds a downstream, version-bound analysis surface.
 
-The report reconstructs each annual M2 opportunity funnel from:
+The report reconstructs each completed annual M2 opportunity funnel from:
 
 - day-zero Population;
 - immutable experiment configuration;
@@ -32,6 +32,8 @@ The report reconstructs each annual M2 opportunity funnel from:
 - the independently seeded `demography/fertility` RNG stream.
 
 It fails closed if the model-semantics identity does not match the analysis implementation or if replay cannot reconcile with final state.
+
+A run can terminate on a non-annual M3 resource boundary. Such a terminal partial year is not treated as fractional M2 exposure: the report counts only completed M2 boundaries, then replays the remaining authoritative non-M2 events through the exact terminal day for final-state reconciliation.
 
 Because this is observability rather than a causal-model change, `MODEL_SEMANTICS_ID` remains v7. ODD+D was reviewed and requires no semantic change in this slice. ODD/scientific documentation only needs to describe the new observation/verification pathway.
 
@@ -86,6 +88,7 @@ Acceptance tests added/strengthened in the same slice cover:
 - equivalent non-annual relocation where elapsed destination residence legitimately changes parentage locality;
 - 100% M2 mortality + 100% fertility, demonstrating that no dead female reaches the conditional fertility stage;
 - ordinary synthetic-run replay and explicit `1278 -> 1460` spacing observability;
+- forced M3 scarcity extinction before the first annual boundary, proving zero invented M2 exposure while terminal partial-year deaths still reconcile;
 - end-to-end CLI derivation followed by exact `--check` verification.
 
 Run-bundle integration is also part of this verification surface. `demography-observability.json` is a recognized optional bundle artifact; when present it is regenerated exactly before packing rather than trusted as an arbitrary sidecar. A tampered report is rejected.
@@ -126,7 +129,7 @@ Once PR #236 is fully green on its latest head and merged, its evidence is suffi
 - **#191** — annual birth-spacing quantization has one explicit executable meaning and requested/effective timing is machine-visible in ordinary run analysis; exact subannual 3.5-year execution is explicitly *not* claimed;
 - **#193** — same-instant M4 relocation cannot create/erase preceding-interval parentage locality, with annual and non-annual controls;
 - **#227** — mortality-first conditional-survival fertility is an explicit mathematical model contract and its opportunity consequences are observable/tested;
-- **#228** — versioned M2 fertility/mortality opportunity denominators and rejection pathways are available from preserved run artifacts;
+- **#228** — versioned M2 fertility/mortality opportunity denominators and rejection pathways are available from preserved run artifacts, including runs ending between annual boundaries;
 - **#237** — declared-founder day-zero state is reconstructed through the immutable founder definition in the completed-bundle pathway and has an end-to-end persisted-run regression.
 
 **#201 remains open.** Its direct newborn-condition reset was repaired earlier, but its acceptance scope includes downstream M3 scarcity/condition and M4-pressure interactions and therefore belongs to the next resource/condition causal cluster rather than being declared complete here.
