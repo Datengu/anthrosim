@@ -167,8 +167,8 @@ fn mixed_travel_and_resource_loss_remains_general_in_cause_attribution() {
 }
 
 fn run_full_support_migration_case(enabled: bool) -> (u64, CellId, u16) {
-    const ANNUAL_NEED: u64 = 100;
-    let current_need = fixed_annual_quantity_for_period(ANNUAL_NEED, 0, 4).unwrap();
+    const ANNUAL_NEED: u32 = 100;
+    let current_need = fixed_annual_quantity_for_period(u64::from(ANNUAL_NEED), 0, 4).unwrap();
     let (seed, world, resources) = (1_900_u64..2_000)
         .find_map(|seed| {
             let factory = RngFactory::new(seed);
@@ -181,7 +181,7 @@ fn run_full_support_migration_case(enabled: bool) -> (u64, CellId, u16) {
                 )
                 .unwrap();
             let resource_config = ResourceConfig::synthetic_validation_v1()
-                .with_annual_need_units_per_person(u32::try_from(ANNUAL_NEED).unwrap());
+                .with_annual_need_units_per_person(ANNUAL_NEED);
             let resources = ResourceSystem::initialize(&world, &resource_config).unwrap();
             (resources.cell_food_stock(CellId::new(1)).unwrap_or(0) >= current_need
                 && resources.cell_food_stock(CellId::new(2)).unwrap_or(0) >= current_need)
