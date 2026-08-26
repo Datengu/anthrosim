@@ -179,7 +179,7 @@ def load_arm(root: Path, arm: str) -> dict[str, Any]:
                         "terminalOccupiedCells": summary["terminalOccupiedCells"],
                         "births": summary["births"],
                         "deaths": summary["deaths"],
-                        "resourceScarcityDeaths": summary["resourceScarcityDeaths"],
+                        "conditionMortalityDeaths": summary["conditionMortalityDeaths"],
                         "migrationMoves": summary["migrationMoves"],
                         "migrationPeopleMoved": summary["migrationPeopleMoved"],
                     },
@@ -345,7 +345,7 @@ def aggregate(root: Path) -> dict[str, Any]:
         benchmark_class = "no_distinctive_spatial_structure"
 
     result: dict[str, Any] = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "benchmarkId": "m8_6_first_evidence_grounded_terrain_null_model_v1",
         "interpretationBoundary": (
             "Behavior of the declared AnthroSim terrain-only null model under the tested constraints; "
