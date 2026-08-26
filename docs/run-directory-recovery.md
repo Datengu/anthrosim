@@ -7,7 +7,7 @@ AnthroSim writes a complete run bundle into a sibling staging directory and only
 Before moving the existing run, AnthroSim creates a versioned sibling recovery marker that binds exactly one canonical target, one staging directory, and one backup directory. The replacement then proceeds as:
 
 1. write and validate the complete staged resumed bundle;
-2. write the recovery marker;
+2. atomically publish the recovery marker from a same-directory temporary file, flush the marker, and sync the containing directory where the platform supports it;
 3. rename the canonical target to the bound verified backup;
 4. rename the bound staging directory to the canonical target;
 5. remove the verified backup;
@@ -16,6 +16,8 @@ Before moving the existing run, AnthroSim creates a versioned sibling recovery m
 The stage and backup are siblings of the canonical run directory so the rename operations remain on the same filesystem.
 
 A staged bundle is **never** treated as canonical merely because it exists. Recovery does not promote an abandoned stage.
+
+The published recovery marker is authoritative transaction metadata. A temporary marker file is deliberately **not** authoritative until its atomic rename succeeds. If a crash leaves only an unpublished marker temp (and at most the one corresponding staged replacement) while the original canonical target is still present and no backup exists, `anthrosim-recover` may discard that pre-publication state. A malformed **published** marker still fails closed and is retained for inspection; recovery never guesses through published ambiguous metadata.
 
 ## Recovery command
 
