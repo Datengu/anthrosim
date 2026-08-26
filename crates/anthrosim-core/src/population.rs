@@ -616,6 +616,13 @@ impl Population {
     }
 
     pub fn validate(&self, world: &World) -> Result<(), PopulationValidationError> {
+        if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
+            return Err(PopulationValidationError::UnsupportedSchema {
+                found: self.schema_version,
+                supported: Self::CURRENT_SCHEMA_VERSION,
+            });
+        }
+
         let person_count = self.person_count();
         let lengths = [
             self.death_days.len(),
@@ -1046,6 +1053,8 @@ pub enum PopulationError {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PopulationValidationError {
+    #[error("population schema {found} is unsupported; supported schema is {supported}")]
+    UnsupportedSchema { found: u32, supported: u32 },
     #[error("population structure-of-arrays columns have different lengths")]
     ColumnLengthMismatch,
     #[error("population accounting overflowed")]
@@ -1223,6 +1232,28 @@ mod tests {
         assert_eq!(population.household_count(), 2_000);
         assert_eq!(population.occupancy.people.len(), 10_000);
         population.validate(&world).unwrap();
+    }
+
+    #[test]
+    fn deserialized_population_rejects_unsupported_schema_versions() {
+        let world = test_world(7);
+        let population =
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(7)).unwrap();
+        let baseline = serde_json::to_value(population).unwrap();
+
+        for found in [0, Population::CURRENT_SCHEMA_VERSION + 1] {
+            let mut value = baseline.clone();
+            value["schemaVersion"] = serde_json::json!(found);
+            let restored: Population = serde_json::from_value(value).unwrap();
+
+            assert_eq!(
+                restored.validate(&world),
+                Err(PopulationValidationError::UnsupportedSchema {
+                    found,
+                    supported: Population::CURRENT_SCHEMA_VERSION,
+                })
+            );
+        }
     }
 
     #[test]
