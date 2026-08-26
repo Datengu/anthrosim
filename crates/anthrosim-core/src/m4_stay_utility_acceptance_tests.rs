@@ -62,9 +62,6 @@ fn run_two_cell_case(
     let resources_config =
         ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
     let resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
-    let first_resource_boundary = resource_period_day_bounds(0, resources_config.periods_per_year)
-        .expect("synthetic resource schedule has a first period")
-        .1;
     let mut migration_config = MigrationConfig::synthetic_validation_v1();
     migration_config.enabled = true;
     migration_config.candidate_radius_cells = 1;
@@ -80,6 +77,10 @@ fn run_two_cell_case(
     migration_config.relocation_risk_per_cell_permille = relocation_risk_per_cell_permille;
     migration_config.travel_condition_cost_per_cell = 0;
     migration_config.max_recorded_decision_traces = 8;
+    let first_decision_boundary =
+        resource_period_day_bounds(0, migration_config.decision_periods_per_year)
+            .expect("synthetic migration schedule has a first decision interval")
+            .1;
 
     let mut migration =
         MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
@@ -93,8 +94,9 @@ fn run_two_cell_case(
                 resources: &resources,
                 migration: &migration_config,
                 annual_food_need: 0,
-                resource_periods_per_year: resources_config.periods_per_year,
-                day: first_resource_boundary,
+                decision_periods_per_year: migration_config.decision_periods_per_year,
+                decision_index_in_year: 0,
+                day: first_decision_boundary,
             },
             &mut rngs,
             &mut events,
