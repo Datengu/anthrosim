@@ -8,113 +8,135 @@
 
 ## Purpose
 
-This record documents the first coherent M3 repair slice after completion of the M2 hardening cluster. It addresses three linked findings:
+This record documents the first coherent M3 repair slice after completion of the M2 hardening cluster. It addresses:
 
 - **#180** — annual resource quantities and M4 demand did not share one periodization contract;
-- **#189** — seasonal regeneration sampled one endpoint per resource period, allowing phase and period resolution to alter annual potential yield unintentionally;
-- **#199** — zero-demand intervals treated `0 / 0` as full supply and therefore created free condition recovery.
+- **#189** — seasonal regeneration sampled one endpoint per resource period, allowing phase/resolution to alter annual potential unintentionally;
+- **#199** — zero-demand intervals treated `0 / 0` as full supply and created free condition recovery.
 
-The normative executable specification is [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md). The evidence/provenance boundary remains [`resources-v0.1.md`](resources-v0.1.md).
-
-This slice deliberately does not absorb the distinct remaining condition/timing/cause findings #204, #200, #208 or the downstream acceptance scope of #201.
+The normative executable specification is [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md). This slice deliberately does not absorb #204, #200, #208 or the downstream acceptance scope of #201.
 
 ## 1. Problem formulation
 
-The verification question is:
+Verification question:
 
-> Can every quantity stated per model year be mapped deterministically to the exact elapsed resource intervals, can M3 and M4 use the same current-period demand, can seasonality change timing without silently changing the unconstrained annual total, and can a zero-demand interval remain physiologically neutral?
+> Can annual quantities be mapped deterministically to exact elapsed resource intervals, can M3 and M4 use the same current-period demand, can seasonality redistribute production without silently changing unconstrained annual total, and can a zero-demand interval remain condition-neutral?
 
-This is a model-contract question. It does not ask whether the annual quantities or seasonal curve are empirically correct for any archaeological population.
+This is a model-contract question, not a claim that the annual quantities or seasonal curve are empirically correct.
 
 ## 2. Model description
 
-For `P = periodsPerYear`, v8 defines resource period `i` as:
+For `P = periodsPerYear`, v8 defines period `i` as:
 
-`[ floor(i * 365 / P), floor((i + 1) * 365 / P) )`.
+`[floor(i * 365 / P), floor((i + 1) * 365 / P))`.
 
-For a fixed annual integer quantity `Q`, cumulative allocation after `t` elapsed model days is:
+For fixed annual integer quantity `Q`, cumulative allocation after `t` elapsed days is:
 
-`C_Q(t) = floor(Q * t / 365)`.
+`C_Q(t) = floor(Q * t / 365)`
 
-The period allocation is therefore:
+and the period receives `C_Q(end) - C_Q(start)`.
 
-`C_Q(end) - C_Q(start)`.
+This conserves `Q` exactly across a complete year while respecting unequal integer-day periods. At four periods/year, intervals are 91, 91, 91 and 92 days; annual need `100` therefore executes as `24, 25, 25, 26`.
 
-This conserves the complete annual quantity exactly while respecting the scheduler's unequal integer-day period lengths. With four periods, the model intervals are 91, 91, 91 and 92 days; annual need `100` executes as `24, 25, 25, 26`.
+M4 obtains the same current-period demand share used by M3. A direct M4 invocation on a non-resource boundary fails closed instead of inventing a period demand.
 
-M4 no longer derives an independent `ceil(annual / periods)` demand approximation. At a legitimate resource boundary it obtains the exact same per-person period share used by M3. A non-resource boundary fails closed rather than guessing a demand period.
+Seasonal regeneration integrates the existing triangular synthetic weighting curve over every integer day of the exact interval and normalizes against its complete-year weight. Phase changes within-year timing, not unconstrained annual potential. Zero amplitude reduces exactly to fixed elapsed-day allocation.
 
-Seasonal regeneration uses the existing synthetic triangular factor as a **within-year weighting curve**. The daily weights are integrated over each exact half-open interval and normalized by the complete-year weight, so seasonal phase changes timing but not unconstrained annual potential. Zero seasonal amplitude reduces exactly to the fixed elapsed-day allocation.
-
-A household with executable need `0` in an interval receives no condition update from provisioning: zero demand is neutral rather than interpreted as full supply.
+When executable need is zero, provisioning causes no condition update. Zero demand is not interpreted as positive full-supply recovery.
 
 ## 3. Data evaluation
 
-No new empirical data are introduced. No parameter is calibrated or retuned.
-
-The default resource configuration remains `synthetic_validation_v1`; its productivity, annual need, regeneration, seasonality, condition and mortality quantities remain abstract synthetic mechanism-testing values.
-
-This repair changes how those already-declared annual quantities are executed in model time. It does not make them more empirically valid.
+No new empirical data are introduced and no parameter is calibrated or retuned. `synthetic_validation_v1` remains synthetic; resource quantities and condition responses remain abstract mechanism-testing controls.
 
 ## 4. Conceptual-model evaluation
 
-The repair removes three bookkeeping artefacts from the causal graph:
+The repair removes four hidden bookkeeping effects:
 
-1. annual need no longer changes meaning because of unrelated integer division conventions;
-2. M4 resource utility no longer evaluates a different demand quantity from the M3 process that just settled that interval;
-3. seasonal phase/resolution no longer acts as an undeclared multiplier on unconstrained annual regeneration potential.
+1. repeated integer flooring no longer changes a fixed annual quantity merely because the year is partitioned differently;
+2. M3 and M4 no longer reason about different current-period demand;
+3. seasonal phase/resolution no longer acts as an undeclared annual-yield multiplier;
+4. a zero-demand integer share no longer becomes an accidental positive physiological intervention.
 
-It also prevents zero-demand integer shares from becoming an accidental positive physiological intervention.
+Remaining limitations stay explicit:
 
-The remaining causal limitations are intentionally visible:
-
-- **#204:** condition recovery/loss and scarcity-mortality draws remain per resource period/boundary, so changing `periodsPerYear` can still change annual physiological and mortality opportunity counts;
-- **#200:** shared condition still mixes resource and M4 travel damage before a later broad `ResourceScarcity` death attribution;
+- **#204:** condition recovery/loss, scarcity-mortality draws and M4 opportunities remain boundary-frequency dependent;
+- **#200:** shared condition can still mix deprivation and M4 travel damage before broad scarcity attribution;
 - **#208:** coincident M3/M2 mortality remains sequential competing-risk scheduling;
-- **#201:** newborn-condition repair still needs downstream M3/M4 interaction acceptance before closure.
+- **#201:** newborn-condition repair still needs downstream M3/M4 interaction acceptance.
 
 ## 5. Implementation verification
 
-The implementation provides one shared resource-period allocation layer used by M3 and M4.
+Verification added or strengthened includes:
 
-Predeclared verification includes:
+- exact period boundaries for `P = 1, 3, 4, 5, 12, 365`;
+- annual conservation for zero, one, non-divisible and larger integer quantities;
+- explicit `100 -> 24,25,25,26` at four periods;
+- M3 period-index demand == M4 boundary-day demand at every legitimate boundary;
+- rejection of non-resource M4 boundary demand lookup;
+- integrated seasonal annual potential invariant across tested phase/resolution combinations;
+- phase changing within-year timing when amplitude is non-zero;
+- zero amplitude exactly reproducing fixed allocation;
+- zero-demand intervals preserving reduced condition;
+- existing positive-demand resource/scarcity directionality;
+- checkpoint/resume, cross-platform determinism and downstream regression suites.
 
-- exact period boundaries and annual conservation for `P = 1, 3, 4, 5, 12, 365`;
-- annual quantities including `0`, `1`, non-divisible values and larger values;
-- the explicit four-period `100 -> 24,25,25,26` contract;
-- boundary-day lookup matching period-index allocation and rejecting non-boundaries;
-- zero-amplitude seasonal allocation matching fixed elapsed-day allocation exactly;
-- integrated seasonal annual potential summing to the same annual quantity across tested phases and period resolutions;
-- non-zero amplitude/phase changing within-year allocation timing;
-- zero-demand intervals preserving reduced condition rather than healing it;
-- existing positive-demand scarcity and resource-accounting directionality tests;
-- full deterministic/checkpoint/reference workflow review under the new semantics identity.
+### Acceptance-fixture correction discovered by v8
 
-The seasonal prefix table is deterministic derived state only. It is precomputed from model constants to avoid a 365-day per-cell inner loop and does not introduce fitted or hidden causal state.
+Six existing direct-M4 acceptance tests used `day = 1` as a shortcut even though day 1 is not a configured resource boundary. v8 correctly rejected them because M4's resource cue is now defined by the M3 interval settled on the same boundary. The tests were corrected to obtain the real first resource boundary from the authoritative scheduler helper. Their causal assertions were not weakened.
 
-## 6. Model-output verification
+### Focused diff review correction
 
-Because this is an authoritative semantics change, exact v7 synthetic output references are not assumed to remain valid.
+A full-file edit used for the semantics bump temporarily included an unrelated rewrite of resume-lineage validation. A focused PR diff review caught this before merge. `provenance.rs` was restored to the current-main implementation with only the intended `MODEL_SEMANTICS_ID` change from v7 to v8. No unrelated resume semantics are part of this repair.
 
-The review rule is:
+The seasonal prefix table is deterministic derived state only; it avoids a 365-day per-cell inner loop and adds no fitted causal state.
 
-1. run the existing frozen references under v8;
-2. inspect every mismatch;
-3. determine whether it follows mechanistically from the declared resource-time change;
-4. regenerate a reference only when the changed output is understood and expected; and
-5. record the regeneration rather than tuning v8 behavior back toward v7 output.
+## 6. Model-output verification and frozen-reference review
 
-Cross-platform equality and checkpoint/resume equivalence remain required within v8.
+All reference changes were generated from one tested branch head:
 
-No empirical resource-output target or tolerance is introduced here, so empirical TRACE model-output validation remains unestablished.
+`7e13d5ee82db0c65d5ac52e4e5501c812fc968b0`
+
+with merge-ref build identity:
+
+`bdee1f2831d8c18a9798acc5756cc10d21df1d04`.
+
+No model parameter or experiment definition was changed to recover old outputs.
+
+### M7.6 resource variability
+
+- workflow run: `32917412267`;
+- artifact: `9588771705`;
+- artifact SHA-256: `cb543afc3fa2abd3e945eaab8fb559cce0980294978bd4a693c03b5f9d92a072`;
+- all **144/144** runs completed;
+- source-definition SHA-256 remained `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`.
+
+Both migration-enabled and migration-disabled arms change under v8 because M3 itself changed. The qualitative experiment structure remains: productivity-250 migration-disabled runs all become extinct; productivity magnitude strongly changes resource stress; migration remains strongly associated with persistence in the synthetic design; seasonal effects remain smaller/non-monotonic. The reference was deliberately regenerated from the observed v8 table.
+
+### M8.6 terrain null model
+
+- workflow run: `32917412247`;
+- artifact: `9588696469`;
+- artifact SHA-256: `7beb866c91f36be7c26b2195e2b07a5910e0cb563d2da4ea690522d908255f8b`;
+- aggregate canonical SHA-256: `61f7965f875ba212778f6911261334c39cb9a340bd4717317441526fc80be811`.
+
+All 32 runs completed and no arm was degenerate. The overall predeclared classification remains `fragile_spatial_structure`. Under v8 there are no robust primary metrics; `terminalLargestCellSharePermille` remains fragile and the other three primary metrics are not distinctive. Exact paired effects change materially, which is expected because corrected M3 timing changes resource exposure and M4 decisions throughout the trajectory.
+
+### M9.7 controlled aggregation
+
+- workflow run: `32917412358`;
+- artifact: `9588720942`;
+- artifact SHA-256: `1d0616edcd8c36c3c3c214ddd2efa0fa6d8f0133d14e65b128c3bb9544b86696`;
+- aggregate canonical SHA-256: `30a9bc5e19c47f90290a3aab204ef18ab5b9754b0233d086f92e47aad678ba76`.
+
+All **8/8** paired criteria still pass. The headline paired capability metrics are exactly unchanged: median focal-person-day difference `31` permille, maximum `36`; median intermittent peak visitor share `426` permille, minimum `387`. Duplicate replay and active checkpoint/resume are exact. State/provenance identities change with v8, but the predeclared capability distinction does not.
+
+This combination is useful verification evidence: v8 changes downstream results where the resource clock is causal, while a controlled M9 capability comparison can remain numerically invariant when both arms share the corrected clock and the tested result is not resource-limited.
 
 ## 7. Model analysis
 
-The repair improves interpretability of future sensitivity work because `periodsPerYear` no longer simultaneously changes the annual demand total through one rounding rule and M4's resource expectation through another.
+The repair makes future resource sensitivity easier to interpret because periodization no longer mixes several incompatible annual-quantity conventions. However, `periodsPerYear` is still not a pure numerical-resolution parameter because #204 remains. A period-resolution study performed now would still mix temporal opportunity frequency with numerical resolution.
 
-However, `periodsPerYear` is still not yet a clean numerical-resolution parameter because #204 remains: per-period condition and mortality/decision opportunities can still change outcomes. Therefore a period-resolution sensitivity experiment performed immediately after this slice would still mix numerical and substantive mechanisms.
-
-Closing #180/#189/#199 must not be interpreted as closing temporal-resolution sensitivity for M3 as a whole.
+Closing #180/#189/#199 therefore does not close M3 temporal-resolution sensitivity as a whole.
 
 ## 8. Corroboration
 
@@ -122,27 +144,21 @@ None. No archaeological, palaeoecological, ethnographic or physiological corrobo
 
 ## Issue-level closure interpretation
 
-If PR #238 passes its final exact-head acceptance suite and the reference differences are reviewed, the evidence in this change is intended to close:
+After the final exact-head suite reproduces the checked-in v8 references, this change is intended to close:
 
-- **#180** — fixed annual quantities conserve under one scheduler-aligned contract and M4 uses the same period demand as M3;
-- **#189** — seasonal regeneration is integrated over the actual interval and normalized to preserve unconstrained annual potential across phase/resolution;
-- **#199** — zero-demand intervals are condition-neutral and regression tested.
+- **#180** — annual quantities conserve under one scheduler-aligned contract and M4 uses M3's same current-period demand;
+- **#189** — seasonal regeneration is integrated over actual periods and preserves unconstrained annual potential across phase/resolution;
+- **#199** — zero-demand intervals are explicitly condition-neutral.
 
-The following remain open after this slice:
+Still open:
 
-- **#204** — resource-period frequency still multiplies physiological/mortality/M4 opportunity clocks;
-- **#200** — resource versus travel contributions to shared condition/death attribution;
+- **#204** — resource-period frequency and physiological/mortality/M4 opportunity clocks;
+- **#200** — resource versus travel contributions to condition/death attribution;
 - **#208** — coincident M3/M2 mortality attribution;
-- **#201** — downstream newborn-condition/resource/migration interaction acceptance.
+- **#201** — downstream newborn-condition/resource/migration acceptance.
 
-## Compatibility and reproducibility
+## Compatibility and scientific boundary
 
-The repair can change resource stock, unmet need, condition, scarcity death and M4 relocation trajectories. It is therefore **not** semantics-neutral.
+This repair intentionally changes resource stock, unmet need, condition, scarcity-death and M4 trajectories. `MODEL_SEMANTICS_ID` therefore changes from v7 to v8; v7 checkpoints must not be resumed as if they were v8 trajectories.
 
-`MODEL_SEMANTICS_ID` changes from v7 to v8. v7 checkpoints must not be resumed as if they were v8 trajectories. Package version remains unchanged in this development slice because package/release numbering is governed separately.
-
-## Scientific boundary
-
-A fully green v8 verification suite would establish that the simulator executes this resource-time contract consistently and reproducibly.
-
-It would not establish that synthetic resource units represent calories, biomass or palaeoproductivity; that the triangular seasonality function is ecologically realistic; that condition is a valid physiological proxy; or that resulting simulated population/mobility patterns are empirically correct. Those remain subject to evidence provenance, uncertainty/sensitivity analysis, independent validation targets and corroboration under TRACE.
+A green v8 suite verifies consistent execution of this contract. It does **not** establish that resource units are calories/biomass/palaeoproductivity, that the triangular seasonal function is ecologically realistic, that condition is a valid human physiological proxy, or that simulated archaeological outcomes are empirically correct.
