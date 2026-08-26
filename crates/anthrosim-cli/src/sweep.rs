@@ -9,7 +9,7 @@ use crate::{
 };
 
 const SWEEP_MANIFEST_SCHEMA_VERSION: u32 = 2;
-const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 2;
+const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 3;
 const MAX_SWEEP_POINTS: usize = 100_000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,6 +106,7 @@ struct DerivedRunRow {
     mean_living_condition_permille: Option<u16>,
     authoritative_event_count: Option<u64>,
     final_living_occupied_cell_count: Option<u64>,
+    #[serde(rename = "conditionMortalityDeaths")]
     resource_scarcity_deaths: Option<u64>,
     resource_unmet_need: Option<u64>,
     migration_moves_completed: Option<u64>,
@@ -138,6 +139,7 @@ struct DerivedPointRow {
     mean_births_since_start_completed_only: Option<f64>,
     mean_deaths_since_start_completed_only: Option<f64>,
     mean_living_condition_permille_completed_only: Option<f64>,
+    #[serde(rename = "meanConditionMortalityDeathsCompletedOnly")]
     mean_resource_scarcity_deaths_completed_only: Option<f64>,
     mean_resource_unmet_need_completed_only: Option<f64>,
     mean_migration_moves_completed_only: Option<f64>,
@@ -198,7 +200,7 @@ pub(crate) fn execute_sweep(
 
     if unsuccessful_points > 0 {
         return Err(io::Error::other(format!(
-            "sweep finished with {unsuccessful_points} point(s) containing unsuccessful runs; derived analysis explicitly records their non-completed states and the exact sweep can be retried with --retry"
+            "sweep finished with {unsuccessful_points} point(s) containing unsuccessful runs; inspect status/*.json and retry the exact experiment with --retry"
         ))
         .into());
     }
@@ -759,7 +761,7 @@ fn mean_u64(values: impl Iterator<Item = u64>) -> Option<f64> {
 
 fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,resource_scarcity_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells\n",
+        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,condition_mortality_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -802,7 +804,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,mean_final_living_population_completed_only,mean_final_living_occupied_cell_count_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,mean_living_condition_permille_completed_only,mean_resource_scarcity_deaths_completed_only,mean_resource_unmet_need_completed_only,mean_migration_moves_completed_only,mean_migration_total_distance_cells_completed_only,pooled_mean_migration_distance_cells_per_move_completed_only,source_completed_run_ids\n",
+        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,mean_final_living_population_completed_only,mean_final_living_occupied_cell_count_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,mean_living_condition_permille_completed_only,mean_condition_mortality_deaths_completed_only,mean_resource_unmet_need_completed_only,mean_migration_moves_completed_only,mean_migration_total_distance_cells_completed_only,pooled_mean_migration_distance_cells_per_move_completed_only,source_completed_run_ids\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -1142,6 +1144,45 @@ mod tests {
                 .iter()
                 .all(|row| row.source_completed_run_ids.len() == 2)
         );
+
+        let runs_json: serde_json::Value =
+            read_json(&root.join("analysis/runs.json")).expect("runs json");
+        assert!(
+            runs_json
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|row| row.get("conditionMortalityDeaths").is_some())
+        );
+        assert!(
+            runs_json
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|row| row.get("resourceScarcityDeaths").is_none())
+        );
+        let points_json: serde_json::Value =
+            read_json(&root.join("analysis/points.json")).expect("points json");
+        assert!(
+            points_json.as_array().unwrap().iter().all(|row| row
+                .get("meanConditionMortalityDeathsCompletedOnly")
+                .is_some())
+        );
+        assert!(
+            points_json
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|row| row.get("meanResourceScarcityDeathsCompletedOnly").is_none())
+        );
+
+        let runs_csv = fs::read_to_string(root.join("analysis/runs.csv")).expect("runs csv");
+        assert!(runs_csv.contains("condition_mortality_deaths"));
+        assert!(!runs_csv.contains("resource_scarcity_deaths"));
+        let points_csv = fs::read_to_string(root.join("analysis/points.csv")).expect("points csv");
+        assert!(points_csv.contains("mean_condition_mortality_deaths_completed_only"));
+        assert!(!points_csv.contains("mean_resource_scarcity_deaths_completed_only"));
+
         assert!(root.join("analysis/runs.csv").is_file());
         assert!(root.join("analysis/points.csv").is_file());
         fs::remove_dir_all(root).expect("cleanup");
