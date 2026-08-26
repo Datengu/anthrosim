@@ -55,6 +55,39 @@ fn synthetic_run_replays_exact_opportunity_funnel_and_spacing_semantics() {
 }
 
 #[test]
+fn partial_year_resource_extinction_replays_without_inventing_m2_exposure() {
+    let mut resources = ResourceConfig::synthetic_validation_v1();
+    resources.productivity_scale_permille = 0;
+    resources.annual_need_units_per_person = u32::MAX;
+    resources.max_condition_loss_per_period = 1_000;
+    resources.max_scarcity_mortality_probability_per_million = 1_000_000;
+    let config = ExperimentConfig::new(91_338, 1)
+        .with_world(WorldConfig::new(1, 1))
+        .with_population(PopulationConfig::new(4).with_max_person_records(100))
+        .with_resources(resources)
+        .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
+
+    let simulation = Simulation::new(config).expect("fixture should initialize");
+    let initial_population = simulation.population().clone();
+    let recorded = simulation
+        .run_recorded()
+        .expect("resource-extinction fixture should terminate cleanly");
+
+    assert!(recorded.checkpoint.time.days() < DAYS_PER_YEAR);
+    assert!(!recorded.checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR));
+    assert_eq!(recorded.checkpoint.population.living_count(), 0);
+
+    let report = derive_demography_observability(&initial_population, &recorded.checkpoint)
+        .expect("partial-year terminal events should replay exactly");
+    assert_eq!(report.simulated_days, recorded.checkpoint.time.days());
+    assert_eq!(report.annual_boundaries_observed, 0);
+    assert_eq!(report.summary.mortality_exposures, 0);
+    assert_eq!(report.summary.demographic_deaths, 0);
+    assert_eq!(report.summary.fertility_draws_attempted, 0);
+    assert_eq!(report.summary.final_living_population, 0);
+}
+
+#[test]
 fn total_mortality_removes_fertility_stage_exposure_under_declared_contract() {
     let household = HouseholdId::new(1);
     let founders = FounderPopulationDefinition::new(
