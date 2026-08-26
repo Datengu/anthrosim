@@ -11,8 +11,8 @@ use anthrosim_core::{
     LandscapeRecordedRun, LandscapeRunManifest, MetricSeries, Population, PopulationInitialization,
     RecordedRun, RunManifest, SimulationCheckpoint, SpatialLandscapeCheckpoint,
     SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest, SpatialMechanismBinding,
-    SpatialMechanismConfig, SpatialObservabilityReport, TemporaryMobilityObservabilityReport, World,
-    derive_demography_observability, derive_spatial_observability,
+    SpatialMechanismConfig, SpatialObservabilityReport, TemporaryMobilityObservabilityReport,
+    World, derive_demography_observability, derive_spatial_observability,
     derive_temporary_mobility_observability, rng::RngFactory,
     validate_landscape_recorded_run_invariants, validate_recorded_run_invariants,
     validate_spatial_landscape_recorded_run,
@@ -415,11 +415,12 @@ fn validate_optional_demography_observability(
         return Ok(());
     }
     let report: DemographyObservabilityReport = read_json(&path)?;
-    let regenerated = derive_demography_observability(initial_population, checkpoint).map_err(|error| {
-        invalid(format!(
-            "demography-observability.json could not be regenerated: {error}"
-        ))
-    })?;
+    let regenerated =
+        derive_demography_observability(initial_population, checkpoint).map_err(|error| {
+            invalid(format!(
+                "demography-observability.json could not be regenerated: {error}"
+            ))
+        })?;
     if regenerated != report {
         return Err(invalid(
             "demography-observability.json does not match deterministic regeneration",
@@ -615,7 +616,8 @@ mod tests {
         let initial_population: Population =
             read_json(&root.join("initial-population.json")).unwrap();
         let mut report = derive_demography_observability(&initial_population, &checkpoint).unwrap();
-        report.summary.age_schedule_eligible = report.summary.age_schedule_eligible.saturating_add(1);
+        report.summary.age_schedule_eligible =
+            report.summary.age_schedule_eligible.saturating_add(1);
         write_json(&root.join("demography-observability.json"), &report);
 
         let error = validated_bundle_files(&root).unwrap_err().to_string();
