@@ -1,6 +1,6 @@
 use std::{
     fs, io,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::ExitCode,
 };
 
@@ -379,6 +379,19 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             world_output,
             population_output,
         } => {
+            validate_auxiliary_output_paths(
+                run_dir.as_deref(),
+                [
+                    ("output", output.as_deref()),
+                    ("world-output", world_output.as_deref()),
+                    ("population-output", population_output.as_deref()),
+                ],
+            )?;
+            let run_transaction = run_dir
+                .as_deref()
+                .map(RunDirectoryTransaction::fresh)
+                .transpose()?;
+
             let temporary_mobility = temporary_mobility
                 .as_deref()
                 .map(load_temporary_mobility_config)
@@ -430,8 +443,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if let Some(target_year) = checkpoint_year {
-                let directory = run_dir.expect("clap requires run-dir with checkpoint-year");
-                let transaction = RunDirectoryTransaction::fresh(&directory)?;
+                let directory = run_dir
+                    .as_ref()
+                    .expect("clap requires run-dir with checkpoint-year");
+                let transaction =
+                    run_transaction.expect("run-dir validation prepares a transaction");
                 let staging = transaction.staging_dir();
                 write_json(&staging.join("world.json"), simulation.world())?;
                 write_json(
@@ -449,7 +465,8 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if let Some(directory) = run_dir {
-                let transaction = RunDirectoryTransaction::fresh(&directory)?;
+                let transaction =
+                    run_transaction.expect("run-dir validation prepares a transaction");
                 let world = simulation.world().clone();
                 let initial_population = simulation.population().clone();
                 let recorded = simulation.run_recorded()?;
@@ -603,6 +620,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             run_dir,
             output,
         } => {
+            validate_auxiliary_output_paths(Some(&run_dir), [("output", output.as_deref())])?;
             let checkpoint_path = checkpoint;
             let checkpoint: SimulationCheckpoint = read_json(&checkpoint_path)?;
             let simulation = Simulation::from_checkpoint(checkpoint.clone())?;
@@ -634,6 +652,103 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn validate_auxiliary_output_paths<const N: usize>(
+    run_dir: Option<&Path>,
+    outputs: [(&str, Option<&Path>); N],
+) -> io::Result<()> {
+    let resolved_run_dir = run_dir.map(resolve_path_for_comparison).transpose()?;
+    let mut resolved_outputs: Vec<(&str, PathBuf)> = Vec::new();
+
+    for (name, path) in outputs {
+        let Some(path) = path else {
+            continue;
+        };
+        let resolved = resolve_path_for_comparison(path)?;
+        if resolved_run_dir
+            .as_ref()
+            .is_some_and(|run_dir| resolved.starts_with(run_dir))
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "--{name} path {} resolves inside controlled run directory {}; auxiliary outputs may not modify run-bundle contents",
+                    path.display(),
+                    run_dir
+                        .expect("resolved run directory has an original path")
+                        .display()
+                ),
+            ));
+        }
+        if let Some((other_name, _)) = resolved_outputs
+            .iter()
+            .find(|(_, other)| *other == resolved)
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "--{name} path {} aliases --{other_name}; auxiliary outputs must resolve to distinct files",
+                    path.display()
+                ),
+            ));
+        }
+        resolved_outputs.push((name, resolved));
+    }
+    Ok(())
+}
+
+fn resolve_path_for_comparison(path: &Path) -> io::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_owned()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let mut candidate = absolute.as_path();
+    let mut suffix = Vec::new();
+
+    loop {
+        match fs::canonicalize(candidate) {
+            Ok(mut resolved) => {
+                for component in suffix.iter().rev() {
+                    resolved.push(component);
+                }
+                return Ok(normalize_lexically(&resolved));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                let component = candidate.file_name().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("cannot resolve path for comparison: {}", path.display()),
+                    )
+                })?;
+                suffix.push(component.to_os_string());
+                candidate = candidate.parent().ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("cannot resolve path parent: {}", path.display()),
+                    )
+                })?;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn normalize_lexically(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            Component::RootDir => normalized.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::Normal(value) => normalized.push(value),
+        }
+    }
+    normalized
 }
 
 fn prepare_core_resume_transaction(
