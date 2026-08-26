@@ -6,6 +6,7 @@
 pub mod checkpoint;
 pub mod config;
 pub mod demography;
+pub mod demography_observability;
 pub mod events;
 pub mod evidence;
 pub mod focal_region;
@@ -39,7 +40,11 @@ pub mod time;
 pub mod world;
 
 #[cfg(test)]
+mod demography_observability_tests;
+#[cfg(test)]
 mod founder_initialization_acceptance_tests;
+#[cfg(test)]
+mod m2_demographic_acceptance_tests;
 #[cfg(test)]
 mod m4_stay_utility_acceptance_tests;
 #[cfg(test)]
@@ -51,7 +56,14 @@ pub use config::{
     PopulationConfig, PopulationInitialization, ResourceConfig, WorldConfig,
 };
 pub use demography::{
-    DemographyConfigError, annual_probability_for_age, validate_demography_config,
+    DemographyConfigError, annual_probability_for_age, effective_birth_spacing_days,
+    validate_demography_config,
+};
+pub use demography_observability::{
+    CompletedFertilityObservability, DemographicFertilityBandObservability,
+    DemographicMortalityBandObservability, DemographyObservabilityError,
+    DemographyObservabilityReport, DemographyObservabilitySummary, InterbirthIntervalObservability,
+    derive_demography_observability,
 };
 pub use events::{
     DeathCause, EventKind, EventLog, EventProvenance, EventRecord, TemporaryJourneyIneligibility,

@@ -11,8 +11,12 @@ Start here:
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence provenance and transformation contract.
-- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — authoritative annual M2 demographic-time semantics introduced by the post-M9 scientific-hardening repair programme; defines interval age, competing mortality/fertility, executable birth spacing, same-day M4 parentage locality, newborn condition, and the still-open founder/observability work.
-- [`trace-m2-demographic-time-repair-2026-08-25.md`](trace-m2-demographic-time-repair-2026-08-25.md) — TRACE change record for the first M2 repair slice, including verification evidence, invalidated synthetic references and remaining gates.
+- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — authoritative annual M2 demographic-time semantics introduced by the post-M9 scientific-hardening repair programme; defines interval age, competing mortality/fertility, executable birth spacing, same-day M4 parentage locality, newborn condition and founder-history semantics.
+- [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) — explicit synthetic-versus-declared founder-state contract, including signed pre-run reproductive timing and living direct-parent links.
+- [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md) — versioned derived M2 validation/diagnostic surface for mortality exposures, fertility opportunity denominators, requested-versus-executable spacing, interbirth intervals and explicitly censored completed fertility.
+- [`trace-m2-demographic-time-repair-2026-08-25.md`](trace-m2-demographic-time-repair-2026-08-25.md) — TRACE change record for the first M2 transition-semantics repair, including verification evidence and deliberate reference regeneration after the semantics change.
+- [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md) — TRACE record for explicit provenance-bearing founder reproductive/genealogical state.
+- [`trace-m2-demography-observability-2026-08-26.md`](trace-m2-demography-observability-2026-08-26.md) — TRACE record for run-facing M2 opportunity diagnostics and the #179/#191/#193/#227/#228 acceptance closure surface.
 
 ## TRACE audit records
 
@@ -26,9 +30,9 @@ Start here:
 - [`trace-audit-2026-08-25-pass-8.md`](trace-audit-2026-08-25-pass-8.md) — writer→reader causal-graph audit across condition, residence, resources, temporary presence, genealogy and world fields; no new P1 discovered.
 - [`trace-audit-2026-08-25-pass-9.md`](trace-audit-2026-08-25-pass-9.md) — symmetry, relabelling and arbitrary-bookkeeping audit; no new P1 discovered and current audit-first discovery phase judged converged.
 
-The current discovery sequence has now produced multiple genuinely different clean P1-discovery passes. This is a stopping signal for **finding new foundational defects on the current code**, not a claim that verification is complete. The known blocking P1 backlog must now be repaired by causal cluster, after which the relevant adversarial audit families must be repeated on the corrected implementation.
+The current discovery sequence has now produced multiple genuinely different clean P1-discovery passes. This is a stopping signal for **finding new foundational defects on the audited baseline**, not a claim that verification is complete. Known blocking findings are being repaired by causal cluster; after those repairs, the relevant adversarial audit families must be repeated on the corrected implementation.
 
-The M2 repair programme begins from [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md). The first implementation slice changes authoritative model semantics and therefore invalidates exact synthetic-output references generated under the previous semantics; affected M7/M8/M9 references must be deliberately regenerated, reviewed, and preserved under the new model-semantics identity rather than tuned back to the old outputs. This is verification/reference maintenance, not empirical calibration.
+The M2 repair programme begins from [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved rather than tuned back to old outputs. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
 
 Module- and milestone-specific documents in this directory provide the detailed evidence, contracts, assumptions and benchmark records referenced by those standards documents.
 
