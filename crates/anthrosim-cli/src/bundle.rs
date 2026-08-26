@@ -89,14 +89,11 @@ pub(crate) fn validated_bundle_files(
     let mut population_names = Vec::new();
     for name in POPULATION_JSON {
         let path = run_dir.join(name);
-        match artifact_fs::regular_file_exists(&path, "bundle artifact")
+        if artifact_fs::regular_file_exists(&path, "bundle artifact")
             .map_err(|error| invalid(error.to_string()))?
         {
-            true => {
-                names.push((*name).to_owned());
-                population_names.push(*name);
-            }
-            false => {}
+            names.push((*name).to_owned());
+            population_names.push(*name);
         }
     }
     if population_names.is_empty() {
