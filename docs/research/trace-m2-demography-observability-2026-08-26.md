@@ -88,6 +88,10 @@ Acceptance tests added/strengthened in the same slice cover:
 - ordinary synthetic-run replay and explicit `1278 -> 1460` spacing observability;
 - end-to-end CLI derivation followed by exact `--check` verification.
 
+Run-bundle integration is also part of this verification surface. `demography-observability.json` is a recognized optional bundle artifact; when present it is regenerated exactly before packing rather than trusted as an arbitrary sidecar. A tampered report is rejected.
+
+During that integration review, #237 was discovered: completed-bundle founder reconstruction always used the synthetic initializer, which made a valid `declared_founder_state_v1` experiment fail the normal persisted run-directory validation path. PR #236 repairs reconstruction to dispatch by the experiment's initialization mode and requires the exact embedded declared-founder definition. An end-to-end declared-founder `--run-dir` regression now exercises the research-facing persistence path.
+
 These tests are implementation/model-contract verification, not evidence that the demographic assumptions are empirically correct.
 
 ## 6. Model-output verification
@@ -122,13 +126,14 @@ Once PR #236 is fully green on its latest head and merged, its evidence is suffi
 - **#191** — annual birth-spacing quantization has one explicit executable meaning and requested/effective timing is machine-visible in ordinary run analysis; exact subannual 3.5-year execution is explicitly *not* claimed;
 - **#193** — same-instant M4 relocation cannot create/erase preceding-interval parentage locality, with annual and non-annual controls;
 - **#227** — mortality-first conditional-survival fertility is an explicit mathematical model contract and its opportunity consequences are observable/tested;
-- **#228** — versioned M2 fertility/mortality opportunity denominators and rejection pathways are available from preserved run artifacts.
+- **#228** — versioned M2 fertility/mortality opportunity denominators and rejection pathways are available from preserved run artifacts;
+- **#237** — declared-founder day-zero state is reconstructed through the immutable founder definition in the completed-bundle pathway and has an end-to-end persisted-run regression.
 
 **#201 remains open.** Its direct newborn-condition reset was repaired earlier, but its acceptance scope includes downstream M3 scarcity/condition and M4-pressure interactions and therefore belongs to the next resource/condition causal cluster rather than being declared complete here.
 
 ## Compatibility and references
 
-This PR is intentionally semantics-neutral relative to v7. It adds downstream analysis and tests; it must not change authoritative event/state trajectories. Consequently:
+This PR is intentionally semantics-neutral relative to v7. It adds downstream analysis, bundle validation and tests; it must not change authoritative event/state trajectories. Consequently:
 
 - no model-semantics bump is appropriate;
 - M7/M8/M9 exact references should remain unchanged;
