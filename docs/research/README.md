@@ -17,6 +17,9 @@ Start here:
 - [`trace-m2-demographic-time-repair-2026-08-25.md`](trace-m2-demographic-time-repair-2026-08-25.md) — TRACE change record for the first M2 transition-semantics repair, including verification evidence and deliberate reference regeneration after the semantics change.
 - [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md) — TRACE record for explicit provenance-bearing founder reproductive/genealogical state.
 - [`trace-m2-demography-observability-2026-08-26.md`](trace-m2-demography-observability-2026-08-26.md) — TRACE record for run-facing M2 opportunity diagnostics and the #179/#191/#193/#227/#228 acceptance closure surface.
+- [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md) — authoritative v8 M3 resource-period contract: exact half-open resource intervals, annual-quantity conservation, mean-preserving seasonal redistribution, M3/M4 demand alignment and zero-demand condition neutrality.
+- [`resources-v0.1.md`](resources-v0.1.md) — M3 synthetic resource-model assumptions, units and empirical-evidence boundary, synchronized to the v8 timing contract.
+- [`trace-m3-resource-time-accounting-2026-08-26.md`](trace-m3-resource-time-accounting-2026-08-26.md) — TRACE change record for the #180/#189/#199 resource-time repair and the deliberately unresolved #204/#200/#208/#201 condition/timing boundaries.
 
 ## TRACE audit records
 
@@ -32,7 +35,7 @@ Start here:
 
 The current discovery sequence has now produced multiple genuinely different clean P1-discovery passes. This is a stopping signal for **finding new foundational defects on the audited baseline**, not a claim that verification is complete. Known blocking findings are being repaired by causal cluster; after those repairs, the relevant adversarial audit families must be repeated on the corrected implementation.
 
-The M2 repair programme begins from [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved rather than tuned back to old outputs. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
+The post-M9 repair programme proceeds by explicit causal contracts rather than issue-by-issue tuning. M2 repairs are anchored by [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md); the first M3 resource-time slice is anchored by [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved only after the changed outputs are mechanistically explained. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
 
 Module- and milestone-specific documents in this directory provide the detailed evidence, contracts, assumptions and benchmark records referenced by those standards documents.
 
