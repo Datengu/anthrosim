@@ -11,7 +11,7 @@ const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RngCheckpoint {
     pub demography_mortality: RngStreamPosition,
     pub demography_fertility: RngStreamPosition,
@@ -26,7 +26,7 @@ pub struct RngCheckpoint {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SimulationCheckpoint {
     pub schema_version: u32,
     pub model_version: String,
@@ -126,6 +126,10 @@ mod tests {
         world::World,
     };
 
+    fn zero_position() -> serde_json::Value {
+        serde_json::json!({"low": 0, "high": 0})
+    }
+
     #[test]
     fn disabled_temporary_mobility_preserves_legacy_state_digest() {
         let factory = RngFactory::new(9);
@@ -137,5 +141,40 @@ mod tests {
         let extended =
             state_digest64_with_temporary_mobility(365, 11, 22, 33, 44, &temporary_mobility);
         assert_eq!(extended, legacy);
+    }
+
+    #[test]
+    fn rng_checkpoint_rejects_unknown_fields() {
+        let value = serde_json::json!({
+            "demographyMortality": zero_position(),
+            "demographyFertility": zero_position(),
+            "demographyParentage": zero_position(),
+            "demographyNewbornSex": zero_position(),
+            "resourceConditionMortality": zero_position(),
+            "migrationChoice": zero_position(),
+            "migrationUncertainty": zero_position(),
+            "migrationUncertanty": zero_position()
+        });
+
+        let error = serde_json::from_value::<RngCheckpoint>(value).unwrap_err();
+        assert!(error.to_string().contains("unknown field"));
+        assert!(error.to_string().contains("migrationUncertanty"));
+    }
+
+    #[test]
+    fn simulation_checkpoint_rejects_unknown_top_level_field_before_normalization() {
+        let checkpoint = crate::Simulation::new(ExperimentConfig::new(17, 1))
+            .unwrap()
+            .checkpoint_at_year(0)
+            .unwrap();
+        let mut value = serde_json::to_value(checkpoint).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("stateDigset64".to_owned(), serde_json::json!(0));
+
+        let error = serde_json::from_value::<SimulationCheckpoint>(value).unwrap_err();
+        assert!(error.to_string().contains("unknown field"));
+        assert!(error.to_string().contains("stateDigset64"));
     }
 }
