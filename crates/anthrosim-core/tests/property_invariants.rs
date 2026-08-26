@@ -145,6 +145,8 @@ fn generated_checkpoint_resume_matches_uninterrupted_execution() {
 
         let mut resumed_checkpoint_without_lineage = resumed.checkpoint.clone();
         resumed_checkpoint_without_lineage.resume_lineage = ResumeLineage::new();
+        resumed_checkpoint_without_lineage = resumed_checkpoint_without_lineage
+            .seal_continuation_identity();
         assert_eq!(
             resumed_checkpoint_without_lineage, uninterrupted.checkpoint,
             "generated checkpoint/resume state mismatch: {case:?}"
