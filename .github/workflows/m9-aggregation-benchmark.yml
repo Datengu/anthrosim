@@ -1,20 +1,7 @@
 name: M9.7 controlled aggregation benchmark
 
 on:
-  pull_request:
-    paths:
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "build/**"
-      - "crates/anthrosim-core/**"
-      - "crates/anthrosim-cli/**"
-      - "scripts/aggregate-m9-aggregation-benchmark.py"
-      - "scripts/verify-m9-aggregation-benchmark-reference.py"
-      - "examples/m9-controlled-aggregation-benchmark/**"
-      - "docs/research/m9-controlled-aggregation-benchmark-result.md"
-      - "docs/research/m9-controlled-aggregation-benchmark-v1.md"
-      - ".github/workflows/m9-aggregation-benchmark.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:

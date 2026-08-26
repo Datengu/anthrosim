@@ -33,6 +33,7 @@ REQUIRED_CHECKS = (
     "Deterministic completed-run ZIP",
     "Automatic Git source identity",
     "New-directory resume Explorer compatibility",
+    "Applicable scientific/security gates",
 )
 
 LITERAL_JOB_NAMES = {
@@ -54,6 +55,7 @@ LITERAL_JOB_NAMES = {
     "run-bundle-pack.yml": ("Deterministic completed-run ZIP",),
     "source-provenance.yml": ("Automatic Git source identity",),
     "resumed-explorer.yml": ("New-directory resume Explorer compatibility",),
+    "applicable-scientific-security-gates.yml": ("Applicable scientific/security gates",),
 }
 
 MATRIX_JOBS = {
