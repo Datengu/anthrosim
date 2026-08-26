@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -18,6 +20,7 @@ use crate::{
 const DAYS_PER_YEAR: u64 = 365;
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+static SEASONAL_PREFIX_BY_AMPLITUDE: OnceLock<Vec<Vec<u64>>> = OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -227,7 +230,7 @@ impl ResourceSystem {
         }
 
         let stock_before = self.total_food_stock();
-        let regenerated = self.regenerate(world, config, day)?;
+        let regenerated = self.regenerate(world, config, period_index_in_year)?;
 
         let household_count = population.household_count();
         if let Some(period) = temporary_presence {
@@ -256,11 +259,14 @@ impl ResourceSystem {
                 .ok_or(ResourceError::AccountingOverflow)?;
         }
 
-        let annual_need = u64::from(config.annual_need_units_per_person);
-        let base_period_need = annual_need / periods;
-        let remainder = annual_need % periods;
-        let per_person_need =
-            base_period_need + u64::from(u64::from(period_index_in_year) < remainder);
+        let per_person_need = fixed_annual_quantity_for_period(
+            u64::from(config.annual_need_units_per_person),
+            period_index_in_year,
+            config.periods_per_year,
+        )
+        .ok_or(ResourceError::InternalInvariant(
+            "resource period need could not be allocated",
+        ))?;
 
         let mut household_need = vec![0_u64; household_count];
         let mut cell_need = vec![0_u64; world.cell_count()];
@@ -427,27 +433,36 @@ impl ResourceSystem {
             )?;
             let need = household_need[household_index_value];
             let harvest = household_harvest[household_index_value];
-            let supplied_permille = harvest
-                .saturating_mul(u64::from(PERMILLE_MAX))
-                .checked_div(need)
-                .unwrap_or(u64::from(PERMILLE_MAX))
-                .min(u64::from(PERMILLE_MAX));
             let current = population.condition_at_index(person_index).ok_or(
                 ResourceError::InternalInvariant("living person has no condition state"),
             )?;
-            let updated = if supplied_permille >= u64::from(PERMILLE_MAX) {
+            let updated = if need == 0 {
+                // No modeled energetic/resource requirement in this interval is not evidence of
+                // positive provisioning. Keep condition neutral rather than treating 0/0 as a
+                // fully supplied recovery event.
                 current
-                    .saturating_add(config.condition_recovery_per_period)
-                    .min(PERMILLE_MAX)
             } else {
-                let deficit = u64::from(PERMILLE_MAX) - supplied_permille;
-                let loss_numerator = deficit * u64::from(config.max_condition_loss_per_period);
-                let loss = if loss_numerator == 0 {
-                    0
+                let supplied_permille = harvest
+                    .saturating_mul(u64::from(PERMILLE_MAX))
+                    .checked_div(need)
+                    .ok_or(ResourceError::InternalInvariant(
+                        "positive resource need produced no supply fraction",
+                    ))?
+                    .min(u64::from(PERMILLE_MAX));
+                if supplied_permille >= u64::from(PERMILLE_MAX) {
+                    current
+                        .saturating_add(config.condition_recovery_per_period)
+                        .min(PERMILLE_MAX)
                 } else {
-                    loss_numerator.div_ceil(u64::from(PERMILLE_MAX))
-                };
-                current.saturating_sub(u16::try_from(loss).unwrap_or(u16::MAX))
+                    let deficit = u64::from(PERMILLE_MAX) - supplied_permille;
+                    let loss_numerator = deficit * u64::from(config.max_condition_loss_per_period);
+                    let loss = if loss_numerator == 0 {
+                        0
+                    } else {
+                        loss_numerator.div_ceil(u64::from(PERMILLE_MAX))
+                    };
+                    current.saturating_sub(u16::try_from(loss).unwrap_or(u16::MAX))
+                }
             };
             if !population.set_condition_at_index(person_index, updated) {
                 return Err(ResourceError::InternalInvariant(
@@ -524,26 +539,32 @@ impl ResourceSystem {
         &mut self,
         world: &World,
         config: &ResourceConfig,
-        day: u64,
+        period_index_in_year: u16,
     ) -> Result<u64, ResourceError> {
         let mut regenerated = 0_u64;
-        let periods = u64::from(config.periods_per_year);
-        let day_of_year = u16::try_from(day % DAYS_PER_YEAR).unwrap_or(0);
 
         for (index, cell) in world.cells().iter().enumerate() {
             let annual_base = u64::from(cell.base_productivity)
                 .checked_mul(u64::from(config.annual_regeneration_units_per_productivity))
                 .ok_or(ResourceError::AccountingOverflow)?;
             let annual_base = scale_permille(annual_base, config.productivity_scale_permille);
-            let seasonal = scaled_seasonal_factor_permille(
-                day_of_year,
-                cell.season_phase_days,
-                cell.season_amplitude,
-                config.seasonality_scale_permille,
-            );
             let stress_factor = PERMILLE_MAX.saturating_sub(cell.environmental_stress);
-            let effective = scale_permille(scale_permille(annual_base, seasonal), stress_factor);
-            let potential = effective / periods;
+            let annual_effective = scale_permille(annual_base, stress_factor);
+            let scaled_amplitude = u16::try_from(scale_permille(
+                u64::from(cell.season_amplitude),
+                config.seasonality_scale_permille,
+            ))
+            .unwrap_or(PERMILLE_MAX);
+            let potential = seasonal_annual_quantity_for_period(
+                annual_effective,
+                period_index_in_year,
+                config.periods_per_year,
+                cell.season_phase_days,
+                scaled_amplitude,
+            )
+            .ok_or(ResourceError::InternalInvariant(
+                "seasonal resource period could not be allocated",
+            ))?;
             let capacity = cell_capacity(cell.base_productivity, config);
             let available_space = capacity.saturating_sub(self.cell_food_stock[index]);
             let actual = potential.min(available_space);
@@ -657,6 +678,148 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
     Ok(())
 }
 
+/// Exact half-open day offsets for one resource period within a 365-day model year.
+///
+/// Period `i` is `[floor(i*365/P), floor((i+1)*365/P))`. This is the same boundary
+/// construction used by the authoritative scheduler and M9 resource-presence accounting.
+pub(crate) fn resource_period_day_bounds(
+    period_index_in_year: u16,
+    periods_per_year: u16,
+) -> Option<(u64, u64)> {
+    if periods_per_year == 0 || period_index_in_year >= periods_per_year {
+        return None;
+    }
+    let periods = u64::from(periods_per_year);
+    let index = u64::from(period_index_in_year);
+    let start = index.checked_mul(DAYS_PER_YEAR)? / periods;
+    let end = index.checked_add(1)?.checked_mul(DAYS_PER_YEAR)? / periods;
+    Some((start, end))
+}
+
+/// Allocate a fixed annual integer quantity over the scheduler's actual elapsed-day periods.
+///
+/// The cumulative rule `floor(annual * elapsed / 365)` guarantees that all period shares sum
+/// exactly to `annual` while respecting the one-day length differences created by integer period
+/// boundaries. This is used for M3 per-person need and is also the canonical M4 demand share.
+pub(crate) fn fixed_annual_quantity_for_period(
+    annual: u64,
+    period_index_in_year: u16,
+    periods_per_year: u16,
+) -> Option<u64> {
+    let (start, end) = resource_period_day_bounds(period_index_in_year, periods_per_year)?;
+    let before =
+        u64::try_from(u128::from(annual) * u128::from(start) / u128::from(DAYS_PER_YEAR)).ok()?;
+    let after =
+        u64::try_from(u128::from(annual) * u128::from(end) / u128::from(DAYS_PER_YEAR)).ok()?;
+    after.checked_sub(before)
+}
+
+/// Resolve the fixed annual share corresponding to an actual resource boundary day.
+///
+/// M4 calls this after M3 on the same boundary so both processes reason about the exact same
+/// per-person period demand rather than using independent rounding rules.
+pub(crate) fn fixed_annual_quantity_at_resource_boundary(
+    annual: u64,
+    periods_per_year: u16,
+    day: u64,
+) -> Option<u64> {
+    if periods_per_year == 0 {
+        return None;
+    }
+    let offset = match day % DAYS_PER_YEAR {
+        0 => DAYS_PER_YEAR,
+        value => value,
+    };
+    let periods = u64::from(periods_per_year);
+    let ordinal = offset
+        .checked_mul(periods)?
+        .checked_add(DAYS_PER_YEAR - 1)?
+        / DAYS_PER_YEAR;
+    let index = ordinal.checked_sub(1)?;
+    let index = u16::try_from(index).ok()?;
+    let (_, expected_end) = resource_period_day_bounds(index, periods_per_year)?;
+    if expected_end != offset {
+        return None;
+    }
+    fixed_annual_quantity_for_period(annual, index, periods_per_year)
+}
+
+fn seasonal_prefix_table() -> &'static [Vec<u64>] {
+    SEASONAL_PREFIX_BY_AMPLITUDE
+        .get_or_init(|| {
+            (0_u16..=PERMILLE_MAX)
+                .map(|amplitude| {
+                    let mut prefix = Vec::with_capacity(DAYS_PER_YEAR as usize + 1);
+                    prefix.push(0_u64);
+                    for day in 0..DAYS_PER_YEAR {
+                        let factor = seasonal_factor_permille(
+                            u16::try_from(day).expect("model-year day fits u16"),
+                            0,
+                            amplitude,
+                        );
+                        let next = prefix
+                            .last()
+                            .copied()
+                            .unwrap_or(0)
+                            .saturating_add(u64::from(factor));
+                        prefix.push(next);
+                    }
+                    prefix
+                })
+                .collect()
+        })
+        .as_slice()
+}
+
+fn seasonal_cumulative_weight(offset: u64, phase: u16, amplitude: u16) -> Option<u64> {
+    if offset > DAYS_PER_YEAR || amplitude > PERMILLE_MAX {
+        return None;
+    }
+    let table = seasonal_prefix_table();
+    let prefix = table.get(usize::from(amplitude))?;
+    let phase = u64::from(phase) % DAYS_PER_YEAR;
+    let start = (DAYS_PER_YEAR - phase) % DAYS_PER_YEAR;
+    let end = start.checked_add(offset)?;
+    let year_total = *prefix.get(DAYS_PER_YEAR as usize)?;
+    if end <= DAYS_PER_YEAR {
+        prefix
+            .get(end as usize)?
+            .checked_sub(*prefix.get(start as usize)?)
+    } else {
+        let first = year_total.checked_sub(*prefix.get(start as usize)?)?;
+        first.checked_add(*prefix.get((end - DAYS_PER_YEAR) as usize)?)
+    }
+}
+
+/// Allocate one mean-preserving annual regeneration quantity into an actual resource period.
+///
+/// The existing triangular seasonal curve is integrated over every integer model day in the
+/// half-open interval and normalized by the complete 365-day curve. Phase therefore changes the
+/// timing of production but not its unconstrained annual total. At zero amplitude this reduces
+/// exactly to `fixed_annual_quantity_for_period`.
+fn seasonal_annual_quantity_for_period(
+    annual: u64,
+    period_index_in_year: u16,
+    periods_per_year: u16,
+    phase: u16,
+    amplitude: u16,
+) -> Option<u64> {
+    let (start, end) = resource_period_day_bounds(period_index_in_year, periods_per_year)?;
+    let denominator = seasonal_cumulative_weight(DAYS_PER_YEAR, phase, amplitude)?;
+    if denominator == 0 {
+        return None;
+    }
+    let before_weight = seasonal_cumulative_weight(start, phase, amplitude)?;
+    let after_weight = seasonal_cumulative_weight(end, phase, amplitude)?;
+    let before =
+        u64::try_from(u128::from(annual) * u128::from(before_weight) / u128::from(denominator))
+            .ok()?;
+    let after =
+        u64::try_from(u128::from(annual) * u128::from(after_weight) / u128::from(denominator))
+            .ok()?;
+    after.checked_sub(before)
+}
+
 fn validate_temporary_resource_period(
     period: &TemporaryResourcePeriod,
     household_count: usize,
@@ -666,10 +829,13 @@ fn validate_temporary_resource_period(
     day: u64,
 ) -> Result<(), ResourceError> {
     period.validate(household_count, world)?;
-    let periods = u64::from(periods_per_year);
-    let current_offset =
-        (u64::from(period_index_in_year) + 1).saturating_mul(DAYS_PER_YEAR) / periods;
-    let previous_offset = u64::from(period_index_in_year).saturating_mul(DAYS_PER_YEAR) / periods;
+    let (previous_offset, current_offset) =
+        resource_period_day_bounds(period_index_in_year, periods_per_year).ok_or(
+            ResourceError::InvalidPeriodIndex {
+                index: period_index_in_year,
+                periods_per_year,
+            },
+        )?;
     let year_start =
         day.checked_sub(current_offset)
             .ok_or(ResourceError::TemporaryPeriodBoundaryMismatch {
@@ -792,6 +958,7 @@ fn scale_permille(value: u64, scale: u16) -> u64 {
         .unwrap_or(u64::MAX)
 }
 
+#[cfg(test)]
 fn scaled_seasonal_factor_permille(
     day_of_year: u16,
     phase: u16,
@@ -891,6 +1058,83 @@ mod tests {
     }
 
     #[test]
+    fn elapsed_day_fixed_allocation_conserves_annual_quantities() {
+        assert_eq!(resource_period_day_bounds(0, 4), Some((0, 91)));
+        assert_eq!(resource_period_day_bounds(1, 4), Some((91, 182)));
+        assert_eq!(resource_period_day_bounds(2, 4), Some((182, 273)));
+        assert_eq!(resource_period_day_bounds(3, 4), Some((273, 365)));
+
+        let one = (0..4)
+            .map(|index| fixed_annual_quantity_for_period(1, index, 4).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(one, vec![0, 0, 0, 1]);
+        assert_eq!(one.iter().sum::<u64>(), 1);
+
+        let hundred = (0..4)
+            .map(|index| fixed_annual_quantity_for_period(100, index, 4).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(hundred, vec![24, 25, 25, 26]);
+        assert_eq!(hundred.iter().sum::<u64>(), 100);
+
+        for periods in [1_u16, 3, 4, 5, 12, 365] {
+            for annual in [0_u64, 1, 4, 100, 365, 1_001] {
+                let total = (0..periods)
+                    .map(|index| fixed_annual_quantity_for_period(annual, index, periods).unwrap())
+                    .sum::<u64>();
+                assert_eq!(total, annual, "periods={periods}, annual={annual}");
+            }
+        }
+    }
+
+    #[test]
+    fn boundary_lookup_returns_the_same_fixed_share_as_period_index() {
+        for periods in [1_u16, 3, 4, 5, 12, 365] {
+            for index in 0..periods {
+                let (_, end) = resource_period_day_bounds(index, periods).unwrap();
+                let indexed = fixed_annual_quantity_for_period(101, index, periods).unwrap();
+                let by_boundary =
+                    fixed_annual_quantity_at_resource_boundary(101, periods, end).unwrap();
+                assert_eq!(indexed, by_boundary, "periods={periods}, index={index}");
+            }
+        }
+        assert!(fixed_annual_quantity_at_resource_boundary(100, 4, 90).is_none());
+    }
+
+    #[test]
+    fn integrated_seasonality_preserves_annual_total_across_phase_and_resolution() {
+        for periods in [1_u16, 3, 4, 5, 12, 365] {
+            let mut phase_zero = 0_u64;
+            let mut phase_opposite = 0_u64;
+            for index in 0..periods {
+                phase_zero +=
+                    seasonal_annual_quantity_for_period(10_000, index, periods, 0, 1_000).unwrap();
+                phase_opposite +=
+                    seasonal_annual_quantity_for_period(10_000, index, periods, 182, 1_000)
+                        .unwrap();
+            }
+            assert_eq!(phase_zero, 10_000, "phase 0, periods={periods}");
+            assert_eq!(phase_opposite, 10_000, "phase 182, periods={periods}");
+        }
+
+        let phase_zero_first = seasonal_annual_quantity_for_period(10_000, 0, 4, 0, 1_000).unwrap();
+        let phase_opposite_first =
+            seasonal_annual_quantity_for_period(10_000, 0, 4, 182, 1_000).unwrap();
+        assert_ne!(phase_zero_first, phase_opposite_first);
+    }
+
+    #[test]
+    fn zero_seasonality_reduces_exactly_to_fixed_elapsed_day_allocation() {
+        for periods in [1_u16, 3, 4, 5, 12, 365] {
+            for index in 0..periods {
+                assert_eq!(
+                    seasonal_annual_quantity_for_period(1_001, index, periods, 173, 0),
+                    fixed_annual_quantity_for_period(1_001, index, periods)
+                );
+            }
+        }
+    }
+
+    #[test]
     fn resource_accounting_reconciles_after_a_period() {
         let world = World::generate(WorldConfig::new(8, 8), RngFactory::new(7)).unwrap();
         let mut population =
@@ -915,7 +1159,46 @@ mod tests {
             before + system.regenerated_food - system.harvested_food,
             system.total_food_stock()
         );
-        assert_eq!(system.harvested_food + system.unmet_need, 200 * 25);
+        assert_eq!(system.harvested_food + system.unmet_need, 200 * 24);
+    }
+
+    #[test]
+    fn zero_need_period_is_condition_neutral() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(13)).unwrap();
+        let mut population = Population::initialize(
+            PopulationConfig::new(1).with_target_household_size(1),
+            &world,
+            RngFactory::new(13),
+        )
+        .unwrap();
+        assert!(population.set_condition_at_index(0, 400));
+
+        let mut config = ResourceConfig::synthetic_validation_v1();
+        config.periods_per_year = 4;
+        config.annual_need_units_per_person = 1;
+        config.annual_regeneration_units_per_productivity = 0;
+        config.condition_recovery_per_period = 250;
+        config.max_scarcity_mortality_probability_per_million = 0;
+        let mut system = ResourceSystem::initialize(&world, &config).unwrap();
+        let mut rngs = ResourceRngs::new(RngFactory::new(13));
+
+        for index in 0..3_u16 {
+            let (_, day) = resource_period_day_bounds(index, 4).unwrap();
+            system
+                .process_period(
+                    &mut population,
+                    &world,
+                    &config,
+                    index,
+                    day,
+                    &mut rngs.scarcity_mortality,
+                )
+                .unwrap();
+            assert_eq!(population.condition_at_index(0), Some(400));
+        }
+
+        assert_eq!(system.harvested_food, 0);
+        assert_eq!(system.unmet_need, 0);
     }
 
     #[test]

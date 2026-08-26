@@ -10,7 +10,7 @@ use crate::{
     ids::{CellId, HouseholdId, PersonId},
     migration::{MigrationBoundaryContext, MigrationRngs, MigrationSystem},
     population::{Population, ReproductiveSex},
-    resources::ResourceSystem,
+    resources::{ResourceSystem, resource_period_day_bounds},
     rng::RngFactory,
     world::World,
 };
@@ -64,6 +64,9 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
 
     let resources_config = ResourceConfig::synthetic_validation_v1();
     let resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
+    let first_resource_boundary = resource_period_day_bounds(0, resources_config.periods_per_year)
+        .expect("synthetic resource schedule has a first period")
+        .1;
     let mut migration_config = MigrationConfig::synthetic_validation_v1();
     migration_config.enabled = true;
     migration_config.candidate_radius_cells = 1;
@@ -92,8 +95,8 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
                 resources: &resources,
                 migration: &migration_config,
                 annual_food_need: 0,
-                resource_periods_per_year: 4,
-                day: 1,
+                resource_periods_per_year: resources_config.periods_per_year,
+                day: first_resource_boundary,
             },
             &mut rngs,
             &mut events,
@@ -108,7 +111,7 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
         .iter()
         .find(|trace| trace.household == HouseholdId::new(2))
         .expect("declared child household should move toward its living founder parent");
-    assert_eq!(trace.decision_day, 1);
+    assert_eq!(trace.decision_day, first_resource_boundary);
     assert_eq!(trace.origin, CellId::new(1));
     assert_eq!(trace.destination, CellId::new(2));
     assert_eq!(trace.origin_utility.kin_score_permille, 0);
