@@ -107,6 +107,7 @@ fn resume_rejects_config_definition_that_no_longer_matches_authoritative_program
         .expect("definition")
         .schedule
         .stay_duration_days += 1;
+    checkpoint = checkpoint.seal_continuation_identity();
 
     assert!(matches!(
         Simulation::from_checkpoint(checkpoint),
