@@ -1,5 +1,5 @@
 use std::{
-    fs, io,
+    io,
     path::{Path, PathBuf},
     process::ExitCode,
 };
@@ -354,7 +354,11 @@ fn prepare_landscape_resume_transaction(
         )
         .into());
     }
-    if run_dir.join("spatial-mechanisms.json").exists() {
+    let mechanisms_path = run_dir.join("spatial-mechanisms.json");
+    if bundle::artifact_fs::regular_file_exists(
+        &mechanisms_path,
+        "landscape resume spatial-mechanisms artifact",
+    )? {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "inert landscape checkpoint directory unexpectedly contains spatial-mechanisms.json",
@@ -410,7 +414,11 @@ fn verify_resume_checkpoint_path(
     run_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let stored_path = run_dir.join("landscape-checkpoint.json");
-    if !stored_path.is_file() || !same_existing_path(checkpoint_path, &stored_path)? {
+    if !bundle::artifact_fs::regular_file_exists(
+        &stored_path,
+        "stored landscape resume checkpoint artifact",
+    )? || !same_existing_path(checkpoint_path, &stored_path)?
+    {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!(
@@ -496,14 +504,18 @@ fn verify_evidence_artifact(
                 .into());
             }
         }
-        None if path.exists() => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "evidence.json is present but the supplied landscape checkpoint has no evidence catalogue",
-            )
-            .into());
+        None => {
+            if bundle::artifact_fs::regular_file_exists(
+                &path,
+                "landscape resume evidence artifact",
+            )? {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "evidence.json is present but the supplied landscape checkpoint has no evidence catalogue",
+                )
+                .into());
+            }
         }
-        None => {}
     }
     Ok(())
 }
@@ -514,7 +526,7 @@ fn preserved_population_artifact(
 ) -> Result<PreservedPopulation, Box<dyn std::error::Error>> {
     for name in ["initial-population.json", "resume-start-population.json"] {
         let path = run_dir.join(name);
-        if path.is_file() {
+        if bundle::artifact_fs::regular_file_exists(&path, "preserved population artifact")? {
             let population: Population = read_json(&path)?;
             population.validate(world)?;
             return Ok((name, population));
@@ -706,7 +718,7 @@ fn write_spatial_checkpoint_bundle(
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
+    let content = bundle::artifact_fs::read_to_string(path, "landscape runner source artifact")?;
     Ok(serde_json::from_str(&content)?)
 }
 
@@ -714,19 +726,16 @@ fn write_json<T: serde::Serialize + ?Sized>(
     path: &Path,
     value: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(parent) = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        fs::create_dir_all(parent)?;
-    }
     let json = serde_json::to_string_pretty(value)?;
-    fs::write(path, format!("{json}\n"))?;
+    let payload = format!("{json}\n");
+    bundle::artifact_fs::atomic_write(path, payload.as_bytes(), "landscape runner output")?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use anthrosim_core::{
         EvidenceRecord, EvidenceSource, ExternalInputEvidence, GridGeometry, LandscapeLayer,
         LandscapeLayerRole, LandscapeValueDomain, NoDataPolicy, ParameterProvenance,
@@ -850,5 +859,30 @@ mod tests {
         );
 
         assert!(SpatialLandscapeSimulation::new(config, landscape, mechanisms).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn landscape_reader_rejects_symlinked_artifact() {
+        use std::os::unix::fs::symlink;
+
+        let root = std::env::temp_dir().join(format!(
+            "anthrosim-landscape-symlink-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let outside = root.with_extension("outside.json");
+        fs::write(&outside, "{}\n").unwrap();
+        let link = root.join("landscape-checkpoint.json");
+        symlink(&outside, &link).unwrap();
+
+        let error = read_json::<serde_json::Value>(&link)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("symbolic link"));
+
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_file(outside);
     }
 }

@@ -5,7 +5,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use crate::bundle;
+use crate::bundle::{self, artifact_fs};
 
 const ZIP_LOCAL_FILE_HEADER: u32 = 0x0403_4b50;
 const ZIP_CENTRAL_DIRECTORY_HEADER: u32 = 0x0201_4b50;
@@ -57,7 +57,7 @@ pub fn pack_completed_run(
         fs::remove_file(&temp)?;
     }
 
-    if let Err(error) = write_zip(&temp, &files) {
+    if let Err(error) = write_zip(&temp, &canonical_run_dir, &files) {
         let _ = fs::remove_file(&temp);
         return Err(error.into());
     }
@@ -121,7 +121,7 @@ fn normalize_path(path: &Path) -> PathBuf {
     normalized
 }
 
-fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
+fn write_zip(path: &Path, run_dir: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
     if files.len() > usize::from(u16::MAX) {
         return Err(invalid_input("too many files for classic ZIP archive"));
     }
@@ -130,10 +130,15 @@ fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
     let mut entries = Vec::with_capacity(files.len());
 
     for (name, source_path) in files {
+        let source_path = artifact_fs::canonical_regular_file_within(
+            run_dir,
+            source_path,
+            "bundle artifact selected for packing",
+        )?;
         let name_bytes = name.as_bytes();
         let name_len = u16::try_from(name_bytes.len())
             .map_err(|_| invalid_input("archive filename is too long for classic ZIP"))?;
-        let (crc32, size) = file_crc32_and_size(source_path)?;
+        let (crc32, size) = file_crc32_and_size(&source_path)?;
         let local_header_offset = u32::try_from(output.stream_position()?)
             .map_err(|_| invalid_input("archive exceeds classic ZIP 4 GiB offset limit"))?;
 
@@ -150,7 +155,7 @@ fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
         write_u16(&mut output, 0)?;
         output.write_all(name_bytes)?;
 
-        let mut source = BufReader::new(File::open(source_path)?);
+        let mut source = BufReader::new(File::open(&source_path)?);
         let copied = io::copy(&mut source, &mut output)?;
         if copied != u64::from(size) {
             return Err(invalid_input(format!(
@@ -216,7 +221,13 @@ fn write_zip(path: &Path, files: &[(String, PathBuf)]) -> io::Result<()> {
 }
 
 fn file_crc32_and_size(path: &Path) -> io::Result<(u32, u32)> {
-    let metadata = fs::metadata(path)?;
+    let metadata = fs::symlink_metadata(path)?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(invalid_input(format!(
+            "artifact selected for packing is not a non-symlink regular file: {}",
+            path.display()
+        )));
+    }
     let size = u32::try_from(metadata.len()).map_err(|_| {
         invalid_input(format!(
             "artifact is too large for classic ZIP (>4 GiB): {}",
@@ -311,6 +322,27 @@ mod tests {
         );
         assert!(!names.contains("notes.txt"));
         cleanup(&root, &[&first, &second]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pack_rejects_symlinked_canonical_artifact() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_dir("symlink-source");
+        write_real_completed_bundle(&root);
+        let outside = root.with_extension("outside-world.json");
+        fs::rename(root.join("world.json"), &outside).unwrap();
+        symlink(&outside, root.join("world.json")).unwrap();
+        let output = root.with_extension("symlink.zip");
+
+        let error = pack_completed_run(&root, Some(&output))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("symbolic link"));
+        assert!(!output.exists());
+
+        cleanup(&root, &[&output, &outside]);
     }
 
     #[test]

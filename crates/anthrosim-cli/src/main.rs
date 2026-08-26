@@ -761,7 +761,11 @@ fn prepare_core_resume_transaction(
         return Ok((RunDirectoryTransaction::fresh(run_dir)?, None));
     }
 
-    if run_dir.join("landscape-checkpoint.json").exists() {
+    let landscape_checkpoint_path = run_dir.join("landscape-checkpoint.json");
+    if bundle::artifact_fs::regular_file_exists(
+        &landscape_checkpoint_path,
+        "resume landscape checkpoint artifact",
+    )? {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "core resume cannot replace a landscape-bound run directory; use anthrosim-landscape resume",
@@ -770,8 +774,10 @@ fn prepare_core_resume_transaction(
     }
 
     let stored_checkpoint_path = run_dir.join("checkpoint.json");
-    if !stored_checkpoint_path.is_file()
-        || !same_existing_path(checkpoint_path, &stored_checkpoint_path)?
+    if !bundle::artifact_fs::regular_file_exists(
+        &stored_checkpoint_path,
+        "stored resume checkpoint artifact",
+    )? || !same_existing_path(checkpoint_path, &stored_checkpoint_path)?
     {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -841,7 +847,7 @@ fn preserved_population_artifact(
 ) -> Result<PreservedPopulation, Box<dyn std::error::Error>> {
     for name in ["initial-population.json", "resume-start-population.json"] {
         let path = run_dir.join(name);
-        if path.is_file() {
+        if bundle::artifact_fs::regular_file_exists(&path, "preserved population artifact")? {
             let population: Population = read_json(&path)?;
             population.validate(world)?;
             return Ok((name, population));
@@ -890,7 +896,7 @@ fn write_checkpoint_bundle(
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
+    let content = bundle::artifact_fs::read_to_string(path, "AnthroSim JSON input")?;
     Ok(serde_json::from_str(&content)?)
 }
 
@@ -898,13 +904,8 @@ fn write_json<T: serde::Serialize + ?Sized>(
     path: &Path,
     value: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(parent) = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        fs::create_dir_all(parent)?;
-    }
     let json = serde_json::to_string_pretty(value)?;
-    fs::write(path, format!("{json}\n"))?;
+    let payload = format!("{json}\n");
+    bundle::artifact_fs::atomic_write(path, payload.as_bytes(), "AnthroSim JSON output")?;
     Ok(())
 }
