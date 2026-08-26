@@ -208,7 +208,7 @@ pub(crate) fn execute_sweep(
     println!(
         "completed sweep {} with {} parameter point(s) in {}",
         manifest.sweep_id,
-        manifest.runs.len(),
+        manifest.points.len(),
         directory.display()
     );
     Ok(())
