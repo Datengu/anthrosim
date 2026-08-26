@@ -33,7 +33,7 @@ pub struct SpatialObservabilityReport {
 }
 
 impl SpatialObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,6 +113,7 @@ pub struct SpatialDerivedCell {
     pub living_person_days: u64,
     pub births: u64,
     pub deaths: u64,
+    #[serde(rename = "conditionMortalityDeaths")]
     pub resource_scarcity_deaths: u64,
     pub migration_moves_in: u64,
     pub migration_moves_out: u64,
@@ -155,6 +156,7 @@ pub struct SpatialObservabilitySummary {
     pub terminal_population_herfindahl_per_million: Option<u32>,
     pub births: u64,
     pub deaths: u64,
+    #[serde(rename = "conditionMortalityDeaths")]
     pub resource_scarcity_deaths: u64,
     pub migration_moves: u64,
     pub migration_people_moved: u64,
