@@ -1,6 +1,6 @@
 # v0.1 resource-model provenance and evidence boundary
 
-**Status:** M3 synthetic validation baseline, executable timing refined by the [M3 resource-time contract v1](m3-resource-time-contract-v1.md) and [M3/M4 response-time contract v1](m3-response-time-contract-v1.md)  
+**Status:** M3 synthetic validation baseline, executable timing refined by the [M3 resource-time contract v1](m3-resource-time-contract-v1.md), [M3/M4 response-time contract v1](m3-response-time-contract-v1.md), and [M3 condition-mediated mortality contract v1](m3-condition-mortality-contract-v1.md)  
 **Scientific status:** unvalidated  
 **Runtime empirical dataset:** none
 
@@ -19,10 +19,10 @@ Its purpose is to answer engineering/model questions such as:
 - does seasonal phase redistribute regeneration through the year without silently changing the unconstrained annual total?
 - does local demand compete for a finite cell stock?
 - does household sharing reconcile exactly with acquisition and need?
-- can persistent scarcity reduce condition and increase mortality pressure?
+- can persistent scarcity reduce condition and increase condition-mediated mortality pressure?
 - do otherwise-equal richer and zero-productivity test environments differ in the expected direction?
 - can M3 and M4 use one consistent elapsed-time allocation rule for annual demand while retaining independent clocks?
-- can changing M3 settlement resolution avoid silently multiplying condition, scarcity-mortality and M4 decision opportunity rates?
+- can changing M3 settlement resolution avoid silently multiplying condition, condition-mediated mortality and M4 decision opportunity rates?
 - can the system do this at the target population scale without global pairwise searches?
 
 Passing those tests does not establish that the parameter values describe any real hunter-gatherer population.
@@ -38,13 +38,13 @@ Passing those tests does not establish that the parameter values describe any re
 | Productivity scale | permille | experimental control | Multiplies synthetic productivity; not an empirical productivity estimate |
 | Seasonality scale | permille | experimental control | Scales timing variation of the synthetic seasonal curve; v8+ treats seasonality as mean-preserving redistribution of annual regeneration |
 | Stock capacity | years of baseline synthetic regeneration | synthetic rule | Numerical stock ceiling, not ecological carrying capacity |
-| Condition | 0..1000 permille | synthetic mediator | Not BMI, body-fat percentage, nutritional biomarker or clinical health score |
-| Condition recovery/loss | permille/reference quarter | synthetic response rule | Legacy `...PerPeriod` wire names are retained, but v9 interprets values against one of four canonical response quarters and rescales them by elapsed M3 interval |
-| Scarcity mortality maximum | probability per million/reference quarter at zero condition | synthetic response rule | Additional condition-mediated mortality mechanism; v9 converts the reference probability to an exact survival-equivalent probability for the elapsed M3 interval |
+| Condition | 0..1000 permille | shared synthetic mediator | General health/energetic model state, not a resource-only state, BMI, body-fat percentage, nutritional biomarker or clinical health score |
+| Condition recovery/loss | permille/reference quarter | synthetic response rule | Legacy `...PerPeriod` wire names are retained, but v9+ interprets values against one of four canonical response quarters and rescales them by elapsed M3 interval |
+| Condition-mortality maximum | probability per million/reference quarter at zero condition | synthetic response rule | General condition-mediated mortality mechanism; v9+ converts the reference probability to an exact survival-equivalent probability for the elapsed M3 interval |
 
 ## Executable time/accounting contract
 
-The normative annual resource-allocation definition is [M3 resource-time contract v1](m3-resource-time-contract-v1.md). The independent response/opportunity timing semantics introduced by v9 are normative in [M3/M4 response-time contract v1](m3-response-time-contract-v1.md).
+The normative annual resource-allocation definition is [M3 resource-time contract v1](m3-resource-time-contract-v1.md). The independent response/opportunity timing semantics introduced by v9 are normative in [M3/M4 response-time contract v1](m3-response-time-contract-v1.md). The v10 cause semantics for the shared-condition hazard are normative in [M3 condition-mediated mortality contract v1](m3-condition-mortality-contract-v1.md).
 
 For `P = periodsPerYear`, M3 resource period `i` is the half-open interval:
 
@@ -96,30 +96,31 @@ For a **positive-demand** interval, full household supply permits bounded condit
 
 A **zero-demand** interval is explicitly condition-neutral. It does not interpret `0 / 0` as full supply and therefore cannot create free recovery merely because integer annual demand allocates zero units to that interval.
 
-Condition is a causal mediator chosen so resource scarcity does not directly rewrite baseline demographic schedules. The numerical response is synthetic and not currently mapped to measured human physiology.
+Condition is a shared causal mediator. M3 resource balance can change it, but it is not resource-specific: M4 permanent-travel cost also changes the same state, and initialization/newborn rules supply condition values. The numerical state is synthetic and not currently mapped to measured human physiology.
 
-Under v9, the historical `conditionRecoveryPerPeriod` and `maxConditionLossPerPeriod` serialized fields are **reference-quarter response quantities**. The model has four canonical response quarters `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. For each actual M3 interval, the executable response budget is the deterministic cumulative share attributable to the elapsed overlap with those reference quarters. Holding supply status otherwise fixed, a full model year therefore receives the same configured response budget under tested M3 partitions of 1, 4, 12 and 365 rather than multiplying the response by the number of M3 boundaries.
+Under v9+, the historical `conditionRecoveryPerPeriod` and `maxConditionLossPerPeriod` serialized fields are **reference-quarter response quantities**. The model has four canonical response quarters `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. For each actual M3 interval, the executable response budget is the deterministic cumulative share attributable to the elapsed overlap with those reference quarters. Holding supply status otherwise fixed, a full model year therefore receives the same configured response budget under tested M3 partitions of 1, 4, 12 and 365 rather than multiplying the response by the number of M3 boundaries.
 
 This repair removes the former numerical opportunity-count artifact. It does not require complete trajectory invariance when resource settlement is changed: stock timing, capacity clipping, changing supply fractions, M9 presence, condition state and extinction can legitimately evolve differently when state is observed/settled at different times.
 
-### Mortality response
+### Condition-mediated mortality response
 
-Condition-mediated scarcity mortality is evaluated when M3 settles an elapsed resource interval. The configured `maxScarcityMortalityProbabilityPerMillion` now means the conditional probability at zero condition over one canonical reference quarter, with the actual condition deficit scaling that reference probability as before.
+Condition-mediated mortality is evaluated when M3 settles an elapsed resource interval. Under v10 the run-facing `maxConditionMortalityProbabilityPerMillion` means the conditional probability at zero condition over one canonical reference quarter, with the actual condition deficit scaling that reference probability.
 
-For an arbitrary M3 interval, v9 converts the reference-quarter probability to an exact rational conditional probability from the elapsed interval's survival ratio. At fixed condition, composing all M3 intervals over a complete year therefore gives the same survival probability for tested partitions 1, 4, 12 and 365, equal to four reference-quarter survivals. At the default four-period clock the executable interval probability is exactly the configured reference-quarter probability after condition scaling.
+For an arbitrary M3 interval, the v9 timing contract converts the reference-quarter probability to an exact rational conditional probability from the elapsed interval's survival ratio. At fixed condition, composing all M3 intervals over a complete year therefore gives the same survival probability for tested partitions 1, 4, 12 and 365, equal to four reference-quarter survivals. At the default four-period clock the executable interval probability is exactly the configured reference-quarter probability after condition scaling.
 
 The actual stochastic draw uses the exact rational probability. The authoritative death event's parts-per-million field is an observability representation of that interval probability and uses a deterministic ceiling; it is not the quantity used to decide the draw.
 
-This remains an explicit hypothesis-bearing link:
+The causal statement supported by the mechanism is:
 
-> sustained nutritional/resource shortfall can worsen condition and thereby increase mortality pressure.
+> lower shared condition increases the configured condition-mediated mortality pressure.
 
-The current condition-deficit function and maximum probability are placeholders. They must not be interpreted as an estimate of real starvation mortality.
+Resource scarcity can contribute to that pathway by lowering condition. M4 travel can also contribute by lowering condition. Because the state does not retain a decomposition by upstream source, v10 death events serialize `cause = condition_mediated` and the resource summary reports `conditionMortalityDeaths`; neither may be interpreted as an event-level count of food-scarcity deaths.
 
-Two related limitations remain explicit after #204:
+The current condition-deficit function and maximum probability are placeholders. They must not be interpreted as estimates of real starvation, travel, frailty or general mortality.
 
-- the shared condition state can include M4 travel costs, so a later death can be recorded under the broad `ResourceScarcity` cause even when travel contributed to the deficit (#200);
-- competing-risk attribution when an M3 and M2 mortality boundary coincide remains separately tracked by #208.
+One major related limitation remains after #200:
+
+- competing-risk attribution when an M3 condition-mediated and M2 demographic mortality boundary coincide remains separately tracked by #208.
 
 ### Fertility
 
@@ -139,7 +140,7 @@ M3 does **not** modify fertility as a function of resources or condition. Food a
 | Cell stock capacity | 10 synthetic baseline-regeneration years |
 | Condition recovery per fully supplied reference quarter | 25 permille |
 | Maximum condition loss per reference quarter | 200 permille |
-| Maximum scarcity-mortality probability at zero condition per reference quarter | 200,000 per million |
+| Maximum condition-mediated mortality probability at zero condition per reference quarter | 200,000 per million |
 
 M4's synthetic default is separately four permanent-migration decision periods per year; that value belongs to `MigrationConfig`, not to M3 resource resolution.
 
@@ -158,10 +159,11 @@ Once the relevant CI and acceptance tests pass, it is legitimate to say that the
 - positive-demand period demand reconciles to consumption plus unmet need;
 - zero-demand intervals do not create condition recovery;
 - controlled full-supply and full-deficit condition-response budgets do not multiply when M3 is partitioned into 1, 4, 12 or 365 intervals;
-- fixed-condition scarcity survival is equivalent under tested M3 partitions 1, 4, 12 and 365;
+- fixed-condition mortality survival is equivalent under tested M3 partitions 1, 4, 12 and 365;
 - changing M3 resource resolution does not itself change the configured M4 opportunity count;
 - zero sustained resources can lower condition and survival under a configured severe synthetic shock;
-- an otherwise-equal positive-resource test case can support better survival/condition than a zero-productivity case; and
+- an otherwise-equal positive-resource test case can support better survival/condition than a zero-productivity case;
+- travel-created low condition with full positive food supply is not falsely serialized as a resource-scarcity death; and
 - resource processing remains local/data-oriented rather than global pairwise interaction.
 
 It is **not** legitimate to infer from those tests that a specific prehistoric population would have experienced the simulated mortality, carrying capacity or resource requirements.
@@ -189,8 +191,12 @@ Results produced by `synthetic_validation_v1` should be described in conditional
 
 > Under the stated synthetic resource, timing and response assumptions, changing X caused Y within the model.
 
+For a controlled resource intervention, a valid causal statement can be:
+
+> Under otherwise fixed model assumptions, reducing resource support lowered condition and increased condition-mediated mortality.
+
 They should not be promoted to statements such as:
 
-> Hunter-gatherers require X resources, or scarcity caused Y mortality in prehistory.
+> Hunter-gatherers require X resources, or the model observed N prehistoric starvation deaths.
 
 That distinction remains mandatory until the relevant configuration has empirical provenance and validation claims appropriate to the question being investigated.
