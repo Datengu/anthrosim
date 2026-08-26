@@ -320,6 +320,8 @@ fn transformed_checkpoint_resume_matches_uninterrupted() {
         .unwrap();
     let source_day = checkpoint.core_checkpoint.time.days();
     let source_state_digest64 = checkpoint.core_checkpoint.state_digest64;
+    let source_continuation_digest64 = checkpoint.core_checkpoint.continuation_digest64;
+    assert!(checkpoint.core_checkpoint.continuation_identity_is_valid());
     let resumed = SpatialLandscapeSimulation::from_checkpoint(checkpoint, fixture())
         .unwrap()
         .run_recorded()
@@ -336,6 +338,10 @@ fn transformed_checkpoint_resume_matches_uninterrupted() {
         .checkpoint
         .core_checkpoint
         .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage.checkpoint.core_checkpoint = resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .seal_continuation_identity();
     assert_eq!(resumed_without_lineage, uninterrupted);
 
     assert_eq!(
@@ -349,6 +355,44 @@ fn transformed_checkpoint_resume_matches_uninterrupted() {
     assert_eq!(boundary.boundary_day, source_day);
     assert_eq!(boundary.boundary_completed_years, 2);
     assert_eq!(boundary.source_state_digest64, source_state_digest64);
+    assert_eq!(
+        boundary.source_continuation_digest64,
+        source_continuation_digest64
+    );
+    assert!(
+        resumed
+            .checkpoint
+            .core_checkpoint
+            .continuation_identity_is_valid()
+    );
+    assert!(
+        uninterrupted
+            .checkpoint
+            .core_checkpoint
+            .continuation_identity_is_valid()
+    );
+}
+
+#[test]
+fn transformed_resume_rejects_core_continuation_tampering() {
+    let checkpoint = SpatialLandscapeSimulation::new(config(9007), fixture(), mechanisms())
+        .unwrap()
+        .checkpoint_at_year(2)
+        .unwrap();
+
+    let mut rng_changed = checkpoint.clone();
+    rng_changed.core_checkpoint.rng.migration_choice.low ^= 1;
+    assert!(matches!(
+        SpatialLandscapeSimulation::from_checkpoint(rng_changed, fixture()),
+        Err(SpatialLandscapeError::CheckpointContinuationDigestMismatch { .. })
+    ));
+
+    let mut migration_changed = checkpoint;
+    migration_changed.core_checkpoint.migration.northward_steps ^= 1;
+    assert!(matches!(
+        SpatialLandscapeSimulation::from_checkpoint(migration_changed, fixture()),
+        Err(SpatialLandscapeError::CheckpointContinuationDigestMismatch { .. })
+    ));
 }
 
 #[test]

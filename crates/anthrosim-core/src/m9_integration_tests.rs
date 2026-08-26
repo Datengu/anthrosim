@@ -184,7 +184,7 @@ fn active_checkpoint(seed: u64, duration_years: u64) -> crate::SimulationCheckpo
     if let Some(snapshot) = checkpoint.metrics.snapshots.last_mut() {
         snapshot.state_digest64 = checkpoint.state_digest64;
     }
-    checkpoint
+    checkpoint.seal_continuation_identity()
 }
 
 #[test]
@@ -288,6 +288,7 @@ fn real_active_journey_resume_matches_uninterrupted_execution() {
         .unwrap();
     let mut resumed_checkpoint = resumed.checkpoint.clone();
     resumed_checkpoint.resume_lineage = ResumeLineage::new();
+    resumed_checkpoint = resumed_checkpoint.seal_continuation_identity();
     assert_eq!(resumed_checkpoint, uninterrupted.checkpoint);
     resumed.validate_invariants().unwrap();
 }
