@@ -158,11 +158,6 @@ pub fn derive_demography_observability(
         });
     }
     let end_day = checkpoint.time.days();
-    if !end_day.is_multiple_of(DAYS_PER_YEAR) {
-        return Err(invalid(format!(
-            "checkpoint day {end_day} is not an annual M2 boundary"
-        )));
-    }
     let expected_initial = checkpoint.experiment.population.initial_population;
     if initial_population.person_count() != expected_initial as usize {
         return Err(invalid(format!(
@@ -396,6 +391,11 @@ pub fn derive_demography_observability(
             }
             break;
         }
+    }
+
+    while event_cursor < checkpoint.events.events.len() {
+        apply_interboundary_event(&mut people, &checkpoint.events.events[event_cursor])?;
+        event_cursor += 1;
     }
 
     if checkpoint.terminal_stop_reason == Some(StopReason::PersonRecordLimitReached)
