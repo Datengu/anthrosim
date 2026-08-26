@@ -7,11 +7,12 @@ use std::{
 };
 
 use anthrosim_core::{
-    EventLog, EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
-    LandscapeRunManifest, MetricSeries, Population, RecordedRun, RunManifest, SimulationCheckpoint,
-    SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest,
-    SpatialMechanismBinding, SpatialMechanismConfig, SpatialObservabilityReport,
-    TemporaryMobilityObservabilityReport, World, derive_spatial_observability,
+    DemographyObservabilityReport, EventLog, EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint,
+    LandscapeRecordedRun, LandscapeRunManifest, MetricSeries, Population, PopulationInitialization,
+    RecordedRun, RunManifest, SimulationCheckpoint, SpatialLandscapeCheckpoint,
+    SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest, SpatialMechanismBinding,
+    SpatialMechanismConfig, SpatialObservabilityReport, TemporaryMobilityObservabilityReport,
+    World, derive_demography_observability, derive_spatial_observability,
     derive_temporary_mobility_observability, rng::RngFactory,
     validate_landscape_recorded_run_invariants, validate_recorded_run_invariants,
     validate_spatial_landscape_recorded_run,
@@ -32,6 +33,7 @@ pub(crate) const POPULATION_JSON: &[&str] =
 
 pub(crate) const OPTIONAL_JSON: &[&str] = &[
     "completion.json",
+    "demography-observability.json",
     "evidence.json",
     "landscape-checkpoint.json",
     "landscape-manifest.json",
@@ -206,6 +208,7 @@ fn validate_semantics(
     let initial_population = initial_population
         .as_ref()
         .ok_or_else(|| invalid("run bundle has no resolvable original founder population"))?;
+    validate_optional_demography_observability(run_dir, initial_population, &checkpoint)?;
     validate_optional_temporary_observability(run_dir, &world, initial_population, &checkpoint)?;
 
     if let Some(landscape) = landscape.as_ref() {
@@ -226,11 +229,26 @@ fn reconstruct_initial_population(
     checkpoint: &SimulationCheckpoint,
     world: &World,
 ) -> Result<Population, BundleValidationError> {
-    let population = Population::initialize(
-        checkpoint.experiment.population,
-        world,
-        RngFactory::new(checkpoint.experiment.seed),
-    )
+    let config = checkpoint.experiment.population;
+    let population = match config.initialization {
+        PopulationInitialization::SyntheticValidationV1 => Population::initialize(
+            config,
+            world,
+            RngFactory::new(checkpoint.experiment.seed),
+        ),
+        PopulationInitialization::DeclaredFounderStateV1 => {
+            let definition = checkpoint
+                .experiment
+                .founder_population
+                .as_ref()
+                .ok_or_else(|| {
+                    invalid(
+                        "declared founder initialization is missing founderPopulation in checkpoint experiment",
+                    )
+                })?;
+            Population::initialize_declared_founder_state_v1(config, definition, world)
+        }
+    }
     .map_err(|error| {
         invalid(format!(
             "unable to reconstruct original founder population: {error}"
@@ -382,6 +400,30 @@ fn validate_optional_completion(
     {
         return Err(invalid(
             "completion.json does not describe this completed run bundle",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_demography_observability(
+    run_dir: &Path,
+    initial_population: &Population,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), BundleValidationError> {
+    let path = run_dir.join("demography-observability.json");
+    if !path.is_file() {
+        return Ok(());
+    }
+    let report: DemographyObservabilityReport = read_json(&path)?;
+    let regenerated =
+        derive_demography_observability(initial_population, checkpoint).map_err(|error| {
+            invalid(format!(
+                "demography-observability.json could not be regenerated: {error}"
+            ))
+        })?;
+    if regenerated != report {
+        return Err(invalid(
+            "demography-observability.json does not match deterministic regeneration",
         ));
     }
     Ok(())
@@ -544,6 +586,42 @@ mod tests {
         let files = validated_bundle_files(&root).unwrap();
         assert!(files.iter().any(|(name, _)| name == "manifest.json"));
         assert!(files.iter().any(|(name, _)| name == "checkpoint.json"));
+        cleanup(&root);
+    }
+
+    #[test]
+    fn demography_observability_is_validated_and_packed() {
+        let root = test_dir("demography-observability-valid");
+        write_real_completed_bundle(&root);
+        let checkpoint: SimulationCheckpoint = read_json(&root.join("checkpoint.json")).unwrap();
+        let initial_population: Population =
+            read_json(&root.join("initial-population.json")).unwrap();
+        let report = derive_demography_observability(&initial_population, &checkpoint).unwrap();
+        write_json(&root.join("demography-observability.json"), &report);
+
+        let files = validated_bundle_files(&root).unwrap();
+        assert!(
+            files
+                .iter()
+                .any(|(name, _)| name == "demography-observability.json")
+        );
+        cleanup(&root);
+    }
+
+    #[test]
+    fn tampered_demography_observability_is_rejected() {
+        let root = test_dir("demography-observability-tampered");
+        write_real_completed_bundle(&root);
+        let checkpoint: SimulationCheckpoint = read_json(&root.join("checkpoint.json")).unwrap();
+        let initial_population: Population =
+            read_json(&root.join("initial-population.json")).unwrap();
+        let mut report = derive_demography_observability(&initial_population, &checkpoint).unwrap();
+        report.summary.age_schedule_eligible =
+            report.summary.age_schedule_eligible.saturating_add(1);
+        write_json(&root.join("demography-observability.json"), &report);
+
+        let error = validated_bundle_files(&root).unwrap_err().to_string();
+        assert!(error.contains("does not match deterministic regeneration"));
         cleanup(&root);
     }
 
