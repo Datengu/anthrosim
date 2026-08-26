@@ -10,7 +10,7 @@ use crate::{
     ids::{CellId, HouseholdId, PersonId},
     migration::{MigrationBoundaryContext, MigrationRngs, MigrationSummary, MigrationSystem},
     population::{Population, ReproductiveSex},
-    resources::ResourceSystem,
+    resources::{ResourceSystem, resource_period_day_bounds},
     rng::RngFactory,
     world::World,
 };
@@ -62,6 +62,10 @@ fn run_two_cell_case(
     let resources_config =
         ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
     let resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
+    let first_resource_boundary =
+        resource_period_day_bounds(0, resources_config.periods_per_year)
+            .expect("synthetic resource schedule has a first period")
+            .1;
     let mut migration_config = MigrationConfig::synthetic_validation_v1();
     migration_config.enabled = true;
     migration_config.candidate_radius_cells = 1;
@@ -91,7 +95,7 @@ fn run_two_cell_case(
                 migration: &migration_config,
                 annual_food_need: 0,
                 resource_periods_per_year: resources_config.periods_per_year,
-                day: 1,
+                day: first_resource_boundary,
             },
             &mut rngs,
             &mut events,
