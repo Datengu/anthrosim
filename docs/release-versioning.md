@@ -79,17 +79,43 @@ Compatible defects discovered in a preserved release baseline should normally be
 
 ## Preserving named release commits
 
-A named release is not complete until its exact Git commit is preserved by an immutable-intent SemVer tag such as `v0.2.0`.
+A named release is not complete until its exact Git commit is preserved by an immutable-intent SemVer tag such as `v0.3.0`.
 
-Use the `Preserve named release tag` workflow only after the release candidate has passed its required verification and the intended release commit is known exactly. Supply both the SemVer tag and the full 40-character commit SHA. The workflow:
+Use the `Preserve named release tag` workflow only after release preparation and exact-SHA verification are complete. Supply both the SemVer tag and the full 40-character commit SHA.
 
-- accepts only `vMAJOR.MINOR.PATCH` tags and exact lowercase commit SHAs;
-- verifies that the target commit exists in this repository;
-- creates a lightweight `refs/tags/<version>` reference when none exists;
-- succeeds without changing anything when the tag already resolves to the requested commit;
-- fails closed if the release tag already exists at a different commit, rather than moving or rewriting a published release identity.
+### Existing tags
 
-The workflow has a one-time push bootstrap for `v0.2.0` because the audited M8 release candidate was merged before repository-side tag preservation tooling existed. Named releases from `v0.3.0` onward use the explicit manual workflow input path after their release PR is merged and verified.
+Published release identity remains fail-closed and immutable:
+
+- if the requested tag already resolves to the requested commit, the workflow succeeds without changing it;
+- if the requested tag already resolves to another commit, the workflow refuses to move or rewrite it.
+
+This idempotent existing-tag path preserves historical releases without retroactively applying newer release-candidate rules to a tag that already exists.
+
+### Creating a new tag
+
+Creating a missing named release tag is deliberately stricter than merely proving that a Git object exists. Before mutation, the workflow verifies that the supplied candidate itself proves the requested release identity:
+
+1. the requested tag matches `vMAJOR.MINOR.PATCH` and the SHA is an exact lowercase 40-character commit identity;
+2. the candidate is the **current protected `main` HEAD**, not an arbitrary older repository commit;
+3. the root workspace package version equals the requested tag version;
+4. `CITATION.cff` declares the same version;
+5. `docs/releases/<tag>.md` exists and identifies the same release;
+6. every status context currently required by protected `main` is successful for that exact SHA;
+7. for named releases from `v0.3.0` onward, the exact SHA also has successful release-specific dispositions for:
+   - `Execute predeclared terrain null-model benchmark` (M8.6);
+   - `Execute predeclared M9.7 aggregation benchmark` (M9.7);
+   - `RustSec dependency audit`.
+
+The workflow prints the resolved tag, commit and gate disposition before creating the tag. Only after all checks pass does it create the lightweight `refs/tags/<version>` reference, and it immediately verifies that the new ref resolves to the exact requested SHA.
+
+The current-`main` rule is intentional. A release candidate should be tagged **before unrelated subsequent work advances `main`**. If `main` has already advanced, prepare and verify the intended new HEAD rather than permanently assigning a new release identity to an older arbitrary commit through the tagging workflow.
+
+The M8.6, M9.7 and RustSec checks are release-specific exact-SHA evidence, not substitutes for ordinary protected-main checks. When they are not produced automatically for a release-preparation change, run the corresponding workflows explicitly against the final release candidate before dispatching the tag workflow. The release workflow fails closed if those exact-SHA checks are absent, pending, skipped, cancelled or failing.
+
+The release-candidate verifier also refuses a truncated check-run response rather than assuming unobserved checks succeeded.
+
+The workflow retains a one-time push bootstrap for the already-audited `v0.2.0` release that predates repository-side release-candidate enforcement. Named release creation from `v0.3.0` onward uses the explicit manual workflow-dispatch path.
 
 Creating or preserving a release tag does not change `MODEL_SEMANTICS_ID`, package contents, or simulation semantics. It only preserves the exact source identity of the named software release.
 
