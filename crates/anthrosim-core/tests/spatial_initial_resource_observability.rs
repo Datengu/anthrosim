@@ -3,8 +3,7 @@ use anthrosim_core::{
     LandscapeSimulation, LandscapeValueDomain, MigrationConfig, NoDataPolicy, PopulationConfig,
     ResourceConfig, ResourceSystem, SpatialFieldTransform, SpatialLandscapeSimulation,
     SpatialMechanismConfig, SpatialObservabilityReport, SpatialTargetField, TransformDirection,
-    World, WorldConfig, derive_spatial_observability,
-    ids::CellId,
+    World, WorldConfig, derive_spatial_observability, ids::CellId,
 };
 
 fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
@@ -206,14 +205,18 @@ fn initial_food_stock_uses_transformed_m8_productivity_before_m3_initialization(
     assert_eq!(middle.model_facing.base_productivity, 500);
     assert_ne!(
         middle.model_facing.initial_food_stock,
-        u64::from(world.cell(CellId::new(2)).expect("middle world cell").food_stock)
+        u64::from(
+            world
+                .cell(CellId::new(2))
+                .expect("middle world cell")
+                .food_stock
+        )
     );
 }
 
 #[test]
 fn default_m3_initial_stock_can_coincide_with_raw_world_stock_without_conflating_them() {
-    let resources =
-        ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
+    let resources = ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
     let (world, expected, report) = control_report(22_404, resources);
 
     assert_report_matches_m3_initialization(&world, &expected, &report);
