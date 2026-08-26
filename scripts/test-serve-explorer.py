@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import tempfile
 import threading
 import urllib.error
@@ -30,6 +31,14 @@ def request(url: str, *, method: str = "GET") -> tuple[int, bytes]:
         return error.code, error.read()
 
 
+def make_symlink(target: Path, link: Path) -> bool:
+    try:
+        os.symlink(target, link)
+        return True
+    except (OSError, NotImplementedError):
+        return False
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="anthrosim-explorer-server-") as temp:
         root = Path(temp)
@@ -39,7 +48,8 @@ def main() -> None:
             (run_dir / name).write_text("{}\n")
 
         temporary_payload = b'{"schemaVersion":1,"summary":{"journeysStarted":2}}\n'
-        (run_dir / "temporary-observability.json").write_bytes(temporary_payload)
+        temporary_path = run_dir / "temporary-observability.json"
+        temporary_path.write_bytes(temporary_payload)
         (run_dir / "secret.txt").write_text("must not be served\n")
 
         handler = type(
@@ -64,6 +74,31 @@ def main() -> None:
             status, _ = request(f"{base}/run/temporary-observability.json", method="POST")
             assert status == 405, status
 
+            outside = root / "outside-secret.json"
+            outside_payload = b'{"secret":"outside-run-directory"}\n'
+            outside.write_bytes(outside_payload)
+            temporary_path.unlink()
+            if make_symlink(outside, temporary_path):
+                assert not server_module.regular_file_without_symlink(temporary_path, run_dir)
+                status, payload = request(f"{base}/run/temporary-observability.json")
+                assert status == 404, status
+                assert outside_payload not in payload
+                temporary_path.unlink()
+
+                missing = root / "missing-optional-artifact.json"
+                if make_symlink(missing, temporary_path):
+                    assert not server_module.regular_file_without_symlink(temporary_path, run_dir)
+                    status, _ = request(f"{base}/run/temporary-observability.json")
+                    assert status == 404, status
+                    temporary_path.unlink()
+
+                temporary_path.write_bytes(temporary_payload)
+
+                required = run_dir / "checkpoint.json"
+                required.unlink()
+                if make_symlink(outside, required):
+                    assert not server_module.regular_file_without_symlink(required, run_dir)
+
             app_source = (REPO_ROOT / "explorer" / "app.mjs").read_text()
             index_source = (REPO_ROOT / "explorer" / "index.html").read_text()
             assert 'fetchArtifact("temporary-observability.json", { optional: true })' in app_source
@@ -74,7 +109,7 @@ def main() -> None:
             server.server_close()
             thread.join(timeout=3)
 
-    print("Explorer server M9 regression checks passed")
+    print("Explorer server M9 and symlink regression checks passed")
 
 
 if __name__ == "__main__":

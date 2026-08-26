@@ -1,10 +1,11 @@
 use std::{
     error::Error,
-    fmt,
-    fs::File,
-    io::BufReader,
+    fmt, fs,
     path::{Path, PathBuf},
 };
+
+#[path = "artifact_fs.rs"]
+pub(crate) mod artifact_fs;
 
 use anthrosim_core::{
     DemographyObservabilityReport, EventLog, EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint,
@@ -57,11 +58,26 @@ impl Error for BundleValidationError {}
 pub(crate) fn validated_bundle_files(
     run_dir: &Path,
 ) -> Result<Vec<(String, PathBuf)>, BundleValidationError> {
-    if !run_dir.is_dir() {
-        return Err(invalid(format!(
-            "run directory does not exist or is not a directory: {}",
-            run_dir.display()
-        )));
+    match fs::symlink_metadata(run_dir) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return Err(invalid(format!(
+                "run directory may not be a symbolic link: {}",
+                run_dir.display()
+            )));
+        }
+        Ok(metadata) if !metadata.is_dir() => {
+            return Err(invalid(format!(
+                "run directory does not exist or is not a directory: {}",
+                run_dir.display()
+            )));
+        }
+        Ok(_) => {}
+        Err(error) => {
+            return Err(invalid(format!(
+                "unable to inspect run directory {}: {error}",
+                run_dir.display()
+            )));
+        }
     }
 
     let mut names = Vec::new();
@@ -73,14 +89,14 @@ pub(crate) fn validated_bundle_files(
     let mut population_names = Vec::new();
     for name in POPULATION_JSON {
         let path = run_dir.join(name);
-        if path.is_file() {
-            names.push((*name).to_owned());
-            population_names.push(*name);
-        } else if path.exists() {
-            return Err(invalid(format!(
-                "expected bundle artifact is not a regular file: {}",
-                path.display()
-            )));
+        match artifact_fs::regular_file_exists(&path, "bundle artifact")
+            .map_err(|error| invalid(error.to_string()))?
+        {
+            true => {
+                names.push((*name).to_owned());
+                population_names.push(*name);
+            }
+            false => {}
         }
     }
     if population_names.is_empty() {
@@ -91,13 +107,10 @@ pub(crate) fn validated_bundle_files(
 
     for name in OPTIONAL_JSON {
         let path = run_dir.join(name);
-        if path.is_file() {
+        if artifact_fs::regular_file_exists(&path, "bundle artifact")
+            .map_err(|error| invalid(error.to_string()))?
+        {
             names.push((*name).to_owned());
-        } else if path.exists() {
-            return Err(invalid(format!(
-                "expected bundle artifact is not a regular file: {}",
-                path.display()
-            )));
         }
     }
 
@@ -529,19 +542,14 @@ fn validate_optional_spatial_observability(
 
 fn require_regular_file(run_dir: &Path, name: &str) -> Result<(), BundleValidationError> {
     let path = run_dir.join(name);
-    if !path.is_file() {
-        return Err(invalid(format!(
-            "completed run bundle is missing required artifact: {}",
-            path.display()
-        )));
-    }
-    Ok(())
+    artifact_fs::require_regular_file(&path, "required bundle artifact")
+        .map_err(|error| invalid(error.to_string()))
 }
 
 fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, BundleValidationError> {
-    let file = File::open(path)
+    let content = artifact_fs::read_to_string(path, "bundle artifact")
         .map_err(|error| invalid(format!("unable to read {}: {error}", path.display())))?;
-    serde_json::from_reader(BufReader::new(file)).map_err(|error| {
+    serde_json::from_str(&content).map_err(|error| {
         invalid(format!(
             "invalid AnthroSim JSON in {}: {error}",
             path.display()
@@ -587,6 +595,40 @@ mod tests {
         assert!(files.iter().any(|(name, _)| name == "manifest.json"));
         assert!(files.iter().any(|(name, _)| name == "checkpoint.json"));
         cleanup(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn required_artifact_symlink_is_rejected() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_dir("required-symlink");
+        write_real_completed_bundle(&root);
+        let outside = root.with_extension("outside-checkpoint.json");
+        fs::rename(root.join("checkpoint.json"), &outside).unwrap();
+        symlink(&outside, root.join("checkpoint.json")).unwrap();
+
+        let error = validated_bundle_files(&root).unwrap_err().to_string();
+        assert!(error.contains("symbolic link"));
+        cleanup(&root);
+        let _ = fs::remove_file(outside);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn optional_artifact_symlink_is_rejected() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_dir("optional-symlink");
+        write_real_completed_bundle(&root);
+        let outside = root.with_extension("outside-evidence.json");
+        fs::write(&outside, "{}\n").unwrap();
+        symlink(&outside, root.join("evidence.json")).unwrap();
+
+        let error = validated_bundle_files(&root).unwrap_err().to_string();
+        assert!(error.contains("symbolic link"));
+        cleanup(&root);
+        let _ = fs::remove_file(outside);
     }
 
     #[test]
