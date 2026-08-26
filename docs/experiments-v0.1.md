@@ -204,22 +204,29 @@ analysis/summary.json
 
 These files are explicitly labelled `derived`. They are not checkpoints, run manifests, events, metrics or any other authoritative simulation state.
 
-`runs.json` and `runs.csv` contain one row for **every planned run**, not just successes. Each row records:
+`runs.json` and `runs.csv` contain one row for **every planned run**, not just scientifically aggregated outcomes. Each row records:
 
 - sweep, point, experiment and run identity;
 - seed and exact swept control values;
 - current lifecycle state and attempt count;
 - relative source status path;
 - for completed runs, the source run-manifest path;
+- the machine-readable `scientificAggregationStatus`;
+- an `operationalCensoringReason` when an engineering stop censors the scientific trajectory;
+- achieved `simulatedDays` and exact `endDay` for completed runs;
 - selected terminal descriptive values copied from the provenance-valid completed run manifest, including population, occupied-cell, resource-stress and migration outcomes.
 
-If a run is failed, incomplete, planned, running or otherwise not completed, that row remains present and terminal result fields remain empty. The sweep layer therefore never hides a missing run by simply omitting it from the dataset.
+Lifecycle completion and scientific aggregation eligibility are deliberately separate concepts. `durationReached` and `populationExtinct` are classified as `eligibleScientificOutcome`: extinction is a genuine modeled outcome and remains in the default point population even though it can end before the requested duration. `personRecordLimitReached` is classified as `operationallyCensored` because `maxPersonRecords` is an engineering/safety ceiling rather than a scientific terminal condition. The censored row and all of its terminal values remain visible for diagnosis and alternative downstream estimands, but it does not enter the default scientific point aggregates.
 
-`points.json` and `points.csv` contain one row per parameter point. They report planned, completed, failed, incomplete and other non-completed counts, plus explicit counts for duration reached, population extinction and the operational person-record limit. Completed-only descriptive outputs include final living population, final occupied-cell count, births, deaths, living condition, scarcity deaths, unmet resource need, migration moves and migration distance. A pooled completed-only migration-distance-per-move value is also emitted where moves occurred. Each point row lists the exact completed run IDs that contributed to those summaries.
+If a run is failed, incomplete, planned, running or otherwise not completed, that row remains present with `scientificAggregationStatus = notLifecycleComplete` and terminal result fields remain empty. The sweep layer therefore never hides a missing or censored run by simply omitting it from the dataset.
 
-This completed-only rule is intentionally visible in field names such as `meanFinalLivingPopulationCompletedOnly`. A point with two successful and two failed seeds therefore reports `completedRuns = 2`, `failedRuns = 2`, and its mean is explicitly a mean of those two completed source runs—not a four-run result.
+`points.json` and `points.csv` contain one row per parameter point. They report planned, lifecycle-completed, failed, incomplete and other non-completed counts; explicit counts for duration reached, population extinction and the operational person-record limit; and separate `scientificallyEligibleRuns` and `operationallyCensoredRuns` counts. Default descriptive outputs include final living population, final occupied-cell count, births, deaths, living condition, condition-mediated deaths, unmet resource need, migration moves and migration distance over the scientifically eligible population only. A pooled scientifically-eligible-only migration-distance-per-move value is also emitted where eligible runs contain moves.
 
-`analysis/summary.json` records the number of run rows and point rows plus completed and non-completed run counts.
+The aggregation population is explicit in names such as `meanFinalLivingPopulationScientificallyEligibleOnly`. `sourceScientificallyEligibleRunIds` lists exactly which runs contributed, while `sourceOperationallyCensoredRunIds` identifies lifecycle-completed runs that were preserved but excluded. Thus lowering `maxPersonRecords` cannot silently pull a truncated trajectory into the same scientific mean merely because its artifact bundle completed.
+
+`analysis/summary.json` records run and point row counts, lifecycle completion counts, and the top-level scientifically eligible and operationally censored counts.
+
+These are descriptive cumulative summaries, not exposure-normalized rates. `simulatedDays`/`endDay` make different achieved durations explicit for downstream analysis; this repair does not redefine cumulative counts or the estimand used for extinction outcomes.
 
 ## Python and R consumption
 
@@ -287,9 +294,13 @@ Existing `anthrosim run` and `anthrosim resume` behaviour remains unchanged.
 
 ## Scientific use of statuses and aggregates
 
-Only runs in `completed` state with provenance-valid child bundles are successful experiment results. `failed`, `incomplete`, `planned` and `running` states are explicit non-results and must not be silently mixed into successful result sets.
+A `completed` lifecycle state proves that the run artifact bundle completed and reconciled; it does **not** by itself prove that the run belongs in a scientific aggregate. `failed`, `incomplete`, `planned` and `running` remain explicit non-results, while completed runs receive a separate scientific aggregation classification.
 
-The sweep analysis layer consumes that boundary rather than weakening it. Run-level derived tables preserve non-completed rows; point-level descriptive means use completed runs only and publish both completion counts and source run IDs. A researcher can therefore filter differently downstream if a study design requires it, but AnthroSim never silently pretends missing runs were successful.
+For the current duration-target sweep estimand, `DurationReached` and `PopulationExtinct` are eligible scientific outcomes. Extinction is retained because it is produced by the model rather than by an operational ceiling. `PersonRecordLimitReached` is operational censoring: the configured persistent-record ceiling may change for engineering reasons, so allowing that truncated trajectory into a point mean would let an arbitrary safety setting change the scientific aggregate.
+
+Run-level derived tables therefore preserve every planned run, including censored completed runs, and expose achieved duration plus machine-readable classification. Point-level descriptive means and pooled migration summaries use only the scientifically eligible runs and publish both contributor counts and exact contributor IDs. A researcher can define a different estimand downstream, but the default AnthroSim sweep output no longer silently equates artifact completion with scientific eligibility.
+
+This is scientific-analysis integrity hardening, not empirical validation. It changes which completed outputs are pooled and how that population is described; it does not change any simulation trajectory, stop behavior, demographic/resource/migration rule or scientific reference value.
 
 ## Example fresh ensemble
 
