@@ -1222,14 +1222,7 @@ mod tests {
                 (Some(10), Some(4), Some(2)),
             ),
             derived_row(&sweep, point, 2, "failed", None, (None, None, None)),
-            derived_row(
-                &sweep,
-                point,
-                3,
-                "incomplete",
-                None,
-                (None, None, None),
-            ),
+            derived_row(&sweep, point, 3, "incomplete", None, (None, None, None)),
         ];
 
         let points = build_point_rows(&sweep, &rows);
