@@ -3,7 +3,7 @@
 **Date:** 2026-08-26  
 **Issue:** #200  
 **Model semantics:** `anthrosim-model-semantics-v10`  
-**Status:** implementation in PR #242; final CI/reference evidence to be appended before merge
+**Status:** implementation, downstream terminology review and frozen-reference causal review complete in draft PR #242; the PR's exact-head workflow suite remains the final software-verification gate before merge
 
 ## 1. Defect
 
@@ -51,7 +51,11 @@ The repair is intentionally fail-closed rather than aliasing the old cause seman
 - event log schema 1 -> 2;
 - metric series/snapshot schema 1 -> 2;
 - checkpoint schema 9 -> 10;
-- manifest schema 10 -> 11.
+- manifest schema 10 -> 11;
+- sweep derived-analysis schema 2 -> 3;
+- M8 spatial-observability schema 2 -> 3;
+- M8 benchmark aggregate/reference schema 1 -> 2;
+- M9 benchmark aggregate/reference schema 1 -> 2.
 
 The old config key is not accepted as an alias for the new parameter. v9 checkpoints remain incompatible through the model-semantics/schema boundary.
 
@@ -69,30 +73,64 @@ These tests are causal/mechanistic checks, not evidence that the coefficients ar
 
 ## 6. Downstream observability review
 
-The repair must review all derived surfaces that previously repeated `scarcityDeaths`. In particular, sweep-derived JSON/CSV is a scientific output and must not retain `resource_scarcity_deaths` after the core cause has become general condition-mediated mortality.
+Research-facing derived surfaces that previously repeated scarcity-attributed death names were reviewed and updated:
 
-Resource-specific causal evidence remains separately observable through unmet need, resource stock, harvest, consumption and controlled resource interventions.
+- sweep derived JSON uses `conditionMortalityDeaths` and `meanConditionMortalityDeathsCompletedOnly`;
+- sweep derived CSV uses `condition_mortality_deaths` and `mean_condition_mortality_deaths_completed_only`;
+- M8 spatial observability uses `conditionMortalityDeaths` at per-cell and summary level;
+- M8 benchmark aggregation uses `conditionMortalityDeaths`;
+- M9 benchmark replay/aggregation uses `conditionMortalityDeaths` and `noConditionMortalityDeaths`;
+- ODD, ODD+D, the scientific model, resource-model documentation, M8 observability documentation and M9 benchmark documentation now state the v10 shared-condition causal boundary.
 
-## 7. Reference-output expectation
+Regression assertions require the new JSON/CSV names and reject the former derived scarcity-death names where those wire surfaces changed.
 
-The numerical mortality trajectory is intentionally not retuned in this repair. Nevertheless frozen references can legitimately change because:
+Legitimate upstream resource terminology remains. `resource scarcity`, unmet need, stock, harvest, consumption and resource interventions still describe the M3 resource mechanism. Private Rust identifiers and the historical RNG stream label may also retain `scarcity` for execution compatibility; they are not public scientific cause labels.
 
-- model-semantics identity changes;
-- input serialization/schema changes;
-- resource-state schema version participates in the resource/state digest;
-- event/metric/artifact schemas change.
+## 7. Frozen-reference causal review
 
-Any M7/M8/M9 reference update must therefore be inspected rather than automatically overwritten. Population/movement/scientific classifications should remain numerically consistent unless a changed artifact identity/digest is itself part of the compared output.
+The numerical condition hazard was intentionally not retuned. Frozen M8.6 and M9.7 outputs were therefore regenerated and inspected before rebaselining rather than being overwritten automatically.
 
-## 8. Initial CI evidence
+### M8.6
 
-On intermediate head `96319d3c12d18edc5e92b2a6d75e7a14f737032f`:
+Reviewed execution before rebaseline:
 
-- M9.7 built release binaries, completed paired ensembles, derived M9.6 observability, proved identical intermittent replay and active-checkpoint resume exactness, then failed only at the preserved v9 scientific-reference comparison;
-- core CI stopped at a rustfmt-only difference in `resources.rs` before Clippy/tests;
-- source provenance, spatial/landscape, bundle/resume and cross-platform workflows that completed were green.
+- workflow run: `32930245492`;
+- branch head: `a329f68f3278a600dece4193b9a6179d4e981180`;
+- merge-ref build: `4a224061e4f4387430a33215518503b064810a1f`;
+- artifact: `9593020274`;
+- artifact SHA-256: `61295c9c97a13b30879784fa94f613e2a53312b6db60b4b749239801a1c8d182`;
+- aggregate canonical SHA-256: `bf078fdfd5a43673bfef0ab76203af5fda673868d8d18b81c754e9b8682a1d7f`.
 
-The rustfmt difference was corrected without a semantic change. Later intermediate test compilation found one isolated incorrect test import, also corrected. Final exact-head evidence remains required before merge.
+All 32 runs completed and the current classification remains `fragile_spatial_structure` with no robust primary metric. Every primary metric, paired-effect fraction, sign count and robust criterion matches the live v9 reference exactly. In particular, strong-vs-flat total migration distance remains approximately **11.83%** median absolute paired effect with signs **3 positive / 5 negative / 0 zero**. Terminal largest-cell share remains fragile; cell-time occupancy and terminal population Herfindahl remain not distinctive.
+
+The required M8 reference changes are schema/model-semantics identity, experiment/configuration/state/aggregate identities, and the secondary mortality field name. No numerical primary scientific change is hidden by the rebaseline.
+
+### M9.7
+
+Reviewed execution before rebaseline:
+
+- workflow run: `32930245559`;
+- branch head: `a329f68f3278a600dece4193b9a6179d4e981180`;
+- merge-ref build: `4a224061e4f4387430a33215518503b064810a1f`;
+- artifact: `9593016422`;
+- artifact SHA-256: `561f828adec030fba9879b9a354f285b4b10b9f0431b16591134e539d866bb08`;
+- aggregate canonical SHA-256: `4a7e4a95edbb01f0ab7371d313bd24e5f989cf2371a022ed6dd62fe4426f8a07`.
+
+The benchmark remains `capability_distinguished`; all **8/8** paired seeds pass every predeclared criterion. Paired resident person-days, every seed-level outcome and all aggregate values are numerically unchanged. The preserved aggregates remain median total focal-person-day difference **31 permille**, maximum **36 permille**, median intermittent peak-visitor share **426 permille**, and minimum **387 permille**. Duplicate replay remains exact and active-journey checkpoint/resume remains exact.
+
+The required M9 reference changes are schema/model-semantics identity, experiment/state/aggregate identities, and the causal-neutral mortality fields. The control criterion now establishes zero condition-mediated deaths, not zero uniquely resource-caused deaths.
+
+## 8. CI evidence and exact-head gate
+
+Early intermediate heads exposed ordinary implementation/maintenance defects rather than a contradictory scientific result:
+
+- `96319d3c12d18edc5e92b2a6d75e7a14f737032f` reached M9 reference comparison after successful execution/replay/resume but still had a rustfmt difference and one later-corrected test import;
+- inherited head `a329f68f3278a600dece4193b9a6179d4e981180` passed Clippy and the broad workspace test body, including all five issue-#200 causal acceptance tests, but two stale spatial-observability assertions still expected schema 2 instead of 3;
+- the M8.6 and M9.7 workflows on `a329f68...` completed their scientific executions successfully and failed only because the deliberately frozen references still expected benchmark schema 1. Those artifacts were the reviewed material described above.
+
+The stale spatial schema guards were updated to 3 only after confirming production output had intentionally advanced. M8/M9 references were rebaselined only after the causal/numerical review above.
+
+The authoritative final software-verification evidence is the GitHub Actions suite attached to the eventual PR branch head after these documentation/reference changes. Before merge it must be green on that exact head, including umbrella CI/Clippy/workspace tests and the dedicated spatial, M8.6, M9.7, soak/performance/memory/bundle checks that the repository requires. A green suite is implementation/regression evidence only; it is not empirical validation.
 
 ## 9. Limitations retained
 
@@ -100,11 +138,11 @@ The rustfmt difference was corrected without a semantic change. Later intermedia
 - `condition_mediated` is therefore not a claim that the model knows whether nutrition, travel, initialization or a combination explains an individual's deficit.
 - resource and travel coefficients remain synthetic/unvalidated.
 - #208 still governs coincident M3 condition-mediated and M2 demographic mortality competing-risk attribution.
-- the repair does not calibrate or validate any archaeological population or Bulstrode Camp scenario.
+- the repair does not calibrate or validate any archaeological population or case-study scenario.
 
 ## 10. TRACE interpretation
 
-If final acceptance/CI passes, the defensible claim is:
+If the exact-head software-verification gate passes, the defensible claim is:
 
 > AnthroSim no longer labels a death as resource scarcity solely because a shared condition deficit generated the M3 hazard. The event and derived count now state the executable general condition-mediated mechanism, while resource and travel pathways remain separately observable upstream.
 
