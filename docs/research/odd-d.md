@@ -1,13 +1,13 @@
 # AnthroSim ODD+D human decision-making supplement
 
 **Protocol:** ODD+D (Müller et al. 2013)  
-**AnthroSim baseline:** v0.3.0 / completed M9 / post-M9 v9 scientific-hardening semantics  
+**AnthroSim baseline:** v0.3.0 / completed M9 / post-M9 v10 scientific-hardening semantics  
 **Status:** formal living supplement to [`odd.md`](odd.md)  
 **Scientific status:** current human-decision mechanisms are synthetic / unvalidated
 
 ODD+D extends ODD so assumptions about human decision-making are not hidden inside equations or generic terms such as “agent behaviour”. AnthroSim uses this document to state what its people/households are actually assumed to know, choose, optimize, learn and socially respond to — and, equally importantly, what is **not** represented.
 
-The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure. Founder reproductive/parent state that predates day 0 is separately governed by [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M4's independent permanent-relocation opportunity clock and its relationship to M3 resource integration are normative in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
+The current baseline contains only a narrow explicit decision model in M4 permanent migration. M9 temporary mobility is a generic configurable journey/aggregation mechanism, not yet an empirically validated cognitive or social theory of why people decide to gather. M2 fertility/parentage is a demographic mechanism and must not be interpreted as a model of conscious reproductive choice. Its repaired annual timing/locality semantics are normative in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md): parent eligibility reflects persistent residence immediately before a same-boundary M4 relocation, rather than treating a zero-duration destination as prior reproductive exposure. Founder reproductive/parent state that predates day 0 is separately governed by [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M4's independent permanent-relocation opportunity clock and its relationship to M3 resource integration are normative in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). The v10 causal meaning of the shared condition state and its condition-mediated mortality pathway is normative in [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md).
 
 ---
 
@@ -44,11 +44,13 @@ At each configured M4 decision boundary, households are first tested for relocat
 
 M4 decision opportunities are scheduled independently from M3 resource integration. `migration.decisionPeriodsPerYear` controls the M4 opportunity count, while `resources.periodsPerYear` controls M3 resource settlement. M4's resource-support cue allocates annual per-person need over the current **M4 decision interval** using the same elapsed-day annual-allocation rule as M3. Changing only M3 partition therefore does not automatically add more permanent-migration decisions.
 
+A selected M4 permanent move can reduce each moved person's shared `condition` through the declared travel-condition cost. Under v10 that same condition state is later read by the general M3 condition-mediated mortality hazard. A later low-condition death is therefore not labelled as resource scarcity merely because the mortality draw occurs at an M3 boundary: resource shortfall and M4 travel are both explicit upstream pathways into the shared mediator, and the model does not apportion the resulting deficit between them.
+
 M9 journey starts/transitions occur according to the declared temporary-mobility configuration and travel semantics. M9 does not currently simulate a cognitive deliberation in which a household weighs social motives and decides whether to attend.
 
 When M3 and M4 share a fixed day, the executable subannual order is M3 settlement/condition/survival, then due M9 day processing, then M4 permanent-migration decision. Either M3 or M4 may otherwise occur alone. When the final M4 boundary of a model year and M2 occur on the same day, M2 does not reinterpret the just-entered destination as residence throughout the elapsed demographic interval. Parentage locality is reconstructed from the pre-M4 persistent residence for that boundary. The newborn's stored residence remains the mother's boundary-state persistent residence after M4. This is a temporal model contract, not a claim about conscious mate choice.
 
-Scheduling details are part of the model and are specified in [`odd.md`](odd.md), [`../scientific-model.md`](../scientific-model.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md) and the M9 research contracts.
+Scheduling details are part of the model and are specified in [`odd.md`](odd.md), [`../scientific-model.md`](../scientific-model.md), [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md), [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md) and the M9 research contracts.
 
 ---
 
@@ -78,6 +80,7 @@ The model intentionally separates:
 | M4 local information horizon | Explicit bounded-information assumption; current radius synthetic unless evidence-grounded. |
 | M4 kin contribution | Narrow direct-parent-location proxy; declared founder parent state can exist from the first boundary, but the proxy is not a theory of kinship, alliance or social obligation. |
 | M4 uncertainty | Stochastic candidate-action proxy; not calibrated perception or risk cognition. |
+| M4 travel condition effect | Synthetic relocation consequence that changes the shared condition mediator; under v10 any later condition-mediated death remains causal-neutral rather than being attributed uniquely to travel or resources. |
 | M9 temporary participation | Generic configured mechanism; motive/decision theory intentionally absent. |
 | M2 reproduction/parent selection | Demographic mechanism with explicit annual timing/locality semantics; not conscious choice or marriage model. |
 
@@ -226,9 +229,9 @@ The detailed scientific semantics are in [`../scientific-model.md`](../scientifi
 - `crates/anthrosim-core/src/temporary_travel.rs`
 - related configuration/spatial modules.
 
-M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`. Pre-run founder reproductive and direct-parent state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M4 opportunity timing, decision-interval resource demand and merged M3/M4 scheduling are specified in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md).
+M2's annual demographic transition and its interaction with same-boundary M4 state are specified separately in [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) and implemented in `crates/anthrosim-core/src/demography.rs`. Pre-run founder reproductive and direct-parent state is specified in [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md). M4 opportunity timing, decision-interval resource demand and merged M3/M4 scheduling are specified in [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). The causal boundary between M4 travel condition loss, M3 resource-driven condition change and v10 condition-mediated mortality is specified in [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md).
 
-Implementation names should remain close to scientific terms so reviewers can trace ODD+D concepts into code.
+Implementation names should remain close to scientific terms so reviewers can trace ODD+D concepts into code. Historical private implementation labels that still contain `scarcity` are not public v10 scientific semantics.
 
 ### III.ii Initialization
 
@@ -254,7 +257,7 @@ The current decision-related submodels are:
 4. M4 residence-state utility and explicit stay-action comparison;
 5. M4 relocation-only action costs and candidate utility;
 6. M4 stochastic destination choice;
-7. M4 simultaneous move application/travel condition effect;
+7. M4 simultaneous move application/travel condition effect into the shared v10 condition mediator;
 8. M9 configured participation/start semantics;
 9. M9 travel/duration/temporary-presence lifecycle.
 

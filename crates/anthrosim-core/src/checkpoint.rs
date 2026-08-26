@@ -17,6 +17,9 @@ pub struct RngCheckpoint {
     pub demography_fertility: RngStreamPosition,
     pub demography_parentage: RngStreamPosition,
     pub demography_newborn_sex: RngStreamPosition,
+    /// Historical Rust identifier retained so the RNG sequence itself remains unchanged. The v10
+    /// serialized field names the scientific mechanism rather than the former scarcity label.
+    #[serde(rename = "resourceConditionMortality")]
     pub resource_scarcity_mortality: RngStreamPosition,
     pub migration_choice: RngStreamPosition,
     pub migration_uncertainty: RngStreamPosition,
@@ -52,7 +55,8 @@ impl SimulationCheckpoint {
     pub const PRE_JOURNEY_LIFECYCLE_SCHEMA_VERSION: u32 = 6;
     pub const PRE_TRAVEL_SEMANTICS_SCHEMA_VERSION: u32 = 7;
     pub const PRE_DURATION_AWARE_RESOURCE_SCHEMA_VERSION: u32 = 8;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 9;
+    pub const PRE_CONDITION_MORTALITY_SCHEMA_VERSION: u32 = 9;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 10;
 }
 
 #[must_use]

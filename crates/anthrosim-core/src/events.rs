@@ -17,6 +17,10 @@ pub enum EventProvenance {
 #[serde(rename_all = "snake_case")]
 pub enum DeathCause {
     DemographicMortality,
+    /// Historical Rust variant name retained to minimize internal churn. In v10 this serializes as
+    /// `condition_mediated`: the shared condition may reflect multiple explicit upstream causes,
+    /// so the event must not be interpreted as proof of resource scarcity.
+    #[serde(rename = "condition_mediated")]
     ResourceScarcity,
 }
 
@@ -148,7 +152,7 @@ pub struct EventLog {
 }
 
 impl EventLog {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub const fn new() -> Self {

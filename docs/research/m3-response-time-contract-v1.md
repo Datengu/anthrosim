@@ -1,7 +1,7 @@
 # M3/M4 response-time contract v1
 
-**Status:** normative executable contract for `anthrosim-model-semantics-v9`  
-**Scope:** M3 condition response, M3 scarcity-mortality timing, independent M4 decision opportunities, and merged subannual scheduling  
+**Status:** normative executable timing contract introduced by `anthrosim-model-semantics-v9`; retained under v10 with causal naming governed by [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md)  
+**Scope:** M3 condition response, condition-mediated mortality timing, independent M4 decision opportunities, and merged subannual scheduling  
 **Scientific status:** implementation/model-contract specification; **not empirical validation**
 
 ## Purpose
@@ -11,14 +11,14 @@ The v8 resource-time repair made annual resource accounting coherent, but delibe
 Before v9, increasing the M3 resource partition count also increased:
 
 - the number of condition recovery/loss updates;
-- the number of condition-mediated scarcity-mortality draws; and
+- the number of condition-mediated mortality draws; and
 - the number of permanent M4 relocation opportunities.
 
 That made a numerical/resource-integration control into a hidden behavioural and physiological rate parameter. Issue #204 identified this as a TRACE model-structure defect.
 
 v9 separates those meanings. It does **not** claim that all results must be identical under every resource partition. Resource settlement timing can still alter the causal trajectory when resources, condition, mobility or temporary presence vary through the year. The required invariant is narrower: changing M3 temporal partition must not by itself multiply an independently defined response or decision rate.
 
-The v8 annual resource-accounting and seasonal-integration rules in [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md) remain normative unless explicitly superseded below.
+The v8 annual resource-accounting and seasonal-integration rules in [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md) remain normative unless explicitly superseded below. Under v10, the same timing equations remain in force, while #200 removes the false implication that this condition-dependent hazard is necessarily caused by resource scarcity. The immediate-cause semantics are normative in [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md).
 
 ## 1. Two independent subannual clocks
 
@@ -34,7 +34,7 @@ M3 interval `i` is:
 
 relative to the model-year start.
 
-This controls when elapsed resource regeneration, demand, condition response and condition-mediated scarcity survival are settled. It does not define the number of permanent-migration decisions.
+This controls when elapsed resource regeneration, demand, condition response and condition-mediated survival are settled. It does not define the number of permanent-migration decisions.
 
 ### M4 permanent-migration decision clock
 
@@ -72,13 +72,15 @@ This alignment is numerical/model consistency, not empirical validation of the M
 
 ## 3. Canonical reference-quarter response coefficients
 
-The existing public resource fields are retained to avoid an unnecessary input-format rename in this hardening slice:
+The response quantities are reference-quarter coefficients attached to four canonical intervals. Under current v10 input semantics, the relevant public resource fields are:
 
 - `conditionRecoveryPerPeriod`
 - `maxConditionLossPerPeriod`
-- `maxScarcityMortalityProbabilityPerMillion`
+- `maxConditionMortalityProbabilityPerMillion`
 
-Under v9 their scientific interpretation is no longer “whatever one configured M3 period happens to be.” They are **reference-quarter coefficients** attached to four canonical intervals:
+The first two retain historical `...PerPeriod` wire names, but their scientific meaning is not “whatever one configured M3 period happens to be.” The mortality field was explicitly renamed in v10 from the former v9 `maxScarcityMortalityProbabilityPerMillion` because the shared condition state can be changed by more than resource scarcity; the old scarcity-specific wire name is not accepted as a v10 alias.
+
+The coefficients are interpreted against four canonical intervals:
 
 | Reference interval | Model days | Duration |
 |---:|---|---:|
@@ -87,9 +89,9 @@ Under v9 their scientific interpretation is no longer “whatever one configured
 | 2 | `[182,273)` | 91 days |
 | 3 | `[273,365)` | 92 days |
 
-The names remain historical API names; the normative v9 meaning is defined here. Research reports must describe the reference-quarter meaning rather than implying these values scale with arbitrary `periodsPerYear`.
+Research reports must describe the reference-quarter meaning rather than implying these values scale with arbitrary `periodsPerYear`.
 
-These coefficients remain synthetic validation assumptions unless separately evidence-grounded. v9 repairs their temporal meaning; it does not make them physiologically realistic.
+These coefficients remain synthetic validation assumptions unless separately evidence-grounded. The timing repair defines their temporal meaning; v10's causal rename does not make them physiologically realistic.
 
 ## 4. Condition recovery/loss uses elapsed interval response
 
@@ -111,11 +113,11 @@ The resource-supply rule remains causal:
 
 Because supply state can differ between partitions and condition is bounded to `0..1000`, realised trajectories need not be identical even though the response budget is no longer frequency-multiplied.
 
-## 5. Scarcity mortality uses survival-equivalent interval conversion
+## 5. Condition-mediated mortality uses survival-equivalent interval conversion
 
-At each M3 settlement, the person's current condition still determines a **reference-quarter** condition-mediated probability `q`:
+At each M3 settlement, the person's current condition determines a **reference-quarter** condition-mediated probability `q`:
 
-`q = condition_deficit_fraction × maxScarcityMortalityProbabilityPerMillion`
+`q = condition_deficit_fraction × maxConditionMortalityProbabilityPerMillion`
 
 where `q` is represented relative to one canonical reference quarter.
 
@@ -135,11 +137,15 @@ This construction has the required partition property at fixed condition:
 
 The authoritative death event retains a `probabilityPerMillion` field for observability. For a non-quarter interval this field stores the deterministic ceiling of the exact rational interval probability; the random draw itself uses the exact rational probability.
 
-### Important causal limitation
+### Causal attribution boundary
 
-This section repairs **timing**, not cause attribution. The hazard still reads the shared `condition` scalar. Issue #200 remains open because M4 travel can reduce that scalar and a later death may still be labelled `ResourceScarcity` even if the deficit was not resource-derived.
+This section defines **timing**, while [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md) defines cause interpretation.
 
-Likewise, issue #208 remains open: when M3 and annual M2 mortality coincide, cause-specific competing-risk attribution still requires a separate explicit contract.
+Under v10, the hazard reads the shared `condition` scalar and authoritative deaths serialize the immediate cause as `condition_mediated`. M3 resource balance and M4 permanent-travel cost can both alter that shared state. Therefore the death cause identifies the immediate model mediator, not the upstream process that produced the condition deficit. A `condition_mediated` death must not be re-labelled as resource scarcity merely because the hazard is evaluated during M3 settlement.
+
+Resource shortage remains separately observable through resource accounting such as unmet need. Travel burden remains separately observable through M4 movement/travel-condition outputs. The current model does not maintain a validated causal ledger that allocates a later condition-mediated death fractionally or exclusively back to those upstream contributors.
+
+Issue #208 remains separate: when M3 and annual M2 mortality coincide, cause-specific competing-risk attribution still requires its own explicit contract.
 
 ## 6. Merged fixed-boundary scheduler
 
@@ -148,7 +154,7 @@ The authoritative core host and the evidence-grounded spatial host both merge th
 For the next due fixed day:
 
 1. process any M9 temporary boundaries strictly before that day;
-2. if M3 is due, settle the elapsed M3 interval, including resource accounting, condition response and M3 condition-mediated mortality;
+2. if M3 is due, settle the elapsed M3 interval, including resource accounting, condition response and condition-mediated mortality;
 3. process due M9 temporary transition/start semantics for that day;
 4. if M4 is due, evaluate eligible permanent relocation using the M4 decision interval;
 5. after the year's subannual schedules complete, run the M2 annual demographic boundary.
@@ -166,7 +172,7 @@ Holding all scientific inputs and `D` fixed:
 - fixed annual M3 demand remains exactly conserved;
 - unconstrained annual regeneration potential remains governed by the v8 mean-preserving integration contract;
 - a continuously applicable condition response has the same complete-year response budget;
-- fixed-condition scarcity survival has the same complete-year probability;
+- fixed-condition condition-mediated survival has the same complete-year probability;
 - the configured number of M4 decision opportunities remains exactly `D` per complete year;
 - M4 decision boundaries and their own annual-demand allocation are determined by `D`, not `P`.
 
@@ -186,53 +192,55 @@ Those are model-resolution/scheduling sensitivities to measure. They are distinc
 
 ## 8. Configuration and compatibility
 
-v9 changes the versioned input contract:
+The v9 timing repair originally changed the versioned input contract:
 
 - `ExperimentConfig` schema: `8 -> 9`
 - `ResourceConfig` schema: `2 -> 3`
 - `MigrationConfig` schema: `1 -> 2`
-- `MigrationConfig` gains `decisionPeriodsPerYear`
+- `MigrationConfig` gained `decisionPeriodsPerYear`
 
 The synthetic validation migration default sets `decisionPeriodsPerYear = 4`, preserving the old baseline opportunity count while making that count explicit and independently configurable.
 
-The authoritative model-semantics identity changes:
+The v9 authoritative model-semantics identity was:
 
 `anthrosim-model-semantics-v8 -> anthrosim-model-semantics-v9`
 
-A v8 checkpoint cannot be scientifically continued under v9 and must fail closed at the existing model-semantics compatibility boundary.
+v10 subsequently changes the causal/serialization boundary for the shared-condition mortality mechanism. In particular, `ExperimentConfig` advances to schema 10, `ResourceConfig` advances to schema 4, the mortality parameter is `maxConditionMortalityProbabilityPerMillion`, and the authoritative cause is `condition_mediated`. v9 checkpoints/artifacts are not silently reinterpreted as v10.
 
-Package versioning remains separate from this development semantics change.
+Package versioning remains separate from these development semantics changes.
 
 ## 9. Required verification
 
-The v9 implementation must verify at minimum:
+The timing implementation must verify at minimum:
 
 - resource partitions `P = 1, 4, 12, 365` with fixed `D = 4` produce exactly four M4 decision boundaries per complete year;
 - changing `D` changes M4 opportunity count independently of `P`;
 - reference-quarter condition response sums to the same annual budget under `P = 1, 4, 12, 365`;
 - controlled fully supplied and fully unsupplied one-person cases do not gain extra annual condition response merely from finer M3 partitioning;
-- fixed-condition scarcity survival composes identically under `P = 1, 4, 12, 365`, including `q = 0` and `q = 1,000,000` edge cases;
+- fixed-condition condition-mediated survival composes identically under `P = 1, 4, 12, 365`, including `q = 0` and `q = 1,000,000` edge cases;
 - `P = 4` reproduces each configured reference-quarter probability exactly;
 - M4 rejects an index/day mismatch in its declared decision schedule;
 - both synthetic and spatial-landscape simulation hosts use the same independent-clock scheduler;
-- checkpoint/resume remains exact under v9;
+- checkpoint/resume remains exact under the declared current semantics;
 - cross-platform deterministic execution remains within the declared determinism contract; and
-- every frozen M7/M8/M9 reference affected by v9 is reviewed before rebaseline.
+- frozen M7/M8/M9 references affected by a semantics/schema change are causally reviewed before rebaseline.
 
-Reference outputs may be updated only when their differences are explained by the v9 contract. A failing frozen reference is evidence to investigate, not automatic permission to tune or overwrite it.
+The v10 cause-attribution repair additionally requires controlled resource-only, travel-only/full-resource, mixed-pathway, and migration-enabled/disabled tests demonstrating that the mortality output is condition-mediated rather than automatically resource-attributed.
 
-## 10. What this repair does not validate
+Reference outputs may be updated only when their differences are explained by the declared contract. A failing frozen reference is evidence to investigate, not automatic permission to tune or overwrite it.
 
-Passing this contract can show that the simulator no longer confounds one numerical resource-partition control with several independent scientific rates.
+## 10. What this contract does not validate
+
+Passing this contract can show that the simulator no longer confounds one numerical resource-partition control with several independent scientific rates and that the current shared-condition hazard is not mislabeled as resource-specific.
 
 It cannot establish that:
 
 - the four-quarter reference response clock is a realistic human physiological timescale;
 - the condition-loss or recovery coefficients are empirically defensible;
-- the scarcity-mortality coefficient represents real mortality;
+- the condition-mediated mortality coefficient represents real human mortality;
 - four M4 opportunities per year is a realistic mobility decision rate;
 - the M4 decision utility represents human cognition;
-- the shared condition state has correct causal attribution (#200);
+- the shared condition state can identify which upstream mechanism caused a later death;
 - coincident M2/M3 causes are correctly allocated (#208); or
 - any resulting trajectory reconstructs a real archaeological population.
 
