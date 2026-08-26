@@ -776,13 +776,10 @@ fn reference_quarter_quantity_for_interval(
     }
     let mut total = 0_u64;
     for quarter in 0..REFERENCE_RESPONSE_PERIODS_PER_YEAR {
-        let (quarter_start, quarter_end) = resource_period_day_bounds(
-            quarter,
-            REFERENCE_RESPONSE_PERIODS_PER_YEAR,
-        )
-        .ok_or(ResourceError::InternalInvariant(
-            "reference response quarter is invalid",
-        ))?;
+        let (quarter_start, quarter_end) =
+            resource_period_day_bounds(quarter, REFERENCE_RESPONSE_PERIODS_PER_YEAR).ok_or(
+                ResourceError::InternalInvariant("reference response quarter is invalid"),
+            )?;
         let overlap_start = start.max(quarter_start);
         let overlap_end = end.min(quarter_end);
         if overlap_start >= overlap_end {
@@ -792,17 +789,19 @@ fn reference_quarter_quantity_for_interval(
         let local_start = overlap_start - quarter_start;
         let local_end = overlap_end - quarter_start;
         let before = u64::try_from(
-            u128::from(reference_quantity) * u128::from(local_start)
-                / u128::from(quarter_length),
+            u128::from(reference_quantity) * u128::from(local_start) / u128::from(quarter_length),
         )
         .map_err(|_| ResourceError::AccountingOverflow)?;
         let after = u64::try_from(
-            u128::from(reference_quantity) * u128::from(local_end)
-                / u128::from(quarter_length),
+            u128::from(reference_quantity) * u128::from(local_end) / u128::from(quarter_length),
         )
         .map_err(|_| ResourceError::AccountingOverflow)?;
         total = total
-            .checked_add(after.checked_sub(before).ok_or(ResourceError::AccountingOverflow)?)
+            .checked_add(
+                after
+                    .checked_sub(before)
+                    .ok_or(ResourceError::AccountingOverflow)?,
+            )
             .ok_or(ResourceError::AccountingOverflow)?;
     }
     Ok(total)
@@ -838,13 +837,10 @@ fn reference_quarter_probability_for_interval(
     let mut survival_denominator = 1_u128;
 
     for quarter in 0..REFERENCE_RESPONSE_PERIODS_PER_YEAR {
-        let (quarter_start, quarter_end) = resource_period_day_bounds(
-            quarter,
-            REFERENCE_RESPONSE_PERIODS_PER_YEAR,
-        )
-        .ok_or(ResourceError::InternalInvariant(
-            "reference mortality quarter is invalid",
-        ))?;
+        let (quarter_start, quarter_end) =
+            resource_period_day_bounds(quarter, REFERENCE_RESPONSE_PERIODS_PER_YEAR).ok_or(
+                ResourceError::InternalInvariant("reference mortality quarter is invalid"),
+            )?;
         let overlap_start = start.max(quarter_start);
         let overlap_end = end.min(quarter_end);
         if overlap_start >= overlap_end {
@@ -1286,20 +1282,14 @@ mod tests {
         a
     }
 
-    fn composed_survival_for_partition(
-        reference_probability: u32,
-        periods: u16,
-    ) -> (u128, u128) {
+    fn composed_survival_for_partition(reference_probability: u32, periods: u16) -> (u128, u128) {
         let mut numerator = 1_u128;
         let mut denominator = 1_u128;
         for index in 0..periods {
             let (start, end) = resource_period_day_bounds(index, periods).unwrap();
-            let death = reference_quarter_probability_for_interval(
-                reference_probability,
-                start,
-                end,
-            )
-            .unwrap();
+            let death =
+                reference_quarter_probability_for_interval(reference_probability, start, end)
+                    .unwrap();
             let mut segment_numerator = death.denominator - death.numerator;
             let mut segment_denominator = death.denominator;
             let cross_a = gcd_u128(segment_numerator, denominator);
@@ -1333,7 +1323,10 @@ mod tests {
         for quarter in 0..4_u16 {
             let (start, end) = resource_period_day_bounds(quarter, 4).unwrap();
             let probability = reference_quarter_probability_for_interval(q, start, end).unwrap();
-            assert_eq!(probability_fraction_per_million_ceil(probability).unwrap(), q);
+            assert_eq!(
+                probability_fraction_per_million_ceil(probability).unwrap(),
+                q
+            );
         }
     }
 
@@ -1402,7 +1395,9 @@ mod tests {
         config.max_condition_loss_per_period = 100;
         config.max_scarcity_mortality_probability_per_million = 0;
         let mut system = ResourceSystem::initialize(&world, &config).unwrap();
-        system.cell_food_stock.fill(if fully_supplied { 1_000 } else { 0 });
+        system
+            .cell_food_stock
+            .fill(if fully_supplied { 1_000 } else { 0 });
         system.initial_food_stock = if fully_supplied { 1_000 } else { 0 };
         let mut rngs = ResourceRngs::new(RngFactory::new(211));
         for index in 0..periods {
@@ -1424,8 +1419,16 @@ mod tests {
     #[test]
     fn condition_response_does_not_multiply_with_resource_partition() {
         for periods in [1_u16, 4, 12, 365] {
-            assert_eq!(one_person_condition_run(periods, true), 600, "recovery P={periods}");
-            assert_eq!(one_person_condition_run(periods, false), 600, "loss P={periods}");
+            assert_eq!(
+                one_person_condition_run(periods, true),
+                600,
+                "recovery P={periods}"
+            );
+            assert_eq!(
+                one_person_condition_run(periods, false),
+                600,
+                "loss P={periods}"
+            );
         }
     }
 
