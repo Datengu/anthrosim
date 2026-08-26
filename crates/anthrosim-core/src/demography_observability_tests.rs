@@ -74,7 +74,13 @@ fn partial_year_resource_extinction_replays_without_inventing_m2_exposure() {
         .expect("resource-extinction fixture should terminate cleanly");
 
     assert!(recorded.checkpoint.time.days() < DAYS_PER_YEAR);
-    assert!(!recorded.checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR));
+    assert!(
+        !recorded
+            .checkpoint
+            .time
+            .days()
+            .is_multiple_of(DAYS_PER_YEAR)
+    );
     assert_eq!(recorded.checkpoint.population.living_count(), 0);
 
     let report = derive_demography_observability(&initial_population, &recorded.checkpoint)
