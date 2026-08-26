@@ -436,9 +436,13 @@ impl MigrationSystem {
             }
             let choice_draw = draw_bounded(&mut rngs.choice, total_weight);
             let mut cursor = choice_draw;
-            let mut selected = *self.evaluations.last().ok_or(
-                MigrationError::InternalInvariant("positive weight has no candidates"),
-            )?;
+            let mut selected =
+                *self
+                    .evaluations
+                    .last()
+                    .ok_or(MigrationError::InternalInvariant(
+                        "positive weight has no candidates",
+                    ))?;
             for evaluation in &self.evaluations {
                 if cursor < evaluation.weight {
                     selected = *evaluation;
@@ -740,14 +744,18 @@ impl MigrationSystem {
             .destination_water_security_score_total
             .checked_add(u64::from(selected.utility.water_security_score_permille))
             .ok_or(MigrationError::AccountingOverflow)?;
-        let (origin_x, origin_y) = world
-            .coordinates(origin)
-            .ok_or(MigrationError::InternalInvariant("origin coordinates invalid"))?;
-        let (destination_x, destination_y) = world
-            .coordinates(selected.cell)
-            .ok_or(MigrationError::InternalInvariant(
-                "destination coordinates invalid",
-            ))?;
+        let (origin_x, origin_y) =
+            world
+                .coordinates(origin)
+                .ok_or(MigrationError::InternalInvariant(
+                    "origin coordinates invalid",
+                ))?;
+        let (destination_x, destination_y) =
+            world
+                .coordinates(selected.cell)
+                .ok_or(MigrationError::InternalInvariant(
+                    "destination coordinates invalid",
+                ))?;
         self.eastward_steps = self
             .eastward_steps
             .checked_add(u64::from(destination_x.saturating_sub(origin_x)))
@@ -817,7 +825,8 @@ impl MigrationSystem {
         population: &mut Population,
         world: &World,
     ) -> Result<(), MigrationError> {
-        self.post_move_cell_living.copy_from_slice(&self.cell_living);
+        self.post_move_cell_living
+            .copy_from_slice(&self.cell_living);
         for household_index in 0..population.household_count() {
             let destination = self.planned_destinations[household_index];
             if destination == CellId::INVALID {
@@ -970,7 +979,8 @@ impl MigrationSystem {
         system.origin_resource_score_total = state.origin_resource_score_total;
         system.destination_resource_score_total = state.destination_resource_score_total;
         system.origin_water_security_score_total = state.origin_water_security_score_total;
-        system.destination_water_security_score_total = state.destination_water_security_score_total;
+        system.destination_water_security_score_total =
+            state.destination_water_security_score_total;
         system.occupied_cell_delta_from_migration = state.occupied_cell_delta_from_migration;
         system.recorded_decision_traces = state.recorded_decision_traces;
         Ok(system)
