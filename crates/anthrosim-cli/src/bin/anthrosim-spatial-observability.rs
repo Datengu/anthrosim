@@ -4,6 +4,9 @@ use std::{
     process::ExitCode,
 };
 
+#[path = "../artifact_fs.rs"]
+mod artifact_fs;
+
 use anthrosim_core::{
     EvidenceCatalog, LandscapeBundle, LandscapeCheckpoint, LandscapeRecordedRun,
     LandscapeRunManifest, LandscapeSimulation, Population, RunManifest, SimulationCheckpoint,
@@ -90,14 +93,7 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     let world_path = run_dir.join("world.json");
     let checkpoint_path = run_dir.join("checkpoint.json");
     for path in [&landscape_path, &world_path, &checkpoint_path] {
-        if !path.is_file() {
-            return Err(format!(
-                "{} is not a complete landscape-bound run: missing {}",
-                run_dir.display(),
-                path.file_name().unwrap_or_default().to_string_lossy()
-            )
-            .into());
-        }
+        artifact_fs::require_regular_file(path, "required spatial-observability artifact")?;
     }
 
     let landscape: LandscapeBundle = read_json(&landscape_path)?;
@@ -125,9 +121,7 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     )?;
     let output = run_dir.join("spatial-observability.json");
     if check {
-        if !output.is_file() {
-            return Err(format!("missing derived report {}", output.display()).into());
-        }
+        artifact_fs::require_regular_file(&output, "spatial-observability derived report")?;
         let existing: SpatialObservabilityReport = read_json(&output)?;
         if existing != report {
             return Err(format!(
@@ -150,14 +144,14 @@ fn resolve_initial_population(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<Population, Box<dyn std::error::Error>> {
     let initial_path = run_dir.join("initial-population.json");
-    if initial_path.is_file() {
+    if artifact_fs::regular_file_exists(&initial_path, "initial population artifact")? {
         let population: Population = read_json(&initial_path)?;
         population.validate(world)?;
         return Ok(population);
     }
 
     let resume_path = run_dir.join("resume-start-population.json");
-    if !resume_path.is_file() {
+    if !artifact_fs::regular_file_exists(&resume_path, "resume population artifact")? {
         return Err(format!(
             "{} has no initial-population.json or resume-start-population.json population provenance",
             run_dir.display()
@@ -184,7 +178,7 @@ fn validate_evidence_artifact(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = run_dir.join("evidence.json");
-    if !path.is_file() {
+    if !artifact_fs::regular_file_exists(&path, "spatial-observability evidence artifact")? {
         return Ok(());
     }
     let evidence: EvidenceCatalog = read_json(&path)?;
@@ -206,26 +200,30 @@ fn validate_landscape_wrapper(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<Option<SpatialMechanismBinding>, Box<dyn std::error::Error>> {
     let checkpoint_path = run_dir.join("landscape-checkpoint.json");
-    if !checkpoint_path.is_file() {
-        return Err(format!(
-            "{} is missing landscape-checkpoint.json required to bind the normalized landscape",
-            run_dir.display()
-        )
-        .into());
-    }
+    artifact_fs::require_regular_file(
+        &checkpoint_path,
+        "spatial-observability landscape checkpoint",
+    )?;
 
     let checkpoint_value: serde_json::Value = read_json(&checkpoint_path)?;
     let manifest_path = run_dir.join("manifest.json");
     let wrapper_manifest_path = run_dir.join("landscape-manifest.json");
-    let completed = manifest_path.is_file();
-    if completed && !wrapper_manifest_path.is_file() {
+    let completed = artifact_fs::regular_file_exists(
+        &manifest_path,
+        "spatial-observability core manifest",
+    )?;
+    let has_wrapper_manifest = artifact_fs::regular_file_exists(
+        &wrapper_manifest_path,
+        "spatial-observability landscape manifest",
+    )?;
+    if completed && !has_wrapper_manifest {
         return Err(format!(
             "{} completed landscape-bound run is missing landscape-manifest.json",
             run_dir.display()
         )
         .into());
     }
-    if !completed && wrapper_manifest_path.is_file() {
+    if !completed && has_wrapper_manifest {
         return Err(format!(
             "{} has landscape-manifest.json without manifest.json",
             run_dir.display()
@@ -273,13 +271,10 @@ fn validate_spatial_wrapper(
     }
 
     let mechanisms_path = run_dir.join("spatial-mechanisms.json");
-    if !mechanisms_path.is_file() {
-        return Err(format!(
-            "{} transformed spatial run is missing spatial-mechanisms.json",
-            run_dir.display()
-        )
-        .into());
-    }
+    artifact_fs::require_regular_file(
+        &mechanisms_path,
+        "spatial-observability mechanism artifact",
+    )?;
     let mechanisms: SpatialMechanismConfig = read_json(&mechanisms_path)?;
     if mechanisms != wrapper_checkpoint.spatial.config {
         return Err(format!(
@@ -337,7 +332,11 @@ fn validate_plain_landscape_wrapper(
     checkpoint_value: serde_json::Value,
     completed: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if run_dir.join("spatial-mechanisms.json").is_file() {
+    let mechanisms_path = run_dir.join("spatial-mechanisms.json");
+    if artifact_fs::regular_file_exists(
+        &mechanisms_path,
+        "spatial-observability mechanism artifact",
+    )? {
         return Err(format!(
             "{} has spatial-mechanisms.json but its landscape checkpoint is not transformed",
             run_dir.display()
@@ -392,11 +391,27 @@ fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error
         if !directory.is_dir() {
             continue;
         }
-        if directory.join("landscape.json").is_file()
-            && directory.join("checkpoint.json").is_file()
-            && directory.join("world.json").is_file()
-            && directory.join("landscape-checkpoint.json").is_file()
-        {
+        let landscape_path = directory.join("landscape.json");
+        let checkpoint_path = directory.join("checkpoint.json");
+        let world_path = directory.join("world.json");
+        let landscape_checkpoint_path = directory.join("landscape-checkpoint.json");
+        let has_landscape = artifact_fs::regular_file_exists(
+            &landscape_path,
+            "spatial-observability discovery landscape",
+        )?;
+        let has_checkpoint = artifact_fs::regular_file_exists(
+            &checkpoint_path,
+            "spatial-observability discovery checkpoint",
+        )?;
+        let has_world = artifact_fs::regular_file_exists(
+            &world_path,
+            "spatial-observability discovery world",
+        )?;
+        let has_landscape_checkpoint = artifact_fs::regular_file_exists(
+            &landscape_checkpoint_path,
+            "spatial-observability discovery landscape checkpoint",
+        )?;
+        if has_landscape && has_checkpoint && has_world && has_landscape_checkpoint {
             found.push(directory);
             continue;
         }
@@ -414,7 +429,7 @@ fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
+    let content = artifact_fs::read_to_string(path, "spatial observability source artifact")?;
     Ok(serde_json::from_str(&content)?)
 }
 
@@ -423,6 +438,63 @@ fn write_json<T: serde::Serialize + ?Sized>(
     value: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(value)?;
-    fs::write(path, format!("{json}\n"))?;
+    let payload = format!("{json}\n");
+    artifact_fs::atomic_write(path, payload.as_bytes(), "spatial observability output")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn report_writer_rejects_symlink_without_touching_target() {
+        use std::os::unix::fs::symlink;
+
+        let root = std::env::temp_dir().join(format!(
+            "anthrosim-spatial-observability-symlink-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let outside = root.with_extension("outside-report.json");
+        fs::write(&outside, "outside sentinel\n").unwrap();
+        let output = root.join("spatial-observability.json");
+        symlink(&outside, &output).unwrap();
+
+        let error = write_json(&output, &serde_json::json!({"derived": true}))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("symbolic link"));
+        assert_eq!(fs::read_to_string(&outside).unwrap(), "outside sentinel\n");
+
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_file(outside);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn broken_wrapper_symlink_is_rejected_instead_of_treated_as_missing() {
+        use std::os::unix::fs::symlink;
+
+        let root = std::env::temp_dir().join(format!(
+            "anthrosim-spatial-observability-broken-wrapper-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let missing = root.with_extension("missing-landscape-manifest.json");
+        symlink(&missing, root.join("landscape-manifest.json")).unwrap();
+
+        let error = artifact_fs::regular_file_exists(
+            &root.join("landscape-manifest.json"),
+            "spatial-observability landscape manifest",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("symbolic link"));
+
+        let _ = fs::remove_dir_all(root);
+    }
 }
