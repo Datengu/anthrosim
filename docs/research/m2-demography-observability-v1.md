@@ -120,7 +120,7 @@ If a successful fertility draw encounters the configured persistent-person-recor
 
 Runs truncated operationally must not be used as ordinary demographic outcomes without explicit handling.
 
-## CLI pathway
+## CLI and run-bundle pathway
 
 A normal run directory can be analyzed with:
 
@@ -130,7 +130,9 @@ anthrosim-demography-observability --run-dir <run-directory>
 
 By default this writes `demography-observability.json` inside the run directory.
 
-An existing report can be independently checked against the preserved artifacts with:
+`demography-observability.json` is a recognized optional AnthroSim run-bundle artifact. When present, bundle validation does not merely include the file by name: it reconstructs the exact day-zero population from the immutable experiment identity, regenerates the report deterministically from the checkpoint/events, and requires exact equality before the artifact is accepted for packing. Declared-founder runs are reconstructed through their embedded `founderPopulation` definition rather than through the synthetic initializer.
+
+An existing report can also be independently checked against the preserved artifacts with:
 
 ```text
 anthrosim-demography-observability --run-dir <run-directory> --check <report.json>
@@ -146,7 +148,8 @@ This report can establish that:
 - M2 age-band exposures follow the declared interval semantics;
 - mortality/fertility competing-transition behavior is quantitatively inspectable;
 - locality/spacing/stochastic/operational suppression can be separated;
-- the derived analysis agrees with authoritative state and events.
+- the derived analysis agrees with authoritative state and events;
+- a preserved report remains tied to the exact run artifacts that generated it.
 
 It cannot establish that:
 
