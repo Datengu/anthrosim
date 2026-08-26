@@ -82,7 +82,10 @@ pub(crate) fn atomic_write(path: &Path, payload: &[u8], role: &str) -> io::Resul
         if destination_still_exists && !destination_existed {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("{role} changed while preparing replacement: {}", path.display()),
+                format!(
+                    "{role} changed while preparing replacement: {}",
+                    path.display()
+                ),
             ));
         }
 
@@ -126,10 +129,7 @@ fn create_unique_temp(path: &Path) -> io::Result<(PathBuf, File)> {
 
     loop {
         let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-        let candidate = parent.join(format!(
-            ".{base}.anthrosim-tmp-{}-{id}",
-            std::process::id()
-        ));
+        let candidate = parent.join(format!(".{base}.anthrosim-tmp-{}-{id}", std::process::id()));
         match OpenOptions::new()
             .write(true)
             .create_new(true)
