@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display, fs, hash::Hash, io, path::Path};
 
-use anthrosim_core::RunManifest;
+use anthrosim_core::{RunManifest, StopReason};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 };
 
 const SWEEP_MANIFEST_SCHEMA_VERSION: u32 = 2;
-const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 3;
+const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 4;
 const MAX_SWEEP_POINTS: usize = 100_000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +73,46 @@ struct SweepIdentity<'a> {
     points: &'a [SweepPoint],
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum ScientificAggregationStatus {
+    EligibleScientificOutcome,
+    OperationallyCensored,
+    NotLifecycleComplete,
+}
+
+impl ScientificAggregationStatus {
+    const fn csv_label(self) -> &'static str {
+        match self {
+            Self::EligibleScientificOutcome => "eligibleScientificOutcome",
+            Self::OperationallyCensored => "operationallyCensored",
+            Self::NotLifecycleComplete => "notLifecycleComplete",
+        }
+    }
+}
+
+fn classify_completed_stop_reason(
+    stop_reason: StopReason,
+) -> (ScientificAggregationStatus, Option<String>) {
+    match stop_reason {
+        StopReason::DurationReached | StopReason::PopulationExtinct => {
+            (ScientificAggregationStatus::EligibleScientificOutcome, None)
+        }
+        StopReason::PersonRecordLimitReached => (
+            ScientificAggregationStatus::OperationallyCensored,
+            Some("personRecordLimitReached".to_owned()),
+        ),
+    }
+}
+
+fn stop_reason_label(stop_reason: StopReason) -> &'static str {
+    match stop_reason {
+        StopReason::DurationReached => "durationReached",
+        StopReason::PopulationExtinct => "populationExtinct",
+        StopReason::PersonRecordLimitReached => "personRecordLimitReached",
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DerivedRunRow {
@@ -98,6 +138,10 @@ struct DerivedRunRow {
     disable_migration: bool,
     migration_radius: u16,
     stop_reason: Option<String>,
+    scientific_aggregation_status: ScientificAggregationStatus,
+    operational_censoring_reason: Option<String>,
+    simulated_days: Option<u64>,
+    end_day: Option<u64>,
     state_digest64: Option<u64>,
     final_living_population: Option<u64>,
     births_since_start: Option<u64>,
@@ -134,18 +178,21 @@ struct DerivedPointRow {
     duration_reached_runs: u64,
     population_extinct_runs: u64,
     person_record_limit_reached_runs: u64,
-    mean_final_living_population_completed_only: Option<f64>,
-    mean_final_living_occupied_cell_count_completed_only: Option<f64>,
-    mean_births_since_start_completed_only: Option<f64>,
-    mean_deaths_since_start_completed_only: Option<f64>,
-    mean_living_condition_permille_completed_only: Option<f64>,
-    #[serde(rename = "meanConditionMortalityDeathsCompletedOnly")]
-    mean_resource_scarcity_deaths_completed_only: Option<f64>,
-    mean_resource_unmet_need_completed_only: Option<f64>,
-    mean_migration_moves_completed_only: Option<f64>,
-    mean_migration_total_distance_cells_completed_only: Option<f64>,
-    pooled_mean_migration_distance_cells_per_move_completed_only: Option<f64>,
-    source_completed_run_ids: Vec<String>,
+    scientifically_eligible_runs: u64,
+    operationally_censored_runs: u64,
+    mean_final_living_population_scientifically_eligible_only: Option<f64>,
+    mean_final_living_occupied_cell_count_scientifically_eligible_only: Option<f64>,
+    mean_births_since_start_scientifically_eligible_only: Option<f64>,
+    mean_deaths_since_start_scientifically_eligible_only: Option<f64>,
+    mean_living_condition_permille_scientifically_eligible_only: Option<f64>,
+    #[serde(rename = "meanConditionMortalityDeathsScientificallyEligibleOnly")]
+    mean_resource_scarcity_deaths_scientifically_eligible_only: Option<f64>,
+    mean_resource_unmet_need_scientifically_eligible_only: Option<f64>,
+    mean_migration_moves_scientifically_eligible_only: Option<f64>,
+    mean_migration_total_distance_cells_scientifically_eligible_only: Option<f64>,
+    pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only: Option<f64>,
+    source_scientifically_eligible_run_ids: Vec<String>,
+    source_operationally_censored_run_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -158,6 +205,8 @@ struct AnalysisSummary {
     point_rows: usize,
     completed_runs: usize,
     non_completed_runs: usize,
+    scientifically_eligible_runs: usize,
+    operationally_censored_runs: usize,
     note: &'static str,
 }
 
@@ -447,6 +496,19 @@ fn write_analysis_outputs(
         .iter()
         .filter(|row| row.state == "completed")
         .count();
+    let scientifically_eligible_runs = run_rows
+        .iter()
+        .filter(|row| {
+            row.scientific_aggregation_status
+                == ScientificAggregationStatus::EligibleScientificOutcome
+        })
+        .count();
+    let operationally_censored_runs = run_rows
+        .iter()
+        .filter(|row| {
+            row.scientific_aggregation_status == ScientificAggregationStatus::OperationallyCensored
+        })
+        .count();
     let summary = AnalysisSummary {
         schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
         provenance: "derived",
@@ -455,7 +517,9 @@ fn write_analysis_outputs(
         point_rows: point_rows.len(),
         completed_runs,
         non_completed_runs: run_rows.len().saturating_sub(completed_runs),
-        note: "Descriptive analysis only. Means are calculated from provenance-valid completed runs; every planned non-completed run remains explicit in runs.json/runs.csv and point status counts.",
+        scientifically_eligible_runs,
+        operationally_censored_runs,
+        note: "Descriptive analysis only. Point means pool provenance-valid scientific outcomes: durationReached and populationExtinct. personRecordLimitReached is an operational censoring event and is excluded from scientific aggregates while remaining explicit in run-level outputs.",
     };
     write_json(&analysis_directory.join("summary.json"), &summary)?;
     Ok(())
@@ -523,6 +587,10 @@ fn build_run_rows(
                 disable_migration: point.settings.disable_migration,
                 migration_radius: point.settings.migration_radius,
                 stop_reason: None,
+                scientific_aggregation_status: ScientificAggregationStatus::NotLifecycleComplete,
+                operational_censoring_reason: None,
+                simulated_days: None,
+                end_day: None,
                 state_digest64: None,
                 final_living_population: None,
                 births_since_start: None,
@@ -584,9 +652,13 @@ fn build_run_rows(
                     .into());
                 }
                 row.manifest_relative_path = Some(manifest_relative_path);
-                row.stop_reason = serde_json::to_value(run_manifest.stop_reason)?
-                    .as_str()
-                    .map(str::to_owned);
+                row.stop_reason = Some(stop_reason_label(run_manifest.stop_reason).to_owned());
+                let (scientific_aggregation_status, operational_censoring_reason) =
+                    classify_completed_stop_reason(run_manifest.stop_reason);
+                row.scientific_aggregation_status = scientific_aggregation_status;
+                row.operational_censoring_reason = operational_censoring_reason;
+                row.simulated_days = Some(run_manifest.statistics.simulated_days);
+                row.end_day = Some(run_manifest.end_time.days());
                 row.state_digest64 = Some(run_manifest.state_digest64);
                 row.final_living_population = Some(run_manifest.population.living_population);
                 row.births_since_start = Some(run_manifest.population.births_since_start);
@@ -638,6 +710,22 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 .copied()
                 .filter(|row| row.state == "completed")
                 .collect::<Vec<_>>();
+            let scientifically_eligible = completed
+                .iter()
+                .copied()
+                .filter(|row| {
+                    row.scientific_aggregation_status
+                        == ScientificAggregationStatus::EligibleScientificOutcome
+                })
+                .collect::<Vec<_>>();
+            let operationally_censored = completed
+                .iter()
+                .copied()
+                .filter(|row| {
+                    row.scientific_aggregation_status
+                        == ScientificAggregationStatus::OperationallyCensored
+                })
+                .collect::<Vec<_>>();
             let completed_runs = completed.len() as u64;
             let failed_runs = point_runs
                 .iter()
@@ -661,11 +749,11 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 .iter()
                 .filter(|row| row.stop_reason.as_deref() == Some("personRecordLimitReached"))
                 .count() as u64;
-            let migration_moves = completed
+            let migration_moves = scientifically_eligible
                 .iter()
                 .filter_map(|row| row.migration_moves_completed)
                 .fold(0_u128, |sum, value| sum + u128::from(value));
-            let migration_distance = completed
+            let migration_distance = scientifically_eligible
                 .iter()
                 .filter_map(|row| row.migration_total_distance_cells)
                 .fold(0_u128, |sum, value| sum + u128::from(value));
@@ -693,53 +781,64 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 duration_reached_runs,
                 population_extinct_runs,
                 person_record_limit_reached_runs,
-                mean_final_living_population_completed_only: mean_u64(
-                    completed
+                scientifically_eligible_runs: scientifically_eligible.len() as u64,
+                operationally_censored_runs: operationally_censored.len() as u64,
+                mean_final_living_population_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
                         .iter()
                         .filter_map(|row| row.final_living_population),
                 ),
-                mean_final_living_occupied_cell_count_completed_only: mean_u64(
-                    completed
+                mean_final_living_occupied_cell_count_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
                         .iter()
                         .filter_map(|row| row.final_living_occupied_cell_count),
                 ),
-                mean_births_since_start_completed_only: mean_u64(
-                    completed.iter().filter_map(|row| row.births_since_start),
+                mean_births_since_start_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
+                        .iter()
+                        .filter_map(|row| row.births_since_start),
                 ),
-                mean_deaths_since_start_completed_only: mean_u64(
-                    completed.iter().filter_map(|row| row.deaths_since_start),
+                mean_deaths_since_start_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
+                        .iter()
+                        .filter_map(|row| row.deaths_since_start),
                 ),
-                mean_living_condition_permille_completed_only: mean_u64(
-                    completed
+                mean_living_condition_permille_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
                         .iter()
                         .filter_map(|row| row.mean_living_condition_permille.map(u64::from)),
                 ),
-                mean_resource_scarcity_deaths_completed_only: mean_u64(
-                    completed
+                mean_resource_scarcity_deaths_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
                         .iter()
                         .filter_map(|row| row.resource_scarcity_deaths),
                 ),
-                mean_resource_unmet_need_completed_only: mean_u64(
-                    completed.iter().filter_map(|row| row.resource_unmet_need),
+                mean_resource_unmet_need_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
+                        .iter()
+                        .filter_map(|row| row.resource_unmet_need),
                 ),
-                mean_migration_moves_completed_only: mean_u64(
-                    completed
+                mean_migration_moves_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
                         .iter()
                         .filter_map(|row| row.migration_moves_completed),
                 ),
-                mean_migration_total_distance_cells_completed_only: mean_u64(
-                    completed
+                mean_migration_total_distance_cells_scientifically_eligible_only: mean_u64(
+                    scientifically_eligible
                         .iter()
                         .filter_map(|row| row.migration_total_distance_cells),
                 ),
-                pooled_mean_migration_distance_cells_per_move_completed_only: if migration_moves
-                    == 0
-                {
-                    None
-                } else {
-                    Some(migration_distance as f64 / migration_moves as f64)
-                },
-                source_completed_run_ids: completed
+                pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only:
+                    if migration_moves == 0 {
+                        None
+                    } else {
+                        Some(migration_distance as f64 / migration_moves as f64)
+                    },
+                source_scientifically_eligible_run_ids: scientifically_eligible
+                    .iter()
+                    .map(|row| format!("{}/{}", row.point_id, row.run_id))
+                    .collect(),
+                source_operationally_censored_run_ids: operationally_censored
                     .iter()
                     .map(|row| format!("{}/{}", row.point_id, row.run_id))
                     .collect(),
@@ -761,7 +860,7 @@ fn mean_u64(values: impl Iterator<Item = u64>) -> Option<f64> {
 
 fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,condition_mortality_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells\n",
+        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,scientific_aggregation_status,operational_censoring_reason,simulated_days,end_day,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,condition_mortality_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -785,6 +884,10 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
             row.disable_migration.to_string(),
             row.migration_radius.to_string(),
             row.stop_reason.clone().unwrap_or_default(),
+            row.scientific_aggregation_status.csv_label().to_owned(),
+            row.operational_censoring_reason.clone().unwrap_or_default(),
+            optional_to_string(row.simulated_days),
+            optional_to_string(row.end_day),
             optional_to_string(row.state_digest64),
             optional_to_string(row.final_living_population),
             optional_to_string(row.births_since_start),
@@ -804,7 +907,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,mean_final_living_population_completed_only,mean_final_living_occupied_cell_count_completed_only,mean_births_since_start_completed_only,mean_deaths_since_start_completed_only,mean_living_condition_permille_completed_only,mean_condition_mortality_deaths_completed_only,mean_resource_unmet_need_completed_only,mean_migration_moves_completed_only,mean_migration_total_distance_cells_completed_only,pooled_mean_migration_distance_cells_per_move_completed_only,source_completed_run_ids\n",
+        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,scientifically_eligible_runs,operationally_censored_runs,mean_final_living_population_scientifically_eligible_only,mean_final_living_occupied_cell_count_scientifically_eligible_only,mean_births_since_start_scientifically_eligible_only,mean_deaths_since_start_scientifically_eligible_only,mean_living_condition_permille_scientifically_eligible_only,mean_condition_mortality_deaths_scientifically_eligible_only,mean_resource_unmet_need_scientifically_eligible_only,mean_migration_moves_scientifically_eligible_only,mean_migration_total_distance_cells_scientifically_eligible_only,pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only,source_scientifically_eligible_run_ids,source_operationally_censored_run_ids\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -824,37 +927,40 @@ fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Err
             row.duration_reached_runs.to_string(),
             row.population_extinct_runs.to_string(),
             row.person_record_limit_reached_runs.to_string(),
-            row.mean_final_living_population_completed_only
+            row.scientifically_eligible_runs.to_string(),
+            row.operationally_censored_runs.to_string(),
+            row.mean_final_living_population_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_final_living_occupied_cell_count_completed_only
+            row.mean_final_living_occupied_cell_count_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_births_since_start_completed_only
+            row.mean_births_since_start_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_deaths_since_start_completed_only
+            row.mean_deaths_since_start_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_living_condition_permille_completed_only
+            row.mean_living_condition_permille_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_resource_scarcity_deaths_completed_only
+            row.mean_resource_scarcity_deaths_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_resource_unmet_need_completed_only
+            row.mean_resource_unmet_need_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_migration_moves_completed_only
+            row.mean_migration_moves_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.mean_migration_total_distance_cells_completed_only
+            row.mean_migration_total_distance_cells_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.pooled_mean_migration_distance_cells_per_move_completed_only
+            row.pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
-            row.source_completed_run_ids.join("|"),
+            row.source_scientifically_eligible_run_ids.join("|"),
+            row.source_operationally_censored_run_ids.join("|"),
         ]));
     }
     fs::write(path, csv)
@@ -968,6 +1074,7 @@ mod tests {
         point: &SweepPoint,
         seed: u64,
         state: &str,
+        stop_reason: Option<StopReason>,
         final_population: Option<u64>,
         births: Option<u64>,
         deaths: Option<u64>,
@@ -1002,7 +1109,21 @@ mod tests {
             annual_food_need: point.settings.annual_food_need,
             disable_migration: point.settings.disable_migration,
             migration_radius: point.settings.migration_radius,
-            stop_reason: (state == "completed").then(|| "durationReached".to_owned()),
+            stop_reason: stop_reason.map(|reason| stop_reason_label(reason).to_owned()),
+            scientific_aggregation_status: if state == "completed" {
+                stop_reason
+                    .map(|reason| classify_completed_stop_reason(reason).0)
+                    .unwrap_or(ScientificAggregationStatus::NotLifecycleComplete)
+            } else {
+                ScientificAggregationStatus::NotLifecycleComplete
+            },
+            operational_censoring_reason: if state == "completed" {
+                stop_reason.and_then(|reason| classify_completed_stop_reason(reason).1)
+            } else {
+                None
+            },
+            simulated_days: (state == "completed").then_some(365),
+            end_day: (state == "completed").then_some(365),
             state_digest64: (state == "completed").then_some(seed),
             final_living_population: final_population,
             births_since_start: births,
@@ -1079,7 +1200,7 @@ mod tests {
     }
 
     #[test]
-    fn point_aggregation_counts_non_completed_runs_and_excludes_them_from_means() {
+    fn point_aggregation_counts_non_completed_runs_and_excludes_them_from_scientific_means() {
         let dimensions = SweepDimensions {
             population: vec![12],
             household_size: vec![],
@@ -1093,9 +1214,9 @@ mod tests {
             build_sweep_manifest(small_settings(), vec![1, 2, 3], dimensions).expect("sweep");
         let point = &sweep.points[0];
         let rows = vec![
-            derived_row(&sweep, point, 1, "completed", Some(10), Some(4), Some(2)),
-            derived_row(&sweep, point, 2, "failed", None, None, None),
-            derived_row(&sweep, point, 3, "incomplete", None, None, None),
+            derived_row(&sweep, point, 1, "completed", Some(StopReason::DurationReached), Some(10), Some(4), Some(2)),
+            derived_row(&sweep, point, 2, "failed", None, None, None, None),
+            derived_row(&sweep, point, 3, "incomplete", None, None, None, None),
         ];
 
         let points = build_point_rows(&sweep, &rows);
@@ -1107,13 +1228,161 @@ mod tests {
         assert_eq!(summary.incomplete_runs, 1);
         assert_eq!(summary.other_non_completed_runs, 0);
         assert_eq!(
-            summary.mean_final_living_population_completed_only,
+            summary.mean_final_living_population_scientifically_eligible_only,
             Some(10.0)
         );
-        assert_eq!(summary.mean_births_since_start_completed_only, Some(4.0));
-        assert_eq!(summary.mean_deaths_since_start_completed_only, Some(2.0));
-        assert_eq!(summary.source_completed_run_ids.len(), 1);
-        assert!(summary.source_completed_run_ids[0].ends_with("seed-00000000000000000001"));
+        assert_eq!(summary.mean_births_since_start_scientifically_eligible_only, Some(4.0));
+        assert_eq!(summary.mean_deaths_since_start_scientifically_eligible_only, Some(2.0));
+        assert_eq!(summary.source_scientifically_eligible_run_ids.len(), 1);
+        assert!(summary.source_scientifically_eligible_run_ids[0].ends_with("seed-00000000000000000001"));
+    }
+
+    #[test]
+    fn scientific_aggregation_keeps_extinction_and_excludes_operational_censoring() {
+        let dimensions = SweepDimensions {
+            population: vec![12],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        let sweep =
+            build_sweep_manifest(small_settings(), vec![1, 2, 3], dimensions).expect("sweep");
+        let point = &sweep.points[0];
+        let rows = vec![
+            derived_row(
+                &sweep,
+                point,
+                1,
+                "completed",
+                Some(StopReason::DurationReached),
+                Some(100),
+                Some(10),
+                Some(2),
+            ),
+            derived_row(
+                &sweep,
+                point,
+                2,
+                "completed",
+                Some(StopReason::PopulationExtinct),
+                Some(0),
+                Some(4),
+                Some(12),
+            ),
+            derived_row(
+                &sweep,
+                point,
+                3,
+                "completed",
+                Some(StopReason::PersonRecordLimitReached),
+                Some(999),
+                Some(1_000),
+                Some(1_000),
+            ),
+        ];
+
+        assert_eq!(
+            rows[0].scientific_aggregation_status,
+            ScientificAggregationStatus::EligibleScientificOutcome
+        );
+        assert_eq!(
+            rows[1].scientific_aggregation_status,
+            ScientificAggregationStatus::EligibleScientificOutcome
+        );
+        assert_eq!(
+            rows[2].scientific_aggregation_status,
+            ScientificAggregationStatus::OperationallyCensored
+        );
+        assert_eq!(
+            rows[2].operational_censoring_reason.as_deref(),
+            Some("personRecordLimitReached")
+        );
+
+        let points = build_point_rows(&sweep, &rows);
+        let summary = &points[0];
+        assert_eq!(summary.completed_runs, 3);
+        assert_eq!(summary.duration_reached_runs, 1);
+        assert_eq!(summary.population_extinct_runs, 1);
+        assert_eq!(summary.person_record_limit_reached_runs, 1);
+        assert_eq!(summary.scientifically_eligible_runs, 2);
+        assert_eq!(summary.operationally_censored_runs, 1);
+        assert_eq!(
+            summary.mean_final_living_population_scientifically_eligible_only,
+            Some(50.0)
+        );
+        assert_eq!(
+            summary.mean_births_since_start_scientifically_eligible_only,
+            Some(7.0)
+        );
+        assert_eq!(
+            summary.mean_deaths_since_start_scientifically_eligible_only,
+            Some(7.0)
+        );
+        assert_eq!(summary.source_scientifically_eligible_run_ids.len(), 2);
+        assert_eq!(summary.source_operationally_censored_run_ids.len(), 1);
+        assert!(
+            summary.source_operationally_censored_run_ids[0]
+                .ends_with("seed-00000000000000000003")
+        );
+    }
+
+    #[test]
+    fn person_record_safety_ceiling_cannot_inject_truncated_run_into_scientific_mean() {
+        let dimensions = SweepDimensions {
+            population: vec![12],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        let sweep =
+            build_sweep_manifest(small_settings(), vec![1, 2], dimensions).expect("sweep");
+        let point = &sweep.points[0];
+        let rows = vec![
+            derived_row(
+                &sweep,
+                point,
+                1,
+                "completed",
+                Some(StopReason::DurationReached),
+                Some(40),
+                Some(8),
+                Some(4),
+            ),
+            derived_row(
+                &sweep,
+                point,
+                2,
+                "completed",
+                Some(StopReason::PersonRecordLimitReached),
+                Some(4_000),
+                Some(8_000),
+                Some(4_000),
+            ),
+        ];
+
+        let summary = &build_point_rows(&sweep, &rows)[0];
+        assert_eq!(summary.completed_runs, 2);
+        assert_eq!(summary.scientifically_eligible_runs, 1);
+        assert_eq!(summary.operationally_censored_runs, 1);
+        assert_eq!(
+            summary.mean_final_living_population_scientifically_eligible_only,
+            Some(40.0)
+        );
+        assert_eq!(
+            summary.mean_births_since_start_scientifically_eligible_only,
+            Some(8.0)
+        );
+        assert_eq!(summary.source_scientifically_eligible_run_ids.len(), 1);
+        assert!(
+            summary.source_scientifically_eligible_run_ids[0]
+                .ends_with("seed-00000000000000000001")
+        );
     }
 
     #[test]
@@ -1137,12 +1406,20 @@ mod tests {
         assert_eq!(runs.len(), 4);
         assert!(runs.iter().all(|row| row.state == "completed"));
         assert!(runs.iter().all(|row| row.manifest_relative_path.is_some()));
+        assert!(runs.iter().all(|row| {
+            row.scientific_aggregation_status
+                == ScientificAggregationStatus::EligibleScientificOutcome
+        }));
+        assert!(runs.iter().all(|row| row.simulated_days == Some(0)));
+        assert!(runs.iter().all(|row| row.end_day == Some(0)));
         assert_eq!(points.len(), 2);
         assert!(points.iter().all(|row| row.completed_runs == 2));
+        assert!(points.iter().all(|row| row.scientifically_eligible_runs == 2));
+        assert!(points.iter().all(|row| row.operationally_censored_runs == 0));
         assert!(
             points
                 .iter()
-                .all(|row| row.source_completed_run_ids.len() == 2)
+                .all(|row| row.source_scientifically_eligible_run_ids.len() == 2)
         );
 
         let runs_json: serde_json::Value =
@@ -1161,10 +1438,17 @@ mod tests {
                 .iter()
                 .all(|row| row.get("resourceScarcityDeaths").is_none())
         );
+        assert!(runs_json.as_array().unwrap().iter().all(|row| {
+            row.get("scientificAggregationStatus")
+                .and_then(serde_json::Value::as_str)
+                == Some("eligibleScientificOutcome")
+                && row.get("simulatedDays").is_some()
+                && row.get("endDay").is_some()
+        }));
         let points_json: serde_json::Value =
             read_json(&root.join("analysis/points.json")).expect("points json");
         assert!(points_json.as_array().unwrap().iter().all(|row| {
-            row.get("meanConditionMortalityDeathsCompletedOnly")
+            row.get("meanConditionMortalityDeathsScientificallyEligibleOnly")
                 .is_some()
         }));
         assert!(
@@ -1172,15 +1456,19 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .iter()
-                .all(|row| row.get("meanResourceScarcityDeathsCompletedOnly").is_none())
+                .all(|row| row.get("meanResourceScarcityDeathsScientificallyEligibleOnly").is_none())
         );
 
         let runs_csv = fs::read_to_string(root.join("analysis/runs.csv")).expect("runs csv");
         assert!(runs_csv.contains("condition_mortality_deaths"));
+        assert!(runs_csv.contains("scientific_aggregation_status"));
+        assert!(runs_csv.contains("operational_censoring_reason"));
+        assert!(runs_csv.contains("simulated_days"));
+        assert!(runs_csv.contains("end_day"));
         assert!(!runs_csv.contains("resource_scarcity_deaths"));
         let points_csv = fs::read_to_string(root.join("analysis/points.csv")).expect("points csv");
-        assert!(points_csv.contains("mean_condition_mortality_deaths_completed_only"));
-        assert!(!points_csv.contains("mean_resource_scarcity_deaths_completed_only"));
+        assert!(points_csv.contains("mean_condition_mortality_deaths_scientifically_eligible_only"));
+        assert!(!points_csv.contains("mean_resource_scarcity_deaths_scientifically_eligible_only"));
 
         assert!(root.join("analysis/runs.csv").is_file());
         assert!(root.join("analysis/points.csv").is_file());
