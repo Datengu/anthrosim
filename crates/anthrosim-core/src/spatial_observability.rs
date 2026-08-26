@@ -6,7 +6,8 @@ use thiserror::Error;
 use crate::{
     DeathCause, EventKind, EventLog, EventProvenance, GridGeometry, LandscapeBundle,
     LandscapeError, LandscapeLayerRole, LandscapeValueDomain, MetricProvenance, Population,
-    PopulationValidationError, SimulationCheckpoint, SpatialMechanismBinding, World,
+    PopulationValidationError, ResourceError, ResourceSystem, SimulationCheckpoint,
+    SpatialMechanismBinding, World,
     ids::{CellId, PersonId},
 };
 
@@ -98,7 +99,7 @@ pub struct SpatialModelFacingCell {
     pub movement_cost: u16,
     pub water_access: u16,
     pub base_productivity: u16,
-    pub initial_food_stock: u32,
+    pub initial_food_stock: u64,
     pub terminal_food_stock: u64,
 }
 
@@ -219,6 +220,7 @@ pub fn derive_spatial_observability(
             actual: world.digest64(),
         });
     }
+    let initial_resources = ResourceSystem::initialize(world, &checkpoint.experiment.resources)?;
 
     let end_day = checkpoint.time.days();
     let mut cells = vec![CellAccumulator::default(); world.cell_count()];
@@ -244,6 +246,9 @@ pub fn derive_spatial_observability(
         let world_cell = world
             .cell(cell)
             .ok_or(SpatialObservabilityError::InvalidCell(cell))?;
+        let initial_food_stock = initial_resources
+            .cell_food_stock(cell)
+            .ok_or(SpatialObservabilityError::InvalidCell(cell))?;
         let terminal_food_stock = checkpoint
             .resources
             .cell_food_stock(cell)
@@ -253,11 +258,11 @@ pub fn derive_spatial_observability(
             grid_x,
             grid_y,
             model_facing: SpatialModelFacingCell {
-                provenance: "authoritative_world_and_checkpoint".to_owned(),
+                provenance: "authoritative_world_m3_initialization_and_checkpoint".to_owned(),
                 movement_cost: world_cell.movement_cost,
                 water_access: world_cell.water_access,
                 base_productivity: world_cell.base_productivity,
-                initial_food_stock: world_cell.food_stock,
+                initial_food_stock,
                 terminal_food_stock,
             },
             derived: SpatialDerivedCell {
@@ -769,6 +774,8 @@ pub enum SpatialObservabilityError {
     Landscape(#[from] LandscapeError),
     #[error(transparent)]
     Population(#[from] PopulationValidationError),
+    #[error(transparent)]
+    Resource(#[from] ResourceError),
     #[error("landscape and world grids do not match")]
     GridMismatch,
     #[error("checkpoint world digest {expected} does not match supplied world digest {actual}")]
