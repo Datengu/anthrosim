@@ -47,7 +47,9 @@ pub struct ResourceMetrics {
     pub unmet_need: u64,
     pub final_food_stock: u64,
     pub household_periods_with_unmet_need: u64,
-    pub scarcity_deaths: u64,
+    /// Deaths from the general condition-mediated hazard. This is not a resource-scarcity cause
+    /// count: the shared condition state may include resource and non-resource upstream effects.
+    pub condition_mortality_deaths: u64,
     pub digest64: u64,
 }
 
@@ -60,7 +62,7 @@ impl From<&ResourceSummary> for ResourceMetrics {
             unmet_need: value.unmet_need,
             final_food_stock: value.final_food_stock,
             household_periods_with_unmet_need: value.household_periods_with_unmet_need,
-            scarcity_deaths: value.scarcity_deaths,
+            condition_mortality_deaths: value.condition_mortality_deaths,
             digest64: value.digest64,
         }
     }
@@ -107,7 +109,7 @@ pub struct MetricSnapshot {
 }
 
 impl MetricSnapshot {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,7 +121,7 @@ pub struct MetricSeries {
 }
 
 impl MetricSeries {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub fn annual() -> Self {
