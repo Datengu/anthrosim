@@ -1,5 +1,7 @@
 use std::{
-    fmt, fs, io,
+    fmt,
+    fs::{self, OpenOptions},
+    io::{self, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -29,6 +31,7 @@ struct ReplacementTransactionMarker {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RecoveryOutcome {
     NoRecoveryNeeded,
+    UnpublishedMarkerStateRemoved,
     AbandonedStageRemoved,
     PreviousBundleRestored,
     PromotedBundleKept,
@@ -41,6 +44,9 @@ impl fmt::Display for RecoveryOutcome {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::NoRecoveryNeeded => "no interrupted run-directory transaction was found",
+            Self::UnpublishedMarkerStateRemoved => {
+                "removed unpublished recovery-marker temp state; canonical bundle was unchanged"
+            }
             Self::AbandonedStageRemoved => {
                 "removed an abandoned staged replacement; canonical bundle was unchanged"
             }
@@ -123,7 +129,7 @@ impl RunDirectoryTransaction {
                 staging_name: file_name_string(&staging)?,
                 backup_name: file_name_string(&backup)?,
             };
-            if let Err(error) = write_json(&marker, &transaction) {
+            if let Err(error) = write_json_atomically(&marker, &transaction) {
                 let _ = fs::remove_dir_all(&staging);
                 return Err(error);
             }
@@ -249,6 +255,9 @@ pub(crate) fn recover_interrupted_replacement(target: &Path) -> io::Result<Recov
     if marker_path.exists() {
         return recover_marked_transaction(target, &marker_path);
     }
+    if let Some(outcome) = recover_unpublished_marker_state(target)? {
+        return Ok(outcome);
+    }
     recover_legacy_remnants(target)
 }
 
@@ -317,6 +326,42 @@ fn recover_marked_transaction(target: &Path, marker_path: &Path) -> io::Result<R
     }
 }
 
+fn recover_unpublished_marker_state(target: &Path) -> io::Result<Option<RecoveryOutcome>> {
+    let marker_temps = transaction_marker_temp_paths(target)?;
+    if marker_temps.is_empty() {
+        return Ok(None);
+    }
+
+    let (stages, backups) = legacy_remnants(target)?;
+    let target_exists = checked_directory_exists(target, "canonical target")?;
+    if !target_exists || !backups.is_empty() || stages.len() > 1 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "ambiguous unpublished run-directory recovery-marker state for {} (target present: {}, {} marker temp, {} stage, {} backup); no files were changed",
+                target.display(),
+                target_exists,
+                marker_temps.len(),
+                stages.len(),
+                backups.len()
+            ),
+        ));
+    }
+
+    for marker_temp in &marker_temps {
+        require_regular_file(marker_temp, "unpublished recovery-marker temp")?;
+    }
+    if let [stage] = stages.as_slice() {
+        checked_directory_exists(stage, "unpublished transaction staging directory")?;
+        fs::remove_dir_all(stage)?;
+    }
+    for marker_temp in marker_temps {
+        fs::remove_file(marker_temp)?;
+    }
+
+    Ok(Some(RecoveryOutcome::UnpublishedMarkerStateRemoved))
+}
+
 #[allow(dead_code)]
 fn recover_legacy_remnants(target: &Path) -> io::Result<RecoveryOutcome> {
     let (stages, backups) = legacy_remnants(target)?;
@@ -353,8 +398,9 @@ fn recover_legacy_remnants(target: &Path) -> io::Result<RecoveryOutcome> {
 
 fn require_no_unresolved_transaction(target: &Path) -> io::Result<()> {
     let marker = transaction_marker_path(target);
+    let marker_temps = transaction_marker_temp_paths(target)?;
     let (stages, backups) = legacy_remnants(target)?;
-    if marker.exists() || !stages.is_empty() || !backups.is_empty() {
+    if marker.exists() || !marker_temps.is_empty() || !stages.is_empty() || !backups.is_empty() {
         return Err(io::Error::other(format!(
             "run directory {} has interrupted transaction state; run anthrosim-recover --run-dir {} before starting or replacing it",
             target.display(),
@@ -397,6 +443,21 @@ fn validate_marker(target: &Path, marker: &ReplacementTransactionMarker) -> io::
         }
     }
     Ok(())
+}
+
+fn require_regular_file(path: &Path, role: &str) -> io::Result<()> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{role} may not be a symbolic link: {}", path.display()),
+        )),
+        Ok(metadata) if !metadata.is_file() => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{role} is not a regular file: {}", path.display()),
+        )),
+        Ok(_) => Ok(()),
+        Err(error) => Err(error),
+    }
 }
 
 #[allow(dead_code)]
@@ -490,6 +551,49 @@ fn read_json<T: DeserializeOwned>(path: &Path) -> io::Result<T> {
 fn write_json<T: Serialize + ?Sized>(path: &Path, value: &T) -> io::Result<()> {
     let json = serde_json::to_string_pretty(value).map_err(invalid_data)?;
     fs::write(path, format!("{json}\n"))
+}
+
+fn write_json_atomically<T: Serialize + ?Sized>(path: &Path, value: &T) -> io::Result<()> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                format!("atomic JSON target already exists: {}", path.display()),
+            ));
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+
+    let json = serde_json::to_string_pretty(value).map_err(invalid_data)?;
+    let payload = format!("{json}\n");
+    let temp = unique_atomic_temp_path(path);
+    let result = (|| {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        file.write_all(payload.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temp, path)?;
+        sync_directory(usable_parent(path))?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+#[cfg(unix)]
+fn sync_directory(path: &Path) -> io::Result<()> {
+    fs::File::open(path)?.sync_all()
+}
+
+#[cfg(not(unix))]
+fn sync_directory(_path: &Path) -> io::Result<()> {
+    Ok(())
 }
 
 fn invalid_data(error: impl std::fmt::Display) -> io::Error {
@@ -586,6 +690,45 @@ fn transaction_marker_path(target: &Path) -> PathBuf {
         ".{}.anthrosim-transaction.json",
         target_base_name(target)
     ))
+}
+
+fn transaction_marker_temp_paths(target: &Path) -> io::Result<Vec<PathBuf>> {
+    let parent = usable_parent(target);
+    if !parent.exists() {
+        return Ok(Vec::new());
+    }
+    let marker = transaction_marker_path(target);
+    let marker_name = file_name_string(&marker)?;
+    let prefix = format!("{marker_name}.tmp-");
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(parent)? {
+        let entry = entry?;
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with(&prefix))
+        {
+            paths.push(entry.path());
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+fn unique_atomic_temp_path(path: &Path) -> PathBuf {
+    let parent = usable_parent(path);
+    let base = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("anthrosim-atomic");
+    loop {
+        let id = NEXT_TRANSACTION_ID.fetch_add(1, Ordering::Relaxed);
+        let candidate = parent.join(format!("{base}.tmp-{}-{id}", std::process::id()));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
 }
 
 fn unique_sibling_path(target: &Path, role: &str) -> PathBuf {
@@ -835,6 +978,126 @@ mod tests {
         let error = target_is_nonempty_directory(&target).unwrap_err();
         assert!(error.to_string().contains("anthrosim-recover"));
         recover_interrupted_replacement(&target).unwrap();
+        cleanup(&target);
+    }
+
+    #[test]
+    fn replacement_marker_is_published_without_temp_remnants() {
+        let target = populated_target("atomic-marker", "old");
+        let transaction = RunDirectoryTransaction::replace_verified(&target).unwrap();
+        let marker_path = transaction_marker_path(&target);
+        let marker: ReplacementTransactionMarker = read_json(&marker_path).unwrap();
+        validate_marker(&target, &marker).unwrap();
+        assert!(transaction_marker_temp_paths(&target).unwrap().is_empty());
+        drop(transaction);
+        cleanup(&target);
+    }
+
+    #[test]
+    fn recovery_discards_unpublished_marker_temp_without_stage() {
+        let target = populated_target("recover-marker-temp-only", "old");
+        let marker_temp = unique_atomic_temp_path(&transaction_marker_path(&target));
+        fs::write(&marker_temp, "{\n").unwrap();
+
+        let unresolved = target_is_nonempty_directory(&target).unwrap_err();
+        assert!(unresolved.to_string().contains("anthrosim-recover"));
+        assert_eq!(
+            recover_interrupted_replacement(&target).unwrap(),
+            RecoveryOutcome::UnpublishedMarkerStateRemoved
+        );
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
+        assert!(!marker_temp.exists());
+        cleanup(&target);
+    }
+
+    #[test]
+    fn non_regular_unpublished_marker_temp_fails_closed() {
+        let target = populated_target("recover-marker-temp-directory", "old");
+        let marker_temp = unique_atomic_temp_path(&transaction_marker_path(&target));
+        fs::create_dir(&marker_temp).unwrap();
+
+        let error = recover_interrupted_replacement(&target).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("not a regular file"));
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
+        assert!(marker_temp.is_dir());
+        cleanup(&target);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_unpublished_marker_temp_fails_closed() {
+        let target = populated_target("recover-marker-temp-symlink", "old");
+        let marker_temp = unique_atomic_temp_path(&transaction_marker_path(&target));
+        let backing = usable_parent(&target).join(format!(
+            ".{}.marker-temp-backing",
+            target_base_name(&target)
+        ));
+        fs::write(&backing, "{\n").unwrap();
+        std::os::unix::fs::symlink(&backing, &marker_temp).unwrap();
+
+        let error = recover_interrupted_replacement(&target).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("symbolic link"));
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
+        assert!(
+            fs::symlink_metadata(&marker_temp)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+
+        let _ = fs::remove_file(&marker_temp);
+        let _ = fs::remove_file(&backing);
+        cleanup(&target);
+    }
+
+    #[test]
+    fn recovery_discards_unpublished_marker_temp_and_stage() {
+        let target = populated_target("recover-marker-temp", "old");
+        let staging = unique_sibling_path(&target, "stage");
+        fs::create_dir(&staging).unwrap();
+        fs::write(staging.join("checkpoint.json"), "partial\n").unwrap();
+        let marker_temp = unique_atomic_temp_path(&transaction_marker_path(&target));
+        fs::write(&marker_temp, "{\n").unwrap();
+
+        let unresolved = target_is_nonempty_directory(&target).unwrap_err();
+        assert!(unresolved.to_string().contains("anthrosim-recover"));
+        assert_eq!(
+            recover_interrupted_replacement(&target).unwrap(),
+            RecoveryOutcome::UnpublishedMarkerStateRemoved
+        );
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
+        assert!(!staging.exists());
+        assert!(!marker_temp.exists());
+        cleanup(&target);
+    }
+
+    #[test]
+    fn malformed_published_marker_fails_closed() {
+        let target = populated_target("malformed-marker", "old");
+        let marker = transaction_marker_path(&target);
+        fs::write(&marker, "{\n").unwrap();
+
+        let error = recover_interrupted_replacement(&target).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert_eq!(
+            fs::read_to_string(target.join("checkpoint.json")).unwrap(),
+            "old\n"
+        );
+        assert!(marker.exists());
         cleanup(&target);
     }
 
