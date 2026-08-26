@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import mimetypes
+import stat
 import threading
 import webbrowser
 from http import HTTPStatus
@@ -40,27 +41,47 @@ EXPLORER_FILES = {
 }
 
 
+def regular_file_without_symlink(path: Path, root: Path) -> bool:
+    """Return true only for a direct regular file contained in *root* without following a link."""
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        return False
+    try:
+        resolved = path.resolve(strict=True)
+        resolved_root = root.resolve(strict=True)
+    except OSError:
+        return False
+    return resolved.parent == resolved_root
+
+
 class ExplorerHandler(BaseHTTPRequestHandler):
     explorer_dir: Path
     run_dir: Path
 
-    def _resolve(self) -> Path | None:
+    def _resolve(self) -> tuple[Path, Path] | None:
         path = unquote(urlparse(self.path).path)
         if path == "/":
-            return self.explorer_dir / "index.html"
+            return self.explorer_dir / "index.html", self.explorer_dir
         if path.startswith("/run/"):
             name = path.removeprefix("/run/")
             if name not in ALLOWED_RUN_FILES:
                 return None
-            return self.run_dir / name
+            return self.run_dir / name, self.run_dir
         name = path.removeprefix("/")
         if name not in EXPLORER_FILES:
             return None
-        return self.explorer_dir / name
+        return self.explorer_dir / name, self.explorer_dir
 
     def _send_file(self, *, head_only: bool = False) -> None:
-        target = self._resolve()
-        if target is None or not target.is_file():
+        resolved = self._resolve()
+        if resolved is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        target, root = resolved
+        if not regular_file_without_symlink(target, root):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
@@ -123,14 +144,29 @@ def main() -> None:
     explorer_dir = repository_root / "explorer"
     run_dir = args.run_dir.resolve()
 
-    missing = sorted(name for name in BASE_RUN_FILES if not (run_dir / name).is_file())
+    missing = sorted(
+        name
+        for name in BASE_RUN_FILES
+        if not regular_file_without_symlink(run_dir / name, run_dir)
+    )
     if missing:
-        raise SystemExit(f"run bundle is incomplete; missing: {', '.join(missing)}")
-    missing_ui = sorted(name for name in EXPLORER_FILES if not (explorer_dir / name).is_file())
+        raise SystemExit(
+            "run bundle is incomplete or contains nonregular/symlinked required artifacts; "
+            f"invalid or missing: {', '.join(missing)}"
+        )
+    missing_ui = sorted(
+        name
+        for name in EXPLORER_FILES
+        if not regular_file_without_symlink(explorer_dir / name, explorer_dir)
+    )
     if missing_ui:
         raise SystemExit(f"explorer installation is incomplete; missing: {', '.join(missing_ui)}")
 
-    bundle_kind = "completed" if (run_dir / "manifest.json").is_file() else "paused checkpoint"
+    bundle_kind = (
+        "completed"
+        if regular_file_without_symlink(run_dir / "manifest.json", run_dir)
+        else "paused checkpoint"
+    )
     handler = type(
         "BoundExplorerHandler",
         (ExplorerHandler,),

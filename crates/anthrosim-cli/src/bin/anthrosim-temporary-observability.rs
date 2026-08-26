@@ -4,6 +4,9 @@ use std::{
     process::ExitCode,
 };
 
+#[path = "../artifact_fs.rs"]
+mod artifact_fs;
+
 use anthrosim_core::{
     EventLog, Population, SimulationCheckpoint, TemporaryMobilityObservabilityReport, World,
     derive_temporary_mobility_observability, rng::RngFactory,
@@ -83,14 +86,7 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     let world_path = run_dir.join("world.json");
     let checkpoint_path = run_dir.join("checkpoint.json");
     for path in [&world_path, &checkpoint_path] {
-        if !path.is_file() {
-            return Err(format!(
-                "{} is not a usable run bundle: missing {}",
-                run_dir.display(),
-                path.file_name().unwrap_or_default().to_string_lossy()
-            )
-            .into());
-        }
+        artifact_fs::require_regular_file(path, "required temporary-observability artifact")?;
     }
 
     let world: World = read_json(&world_path)?;
@@ -112,7 +108,7 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     }
 
     let events_path = run_dir.join("events.json");
-    if events_path.is_file() {
+    if artifact_fs::regular_file_exists(&events_path, "temporary-observability events artifact")? {
         let events: EventLog = read_json(&events_path)?;
         if events != checkpoint.events {
             return Err(format!(
@@ -127,9 +123,7 @@ fn process_run(run_dir: &Path, check: bool) -> Result<(), Box<dyn std::error::Er
     let report = derive_temporary_mobility_observability(&world, &initial_population, &checkpoint)?;
     let output = run_dir.join("temporary-observability.json");
     if check {
-        if !output.is_file() {
-            return Err(format!("missing derived report {}", output.display()).into());
-        }
+        artifact_fs::require_regular_file(&output, "temporary-observability derived report")?;
         let existing: TemporaryMobilityObservabilityReport = read_json(&output)?;
         if existing != report {
             return Err(format!(
@@ -152,14 +146,14 @@ fn resolve_initial_population(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<Population, Box<dyn std::error::Error>> {
     let initial_path = run_dir.join("initial-population.json");
-    if initial_path.is_file() {
+    if artifact_fs::regular_file_exists(&initial_path, "initial population artifact")? {
         let population: Population = read_json(&initial_path)?;
         population.validate(world)?;
         return Ok(population);
     }
 
     let resume_path = run_dir.join("resume-start-population.json");
-    if !resume_path.is_file() {
+    if !artifact_fs::regular_file_exists(&resume_path, "resume population artifact")? {
         return Err(format!(
             "{} has no initial-population.json or resume-start-population.json population provenance",
             run_dir.display()
@@ -189,7 +183,16 @@ fn discover_temporary_run_dirs(root: &Path) -> Result<Vec<PathBuf>, Box<dyn std:
             continue;
         }
         let checkpoint_path = directory.join("checkpoint.json");
-        if checkpoint_path.is_file() && directory.join("world.json").is_file() {
+        let world_path = directory.join("world.json");
+        let has_checkpoint = artifact_fs::regular_file_exists(
+            &checkpoint_path,
+            "temporary-observability discovery checkpoint",
+        )?;
+        let has_world = artifact_fs::regular_file_exists(
+            &world_path,
+            "temporary-observability discovery world",
+        )?;
+        if has_checkpoint && has_world {
             let checkpoint: SimulationCheckpoint = read_json(&checkpoint_path)?;
             if checkpoint.temporary_mobility.program().is_some() {
                 found.push(directory);
@@ -210,7 +213,7 @@ fn discover_temporary_run_dirs(root: &Path) -> Result<Vec<PathBuf>, Box<dyn std:
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
+    let content = artifact_fs::read_to_string(path, "temporary observability source artifact")?;
     Ok(serde_json::from_str(&content)?)
 }
 
@@ -219,7 +222,8 @@ fn write_json<T: serde::Serialize + ?Sized>(
     value: &T,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(value)?;
-    fs::write(path, format!("{json}\n"))?;
+    let payload = format!("{json}\n");
+    artifact_fs::atomic_write(path, payload.as_bytes(), "temporary observability output")?;
     Ok(())
 }
 
@@ -302,6 +306,49 @@ mod tests {
                 + report.summary.transit_person_days,
             report.summary.total_living_person_days
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn report_writer_rejects_symlink_without_touching_target() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_dir("output-symlink");
+        fs::create_dir_all(&root).unwrap();
+        let outside = root.with_extension("outside-report.json");
+        fs::write(&outside, "outside sentinel\n").unwrap();
+        let output = root.join("temporary-observability.json");
+        symlink(&outside, &output).unwrap();
+
+        let error = write_json(&output, &serde_json::json!({"derived": true}))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("symbolic link"));
+        assert_eq!(fs::read_to_string(&outside).unwrap(), "outside sentinel\n");
+
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_file(outside);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn broken_population_symlink_is_rejected_instead_of_falling_back() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_dir("broken-population-symlink");
+        fs::create_dir_all(&root).unwrap();
+        let missing = root.with_extension("missing-population.json");
+        symlink(&missing, root.join("initial-population.json")).unwrap();
+
+        let error = artifact_fs::regular_file_exists(
+            &root.join("initial-population.json"),
+            "initial population artifact",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("symbolic link"));
 
         let _ = fs::remove_dir_all(root);
     }
