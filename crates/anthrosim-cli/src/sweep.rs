@@ -10,6 +10,7 @@ use crate::{
 
 const SWEEP_MANIFEST_SCHEMA_VERSION: u32 = 2;
 const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 4;
+const DERIVED_POINT_ANALYSIS_SCHEMA_VERSION: u32 = 5;
 const MAX_SWEEP_POINTS: usize = 100_000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,8 +167,10 @@ struct DerivedPointRow {
     point_id: String,
     experiment_id: Option<String>,
     initial_population: u32,
+    household_size: u16,
     resource_productivity_scale_permille: u16,
     resource_seasonality_scale_permille: u16,
+    annual_food_need: u32,
     disable_migration: bool,
     migration_radius: u16,
     planned_runs: u64,
@@ -759,18 +762,20 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 .fold(0_u128, |sum, value| sum + u128::from(value));
 
             DerivedPointRow {
-                schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
+                schema_version: DERIVED_POINT_ANALYSIS_SCHEMA_VERSION,
                 provenance: "derived".to_owned(),
                 sweep_id: sweep.sweep_id.clone(),
                 point_id: point.point_id.clone(),
                 experiment_id: point_runs.first().and_then(|row| row.experiment_id.clone()),
                 initial_population: point.settings.population,
+                household_size: point.settings.household_size,
                 resource_productivity_scale_permille: point
                     .settings
                     .resource_productivity_scale_permille,
                 resource_seasonality_scale_permille: point
                     .settings
                     .resource_seasonality_scale_permille,
+                annual_food_need: point.settings.annual_food_need,
                 disable_migration: point.settings.disable_migration,
                 migration_radius: point.settings.migration_radius,
                 planned_runs: point_runs.len() as u64,
@@ -907,7 +912,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,initial_population,resource_productivity_scale_permille,resource_seasonality_scale_permille,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,scientifically_eligible_runs,operationally_censored_runs,mean_final_living_population_scientifically_eligible_only,mean_final_living_occupied_cell_count_scientifically_eligible_only,mean_births_since_start_scientifically_eligible_only,mean_deaths_since_start_scientifically_eligible_only,mean_living_condition_permille_scientifically_eligible_only,mean_condition_mortality_deaths_scientifically_eligible_only,mean_resource_unmet_need_scientifically_eligible_only,mean_migration_moves_scientifically_eligible_only,mean_migration_total_distance_cells_scientifically_eligible_only,pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only,source_scientifically_eligible_run_ids,source_operationally_censored_run_ids\n",
+        "sweep_id,point_id,experiment_id,initial_population,household_size,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,scientifically_eligible_runs,operationally_censored_runs,mean_final_living_population_scientifically_eligible_only,mean_final_living_occupied_cell_count_scientifically_eligible_only,mean_births_since_start_scientifically_eligible_only,mean_deaths_since_start_scientifically_eligible_only,mean_living_condition_permille_scientifically_eligible_only,mean_condition_mortality_deaths_scientifically_eligible_only,mean_resource_unmet_need_scientifically_eligible_only,mean_migration_moves_scientifically_eligible_only,mean_migration_total_distance_cells_scientifically_eligible_only,pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only,source_scientifically_eligible_run_ids,source_operationally_censored_run_ids\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -915,8 +920,10 @@ fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Err
             row.point_id.clone(),
             row.experiment_id.clone().unwrap_or_default(),
             row.initial_population.to_string(),
+            row.household_size.to_string(),
             row.resource_productivity_scale_permille.to_string(),
             row.resource_seasonality_scale_permille.to_string(),
+            row.annual_food_need.to_string(),
             row.disable_migration.to_string(),
             row.migration_radius.to_string(),
             row.planned_runs.to_string(),
@@ -1138,6 +1145,53 @@ mod tests {
         }
     }
 
+    fn point_analysis_json_key_for_dimension(dimension: &str) -> String {
+        if dimension == "population" {
+            "initialPopulation".to_owned()
+        } else {
+            dimension.to_owned()
+        }
+    }
+
+    fn camel_to_snake_case(value: &str) -> String {
+        let mut output = String::new();
+        for character in value.chars() {
+            if character.is_ascii_uppercase() {
+                output.push('_');
+                output.push(character.to_ascii_lowercase());
+            } else {
+                output.push(character);
+            }
+        }
+        output
+    }
+
+    fn point_csv_column_values(rows: &[DerivedPointRow], column: &str) -> Vec<String> {
+        let path = temp_path("point-csv-column-values");
+        write_points_csv(&path, rows).expect("write points csv");
+        let csv = fs::read_to_string(&path).expect("read points csv");
+        let mut lines = csv.lines();
+        let headers = lines
+            .next()
+            .expect("points csv header")
+            .split(',')
+            .collect::<Vec<_>>();
+        let index = headers
+            .iter()
+            .position(|header| *header == column)
+            .expect("requested points csv column");
+        let values = lines
+            .map(|line| {
+                line.split(',')
+                    .nth(index)
+                    .expect("points csv field")
+                    .to_owned()
+            })
+            .collect();
+        fs::remove_file(path).expect("cleanup points csv");
+        values
+    }
+
     #[test]
     fn sweep_expansion_is_deterministic_cartesian_product() {
         let first = expand_sweep_points(&small_settings(), &dimensions()).expect("points");
@@ -1196,6 +1250,109 @@ mod tests {
         changed.annual_food_need = vec![80, 120];
         let changed = build_sweep_manifest(small_settings(), vec![3, 7], changed).expect("sweep");
         assert_ne!(first.sweep_id, changed.sweep_id);
+    }
+
+    #[test]
+    fn every_supported_sweep_dimension_has_point_analysis_json_and_csv_representation() {
+        let sweep =
+            build_sweep_manifest(small_settings(), vec![1], dimensions()).expect("sweep manifest");
+        let rows = build_point_rows(&sweep, &[]);
+        let point_json = serde_json::to_value(&rows[0]).expect("point row json");
+        let point_object = point_json.as_object().expect("point row object");
+        let dimensions_json =
+            serde_json::to_value(&sweep.definition.dimensions).expect("dimension json");
+        let dimensions_object = dimensions_json.as_object().expect("dimension object");
+
+        let csv_path = temp_path("point-analysis-dimension-coverage");
+        write_points_csv(&csv_path, &rows).expect("write points csv");
+        let csv = fs::read_to_string(&csv_path).expect("read points csv");
+        let csv_header = csv.lines().next().expect("points csv header");
+
+        for dimension in dimensions_object.keys() {
+            let json_key = point_analysis_json_key_for_dimension(dimension);
+            assert!(
+                point_object.contains_key(&json_key),
+                "sweep dimension {dimension} has no point-analysis JSON field {json_key}"
+            );
+            let csv_key = camel_to_snake_case(&json_key);
+            assert!(
+                csv_header.split(',').any(|field| field == csv_key.as_str()),
+                "sweep dimension {dimension} has no point-analysis CSV column {csv_key}"
+            );
+        }
+
+        fs::remove_file(csv_path).expect("cleanup points csv");
+    }
+
+    #[test]
+    fn household_size_only_sweep_is_self_describing_at_point_level() {
+        let root = temp_path("sweep-household-size-analysis");
+        let dimensions = SweepDimensions {
+            population: vec![],
+            household_size: vec![2, 6],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        execute_sweep(&root, small_settings(), vec![31], dimensions, false)
+            .expect("household-size sweep");
+
+        let points: Vec<DerivedPointRow> =
+            read_json(&root.join("analysis/points.json")).expect("points");
+        assert_eq!(points.len(), 2);
+        assert_eq!(
+            points
+                .iter()
+                .map(|row| row.household_size)
+                .collect::<Vec<_>>(),
+            vec![2, 6]
+        );
+        assert!(
+            points
+                .iter()
+                .all(|row| row.schema_version == DERIVED_POINT_ANALYSIS_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            point_csv_column_values(&points, "household_size"),
+            vec!["2".to_owned(), "6".to_owned()]
+        );
+
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn annual_food_need_only_sweep_is_self_describing_at_point_level() {
+        let root = temp_path("sweep-annual-food-need-analysis");
+        let dimensions = SweepDimensions {
+            population: vec![],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![80, 120],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        execute_sweep(&root, small_settings(), vec![32], dimensions, false)
+            .expect("annual-food-need sweep");
+
+        let points: Vec<DerivedPointRow> =
+            read_json(&root.join("analysis/points.json")).expect("points");
+        assert_eq!(points.len(), 2);
+        assert_eq!(
+            points
+                .iter()
+                .map(|row| row.annual_food_need)
+                .collect::<Vec<_>>(),
+            vec![80, 120]
+        );
+        assert_eq!(
+            point_csv_column_values(&points, "annual_food_need"),
+            vec!["80".to_owned(), "120".to_owned()]
+        );
+
+        fs::remove_dir_all(root).expect("cleanup");
     }
 
     #[test]
@@ -1416,6 +1573,13 @@ mod tests {
         assert!(runs.iter().all(|row| row.simulated_days == Some(0)));
         assert!(runs.iter().all(|row| row.end_day == Some(0)));
         assert_eq!(points.len(), 2);
+        assert!(
+            points
+                .iter()
+                .all(|row| row.schema_version == DERIVED_POINT_ANALYSIS_SCHEMA_VERSION)
+        );
+        assert!(points.iter().all(|row| row.household_size == 4));
+        assert!(points.iter().all(|row| row.annual_food_need == 100));
         assert!(points.iter().all(|row| row.completed_runs == 2));
         assert!(
             points
@@ -1466,6 +1630,10 @@ mod tests {
             row.get("meanResourceScarcityDeathsScientificallyEligibleOnly")
                 .is_none()
         }));
+        assert!(points_json.as_array().unwrap().iter().all(|row| {
+            row.get("householdSize") == Some(&serde_json::Value::from(4))
+                && row.get("annualFoodNeed") == Some(&serde_json::Value::from(100))
+        }));
 
         let runs_csv = fs::read_to_string(root.join("analysis/runs.csv")).expect("runs csv");
         assert!(runs_csv.contains("condition_mortality_deaths"));
@@ -1475,6 +1643,8 @@ mod tests {
         assert!(runs_csv.contains("end_day"));
         assert!(!runs_csv.contains("resource_scarcity_deaths"));
         let points_csv = fs::read_to_string(root.join("analysis/points.csv")).expect("points csv");
+        assert!(points_csv.contains("household_size"));
+        assert!(points_csv.contains("annual_food_need"));
         assert!(
             points_csv.contains("mean_condition_mortality_deaths_scientifically_eligible_only")
         );
