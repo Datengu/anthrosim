@@ -1,1 +1,0 @@
-Temporary PR synchronization marker for issue #176. Remove before merge.
