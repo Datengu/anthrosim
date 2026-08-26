@@ -130,9 +130,15 @@ impl ResourceSystem {
         })
     }
 
-    #[must_use]
-    pub fn total_food_stock(&self) -> u64 {
-        self.cell_food_stock.iter().copied().sum()
+    pub fn total_food_stock(&self) -> Result<u64, ResourceError> {
+        self.cell_food_stock
+            .iter()
+            .copied()
+            .try_fold(0_u64, |total, stock| {
+                total
+                    .checked_add(stock)
+                    .ok_or(ResourceError::AccountingOverflow)
+            })
     }
 
     #[must_use]
@@ -153,7 +159,9 @@ impl ResourceSystem {
             harvested_food: self.harvested_food,
             consumed_food: self.harvested_food,
             unmet_need: self.unmet_need,
-            final_food_stock: self.total_food_stock(),
+            // Summaries are emitted only from internally checked or checkpoint-validated state.
+            // Keep this legacy infallible API while avoiding unchecked aggregate arithmetic.
+            final_food_stock: self.total_food_stock().unwrap_or(u64::MAX),
             household_periods_with_unmet_need: self.household_periods_with_unmet_need,
             scarcity_deaths: self.scarcity_deaths,
             mean_living_condition_permille: population.mean_living_condition_permille(),
@@ -261,7 +269,7 @@ impl ResourceSystem {
         )?)
         .map_err(|_| ResourceError::AccountingOverflow)?;
 
-        let stock_before = self.total_food_stock();
+        let stock_before = self.total_food_stock()?;
         let regenerated = self.regenerate(world, config, period_index_in_year)?;
 
         let household_count = population.household_count();
@@ -546,7 +554,7 @@ impl ResourceSystem {
             }
         }
 
-        let stock_after = self.total_food_stock();
+        let stock_after = self.total_food_stock()?;
         let expected_after = stock_before
             .checked_add(regenerated)
             .and_then(|value| value.checked_sub(harvested))
@@ -621,6 +629,25 @@ impl ResourceSystem {
         {
             return Err(ResourceError::StateShapeMismatch);
         }
+
+        // Aggregate first so malformed restored state fails deterministically before any
+        // capacity/accounting comparison can observe a wrapped total.
+        let _ = self.total_food_stock()?;
+        for (cell_index, (&stock, cell)) in self
+            .cell_food_stock
+            .iter()
+            .zip(world.cells().iter())
+            .enumerate()
+        {
+            let capacity = cell_capacity(cell.base_productivity, config);
+            if stock > capacity {
+                return Err(ResourceError::CellStockExceedsCapacity {
+                    cell_index,
+                    stock,
+                    capacity,
+                });
+            }
+        }
         self.validate_accounting()
     }
 
@@ -630,7 +657,7 @@ impl ResourceSystem {
             .checked_add(self.regenerated_food)
             .and_then(|value| value.checked_sub(self.harvested_food))
             .ok_or(ResourceError::AccountingOverflow)?;
-        let actual = self.total_food_stock();
+        let actual = self.total_food_stock()?;
         if expected != actual {
             return Err(ResourceError::ResourceAccountingMismatch { expected, actual });
         }
@@ -1183,6 +1210,12 @@ pub enum ResourceError {
     TemporaryResource(#[from] TemporaryResourceAccountingError),
     #[error("resource accounting overflowed")]
     AccountingOverflow,
+    #[error("resource cell {cell_index} stock {stock} exceeds configured capacity {capacity}")]
+    CellStockExceedsCapacity {
+        cell_index: usize,
+        stock: u64,
+        capacity: u64,
+    },
     #[error("resource state does not match world cell count")]
     StateShapeMismatch,
     #[error("resource period {index} is invalid for {periods_per_year} periods per year")]
@@ -1230,6 +1263,58 @@ mod tests {
     #[test]
     fn synthetic_resource_config_is_valid() {
         validate_resource_config(&ResourceConfig::synthetic_validation_v1()).unwrap();
+    }
+
+    #[test]
+    fn restored_resource_state_rejects_aggregate_stock_overflow() {
+        let world = World::generate(WorldConfig::new(2, 1), RngFactory::new(176)).unwrap();
+        let config = ResourceConfig::synthetic_validation_v1();
+        let system = ResourceSystem::initialize(&world, &config).unwrap();
+        let mut value = serde_json::to_value(system).unwrap();
+        value["cellFoodStock"] = serde_json::json!([u64::MAX, 1_u64]);
+        value["initialFoodStock"] = serde_json::json!(u64::MAX);
+        let restored: ResourceSystem = serde_json::from_value(value).unwrap();
+
+        assert!(matches!(
+            restored.total_food_stock(),
+            Err(ResourceError::AccountingOverflow)
+        ));
+        assert!(matches!(
+            restored.validate_checkpoint_state(&world, &config),
+            Err(ResourceError::AccountingOverflow)
+        ));
+    }
+
+    #[test]
+    fn aggregate_stock_accepts_exact_u64_boundary() {
+        let world = World::generate(WorldConfig::new(2, 1), RngFactory::new(177)).unwrap();
+        let config = ResourceConfig::synthetic_validation_v1();
+        let mut system = ResourceSystem::initialize(&world, &config).unwrap();
+        system.cell_food_stock = vec![u64::MAX - 1, 1];
+
+        assert_eq!(system.total_food_stock().unwrap(), u64::MAX);
+    }
+
+    #[test]
+    fn restored_resource_state_rejects_stock_above_cell_capacity() {
+        let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(178)).unwrap();
+        let config = ResourceConfig::synthetic_validation_v1();
+        let system = ResourceSystem::initialize(&world, &config).unwrap();
+        let capacity = cell_capacity(world.cells()[0].base_productivity, &config);
+        let impossible_stock = capacity.checked_add(1).unwrap();
+        let mut value = serde_json::to_value(system).unwrap();
+        value["cellFoodStock"] = serde_json::json!([impossible_stock]);
+        value["initialFoodStock"] = serde_json::json!(impossible_stock);
+        let restored: ResourceSystem = serde_json::from_value(value).unwrap();
+
+        assert!(matches!(
+            restored.validate_checkpoint_state(&world, &config),
+            Err(ResourceError::CellStockExceedsCapacity {
+                cell_index: 0,
+                stock,
+                capacity: found_capacity,
+            }) if stock == impossible_stock && found_capacity == capacity
+        ));
     }
 
     #[test]
@@ -1447,7 +1532,7 @@ mod tests {
             Population::initialize(PopulationConfig::new(200), &world, RngFactory::new(7)).unwrap();
         let config = ResourceConfig::synthetic_validation_v1();
         let mut system = ResourceSystem::initialize(&world, &config).unwrap();
-        let before = system.total_food_stock();
+        let before = system.total_food_stock().unwrap();
         let mut rngs = ResourceRngs::new(RngFactory::new(7));
 
         system
@@ -1463,7 +1548,7 @@ mod tests {
 
         assert_eq!(
             before + system.regenerated_food - system.harvested_food,
-            system.total_food_stock()
+            system.total_food_stock().unwrap()
         );
         assert_eq!(system.harvested_food + system.unmet_need, 200 * 24);
     }
