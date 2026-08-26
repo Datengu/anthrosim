@@ -1,8 +1,8 @@
 use serde_json::json;
 
 use crate::{
-    EventLog, HouseholdId, PopulationConfig, ResourceConfig, ResourceSummary, WorldConfig,
-    ids::CellId,
+    EventLog, PopulationConfig, ResourceConfig, ResourceSummary, WorldConfig,
+    ids::{CellId, HouseholdId},
     population::Population,
     resources::{ResourcePeriodContext, ResourceRngs, ResourceSystem},
     rng::RngFactory,
