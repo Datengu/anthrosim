@@ -47,9 +47,11 @@ pub struct ResourceMetrics {
     pub unmet_need: u64,
     pub final_food_stock: u64,
     pub household_periods_with_unmet_need: u64,
-    /// Deaths from the general condition-mediated hazard. This is not a resource-scarcity cause
-    /// count: the shared condition state may include resource and non-resource upstream effects.
-    pub condition_mortality_deaths: u64,
+    /// Historical Rust field name retained for source compatibility. v10 serializes this as
+    /// `conditionMortalityDeaths`; it counts the general condition-mediated hazard, not a
+    /// resource-scarcity-specific cause.
+    #[serde(rename = "conditionMortalityDeaths")]
+    pub scarcity_deaths: u64,
     pub digest64: u64,
 }
 
@@ -62,7 +64,7 @@ impl From<&ResourceSummary> for ResourceMetrics {
             unmet_need: value.unmet_need,
             final_food_stock: value.final_food_stock,
             household_periods_with_unmet_need: value.household_periods_with_unmet_need,
-            condition_mortality_deaths: value.condition_mortality_deaths,
+            scarcity_deaths: value.scarcity_deaths,
             digest64: value.digest64,
         }
     }
