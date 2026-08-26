@@ -276,8 +276,11 @@ pub fn derive_demography_observability(
             summary.spacing_eligible = summary.spacing_eligible.saturating_add(1);
 
             let location = exposure_location(&people[female_index], &same_day_origins);
+            // Match authoritative M2: the parentage pool is frozen from survivors present before
+            // any births are appended on this boundary, so same-boundary newborns cannot become
+            // candidate male parents for females processed later in the loop.
             let eligible = eligible_males(
-                &people,
+                &people[..records_at_boundary_start],
                 location,
                 &same_day_origins,
                 interval_start_day,
