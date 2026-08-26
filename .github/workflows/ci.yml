@@ -274,11 +274,18 @@ jobs:
           assert all(row['failedRuns'] == 0 for row in points)
           assert all(row['incompleteRuns'] == 0 for row in points)
           assert all(row['personRecordLimitReachedRuns'] == 0 for row in points)
-          assert summary['schemaVersion'] == 3
+          assert all(row['scientificallyEligibleRuns'] == 8 for row in points)
+          assert all(row['operationallyCensoredRuns'] == 0 for row in points)
+          assert all(row['scientificAggregationStatus'] == 'eligibleScientificOutcome' for row in runs)
+          assert all(row['simulatedDays'] is not None for row in runs)
+          assert all(row['endDay'] is not None for row in runs)
+          assert summary['schemaVersion'] == 4
           assert summary['runRows'] == 144
           assert summary['pointRows'] == 18
           assert summary['completedRuns'] == 144
           assert summary['nonCompletedRuns'] == 0
+          assert summary['scientificallyEligibleRuns'] == 144
+          assert summary['operationallyCensoredRuns'] == 0
           assert reference['schemaVersion'] == 3
           assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v10'
           assert record['sweepId'] == manifest['sweepId']
@@ -296,14 +303,14 @@ jobs:
                   'migrationEnabled': not row['disableMigration'],
                   'durationReachedRuns': row['durationReachedRuns'],
                   'populationExtinctRuns': row['populationExtinctRuns'],
-                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationCompletedOnly'],
-                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountCompletedOnly'],
-                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleCompletedOnly'],
-                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsCompletedOnly'],
-                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedCompletedOnly'],
-                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesCompletedOnly'],
-                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsCompletedOnly'],
-                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveCompletedOnly'],
+                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationScientificallyEligibleOnly'],
+                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountScientificallyEligibleOnly'],
+                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleScientificallyEligibleOnly'],
+                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsScientificallyEligibleOnly'],
+                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedScientificallyEligibleOnly'],
+                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesScientificallyEligibleOnly'],
+                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsScientificallyEligibleOnly'],
+                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveScientificallyEligibleOnly'],
               })
           assert observed == reference['pointResults']
           PY
