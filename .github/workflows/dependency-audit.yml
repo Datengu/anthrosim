@@ -1,12 +1,7 @@
 name: Dependency advisory audit
 
 on:
-  pull_request:
-    paths:
-      - Cargo.toml
-      - Cargo.lock
-      - 'crates/**/Cargo.toml'
-      - .github/workflows/dependency-audit.yml
+  workflow_call:
   push:
     branches: [main]
     paths:

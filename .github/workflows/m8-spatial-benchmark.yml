@@ -1,18 +1,7 @@
 name: M8.6 evidence-grounded spatial benchmark
 
 on:
-  pull_request:
-    paths:
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "build/**"
-      - "crates/anthrosim-core/**"
-      - "crates/anthrosim-cli/**"
-      - "scripts/aggregate-m8-spatial-benchmark.py"
-      - "scripts/verify-m8-spatial-benchmark-reference.py"
-      - "examples/m8-first-evidence-grounded-benchmark/**"
-      - ".github/workflows/m8-spatial-benchmark.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:

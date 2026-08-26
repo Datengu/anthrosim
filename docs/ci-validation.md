@@ -13,6 +13,8 @@ The `CI` workflow (`.github/workflows/ci.yml`) owns the general Rust/application
 
 The dependency graph prevents formatting, lint, unit-test, or script failures from spending time on the expensive acceptance stages while keeping the release binary identical across downstream gates.
 
+Path-dependent scientific/security checks are routed through the always-present aggregator described below, so path-based runner cost is preserved without relying on a human to notice that an optional red check should block merge.
+
 ## Independent reproducibility and research-artifact workflows
 
 The following workflow families remain separate from the main CI graph because each protects a distinct contract:
@@ -25,6 +27,7 @@ The following workflow families remain separate from the main CI graph because e
 - **Resumed Explorer compatibility** (`resumed-explorer.yml`) — proves new-directory resumed core and transformed-spatial bundles contain true day-zero founders, retain resume-boundary provenance, reconcile through M6, and are served read-only.
 - **Run bundle pack** (`run-bundle-pack.yml`) — validates semantic pack acceptance/rejection and deterministic canonical ZIP output for shareable completed run bundles.
 - **Source provenance** (`source-provenance.yml`) — checks clean/dirty/override source identities and the exact-binary provenance preflight used by versioned research sweeps.
+- **Applicable scientific/security gates** (`applicable-scientific-security-gates.yml`) — always emits one pull-request status, verifies the GitHub file listing is complete, classifies both current and previous paths for renames, and invokes the reusable M8.6, M9.7 and RustSec workflows only when their declared path contracts apply. The final status fails if retrieval/classification is incomplete or ambiguous, fails if an applicable gate fails, and explicitly records `N/A` otherwise. It also emits a lightweight post-merge continuity status on `main`; release-specific exact-SHA reruns remain separate.
 - **Dependency advisory audit** (`dependency-audit.yml`) — runs pinned `cargo-audit` 0.22.2 against `Cargo.lock` for dependency-changing pull requests/pushes, every day, and on demand so newly disclosed RustSec vulnerabilities are surfaced even without a source-code change.
 - **M8 benchmark data** (`m8-benchmark-data.yml`) — validates the committed benchmark input/data provenance contract independently of simulation output.
 - **M8.6 evidence-grounded spatial benchmark** (`m8-spatial-benchmark.yml`) — executes and checks the declared evidence-grounded reference benchmark/reproduction path.
