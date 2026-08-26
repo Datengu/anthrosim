@@ -9,6 +9,7 @@ use crate::{
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+const CONTINUATION_IDENTITY_DOMAIN: &[u8] = b"anthrosim-continuation-identity-v1\0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -46,6 +47,9 @@ pub struct SimulationCheckpoint {
     pub rng: RngCheckpoint,
     pub events: EventLog,
     pub metrics: MetricSeries,
+    /// Complete deterministic continuation/output identity. This is deliberately separate from
+    /// `stateDigest64`, which remains the compact scientific present-state identity.
+    pub continuation_digest64: u64,
     pub state_digest64: u64,
 }
 
@@ -56,7 +60,90 @@ impl SimulationCheckpoint {
     pub const PRE_TRAVEL_SEMANTICS_SCHEMA_VERSION: u32 = 7;
     pub const PRE_DURATION_AWARE_RESOURCE_SCHEMA_VERSION: u32 = 8;
     pub const PRE_CONDITION_MORTALITY_SCHEMA_VERSION: u32 = 9;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 10;
+    pub const PRE_CONTINUATION_IDENTITY_SCHEMA_VERSION: u32 = 10;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 11;
+
+    /// Seal a newly constructed checkpoint with its complete continuation identity.
+    #[must_use]
+    pub fn seal_continuation_identity(mut self) -> Self {
+        self.continuation_digest64 = continuation_digest64(&self);
+        self
+    }
+
+    /// Recompute and compare the complete continuation identity without altering the checkpoint.
+    #[must_use]
+    pub fn continuation_identity_is_valid(&self) -> bool {
+        self.continuation_digest64 == continuation_digest64(self)
+    }
+}
+
+/// Complete deterministic continuation/output material for a checkpoint.
+///
+/// This deliberately does not replace `stateDigest64`: the legacy state digest remains the compact
+/// scientific present-state identity. The continuation digest is a separate integrity/provenance
+/// identity that binds every serialized field capable of changing deterministic continuation or
+/// exact resumed authoritative output, including RNG positions, configuration, retained histories,
+/// complete migration checkpoint state, and resume lineage.
+///
+/// `continuationDigest64` itself is intentionally excluded to avoid a self-hash cycle.
+/// The digest is deterministic but is not a cryptographic authentication mechanism.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContinuationIdentityMaterial<'a> {
+    schema_version: u32,
+    model_version: &'a str,
+    model_semantics_id: &'a str,
+    git_commit: &'a Option<String>,
+    resume_lineage: &'a ResumeLineage,
+    experiment: &'a ExperimentConfig,
+    time: SimTime,
+    completed_years: u64,
+    terminal_stop_reason: &'a Option<StopReason>,
+    world_digest64: u64,
+    population: &'a Population,
+    temporary_mobility: &'a TemporaryMobilityState,
+    resources: &'a ResourceSystem,
+    migration: &'a MigrationCheckpointState,
+    rng: &'a RngCheckpoint,
+    events: &'a EventLog,
+    metrics: &'a MetricSeries,
+    state_digest64: u64,
+}
+
+/// Compute the complete deterministic continuation identity for a checkpoint.
+///
+/// JSON is used only as a deterministic byte encoding of the explicitly ordered struct above; the
+/// domain separator prevents accidental equivalence with other FNV-based AnthroSim digests. The
+/// checkpoint material uses ordered structs/vectors rather than unordered maps, so the encoding is
+/// stable across supported platforms.
+#[must_use]
+pub fn continuation_digest64(checkpoint: &SimulationCheckpoint) -> u64 {
+    let material = ContinuationIdentityMaterial {
+        schema_version: checkpoint.schema_version,
+        model_version: &checkpoint.model_version,
+        model_semantics_id: &checkpoint.model_semantics_id,
+        git_commit: &checkpoint.git_commit,
+        resume_lineage: &checkpoint.resume_lineage,
+        experiment: &checkpoint.experiment,
+        time: checkpoint.time,
+        completed_years: checkpoint.completed_years,
+        terminal_stop_reason: &checkpoint.terminal_stop_reason,
+        world_digest64: checkpoint.world_digest64,
+        population: &checkpoint.population,
+        temporary_mobility: &checkpoint.temporary_mobility,
+        resources: &checkpoint.resources,
+        migration: &checkpoint.migration,
+        rng: &checkpoint.rng,
+        events: &checkpoint.events,
+        metrics: &checkpoint.metrics,
+        state_digest64: checkpoint.state_digest64,
+    };
+    let encoded = serde_json::to_vec(&material)
+        .expect("supported continuation-identity material must serialize deterministically");
+    let mut hash = FNV_OFFSET_BASIS;
+    digest_bytes(&mut hash, CONTINUATION_IDENTITY_DOMAIN);
+    digest_bytes(&mut hash, &encoded);
+    hash
 }
 
 #[must_use]
@@ -110,7 +197,11 @@ pub fn state_digest64_with_temporary_mobility(
 }
 
 fn digest_u64(hash: &mut u64, value: u64) {
-    for byte in value.to_le_bytes() {
+    digest_bytes(hash, &value.to_le_bytes());
+}
+
+fn digest_bytes(hash: &mut u64, bytes: &[u8]) {
+    for &byte in bytes {
         *hash ^= u64::from(byte);
         *hash = hash.wrapping_mul(FNV_PRIME);
     }
@@ -141,6 +232,88 @@ mod tests {
         let extended =
             state_digest64_with_temporary_mobility(365, 11, 22, 33, 44, &temporary_mobility);
         assert_eq!(extended, legacy);
+    }
+
+    #[test]
+    fn generated_checkpoint_is_sealed_with_stable_continuation_identity() {
+        let checkpoint = crate::Simulation::new(ExperimentConfig::new(70, 2))
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        assert!(checkpoint.continuation_identity_is_valid());
+        assert_eq!(
+            checkpoint.continuation_digest64,
+            continuation_digest64(&checkpoint.clone())
+        );
+    }
+
+    #[test]
+    fn continuation_digest_binds_rng_config_and_complete_migration_state() {
+        let checkpoint = crate::Simulation::new(ExperimentConfig::new(71, 2))
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        let baseline = checkpoint.continuation_digest64;
+
+        let mut rng_changed = checkpoint.clone();
+        rng_changed.rng.migration_choice.low ^= 1;
+        assert_ne!(baseline, continuation_digest64(&rng_changed));
+        assert!(!rng_changed.continuation_identity_is_valid());
+
+        let mut config_changed = checkpoint.clone();
+        config_changed.experiment.duration_years += 1;
+        assert_ne!(baseline, continuation_digest64(&config_changed));
+        assert!(!config_changed.continuation_identity_is_valid());
+
+        let mut migration_changed = checkpoint.clone();
+        migration_changed.migration.northward_steps ^= 1;
+        assert_ne!(baseline, continuation_digest64(&migration_changed));
+        assert!(!migration_changed.continuation_identity_is_valid());
+
+        let mut explanatory_total_changed = checkpoint.clone();
+        explanatory_total_changed
+            .migration
+            .origin_resource_score_total ^= 1;
+        assert_ne!(baseline, continuation_digest64(&explanatory_total_changed));
+        assert!(!explanatory_total_changed.continuation_identity_is_valid());
+    }
+
+    #[test]
+    fn continuation_digest_binds_retained_output_and_lineage_material() {
+        let checkpoint = crate::Simulation::new(ExperimentConfig::new(72, 2))
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        let baseline = checkpoint.continuation_digest64;
+
+        let mut metrics_changed = checkpoint.clone();
+        metrics_changed.metrics.snapshots[0].state_digest64 ^= 1;
+        assert_ne!(baseline, continuation_digest64(&metrics_changed));
+
+        let mut events_changed = checkpoint.clone();
+        events_changed.events.schema_version ^= 1;
+        assert_ne!(baseline, continuation_digest64(&events_changed));
+
+        let mut lineage_changed = checkpoint.clone();
+        lineage_changed.resume_lineage.schema_version ^= 1;
+        assert_ne!(baseline, continuation_digest64(&lineage_changed));
+
+        let mut terminal_changed = checkpoint.clone();
+        terminal_changed.terminal_stop_reason = Some(StopReason::DurationReached);
+        assert_ne!(baseline, continuation_digest64(&terminal_changed));
+    }
+
+    #[test]
+    fn stored_continuation_digest_is_not_self_referential() {
+        let checkpoint = crate::Simulation::new(ExperimentConfig::new(73, 1))
+            .unwrap()
+            .checkpoint_at_year(0)
+            .unwrap();
+        let baseline = continuation_digest64(&checkpoint);
+        let mut stored_digest_changed = checkpoint;
+        stored_digest_changed.continuation_digest64 ^= 1;
+        assert_eq!(baseline, continuation_digest64(&stored_digest_changed));
+        assert!(!stored_digest_changed.continuation_identity_is_valid());
     }
 
     #[test]

@@ -39,7 +39,10 @@ pub struct ResumeBoundary {
     pub continuation: SourceRevisionIdentity,
     pub boundary_day: u64,
     pub boundary_completed_years: u64,
+    /// Legacy compact scientific present-state identity at the source boundary.
     pub source_state_digest64: u64,
+    /// Complete deterministic continuation/output identity of the accepted source checkpoint.
+    pub source_continuation_digest64: u64,
 }
 
 /// Append-only source lineage for checkpoint-resumed execution.
@@ -57,7 +60,8 @@ impl Default for ResumeLineage {
 }
 
 impl ResumeLineage {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const PRE_CONTINUATION_IDENTITY_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub const fn new() -> Self {
