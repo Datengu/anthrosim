@@ -23,7 +23,7 @@ def replay(pop, events, region, end):
     for h in pop["households"]: living[int(h)-1]+=1
     visiting=[False]*len(homes)
     residents=sum(n for n,home in zip(living,homes) if home in region); visitors=0; last=0
-    resident_days=visitor_days=visitor_calendar_days=peak=permanent=scarcity=0
+    resident_days=visitor_days=visitor_calendar_days=peak=permanent=condition_mortality=0
     def accrue(day):
         nonlocal last,resident_days,visitor_days,visitor_calendar_days
         if day<last: raise SystemExit("event replay moved backwards")
@@ -41,7 +41,7 @@ def replay(pop, events, region, end):
             if homes[h] in region: residents-=1
             elif visiting[h]: visitors-=1
             living[h]-=1
-            if e.get("cause")=="resource_scarcity": scarcity+=1
+            if e.get("cause")=="condition_mediated": condition_mortality+=1
         elif kind=="householdMigration":
             permanent+=1; h=int(e["household"])-1; was=homes[h] in region; homes[h]=int(e["destination"]); now=homes[h] in region
             if was!=now: residents += living[h] if now else -living[h]
@@ -55,7 +55,7 @@ def replay(pop, events, region, end):
             visitors-=living[h]; visiting[h]=False
         peak=max(peak,visitors)
     accrue(end)
-    return {"residentPersonDays":resident_days,"visitorPersonDays":visitor_days,"totalFocalPersonDays":resident_days+visitor_days,"daysWithAnyVisitors":visitor_calendar_days,"peakVisitors":peak,"permanentMigrations":permanent,"resourceScarcityDeaths":scarcity}
+    return {"residentPersonDays":resident_days,"visitorPersonDays":visitor_days,"totalFocalPersonDays":resident_days+visitor_days,"daysWithAnyVisitors":visitor_calendar_days,"peakVisitors":peak,"permanentMigrations":permanent,"conditionMortalityDeaths":condition_mortality}
 
 
 def load_arm(root, arm, definition, config):
@@ -91,7 +91,7 @@ def pair(seed,c,t,definition):
     resident_equal=cs["residentPersonDays"]==ts["residentPersonDays"]
     diff=abs(ts["totalFocalPersonDays"]-cs["totalFocalPersonDays"]); diff_pm=Fraction(diff*1000,cs["totalFocalPersonDays"])
     mean_res=Fraction(cs["residentPersonDays"],end); peak_pm=Fraction(ts["peakVisitors"]*1000,1)/mean_res if mean_res else Fraction(0)
-    checks={"pairedResidentPersonDaysEqual":resident_equal,"continuousJourneysStartedZero":cs["journeysStarted"]==0,"continuousVisitorPersonDaysZero":cs["visitorPersonDays"]==0,"continuousPeakVisitorsZero":cs["peakVisitors"]==0,"intermittentVisitorPersonDaysPositive":ts["visitorPersonDays"]>0,"intermittentJourneysCompletedPositive":ts["journeysCompleted"]>0,"intermittentDaysWithAnyVisitorsExact":ts["daysWithAnyVisitors"]==int(a["requireIntermittentDaysWithAnyVisitorsExact"]),"pairedFocalPersonDayDifferenceWithinBound":diff_pm<=int(a["maxPairedTotalFocalPersonDayDifferencePermille"]),"intermittentPeakVisitorShareAboveMinimum":peak_pm>=int(a["minIntermittentPeakVisitorShareOfContinuousMeanResidentsPermille"]),"noPermanentMigration":cs["permanentMigrations"]==0 and ts["permanentMigrations"]==0,"noResourceScarcityDeaths":cs["resourceScarcityDeaths"]==0 and ts["resourceScarcityDeaths"]==0,"intermittentOriginCatchmentNonempty":ts["originCatchmentCells"]>0,"intermittentTravelBurdenPositive":ts["totalTravelDays"]>0 and ts["totalRoundTripTravelCostUnits"]>0 and ts["totalRoundTripRouteDistanceEdges"]>0}
+    checks={"pairedResidentPersonDaysEqual":resident_equal,"continuousJourneysStartedZero":cs["journeysStarted"]==0,"continuousVisitorPersonDaysZero":cs["visitorPersonDays"]==0,"continuousPeakVisitorsZero":cs["peakVisitors"]==0,"intermittentVisitorPersonDaysPositive":ts["visitorPersonDays"]>0,"intermittentJourneysCompletedPositive":ts["journeysCompleted"]>0,"intermittentDaysWithAnyVisitorsExact":ts["daysWithAnyVisitors"]==int(a["requireIntermittentDaysWithAnyVisitorsExact"]),"pairedFocalPersonDayDifferenceWithinBound":diff_pm<=int(a["maxPairedTotalFocalPersonDayDifferencePermille"]),"intermittentPeakVisitorShareAboveMinimum":peak_pm>=int(a["minIntermittentPeakVisitorShareOfContinuousMeanResidentsPermille"]),"noPermanentMigration":cs["permanentMigrations"]==0 and ts["permanentMigrations"]==0,"noConditionMortalityDeaths":cs["conditionMortalityDeaths"]==0 and ts["conditionMortalityDeaths"]==0,"intermittentOriginCatchmentNonempty":ts["originCatchmentCells"]>0,"intermittentTravelBurdenPositive":ts["totalTravelDays"]>0 and ts["totalRoundTripTravelCostUnits"]>0 and ts["totalRoundTripRouteDistanceEdges"]>0}
     return {"seed":seed,"continuous":cs,"intermittent":ts,"totalFocalPersonDayDifferencePermilleExact":frac_text(diff_pm),"totalFocalPersonDayDifferencePermilleRounded":rounded(diff_pm),"intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact":frac_text(peak_pm),"intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleRounded":rounded(peak_pm),"criteria":checks,"pass":all(checks.values())}
 
 
@@ -109,7 +109,7 @@ def main():
     klass="not_distinguished" if structure_missing else "near_match_failed" if match_failed else "capability_distinguished" if all_pass else "degenerate"
     diffs=[Fraction(p["totalFocalPersonDayDifferencePermilleExact"]) for p in pairs]; peaks=[Fraction(p["intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact"]) for p in pairs]
     med_diff=Fraction(median(diffs)); med_peak=Fraction(median(peaks))
-    result={"schemaVersion":1,"benchmarkId":definition["benchmarkId"],"scientificStatus":definition["scientificStatus"],"interpretationBoundary":definition["interpretationBoundary"],"definitionCanonicalSha256":canon(definition),"declaredSeeds":seeds,"sharedSettings":definition["sharedSettings"],"arms":{arm:{"experimentId":arms[arm]["experimentId"],"experimentManifestSha256":arms[arm]["experimentManifestSha256"],"configCanonicalSha256":arms[arm]["configSha256"],"stateDigests":{str(seed):arms[arm]["runs"][str(seed)]["stateDigest64"] for seed in seeds}} for arm in ARMS},"pairs":pairs,"aggregate":{"pairedSeedsPassing":sum(p["pass"] for p in pairs),"pairedSeedsTotal":len(pairs),"medianTotalFocalPersonDayDifferencePermilleExact":frac_text(med_diff),"medianTotalFocalPersonDayDifferencePermilleRounded":rounded(med_diff),"maximumTotalFocalPersonDayDifferencePermilleRounded":max(rounded(x) for x in diffs),"medianIntermittentPeakVisitorSharePermilleExact":frac_text(med_peak),"medianIntermittentPeakVisitorSharePermilleRounded":rounded(med_peak),"minimumIntermittentPeakVisitorSharePermilleRounded":min(rounded(x) for x in peaks)},"classification":{"benchmarkClass":klass,"allPredeclaredPairedCriteriaPassed":all_pass,"replayAndResumeChecks":"workflow-gated-separately"}}
+    result={"schemaVersion":2,"benchmarkId":definition["benchmarkId"],"scientificStatus":definition["scientificStatus"],"interpretationBoundary":definition["interpretationBoundary"],"definitionCanonicalSha256":canon(definition),"declaredSeeds":seeds,"sharedSettings":definition["sharedSettings"],"arms":{arm:{"experimentId":arms[arm]["experimentId"],"experimentManifestSha256":arms[arm]["experimentManifestSha256"],"configCanonicalSha256":arms[arm]["configSha256"],"stateDigests":{str(seed):arms[arm]["runs"][str(seed)]["stateDigest64"] for seed in seeds}} for arm in ARMS},"pairs":pairs,"aggregate":{"pairedSeedsPassing":sum(p["pass"] for p in pairs),"pairedSeedsTotal":len(pairs),"medianTotalFocalPersonDayDifferencePermilleExact":frac_text(med_diff),"medianTotalFocalPersonDayDifferencePermilleRounded":rounded(med_diff),"maximumTotalFocalPersonDayDifferencePermilleRounded":max(rounded(x) for x in diffs),"medianIntermittentPeakVisitorSharePermilleExact":frac_text(med_peak),"medianIntermittentPeakVisitorSharePermilleRounded":rounded(med_peak),"minimumIntermittentPeakVisitorSharePermilleRounded":min(rounded(x) for x in peaks)},"classification":{"benchmarkClass":klass,"allPredeclaredPairedCriteriaPassed":all_pass,"replayAndResumeChecks":"workflow-gated-separately"}}
     result["aggregateCanonicalSha256"]=canon(result); args.output.parent.mkdir(parents=True,exist_ok=True); args.output.write_text(json.dumps(result,indent=2)+"\n")
     if args.markdown:
         lines=["# M9.7 controlled aggregation benchmark result","",f"Benchmark class: **{klass}**.","",definition["interpretationBoundary"],"","| Seed | Focal person-day difference | Peak visitor share | Visitor days | Completed journeys | Pass |","| ---: | ---: | ---: | ---: | ---: | :---: |"]
