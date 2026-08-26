@@ -200,7 +200,7 @@ pub(crate) fn execute_sweep(
 
     if unsuccessful_points > 0 {
         return Err(io::Error::other(format!(
-            "sweep finished with {unsuccessful_points} point(s) containing unsuccessful runs; inspect status/*.json and retry the exact experiment with --retry"
+            "sweep finished with {unsuccessful_points} point(s) containing unsuccessful runs; derived analysis explicitly records their non-completed states and the exact sweep can be retried with --retry"
         ))
         .into());
     }
