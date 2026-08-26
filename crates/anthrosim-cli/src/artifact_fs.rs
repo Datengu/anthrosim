@@ -5,6 +5,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+// This shared source file is compiled independently into several CLI binaries; not every binary
+// uses every boundary helper even though the helpers are used across the CLI as a whole.
+#[allow(dead_code)]
 static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn regular_file_exists(path: &Path, role: &str) -> io::Result<bool> {
@@ -41,6 +44,7 @@ pub(crate) fn read_to_string(path: &Path, role: &str) -> io::Result<String> {
     Ok(content)
 }
 
+#[allow(dead_code)]
 pub(crate) fn canonical_regular_file_within(
     root: &Path,
     path: &Path,
@@ -62,6 +66,7 @@ pub(crate) fn canonical_regular_file_within(
     Ok(canonical_path)
 }
 
+#[allow(dead_code)]
 pub(crate) fn atomic_write(path: &Path, payload: &[u8], role: &str) -> io::Result<()> {
     let parent = path
         .parent()
@@ -116,6 +121,7 @@ pub(crate) fn atomic_write(path: &Path, payload: &[u8], role: &str) -> io::Resul
     result
 }
 
+#[allow(dead_code)]
 fn create_unique_temp(path: &Path) -> io::Result<(PathBuf, File)> {
     let parent = path
         .parent()
