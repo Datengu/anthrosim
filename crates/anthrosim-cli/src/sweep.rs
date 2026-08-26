@@ -208,7 +208,7 @@ pub(crate) fn execute_sweep(
     println!(
         "completed sweep {} with {} parameter point(s) in {}",
         manifest.sweep_id,
-        manifest.points.len(),
+        manifest.runs.len(),
         directory.display()
     );
     Ok(())
@@ -1163,11 +1163,10 @@ mod tests {
         );
         let points_json: serde_json::Value =
             read_json(&root.join("analysis/points.json")).expect("points json");
-        assert!(
-            points_json.as_array().unwrap().iter().all(|row| row
-                .get("meanConditionMortalityDeathsCompletedOnly")
-                .is_some())
-        );
+        assert!(points_json.as_array().unwrap().iter().all(|row| {
+            row.get("meanConditionMortalityDeathsCompletedOnly")
+                .is_some()
+        }));
         assert!(
             points_json
                 .as_array()
