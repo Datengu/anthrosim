@@ -139,6 +139,7 @@ fn transformed_run_rejects_tampered_authoritative_event_history() {
         .first_mut()
         .expect("forced mortality fixture must emit authoritative events");
     first.sequence = first.sequence.saturating_add(1);
+    run.checkpoint.core_checkpoint = run.checkpoint.core_checkpoint.seal_continuation_identity();
 
     assert_core_invariant_failure(
         validate_spatial_landscape_recorded_run(&run, &landscape()),
@@ -157,6 +158,7 @@ fn transformed_run_rejects_tampered_derived_metrics() {
         .last_mut()
         .expect("completed transformed run must have a terminal metric snapshot");
     terminal.state_digest64 ^= 1;
+    run.checkpoint.core_checkpoint = run.checkpoint.core_checkpoint.seal_continuation_identity();
 
     assert_core_invariant_failure(
         validate_spatial_landscape_recorded_run(&run, &landscape()),

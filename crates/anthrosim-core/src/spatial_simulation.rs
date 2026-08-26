@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility},
+    checkpoint::{
+        RngCheckpoint, SimulationCheckpoint, continuation_digest64,
+        state_digest64_with_temporary_mobility,
+    },
     config::ExperimentConfig,
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
@@ -315,6 +318,7 @@ impl SpatialLandscapeSimulation {
             boundary_day: checkpoint.core_checkpoint.time.days(),
             boundary_completed_years: checkpoint.core_checkpoint.completed_years,
             source_state_digest64: checkpoint.core_checkpoint.state_digest64,
+            source_continuation_digest64: checkpoint.core_checkpoint.continuation_digest64,
         });
 
         let simulation = Self {
@@ -738,8 +742,10 @@ impl SpatialLandscapeSimulation {
             rng,
             events: self.events,
             metrics: self.metrics,
+            continuation_digest64: 0,
             state_digest64: state_digest,
         }
+        .seal_continuation_identity()
     }
 }
 
@@ -918,6 +924,15 @@ fn validate_core_checkpoint_header(
             expected: MODEL_SEMANTICS_ID.to_owned(),
         });
     }
+    let actual_continuation_digest64 = continuation_digest64(checkpoint);
+    if actual_continuation_digest64 != checkpoint.continuation_digest64 {
+        return Err(
+            SpatialLandscapeError::CheckpointContinuationDigestMismatch {
+                expected: checkpoint.continuation_digest64,
+                actual: actual_continuation_digest64,
+            },
+        );
+    }
     let source_identity = SourceRevisionIdentity {
         model_version: checkpoint.model_version.clone(),
         model_semantics_id: checkpoint.model_semantics_id.clone(),
@@ -1068,6 +1083,8 @@ pub enum SpatialLandscapeError {
     CheckpointModelVersionMismatch { found: String, expected: String },
     #[error("checkpoint core semantics {found} does not match current core semantics {expected}")]
     CheckpointCoreSemanticsMismatch { found: String, expected: String },
+    #[error("checkpoint continuation digest mismatch: stored {expected}, reconstructed {actual}")]
+    CheckpointContinuationDigestMismatch { expected: u64, actual: u64 },
     #[error("checkpoint resume lineage is invalid: {reason}")]
     CheckpointResumeLineageInvalid { reason: String },
     #[error("checkpoint {artifact} artifact schema is incompatible with this build")]

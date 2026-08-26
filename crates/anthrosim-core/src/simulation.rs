@@ -1,7 +1,10 @@
 use thiserror::Error;
 
 use crate::{
-    checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64_with_temporary_mobility},
+    checkpoint::{
+        RngCheckpoint, SimulationCheckpoint, continuation_digest64,
+        state_digest64_with_temporary_mobility,
+    },
     config::{ExperimentConfig, PopulationInitialization},
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
@@ -163,6 +166,13 @@ impl Simulation {
                 expected: MODEL_SEMANTICS_ID.to_owned(),
             });
         }
+        let actual_continuation_digest64 = continuation_digest64(&checkpoint);
+        if actual_continuation_digest64 != checkpoint.continuation_digest64 {
+            return Err(SimulationError::CheckpointContinuationDigestMismatch {
+                expected: checkpoint.continuation_digest64,
+                actual: actual_continuation_digest64,
+            });
+        }
         validate_experiment(&checkpoint.experiment)?;
         if checkpoint.events.schema_version != EventLog::CURRENT_SCHEMA_VERSION {
             return Err(SimulationError::CheckpointArtifactSchemaMismatch { artifact: "events" });
@@ -230,6 +240,7 @@ impl Simulation {
         let boundary_day = checkpoint.time.days();
         let boundary_completed_years = checkpoint.completed_years;
         let source_state_digest64 = checkpoint.state_digest64;
+        let source_continuation_digest64 = checkpoint.continuation_digest64;
         let continuation_identity = SourceRevisionIdentity::current();
         let mut resume_lineage = checkpoint.resume_lineage;
         resume_lineage.boundaries.push(ResumeBoundary {
@@ -238,6 +249,7 @@ impl Simulation {
             boundary_day,
             boundary_completed_years,
             source_state_digest64,
+            source_continuation_digest64,
         });
 
         let migration = MigrationSystem::from_checkpoint_state(
@@ -672,8 +684,10 @@ impl Simulation {
             rng,
             events: self.events,
             metrics: self.metrics,
+            continuation_digest64: 0,
             state_digest64: state_digest,
         }
+        .seal_continuation_identity()
     }
 }
 
@@ -831,6 +845,8 @@ pub enum SimulationError {
         "checkpoint model semantics identity {found} does not match current model semantics identity {expected}"
     )]
     CheckpointModelSemanticsMismatch { found: String, expected: String },
+    #[error("checkpoint continuation digest mismatch: stored {expected}, reconstructed {actual}")]
+    CheckpointContinuationDigestMismatch { expected: u64, actual: u64 },
     #[error("checkpoint resume lineage is invalid: {reason}")]
     CheckpointResumeLineageInvalid { reason: String },
     #[error("checkpoint {artifact} artifact schema is incompatible with this build")]
@@ -1020,6 +1036,13 @@ mod tests {
         )
     }
 
+    fn assert_continuation_tamper_rejected(checkpoint: SimulationCheckpoint) {
+        assert!(matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::CheckpointContinuationDigestMismatch { .. })
+        ));
+    }
+
     #[test]
     fn duration_beyond_signed_chronology_domain_is_rejected_before_execution() {
         let duration_years = MAX_SUPPORTED_DURATION_YEARS + 1;
@@ -1184,6 +1207,7 @@ mod tests {
             .checkpoint_at_year(1)
             .unwrap();
         checkpoint.experiment = dangling_evidence_config(8).with_world(checkpoint.experiment.world);
+        checkpoint = checkpoint.seal_continuation_identity();
         assert!(matches!(
             Simulation::from_checkpoint(checkpoint),
             Err(SimulationError::Evidence(
@@ -1297,7 +1321,9 @@ mod tests {
             .unwrap();
         assert_eq!(checkpoint.model_semantics_id, MODEL_SEMANTICS_ID);
         assert_eq!(checkpoint.terminal_stop_reason, None);
+        assert!(checkpoint.continuation_identity_is_valid());
         let source_digest = checkpoint.state_digest64;
+        let source_continuation_digest = checkpoint.continuation_digest64;
         let resumed = Simulation::from_checkpoint(checkpoint)
             .unwrap()
             .run_recorded()
@@ -1311,6 +1337,10 @@ mod tests {
         assert_eq!(boundary.boundary_day, SimTime::from_years(5).days());
         assert_eq!(boundary.boundary_completed_years, 5);
         assert_eq!(boundary.source_state_digest64, source_digest);
+        assert_eq!(
+            boundary.source_continuation_digest64,
+            source_continuation_digest
+        );
         assert_eq!(boundary.source, boundary.continuation);
         assert_eq!(
             resumed.checkpoint.population,
@@ -1338,10 +1368,46 @@ mod tests {
             resumed.checkpoint.terminal_stop_reason,
             uninterrupted.checkpoint.terminal_stop_reason
         );
+        assert!(resumed.checkpoint.continuation_identity_is_valid());
+        assert!(uninterrupted.checkpoint.continuation_identity_is_valid());
         assert_eq!(
             resumed.manifest.resume_lineage,
             resumed.checkpoint.resume_lineage
         );
+    }
+
+    #[test]
+    fn checkpoint_continuation_identity_rejects_future_defining_tampering() {
+        let checkpoint = Simulation::new(
+            ExperimentConfig::new(2033, 4)
+                .with_world(WorldConfig::new(4, 4))
+                .with_population(PopulationConfig::new(64)),
+        )
+        .unwrap()
+        .checkpoint_at_year(1)
+        .unwrap();
+
+        let mut rng_changed = checkpoint.clone();
+        rng_changed.rng.migration_choice.low ^= 1;
+        assert_continuation_tamper_rejected(rng_changed);
+
+        let mut config_changed = checkpoint.clone();
+        config_changed.experiment.duration_years += 1;
+        assert_continuation_tamper_rejected(config_changed);
+
+        let mut migration_changed = checkpoint.clone();
+        migration_changed.migration.northward_steps ^= 1;
+        assert_continuation_tamper_rejected(migration_changed);
+
+        let mut explanatory_total_changed = checkpoint.clone();
+        explanatory_total_changed
+            .migration
+            .origin_resource_score_total ^= 1;
+        assert_continuation_tamper_rejected(explanatory_total_changed);
+
+        let mut retained_output_changed = checkpoint;
+        retained_output_changed.metrics.snapshots[0].state_digest64 ^= 1;
+        assert_continuation_tamper_rejected(retained_output_changed);
     }
 
     #[test]
@@ -1375,6 +1441,8 @@ mod tests {
         let boundary_day = checkpoint.time.days();
         let source_state_digest64 = checkpoint.state_digest64;
         checkpoint.git_commit = Some("source-neutral-revision-test".to_owned());
+        checkpoint = checkpoint.seal_continuation_identity();
+        let source_continuation_digest64 = checkpoint.continuation_digest64;
 
         let resumed = Simulation::from_checkpoint(checkpoint)
             .unwrap()
@@ -1388,6 +1456,10 @@ mod tests {
         assert_eq!(boundary.continuation, SourceRevisionIdentity::current());
         assert_eq!(boundary.boundary_day, boundary_day);
         assert_eq!(boundary.source_state_digest64, source_state_digest64);
+        assert_eq!(
+            boundary.source_continuation_digest64,
+            source_continuation_digest64
+        );
         assert_eq!(
             resumed.manifest.git_commit,
             boundary.continuation.git_commit
@@ -1404,11 +1476,13 @@ mod tests {
             .checkpoint_at_year(1)
             .unwrap();
         let first_digest = first.state_digest64;
+        let first_continuation_digest = first.continuation_digest64;
         let second = Simulation::from_checkpoint(first)
             .unwrap()
             .checkpoint_at_year(3)
             .unwrap();
         let second_digest = second.state_digest64;
+        let second_continuation_digest = second.continuation_digest64;
         assert_eq!(second.resume_lineage.boundaries.len(), 1);
 
         let final_run = Simulation::from_checkpoint(second)
@@ -1421,8 +1495,16 @@ mod tests {
             first_digest
         );
         assert_eq!(
+            final_run.manifest.resume_lineage.boundaries[0].source_continuation_digest64,
+            first_continuation_digest
+        );
+        assert_eq!(
             final_run.manifest.resume_lineage.boundaries[1].source_state_digest64,
             second_digest
+        );
+        assert_eq!(
+            final_run.manifest.resume_lineage.boundaries[1].source_continuation_digest64,
+            second_continuation_digest
         );
         assert_eq!(
             final_run.manifest.resume_lineage.boundaries[0].continuation,
@@ -1449,6 +1531,7 @@ mod tests {
             .unwrap();
         second.resume_lineage.boundaries[0].continuation.git_commit =
             Some("tampered-continuation".to_owned());
+        second = second.seal_continuation_identity();
 
         assert!(matches!(
             Simulation::from_checkpoint(second),
@@ -1457,7 +1540,7 @@ mod tests {
     }
 
     #[test]
-    fn pre_temporary_mobility_checkpoint_schemas_are_rejected_fail_closed() {
+    fn pre_current_checkpoint_schemas_are_rejected_fail_closed() {
         let config = ExperimentConfig::new(2038, 3)
             .with_world(WorldConfig::new(4, 4))
             .with_population(PopulationConfig::new(32));
@@ -1470,6 +1553,10 @@ mod tests {
             SimulationCheckpoint::PRE_LINEAGE_SCHEMA_VERSION,
             SimulationCheckpoint::PRE_TEMPORARY_MOBILITY_SCHEMA_VERSION,
             SimulationCheckpoint::PRE_JOURNEY_LIFECYCLE_SCHEMA_VERSION,
+            SimulationCheckpoint::PRE_TRAVEL_SEMANTICS_SCHEMA_VERSION,
+            SimulationCheckpoint::PRE_DURATION_AWARE_RESOURCE_SCHEMA_VERSION,
+            SimulationCheckpoint::PRE_CONDITION_MORTALITY_SCHEMA_VERSION,
+            SimulationCheckpoint::PRE_CONTINUATION_IDENTITY_SCHEMA_VERSION,
         ] {
             let mut old = checkpoint.clone();
             old.schema_version = schema_version;
@@ -1513,7 +1600,7 @@ mod tests {
     }
 
     #[test]
-    fn checkpoint_state_digest_detects_tampering() {
+    fn checkpoint_state_digest_detects_tampering_after_continuation_reseal() {
         let config = ExperimentConfig::new(505, 6)
             .with_world(WorldConfig::new(16, 16))
             .with_population(PopulationConfig::new(500));
@@ -1522,6 +1609,7 @@ mod tests {
             .checkpoint_at_year(3)
             .unwrap();
         checkpoint.state_digest64 ^= 1;
+        checkpoint = checkpoint.seal_continuation_identity();
         assert!(matches!(
             Simulation::from_checkpoint(checkpoint),
             Err(SimulationError::CheckpointStateDigestMismatch { .. })
@@ -1605,6 +1693,7 @@ mod tests {
 
         let mut tampered = checkpoint;
         tampered.terminal_stop_reason = Some(StopReason::DurationReached);
+        tampered = tampered.seal_continuation_identity();
         assert!(matches!(
             Simulation::from_checkpoint(tampered),
             Err(SimulationError::CheckpointTerminalStateMismatch {

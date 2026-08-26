@@ -71,6 +71,7 @@ fn checkpoint_resume_matches_uninterrupted_landscape_run() {
         .unwrap();
     let source_day = checkpoint.core_checkpoint.time.days();
     let source_state_digest64 = checkpoint.core_checkpoint.state_digest64;
+    let source_continuation_digest64 = checkpoint.core_checkpoint.continuation_digest64;
     let resumed = LandscapeSimulation::from_checkpoint(checkpoint, fixture())
         .unwrap()
         .run_recorded()
@@ -87,6 +88,10 @@ fn checkpoint_resume_matches_uninterrupted_landscape_run() {
         .checkpoint
         .core_checkpoint
         .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage.checkpoint.core_checkpoint = resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .seal_continuation_identity();
     assert_eq!(resumed_without_lineage, uninterrupted);
 
     assert_eq!(
@@ -100,6 +105,16 @@ fn checkpoint_resume_matches_uninterrupted_landscape_run() {
     assert_eq!(boundary.boundary_day, source_day);
     assert_eq!(boundary.boundary_completed_years, 2);
     assert_eq!(boundary.source_state_digest64, source_state_digest64);
+    assert_eq!(
+        boundary.source_continuation_digest64,
+        source_continuation_digest64
+    );
+    assert!(
+        resumed
+            .checkpoint
+            .core_checkpoint
+            .continuation_identity_is_valid()
+    );
 }
 
 #[test]

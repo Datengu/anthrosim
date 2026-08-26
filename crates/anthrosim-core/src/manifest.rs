@@ -84,5 +84,6 @@ pub struct RunManifest {
 }
 
 impl RunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 11;
+    pub const PRE_CONTINUATION_IDENTITY_SCHEMA_VERSION: u32 = 11;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 12;
 }
