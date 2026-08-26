@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use rand::RngCore;
+use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -897,7 +897,7 @@ fn draw_probability_fraction(rng: &mut ChaCha8Rng, probability: ProbabilityFract
     draw_bounded_u128(rng, probability.denominator) < probability.numerator
 }
 
-fn draw_bounded_u128<R: RngCore + ?Sized>(rng: &mut R, upper_exclusive: u128) -> u128 {
+fn draw_bounded_u128<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u128) -> u128 {
     debug_assert!(upper_exclusive > 0);
     let acceptance_limit = u128::MAX - (u128::MAX % upper_exclusive);
     loop {
