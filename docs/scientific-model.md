@@ -1,9 +1,9 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v9
+**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v10
 **Scientific status:** exploratory / unvalidated
 
-This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
+This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing and condition-mortality causal contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
 
 ## 1. Purpose
 
@@ -43,7 +43,7 @@ Persistent individuals have stable identity, epoch-relative birth time/derived a
 
 A living person's **persistent residence** is distinct from M9 **physical presence**. When temporary mobility is disabled or the household is home, presence is at residence. With M9 enabled an away household can instead be in outbound transit, visiting a resolved focal-region destination, or in return transit. Transit deliberately has no authoritative per-day world cell. Only M4 permanent migration changes residence.
 
-Reproductive sex remains a deliberately limited biological state variable for the current birth mechanism; it is not a model of social gender. Condition remains a synthetic 0..1000 permille energetic/health mediator rather than a clinical or directly empirical measure.
+Reproductive sex remains a deliberately limited biological state variable for the current birth mechanism; it is not a model of social gender. Condition is a bounded synthetic 0..1000 health/energetic mediator rather than a clinical or directly empirical measure. It is intentionally more general than nutritional status: current authoritative pathways include founder/newborn condition, M3 resource-driven recovery or loss, and M4 permanent-travel condition cost. The model does not preserve an additive decomposition of condition by upstream cause.
 
 ### Households
 
@@ -69,13 +69,15 @@ Authoritative simulation time is represented in integer days. M2 baseline demogr
 
 For `P = resources.periodsPerYear`, M3 resource interval `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within a 365-day model year. A fixed annual integer quantity `Q` is allocated cumulatively as `floor(Q*t/365)` so period shares conserve the annual quantity exactly against actual elapsed model days. The synthetic seasonal curve is integrated over those same intervals and normalized by its complete-year weight so seasonal phase redistributes unconstrained annual regeneration potential rather than silently changing the annual baseline. Normative annual resource semantics are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md).
 
-M3 resource settlement, condition response and condition-mediated scarcity survival occur at the configured M3 interval ends. Under v9, the historical `conditionRecoveryPerPeriod`, `maxConditionLossPerPeriod` and `maxScarcityMortalityProbabilityPerMillion` fields have an explicit **reference-quarter** interpretation against `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. Condition response is allocated cumulatively over actual elapsed M3 intervals, and fixed-condition scarcity survival is converted through exact integer-rational conditional survival. Thus changing only `P` does not multiply the complete-year response budget or fixed-condition mortality probability merely by adding more M3 boundaries.
+M3 resource settlement, condition response and condition-mediated survival occur at the configured M3 interval ends. The v9 timing contract gives the historical condition recovery/loss coefficients and condition-dependent mortality probability an explicit **reference-quarter** interpretation against `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. In v10 the public mortality parameter is `maxConditionMortalityProbabilityPerMillion`; the former scarcity-specific public name is not a v10 alias. Condition response is allocated cumulatively over actual elapsed M3 intervals, and fixed-condition survival is converted through exact integer-rational conditional survival. Thus changing only `P` does not multiply the complete-year response budget or fixed-condition mortality probability merely by adding more M3 boundaries.
 
 M4 permanent relocation remains atomic at its decision boundary, but its opportunity clock is now independent of M3. For `D = migration.decisionPeriodsPerYear`, decision interval `j` uses `[floor(j*365/D), floor((j+1)*365/D))`; the synthetic default is `D = 4`. M4's resource-support term uses annual per-person need allocated over the current M4 decision interval using the same cumulative elapsed-day annual-allocation rule as M3. The runtime reconciles M4 decision index and actual decision day rather than assuming every resource boundary is a migration boundary.
 
 M9 temporary journeys are explicitly duration-bearing: departure, arrival, visiting duration, return departure and completion occur on deterministic days, and journeys can remain active across an annual checkpoint. Within each year the authoritative hosts merge the independent M3 and M4 fixed schedules. At a shared M3/M4 day, elapsed M3 resource/condition/survival processing occurs first, then due M9 transitions/start processing, then M4 permanent migration. Either M3 or M4 may otherwise occur alone. M2 annual demography follows the year's subannual processing.
 
-These schedules are model approximations and are scientifically consequential assumptions, not claims that real births, deaths, gathering, travel or physiological change occur synchronously. The v9 repair removes the specific hidden-rate artifact in which increasing M3 `periodsPerYear` automatically created more condition/scarcity/M4 opportunities. It does **not** make M3 resolution causally irrelevant: changing settlement timing can still alter stock, evolving condition, extinction timing, M9 demand attribution and state observed by later fixed M4 decisions. Normative response/decision timing is in [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md).
+These schedules are model approximations and are scientifically consequential assumptions, not claims that real births, deaths, gathering, travel or physiological change occur synchronously. The v9 repair removes the specific hidden-rate artifact in which increasing M3 `periodsPerYear` automatically created more condition-response, condition-mortality or M4 opportunities. It does **not** make M3 resolution causally irrelevant: changing settlement timing can still alter stock, evolving condition, extinction timing, M9 demand attribution and state observed by later fixed M4 decisions. Normative response/decision timing is in [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md).
+
+The v10 causal repair changes what the low-condition hazard means, not its numerical v9 time-scaling rule. A death generated by that hazard serializes as `condition_mediated`. Resource shortage can causally raise that hazard by lowering condition, but M4 permanent-travel cost can lower the same condition scalar. Because the scalar does not retain source apportionment, the death event alone cannot establish that resource scarcity—or travel—was the unique upstream cause. Normative cause semantics are in [`research/m3-condition-mortality-contract-v1.md`](research/m3-condition-mortality-contract-v1.md).
 
 ### Space
 
@@ -89,19 +91,19 @@ Within each model year, the main `Simulation` host and `SpatialLandscapeSimulati
 
 1. identify the next due M3 resource boundary and M4 permanent-migration boundary;
 2. process M9 temporary journey boundaries strictly before that fixed day;
-3. if M3 is due, settle the elapsed resource interval using duration-aware residence/visitor/transit person-days, update condition, and apply the elapsed condition-mediated scarcity-survival probability;
+3. if M3 is due, settle the elapsed resource interval using duration-aware residence/visitor/transit person-days, update condition, and apply the elapsed condition-mediated mortality probability;
 4. process due M9 temporary transitions/start decisions for that day;
 5. if M4 is due, evaluate permanent migration only for eligible households physically at residence, using the M4 decision interval's resource-support demand;
 6. apply selected permanent moves simultaneously;
 7. after the year's subannual schedules complete, run M2 annual demography.
 
-Under the v8 annual resource-accounting contract, M3 uses exact scheduler intervals, cumulative elapsed-day allocation for fixed annual quantities, integrated/normalized seasonal regeneration and zero-demand condition neutrality. Under v9, condition recovery/loss and condition-mediated scarcity probability are converted from declared reference-quarter coefficients to the actual M3 interval. M4 receives its own opportunity count and its own current decision-interval demand share. It no longer maintains the former `ceil(annual/P)` approximation or inherits an opportunity from every M3 boundary.
+Under the v8 annual resource-accounting contract, M3 uses exact scheduler intervals, cumulative elapsed-day allocation for fixed annual quantities, integrated/normalized seasonal regeneration and zero-demand condition neutrality. Under v9 timing semantics, condition recovery/loss and the condition-mediated mortality probability are converted from declared reference-quarter coefficients to the actual M3 interval. M4 receives its own opportunity count and its own current decision-interval demand share. It no longer maintains the former `ceil(annual/P)` approximation or inherits an opportunity from every M3 boundary. Under v10, the same numerical condition hazard has causal-neutral public semantics rather than a resource-scarcity-specific death cause.
 
 Temporary lifecycle state progresses through departure, outbound transit, visiting, return departure, return transit and completion. Focal-region identity, residence, destination, timing and people affected remain stable across a journey's authoritative event history. Transit uses an explicit home-provisioning resource proxy rather than an invented route cell.
 
 M2 mortality/fertility remains annual and residence-based. Births inherit household residence. If a person dies while the household is away, temporary-presence state is updated so visitor/transit counts remain correct; `Death.cell` remains a residence attribution field and must not be read as an observed physical death location.
 
-Scheduling is part of the model definition and must be included in sensitivity/validation work. Detailed contracts are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md), [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md), [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md), [`research/m9-temporary-travel-semantics-v1.md`](research/m9-temporary-travel-semantics-v1.md), and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
+Scheduling is part of the model definition and must be included in sensitivity/validation work. Detailed contracts are in [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md), [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md), [`research/m3-condition-mortality-contract-v1.md`](research/m3-condition-mortality-contract-v1.md), [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md), [`research/m9-temporary-travel-semantics-v1.md`](research/m9-temporary-travel-semantics-v1.md), and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
 
 ## 4. Design concepts
 
@@ -168,7 +170,7 @@ This is deliberately narrow. It is not a model of clans, lineages, bilateral kin
 
 M4 permanent migration and M9 temporary mobility have different travel abstractions.
 
-For M4, candidate utility includes distance/terrain travel penalty and relocation risk, and a selected permanent move completes atomically at that decision boundary with a condition cost. It has no persistent en-route state.
+For M4, candidate utility includes distance/terrain travel penalty and relocation risk, and a selected permanent move completes atomically at that decision boundary with a condition cost. It has no persistent en-route state. Under v10 that travel cost is an explicit upstream pathway into the same shared condition mediator later read by the M3 condition-mortality hazard; a later condition-mediated death does not by itself apportion the deficit back to travel or resources.
 
 For M9, temporary travel is explicitly duration-bearing. The household can remain in outbound or return transit for deterministic intervals before/after visiting. Travel cost/duration is derived from the declared world/focal-region binding and travel configuration; transit does not pretend to know a route cell. The current M9 null mechanism does not add route memory, camps, movement mortality, convoy structure or a cultural motive for travel.
 
@@ -194,10 +196,10 @@ All stochasticity comes from seeded named deterministic streams.
 
 - M1: world-generation stream used to derive stable field seeds;
 - M2: independent baseline mortality, fertility, parentage and newborn-sex streams;
-- M3: independent `resources/scarcity_mortality` stream;
+- M3: independent condition-mortality stream whose private historical implementation label remains `resources/scarcity_mortality` for trajectory compatibility;
 - M4: independent `migration/choice` and `migration/uncertainty` streams.
 
-Resource-period allocation, seasonal integration, resource regeneration, household demand/allocation, elapsed condition response, candidate enumeration and integer utility calculations are deterministic conditional on state/configuration. Scarcity mortality, candidate uncertainty and weighted destination choice are stochastic but reproducible through their named streams. The v9 scarcity draw uses the exact rational interval probability derived from the reference-quarter condition probability rather than first rounding the draw threshold to parts per million.
+Resource-period allocation, seasonal integration, resource regeneration, household demand/allocation, elapsed condition response, candidate enumeration and integer utility calculations are deterministic conditional on state/configuration. Condition-mediated mortality, candidate uncertainty and weighted destination choice are stochastic but reproducible through their named streams. The v9 timing rule uses the exact rational interval probability derived from the reference-quarter condition probability rather than first rounding the draw threshold to parts per million. The historical private stream name is not a v10 scientific cause label.
 
 ### Observation
 
@@ -205,7 +207,7 @@ Authoritative events are versioned ordered state-transition records. In addition
 
 Derived metric snapshots remain explicitly downstream and reconcile against authoritative state. Completed/paused run bundles preserve the world, founders, event history, metrics and checkpoint required for deterministic inspection/resume.
 
-M8 and M9 observability intentionally answer different location questions. `spatial-observability.json` schema v2 is residence-based: occupancy/person-days/birth/death cell attribution describes persistent residence and excludes temporary visitors/transit. `temporary-observability.json` derives physical-presence measures such as residents, visitors, transit, focal-region person-days, peak visitor share, journey counts/durations and travel/catchment. When both are present, the Explorer displays them side by side rather than collapsing them into one ambiguous occupancy concept.
+M8 and M9 observability intentionally answer different location questions. Under v10, `spatial-observability.json` schema v3 is residence-based: occupancy/person-days/birth/death cell attribution describes persistent residence and excludes temporary visitors/transit; its condition-mediated death field does not assert resource scarcity as the unique upstream cause. `temporary-observability.json` derives physical-presence measures such as residents, visitors, transit, focal-region person-days, peak visitor share, journey counts/durations and travel/catchment. When both are present, the Explorer displays them side by side rather than collapsing them into one ambiguous occupancy concept.
 
 Interpretation remains downstream. Labels such as settlement, aggregation, refuge, ritual gathering, migration wave or collapse are not silently promoted into authoritative simulated ground truth.
 
@@ -247,9 +249,9 @@ Mortality is represented by a transparent piecewise age-specific annual event-pr
 
 M3 condition-mediated mortality remains separate rather than silently changing baseline demographic schedules. There is no direct food-to-fertility multiplier; introducing one requires an explicit hypothesis/evidence basis.
 
-### Food, resource renewal, condition and scarcity survival (M3 — implemented synthetic baseline)
+### Food, resource renewal, condition and condition-mediated mortality (M3 — implemented synthetic baseline)
 
-M3 maintains one dynamic integer food-stock value per world cell. Its normative annual resource-accounting contract is [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md); its v9 condition/scarcity response-time contract is [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md).
+M3 maintains one dynamic integer food-stock value per world cell. Its normative annual resource-accounting contract is [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md); its v9 response-time contract is [`research/m3-response-time-contract-v1.md`](research/m3-response-time-contract-v1.md); and its v10 shared-condition mortality-cause contract is [`research/m3-condition-mortality-contract-v1.md`](research/m3-condition-mortality-contract-v1.md).
 
 For `P` resource periods/year, period `i` covers:
 
@@ -271,11 +273,13 @@ All arithmetic remains integer/fixed-point. Regeneration cannot raise a cell abo
 
 Living-person resource need is aggregated into households and cells. If total cell supply is insufficient, co-located households receive a proportional share according to household need. Within a household, the period supply fraction is shared equally among living members for condition change. Harvest is treated as immediate consumption; explicit storage, spoilage, waste and exchange are deferred. M9 may split a household's current-period demand between residence and visitor destination under its separate duration-aware provisioning contract.
 
-For positive-demand intervals, full supply allows bounded condition recovery and deficit causes condition loss proportional to missing supply. A zero-demand interval is condition-neutral: it cannot turn an integer `0/0` into free recovery. The historical recovery/loss fields are v9 reference-quarter coefficients; an elapsed M3 interval receives only the corresponding fraction of that response budget. A continuously applicable response therefore sums to four reference-quarter quantities over a full year regardless of tested M3 partition.
+For positive-demand intervals, full supply allows bounded condition recovery and deficit causes condition loss proportional to missing supply. A zero-demand interval is condition-neutral: it cannot turn an integer `0/0` into free recovery. The historical recovery/loss coefficients retain their v9 reference-quarter timing interpretation; an elapsed M3 interval receives only the corresponding fraction of that response budget. A continuously applicable response therefore sums to four reference-quarter quantities over a full year regardless of tested M3 partition.
 
-Condition-mediated scarcity mortality uses the current condition deficit to calculate a reference-quarter probability. v9 converts that probability to the actual M3 interval with exact rational conditional survival. At fixed condition, complete-year survival is the same composition of four reference-quarter survivals under tested `P = 1, 4, 12, 365`; finer M3 partition does not itself multiply mortality opportunity. The recorded event probability is a deterministic parts-per-million view of the exact rational interval probability.
+General condition-mediated mortality uses the current condition deficit to calculate a reference-quarter probability from `maxConditionMortalityProbabilityPerMillion`. The v9 elapsed-time rule converts that probability to the actual M3 interval with exact rational conditional survival. At fixed condition, complete-year survival is the same composition of four reference-quarter survivals under tested `P = 1, 4, 12, 365`; finer M3 partition does not itself multiply mortality opportunity. The recorded event probability is a deterministic parts-per-million view of the exact rational interval probability.
 
-This timing repair does **not** resolve every resource/condition issue. Shared condition can still combine M3 and M4 travel damage before a broadly labelled `ResourceScarcity` death (#200), and coincident M3/M2 mortality remains a separate competing-risk attribution issue (#208). Evolving condition/resource trajectories can also remain resolution-sensitive because state is settled at different days even though the hidden rate multiplier has been removed.
+Under v10, a death from this hazard has `cause = "condition_mediated"` and derived outputs use `conditionMortalityDeaths`. This means the shared condition state generated the configured hazard at that boundary. It does **not** mean resource scarcity uniquely caused the death, that the deficit was purely nutritional, or that travel uniquely caused it. Resource shortfall can lower condition and thereby causally increase condition-mediated mortality; M4 travel can also lower the same state. Because condition does not retain source shares, event-level apportionment between those upstream mechanisms is unavailable.
+
+Issue #200 is therefore repaired by making the cause semantics match the executable shared mediator rather than inventing unsupported source attribution. Coincident M3 condition-mediated mortality and M2 annual demographic mortality remain a separate competing-risk attribution issue (#208). Evolving condition/resource trajectories can also remain resolution-sensitive because state is settled at different days even though the v9 hidden rate multiplier has been removed.
 
 ### Households (minimal M2–M4 baseline)
 
@@ -298,17 +302,17 @@ Candidate utility uses:
 
 Candidate evaluation is not global optimization. Alternatives must improve sufficiently over staying, then compete through weighted deterministic stochastic choice.
 
-All households decide from one pre-move snapshot. Selected households then relocate simultaneously. Living members move together, their condition pays the travel cost, current household location changes, and occupancy is rebuilt. Dead records keep location at death.
+All households decide from one pre-move snapshot. Selected households then relocate simultaneously. Living members move together, their condition pays the travel cost, current household location changes, and occupancy is rebuilt. Dead records keep location at death. That travel-condition decrement is an explicit upstream input to the shared v10 condition mediator and can therefore affect later condition-mediated mortality without making the later death event a uniquely travel-attributed death.
 
 There is no hard-coded historical destination or route, route memory, seasonal mobility tradition, clan/tribe institution or claim that synthetic M4 weights or four-per-year default reproduce real mobility behaviour. M4 itself has no persistent en-route state; M9 temporary mobility adds a separate duration-bearing transit/visiting lifecycle without changing permanent-migration semantics.
 
 ### Evidence-grounded spatial execution (M8 — implemented; v0.2.0 release baseline)
 
-M8 preserves normalized landscape inputs and provenance separately from explicit deterministic model-facing transformations. Landscape/mechanism identity is carried through experiment/run artifacts, and residence-based spatial observability is derived downstream. Its first evidence-grounded terrain null-model benchmark found fragile rather than seed-stable spatial effects; this validates the experiment/reproduction capability, not a historical reconstruction.
+M8 preserves normalized landscape inputs and provenance separately from explicit deterministic model-facing transformations. Landscape/mechanism identity is carried through experiment/run artifacts, and residence-based spatial observability is derived downstream. Its first evidence-grounded terrain null-model benchmark found fragile rather than seed-stable spatial effects; this validates the experiment/reproduction capability, not a historical reconstruction. Under v10, spatial mortality observability uses general condition-mediated terminology rather than treating the death count as a resource-specific causal count.
 
 ### Temporary mobility and aggregation (M9 — implemented; v0.3.0 release baseline)
 
-M9 separates persistent residence from physical presence and adds identity-bearing focal regions, deterministic temporary journey scheduling/travel, duration-aware resource attribution, checkpointable active journeys and separate physical-presence observability. The frozen M9.7 benchmark distinguished intermittent aggregation from continuous residence across its paired synthetic seeds while preserving exact duplicate and checkpoint/resume replay. This is a capability result only; no social motive or archaeological interpretation is encoded.
+M9 separates persistent residence from physical presence and adds identity-bearing focal regions, deterministic temporary journey scheduling/travel, duration-aware resource attribution, checkpointable active journeys and separate physical-presence observability. The frozen M9.7 benchmark distinguished intermittent aggregation from continuous residence across its paired synthetic seeds while preserving exact duplicate and checkpoint/resume replay. This is a capability result only; no social motive or archaeological interpretation is encoded. Under the v10 rebaseline, its control criterion records zero condition-mediated deaths rather than claiming zero uniquely resource-scarcity deaths.
 
 ## 8. Model verification targets
 
@@ -324,7 +328,11 @@ Before scientific validation, implementation must satisfy:
 - resource need accounting: positive demand must reconcile to consumption plus unmet need;
 - zero-demand intervals must not create condition recovery;
 - reference-quarter condition-response budgets must remain invariant to tested M3 partitions when supply regime is held fixed;
-- fixed-condition scarcity survival must compose identically across tested `P = 1, 4, 12, 365`, and `P = 4` must reproduce the configured reference-quarter probability exactly;
+- fixed-condition condition-mediated survival must compose identically across tested `P = 1, 4, 12, 365`, and `P = 4` must reproduce the configured reference-quarter probability exactly;
+- a controlled travel-only condition deficit under full positive resource supply must be able to exercise the general `condition_mediated` cause without being labelled resource scarcity;
+- a controlled resource-only deficit must still be able to change condition and condition-mediated mortality directionally;
+- mixed resource + travel deficits must retain the general condition-mediated cause rather than inventing unsupported causal apportionment;
+- v10 wire artifacts must use the condition-mortality names and reject the old scarcity-specific resource mortality config field;
 - changing only M3 `resources.periodsPerYear` while holding M4 `decisionPeriodsPerYear` fixed must not change the number of configured M4 opportunities per complete year;
 - changing M4 `decisionPeriodsPerYear` must change M4 opportunity count independently of M3 resolution;
 - both ordinary and spatial-landscape simulation hosts must obey the same independent-clock scheduler;
@@ -337,7 +345,7 @@ Before scientific validation, implementation must satisfy:
 - deterministic replay under the supported platform/build boundary;
 - isolation of named RNG streams;
 - explicit non-scientific stop reason when the persistent-record safety ceiling is reached;
-- directional scarcity test: severe sustained zero-resource conditions must not improve condition/survival;
+- directional resource-scarcity intervention test: severe sustained zero-resource conditions must not improve condition/survival;
 - directional productivity test: an otherwise-equal positive-resource case designed to isolate M3 must support at least as much condition/survival as a zero-productivity case;
 - bounded migration-candidate discovery independent of total-world search;
 - deterministic migration replay including migration digest and retained decision traces;
@@ -352,7 +360,7 @@ Before scientific validation, implementation must satisfy:
 - M8 residence-based spatial observability and M9 physical-presence observability declare and preserve their different location semantics;
 - compact enabled-M9 cross-platform golden outputs remain byte-identical across supported Linux, Windows and macOS CI runners.
 
-Passing these targets verifies implementation properties. It does not validate demographic, resource or migration assumptions against reality.
+Passing these targets verifies implementation properties. It does not validate demographic, resource, condition-mortality or migration assumptions against reality.
 
 ## 9. Validation plan
 
@@ -370,7 +378,8 @@ A research-capable demographic/resource/migration configuration will require, as
 - defensible travel/terrain costs and social/kin assumptions;
 - sensitivity to simultaneous-arrival crowding, M4 atomic permanent relocation, M4 `decisionPeriodsPerYear`, and M9 temporary-journey duration/transit assumptions;
 - explicit examination of annual/subannual scheduling effects even after the v9 hidden-rate repair, because different M3 settlement days can still change evolving state and later process exposure;
-- explicit examination of shared-condition resource-versus-travel attribution (#200) and coincident M3/M2 competing-risk attribution (#208) where those outputs matter;
+- controlled intervention designs when distinguishing resource versus travel effects on the shared condition state, because a `condition_mediated` death does not itself identify the upstream source;
+- explicit examination of coincident M3/M2 competing-risk attribution (#208) where cause-specific mortality outputs matter;
 - explicit examination of initialization transients and initial resource stock;
 - calibration only where justified by a stated research question;
 - global/local sensitivity analysis;
@@ -386,6 +395,6 @@ The first v0.1 resource-variability experiment, the M8 evidence-grounded terrain
 
 The M8 result showed that a declared terrain-only transformation could perturb spatial outcomes without yielding a stable directional effect across seeds. The M9 result showed that continuous residence and intermittent temporary aggregation can produce measurably different physical-presence histories under frozen synthetic assumptions while remaining deterministic and checkpoint-replayable.
 
-Post-M9 scientific hardening is repairing known causal/model-contract defects before those reference capabilities are used for stronger inference. The v8 M3 resource-time repair established coherent annual quantity and seasonal timing semantics. The v9 #204 response-time repair then separates M3 integration resolution from elapsed condition/scarcity response and from the M4 permanent-migration opportunity clock. This removes one hidden temporal confound while leaving the separately tracked condition-cause (#200) and coincident competing-risk (#208) questions open.
+Post-M9 scientific hardening is repairing known causal/model-contract defects before those reference capabilities are used for stronger inference. The v8 M3 resource-time repair established coherent annual quantity and seasonal timing semantics. The v9 #204 response-time repair then separated M3 integration resolution from elapsed condition response and from the M4 permanent-migration opportunity clock, removing one hidden temporal confound. The v10 #200 repair now makes the shared low-condition hazard causally explicit: resource scarcity can reduce condition, M4 travel can reduce the same condition, and a later death is recorded as condition-mediated rather than uniquely scarcity-caused. Coincident M3/M2 competing-risk attribution (#208) remains separately open.
 
 None of these results or repairs establishes an archaeological explanation. The next mechanism or experiment is intentionally question-led: identify a real discriminating research question, state competing hypotheses and observables, determine which assumptions/evidence can constrain them, then add only the missing capability required for that comparison. Negative, fragile and equifinal results remain valid outcomes and must not be tuned away.
