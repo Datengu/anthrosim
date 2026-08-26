@@ -78,135 +78,83 @@ impl ResumeLineage {
                 supported: Self::CURRENT_SCHEMA_VERSION,
             });
         }
-        if artifact_identity.model_semantics_id != MODEL_SEMANTICS_ID {
-            return Err(ResumeLineageError::UnsupportedModelSemantics {
-                found: artifact_identity.model_semantics_id.clone(),
-                supported: MODEL_SEMANTICS_ID.to_owned(),
-            });
-        }
-        let mut previous_boundary_day = None;
-        let mut previous_continuation: Option<&SourceRevisionIdentity> = None;
-        for boundary in &self.boundaries {
-            if boundary.source.model_semantics_id != MODEL_SEMANTICS_ID
-                || boundary.continuation.model_semantics_id != MODEL_SEMANTICS_ID
-            {
-                return Err(ResumeLineageError::UnsupportedModelSemantics {
-                    found: if boundary.source.model_semantics_id != MODEL_SEMANTICS_ID {
-                        boundary.source.model_semantics_id.clone()
-                    } else {
-                        boundary.continuation.model_semantics_id.clone()
-                    },
-                    supported: MODEL_SEMANTICS_ID.to_owned(),
-                });
-            }
-            if boundary.boundary_day > artifact_day {
-                return Err(ResumeLineageError::BoundaryAfterArtifact {
-                    boundary_day: boundary.boundary_day,
-                    artifact_day,
-                });
-            }
+
+        let mut previous: Option<&ResumeBoundary> = None;
+        for (index, boundary) in self.boundaries.iter().enumerate() {
             if !boundary.boundary_day.is_multiple_of(DAYS_PER_YEAR)
                 || boundary.boundary_completed_years != boundary.boundary_day / DAYS_PER_YEAR
             {
                 return Err(ResumeLineageError::InvalidBoundaryTime {
-                    boundary_day: boundary.boundary_day,
-                    boundary_completed_years: boundary.boundary_completed_years,
+                    index,
+                    day: boundary.boundary_day,
+                    completed_years: boundary.boundary_completed_years,
                 });
             }
-            if previous_boundary_day.is_some_and(|previous| boundary.boundary_day < previous) {
-                return Err(ResumeLineageError::OutOfOrderBoundary {
-                    previous_day: previous_boundary_day.unwrap_or(0),
+            if boundary.boundary_day > artifact_day {
+                return Err(ResumeLineageError::BoundaryBeyondArtifact {
+                    index,
                     boundary_day: boundary.boundary_day,
+                    artifact_day,
                 });
             }
-            if let Some(previous) = previous_continuation
-                && previous != &boundary.source
-            {
-                return Err(ResumeLineageError::BrokenSourceChain);
+            if boundary.source.model_version != boundary.continuation.model_version {
+                return Err(ResumeLineageError::ModelVersionDiscontinuity { index });
             }
-            previous_boundary_day = Some(boundary.boundary_day);
-            previous_continuation = Some(&boundary.continuation);
+            if boundary.source.model_semantics_id != boundary.continuation.model_semantics_id {
+                return Err(ResumeLineageError::ModelSemanticsDiscontinuity { index });
+            }
+
+            if let Some(previous) = previous {
+                if boundary.boundary_day < previous.boundary_day {
+                    return Err(ResumeLineageError::BoundaryOrder { index });
+                }
+                if boundary.source != previous.continuation {
+                    return Err(ResumeLineageError::SourceContinuity { index });
+                }
+            }
+            previous = Some(boundary);
         }
+
         if let Some(last) = self.boundaries.last()
             && &last.continuation != artifact_identity
         {
-            return Err(ResumeLineageError::ArtifactIdentityMismatch);
+            return Err(ResumeLineageError::FinalIdentityMismatch);
         }
-        Ok(())
-    }
 
-    pub fn append(
-        &mut self,
-        boundary: ResumeBoundary,
-        artifact_day: u64,
-    ) -> Result<(), ResumeLineageError> {
-        if boundary.boundary_day > artifact_day {
-            return Err(ResumeLineageError::BoundaryAfterArtifact {
-                boundary_day: boundary.boundary_day,
-                artifact_day,
-            });
-        }
-        if !boundary.boundary_day.is_multiple_of(DAYS_PER_YEAR)
-            || boundary.boundary_completed_years != boundary.boundary_day / DAYS_PER_YEAR
-        {
-            return Err(ResumeLineageError::InvalidBoundaryTime {
-                boundary_day: boundary.boundary_day,
-                boundary_completed_years: boundary.boundary_completed_years,
-            });
-        }
-        if boundary.source.model_semantics_id != MODEL_SEMANTICS_ID
-            || boundary.continuation.model_semantics_id != MODEL_SEMANTICS_ID
-        {
-            return Err(ResumeLineageError::UnsupportedModelSemantics {
-                found: if boundary.source.model_semantics_id != MODEL_SEMANTICS_ID {
-                    boundary.source.model_semantics_id.clone()
-                } else {
-                    boundary.continuation.model_semantics_id.clone()
-                },
-                supported: MODEL_SEMANTICS_ID.to_owned(),
-            });
-        }
-        if let Some(last) = self.boundaries.last() {
-            if boundary.boundary_day < last.boundary_day {
-                return Err(ResumeLineageError::OutOfOrderBoundary {
-                    previous_day: last.boundary_day,
-                    boundary_day: boundary.boundary_day,
-                });
-            }
-            if last.continuation != boundary.source {
-                return Err(ResumeLineageError::BrokenSourceChain);
-            }
-        }
-        self.boundaries.push(boundary);
         Ok(())
     }
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ResumeLineageError {
-    #[error("resume lineage schema {found} is unsupported; supported schema is {supported}")]
+    #[error("resume-lineage schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
-    #[error("model semantics {found} are incompatible; this build requires {supported}")]
-    UnsupportedModelSemantics { found: String, supported: String },
-    #[error("resume boundary day {boundary_day} lies after artifact day {artifact_day}")]
-    BoundaryAfterArtifact {
+    #[error(
+        "resume-lineage boundary {index} has inconsistent annual boundary day {day} and completed years {completed_years}"
+    )]
+    InvalidBoundaryTime {
+        index: usize,
+        day: u64,
+        completed_years: u64,
+    },
+    #[error(
+        "resume-lineage boundary {index} at day {boundary_day} lies after artifact day {artifact_day}"
+    )]
+    BoundaryBeyondArtifact {
+        index: usize,
         boundary_day: u64,
         artifact_day: u64,
     },
+    #[error("resume-lineage boundary {index} changes package model version across one resume")]
+    ModelVersionDiscontinuity { index: usize },
+    #[error("resume-lineage boundary {index} changes model-semantics identity across one resume")]
+    ModelSemanticsDiscontinuity { index: usize },
+    #[error("resume-lineage boundary {index} precedes the previous boundary")]
+    BoundaryOrder { index: usize },
     #[error(
-        "resume boundary day {boundary_day} does not match completed years {boundary_completed_years}"
+        "resume-lineage boundary {index} source identity does not match the previous continuation"
     )]
-    InvalidBoundaryTime {
-        boundary_day: u64,
-        boundary_completed_years: u64,
-    },
-    #[error("resume boundary day {boundary_day} precedes previous boundary day {previous_day}")]
-    OutOfOrderBoundary {
-        previous_day: u64,
-        boundary_day: u64,
-    },
-    #[error("resume lineage source/continuation chain is broken")]
-    BrokenSourceChain,
-    #[error("artifact source identity does not match the last resume continuation")]
-    ArtifactIdentityMismatch,
+    SourceContinuity { index: usize },
+    #[error("resume-lineage final continuation identity does not match the containing artifact")]
+    FinalIdentityMismatch,
 }
