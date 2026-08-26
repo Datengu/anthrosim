@@ -8,7 +8,7 @@ use crate::{
     events::{EventKind, EventLog},
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, PopulationError},
-    resources::ResourceSystem,
+    resources::{ResourceSystem, fixed_annual_quantity_at_resource_boundary},
     rng::{RngFactory, RngStreamPosition},
     temporary_mobility::TemporaryMobilityState,
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
@@ -300,11 +300,14 @@ impl MigrationSystem {
             .checked_add(1)
             .ok_or(MigrationError::AccountingOverflow)?;
 
-        let period_need_per_person = if resource_periods_per_year == 0 {
-            0
-        } else {
-            u64::from(annual_food_need).div_ceil(u64::from(resource_periods_per_year))
-        };
+        let period_need_per_person = fixed_annual_quantity_at_resource_boundary(
+            u64::from(annual_food_need),
+            resource_periods_per_year,
+            day,
+        )
+        .ok_or(MigrationError::InternalInvariant(
+            "migration boundary does not align with a resource period",
+        ))?;
 
         for household_index in 0..population.household_count() {
             let members = self.living_members[household_index];
