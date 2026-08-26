@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// AnthroSim reconstructs a named stream from the experiment seed and restores
 /// this word position rather than serializing opaque RNG implementation bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RngStreamPosition {
     pub low: u64,
     pub high: u64,
@@ -115,5 +115,15 @@ mod tests {
         let mut restored = factory.stream("checkpoint-test");
         position.restore(&mut restored);
         assert_eq!(restored.next_u64(), expected);
+    }
+
+    #[test]
+    fn stream_position_rejects_unknown_fields() {
+        let error =
+            serde_json::from_str::<RngStreamPosition>(r#"{"low":0,"high":0,"wordPosition":0}"#)
+                .unwrap_err();
+
+        assert!(error.to_string().contains("unknown field"));
+        assert!(error.to_string().contains("wordPosition"));
     }
 }
