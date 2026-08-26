@@ -5,40 +5,42 @@
 **Scientific status:** synthetic capability/verification benchmark, not archaeological validation  
 **Current classification:** `capability_distinguished`
 
-## Current regression reference — model semantics v8
+## Current regression reference — model semantics v10
 
-The v8 M3 resource-time repair changed authoritative resource execution and therefore required the frozen M9.7 experiment to be rerun unchanged. The old exact state identities were not treated as calibration targets.
+The M3 condition-mortality causality repair advanced the authoritative model identity to `anthrosim-model-semantics-v10` and replaced scarcity-attributed mortality output names with general condition-mediated terminology. The frozen M9.7 experiment was rerun unchanged. Its numerical scientific result was reviewed before the reference was rebaselined; old exact identities were not treated as calibration targets.
 
 Reviewed execution:
 
-- workflow run: `32917412358`;
-- branch head: `7e13d5ee82db0c65d5ac52e4e5501c812fc968b0`;
-- pull-request merge-ref build: `bdee1f2831d8c18a9798acc5756cc10d21df1d04`;
-- artifact: `9588720942`;
-- artifact SHA-256: `1d0616edcd8c36c3c3c214ddd2efa0fa6d8f0133d14e65b128c3bb9544b86696`;
-- aggregate canonical SHA-256: `30a9bc5e19c47f90290a3aab204ef18ab5b9754b0233d086f92e47aad678ba76`.
+- workflow run: `32930245559`;
+- branch head: `a329f68f3278a600dece4193b9a6179d4e981180`;
+- pull-request merge-ref build: `4a224061e4f4387430a33215518503b064810a1f`;
+- artifact: `9593016422`;
+- artifact SHA-256: `561f828adec030fba9879b9a354f285b4b10b9f0431b16591134e539d866bb08`;
+- aggregate canonical SHA-256: `4a7e4a95edbb01f0ab7371d313bd24e5f989cf2371a022ed6dd62fe4426f8a07`.
 
 The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`.
 
-### v8 result
+### v10 result
 
-The predeclared capability result is unchanged:
+The predeclared capability result is numerically unchanged:
 
 - all **8/8** paired seeds pass every paired criterion;
 - paired resident person-days remain exactly equal between continuous and intermittent arms;
 - every continuous control has zero temporary journeys and zero visitor person-days;
-- every intermittent treatment again has exactly **270 days** with visitor presence;
+- every intermittent treatment has exactly **270 days** with visitor presence;
 - intermittent treatments complete roughly **988–1,188 journeys**;
 - origin catchments cover **29–30 cells**;
 - travel burden remains positive in every treatment and no household is classified unreachable;
-- neither arm records permanent M4 migration or resource-scarcity death.
+- neither arm records permanent M4 migration or **condition-mediated death**.
 
-The aggregate values are exactly unchanged from the previous preserved capability result:
+The aggregate values are exactly unchanged from the preserved v8 capability result:
 
 - median total focal-person-day difference: **31 permille**;
 - maximum paired total focal-person-day difference: **36 permille**;
 - median intermittent peak-visitor share: **426 permille**;
 - minimum intermittent peak-visitor share: **387 permille**.
+
+Every one of the eight paired seed outcomes and every predeclared pass criterion is unchanged numerically. The v10 benchmark/reference schema is version 2 because `conditionMortalityDeaths` and `noConditionMortalityDeaths` replace the former scarcity-attributed field names. Experiment identities, authoritative state digests and aggregate identity changed as expected under the new global model semantics and wire contracts; those identity changes were reviewed rather than interpreted as scientific effects.
 
 The workflow also passes the non-statistical replay gates before reference comparison:
 
@@ -46,11 +48,11 @@ The workflow also passes the non-statistical replay gates before reference compa
 - the active annual checkpoint contains genuine in-progress temporary journeys;
 - resumed authoritative state and temporary observability exactly match uninterrupted execution.
 
-This is an informative negative sensitivity result for this particular upstream repair. Although v8 changes state/provenance identities, its corrected resource clock does **not** change the predeclared M9 capability distinction in this fixture. The benchmark disables permanent migration, records zero resource-scarcity deaths in both arms, uses zero seasonality scaling, and both arms share the same corrected resource semantics; therefore the paired temporary-presence result remains identical.
+This is an informative null sensitivity result for issue #200. The benchmark disables permanent migration, uses deliberately low resource demand and records zero condition-mediated deaths in both arms, so the repaired cause attribution does not alter its temporary-presence distinction. Importantly, the v10 criterion now states only what the executable evidence supports: the general shared-condition mortality pathway remained inactive. It no longer claims that a zero death count is specifically a zero resource-scarcity death count.
 
 ## Historical references
 
-The first M9.7 observation and the later v6 demographic-time rebaseline are preserved in Git history. The v6 M2 repair changed exact population/presence totals while retaining `capability_distinguished`. The v8 rerun is stronger in a different way: the paired scientific metrics themselves reproduce exactly even though experiment and terminal-state identities change with the global model-semantics identity.
+The first M9.7 observation, the later v6 demographic-time rebaseline and the v8 resource-time rebaseline are preserved in Git history. The v6 M2 repair changed exact population/presence totals while retaining `capability_distinguished`. The v8 rerun reproduced the paired scientific metrics exactly despite changed upstream resource semantics. The v10 rerun again preserves the same classification, aggregate statistics and paired outcomes while correcting mortality cause terminology and identity/schema material.
 
 These historical references are evaluation evidence, not calibration targets.
 
@@ -58,12 +60,12 @@ These historical references are evaluation evidence, not calibration targets.
 
 Under one controlled synthetic design, AnthroSim can represent two regimes with very similar aggregate focal-region use but materially different temporal occupancy structure, preserve that difference through authoritative state/events and checkpoint/resume, and expose it reproducibly through downstream observability and ordinary ensemble machinery.
 
-The v8 result additionally verifies that this particular capability distinction survives the corrected M3 resource-time implementation without numerical drift in its predeclared paired metrics.
+The v10 result additionally verifies that this particular capability distinction is unchanged by the M3 condition-mortality cause repair. That is a regression/capability statement only; it is not empirical validation.
 
-That does **not** establish invariance to all resource, demographic or temporary-mobility alternatives. It establishes only the behavior of this frozen capability benchmark under current semantics.
+That does **not** establish invariance to all resource, demographic, condition or temporary-mobility alternatives. It establishes only the behavior of this frozen capability benchmark under current semantics.
 
 ## What this result does not establish
 
 The benchmark is not evidence that intermittent aggregation, continuous residence or any social motive explains a real archaeological site. The focal region, schedule, travel model and population are synthetic validation inputs. Archaeological interpretation would require question-specific evidence, uncertainty propagation, structural sensitivity, calibration/corroboration separation and domain review.
 
-The v8 reference update is reproducibility maintenance after a declared model-semantics change. It is not empirical calibration.
+The v10 reference update is reproducibility maintenance after a declared causal/model-semantics change. It is not empirical calibration.
