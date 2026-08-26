@@ -6,7 +6,7 @@ AnthroSim's roadmap is driven by research capability rather than feature count. 
 
 The long-term direction remains the one described in `docs/vision.md`: build enough defensible lower-level rules that history-like structure can emerge without scripting historical outcomes.
 
-This roadmap is intentionally case-study-neutral. Public core documentation should describe reusable scientific capabilities and validation boundaries without depending on a particular site, locality, unpublished dataset, or private research question. Specific case studies can be defined separately when there is a deliberate reason to publish them.
+This roadmap is intentionally case-study-neutral. Public core documentation should describe reusable scientific capabilities and validation boundaries without depending on any particular site, locality, dataset or project-specific research question. Specific case studies, when published, should live in explicitly scoped research artifacts rather than define the core engine roadmap.
 
 ## Completed baseline: v0.1 / M1-M7
 
@@ -82,7 +82,7 @@ The generic benchmark specification defines:
 - sensitivity dimensions and uncertainty to preserve;
 - explicit interpretation limits.
 
-The benchmark contract remains usable without naming a particular archaeological site or requiring private/unpublished case-study information in the public core repository.
+The benchmark contract remains usable without naming a particular archaeological site or requiring case-study-specific information in the public core repository.
 
 #### M8.1 — Versioned landscape input contract
 
