@@ -8,7 +8,10 @@ use crate::{
     events::{EventKind, EventLog},
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, PopulationError},
-    resources::{ResourceSystem, fixed_annual_quantity_for_period},
+    resources::{
+        ResourceSystem, fixed_annual_quantity_at_resource_boundary,
+        fixed_annual_quantity_for_period,
+    },
     rng::{RngFactory, RngStreamPosition},
     temporary_mobility::TemporaryMobilityState,
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
@@ -315,6 +318,19 @@ impl MigrationSystem {
         .ok_or(MigrationError::InternalInvariant(
             "migration decision interval could not be allocated",
         ))?;
+        let boundary_need_per_person = fixed_annual_quantity_at_resource_boundary(
+            u64::from(annual_food_need),
+            decision_periods_per_year,
+            day,
+        )
+        .ok_or(MigrationError::InternalInvariant(
+            "migration decision day does not align with its declared schedule",
+        ))?;
+        if boundary_need_per_person != period_need_per_person {
+            return Err(MigrationError::InternalInvariant(
+                "migration decision index and boundary day disagree",
+            ));
+        }
 
         for household_index in 0..population.household_count() {
             let members = self.living_members[household_index];
