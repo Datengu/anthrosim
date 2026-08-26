@@ -37,6 +37,9 @@ pub struct ResourceSummary {
     pub unmet_need: u64,
     pub final_food_stock: u64,
     pub household_periods_with_unmet_need: u64,
+    /// Historical Rust field name retained internally. v10 serializes this as
+    /// `conditionMortalityDeaths`; it is not a resource-scarcity-specific cause count.
+    #[serde(rename = "conditionMortalityDeaths")]
     pub scarcity_deaths: u64,
     pub mean_living_condition_permille: u16,
     pub living_below_half_condition: u64,
@@ -44,7 +47,7 @@ pub struct ResourceSummary {
 }
 
 impl ResourceSummary {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 /// Dynamic M3 resource state.
@@ -65,6 +68,9 @@ pub struct ResourceSystem {
     unmet_need: u64,
     periods_processed: u64,
     household_periods_with_unmet_need: u64,
+    /// Historical Rust field name retained to keep the executable counter stable. The v10
+    /// checkpoint wire name describes the general condition-mediated mortality mechanism.
+    #[serde(rename = "conditionMortalityDeaths")]
     scarcity_deaths: u64,
 }
 
@@ -89,7 +95,7 @@ struct ProbabilityFraction {
 }
 
 impl ResourceSystem {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     pub fn initialize(world: &World, config: &ResourceConfig) -> Result<Self, ResourceError> {
         validate_resource_config(config)?;
@@ -328,12 +334,9 @@ impl ResourceSystem {
                     });
                 }
                 if visiting_need > 0 {
-                    let destination =
-                        presence
-                            .visitor_destination
-                            .ok_or(ResourceError::InternalInvariant(
-                                "visiting demand has no destination",
-                            ))?;
+                    let destination = presence.visitor_destination.ok_or(
+                        ResourceError::InternalInvariant("visiting demand has no destination"),
+                    )?;
                     let destination_index = cell_index_for(world, destination)?;
                     if destination_index == residence_index {
                         return Err(ResourceError::InternalInvariant(
@@ -647,6 +650,8 @@ impl ResourceRngs {
     #[must_use]
     pub(crate) fn new(factory: RngFactory) -> Self {
         Self {
+            // Preserve the historical stream label so v10 changes cause semantics/observability,
+            // not the deterministic random sequence used by otherwise-equivalent runs.
             scarcity_mortality: factory.stream("resources/scarcity_mortality"),
         }
     }
@@ -696,7 +701,7 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
         });
     }
     if config.max_scarcity_mortality_probability_per_million > PROBABILITY_PER_MILLION {
-        return Err(ResourceConfigError::InvalidScarcityMortalityProbability {
+        return Err(ResourceConfigError::InvalidConditionMortalityProbability {
             value: config.max_scarcity_mortality_probability_per_million,
         });
     }
@@ -821,7 +826,7 @@ fn reference_quarter_probability_for_interval(
 ) -> Result<ProbabilityFraction, ResourceError> {
     if reference_probability > PROBABILITY_PER_MILLION || start > end || end > DAYS_PER_YEAR {
         return Err(ResourceError::InternalInvariant(
-            "scarcity probability interval is invalid",
+            "condition mortality probability interval is invalid",
         ));
     }
     if start == end || reference_probability == 0 {
@@ -868,7 +873,7 @@ fn reference_quarter_probability_for_interval(
             .ok_or(ResourceError::AccountingOverflow)?;
         if segment_denominator == 0 {
             return Err(ResourceError::InternalInvariant(
-                "scarcity survival denominator is zero",
+                "condition mortality survival denominator is zero",
             ));
         }
         survival_numerator = survival_numerator
@@ -1009,14 +1014,14 @@ fn validate_temporary_resource_period(
                 periods_per_year,
             },
         )?;
-    let year_start =
-        day.checked_sub(current_offset)
-            .ok_or(ResourceError::TemporaryPeriodBoundaryMismatch {
-                expected_start: 0,
-                expected_end: current_offset,
-                actual_start: period.start_day,
-                actual_end: period.end_day,
-            })?;
+    let year_start = day
+        .checked_sub(current_offset)
+        .ok_or(ResourceError::TemporaryPeriodBoundaryMismatch {
+            expected_start: 0,
+            expected_end: current_offset,
+            actual_start: period.start_day,
+            actual_end: period.end_day,
+        })?;
     let expected_start = year_start
         .checked_add(previous_offset)
         .ok_or(ResourceError::AccountingOverflow)?;
@@ -1210,8 +1215,8 @@ pub enum ResourceConfigError {
     InvalidConditionRecovery { value: u16 },
     #[error("maximum condition loss {value} permille is outside 0..=1000")]
     InvalidConditionLoss { value: u16 },
-    #[error("scarcity mortality probability {value} exceeds one million")]
-    InvalidScarcityMortalityProbability { value: u32 },
+    #[error("condition-mediated mortality probability {value} exceeds one million")]
+    InvalidConditionMortalityProbability { value: u32 },
 }
 
 #[cfg(test)]
@@ -1308,7 +1313,7 @@ mod tests {
     }
 
     #[test]
-    fn fixed_condition_scarcity_survival_is_partition_invariant() {
+    fn fixed_condition_mortality_survival_is_partition_invariant() {
         for reference_probability in [0_u32, 200_000, 500_000, 1_000_000] {
             let baseline = composed_survival_for_partition(reference_probability, 4);
             for periods in [1_u16, 4, 12, 365] {
