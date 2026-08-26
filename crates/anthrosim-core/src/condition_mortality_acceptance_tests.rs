@@ -233,7 +233,8 @@ fn run_full_support_migration_case(enabled: bool) -> (u64, CellId, u16) {
         .unwrap()
         .1;
 
-    let mut migration = MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
+    let mut migration =
+        MigrationSystem::initialize(&population, &world, &migration_config).unwrap();
     let mut rngs = MigrationRngs::new(RngFactory::new(seed));
     let mut events = EventLog::new();
     migration
@@ -262,7 +263,8 @@ fn run_full_support_migration_case(enabled: bool) -> (u64, CellId, u16) {
 
 #[test]
 fn migration_switch_is_the_only_source_of_travel_condition_loss_under_full_support() {
-    let (enabled_moves, enabled_location, enabled_condition) = run_full_support_migration_case(true);
+    let (enabled_moves, enabled_location, enabled_condition) =
+        run_full_support_migration_case(true);
     let (disabled_moves, disabled_location, disabled_condition) =
         run_full_support_migration_case(false);
 
