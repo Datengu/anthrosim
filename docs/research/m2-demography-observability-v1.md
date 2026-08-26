@@ -25,7 +25,7 @@ The derivation consumes:
 - authoritative EventLog history through the checkpoint boundary; and
 - final Population state from the checkpoint.
 
-It reconstructs persistent household movement, deaths and births through time. At each annual M2 boundary it independently applies the v1 demographic-time contract:
+It reconstructs persistent household movement, deaths and births through time. At each **completed** annual M2 boundary it independently applies the v1 demographic-time contract:
 
 1. count mortality exposures using age at the start of `[t-365,t)`;
 2. apply recorded M2 demographic deaths and verify their recorded schedule probability;
@@ -37,6 +37,8 @@ It reconstructs persistent household movement, deaths and births through time. A
 8. replay the independent `demography/fertility` RNG stream for the exact attempted draws;
 9. reconcile draw success/failure with authoritative Birth events and any person-record-limit block; and
 10. reconcile the reconstructed demographic history with final Population state.
+
+A completed simulation may terminate between M2 boundaries, for example when M3 scarcity mortality causes extinction on a resource-period boundary. In that case the report counts only the M2 boundaries that actually completed; it does **not** invent fractional-year demographic exposure. It then replays the remaining non-M2 authoritative events through the exact terminal day so final Population reconciliation still covers the complete run.
 
 A report that cannot reconcile these artifacts is an error rather than a best-effort estimate.
 
@@ -71,7 +73,7 @@ For every configured mortality age band, the report records:
 
 Age is evaluated at interval start, matching the authoritative M2 model rather than recomputing age at the boundary end.
 
-Resource-scarcity deaths remain a separate M3 cause and are not counted as M2 demographic deaths.
+Resource-scarcity deaths remain a separate M3 cause and are not counted as M2 demographic deaths. A partial terminal year caused by M3 therefore contributes no unfinished M2 exposure while its scarcity deaths are still replayed for final-state reconciliation.
 
 ## Birth spacing
 
@@ -148,6 +150,7 @@ This report can establish that:
 - M2 age-band exposures follow the declared interval semantics;
 - mortality/fertility competing-transition behavior is quantitatively inspectable;
 - locality/spacing/stochastic/operational suppression can be separated;
+- a non-annual terminal partial year is not misrepresented as a completed M2 exposure;
 - the derived analysis agrees with authoritative state and events;
 - a preserved report remains tied to the exact run artifacts that generated it.
 
