@@ -76,8 +76,6 @@ impl Simulation {
         Self::new_internal(config, None)
     }
 
-    /// Test-only seam for isolated lifecycle mechanics that need a resolved M9 program.
-    /// Production callers must configure temporary mobility through `ExperimentConfig`.
     #[cfg(test)]
     pub(crate) fn new_with_temporary_mobility(
         config: ExperimentConfig,
@@ -335,12 +333,10 @@ impl Simulation {
         &self.metrics
     }
 
-    /// Run the configured lifecycle while preserving the legacy manifest-only API.
     pub fn run(self) -> Result<RunManifest, SimulationError> {
         Ok(self.run_recorded()?.manifest)
     }
 
-    /// Run to the configured duration or an earlier model stop and retain all M5 artifacts.
     pub fn run_recorded(mut self) -> Result<RecordedRun, SimulationError> {
         let target_year = self.config.duration_years;
         let stop_reason = self
@@ -357,7 +353,6 @@ impl Simulation {
         })
     }
 
-    /// Advance to a completed annual boundary and return a resumable deterministic checkpoint.
     pub fn checkpoint_at_year(
         mut self,
         target_year: u64,
@@ -418,7 +413,9 @@ impl Simulation {
                     None
                 };
                 let next_day = match (resource_day, migration_day) {
-                    (Some(resource_day), Some(migration_day)) => Some(resource_day.min(migration_day)),
+                    (Some(resource_day), Some(migration_day)) => {
+                        Some(resource_day.min(migration_day))
+                    }
                     (Some(resource_day), None) => Some(resource_day),
                     (None, Some(migration_day)) => Some(migration_day),
                     (None, None) => None,
@@ -472,7 +469,10 @@ impl Simulation {
                             resources: &self.resources,
                             migration: &self.config.migration,
                             annual_food_need: self.config.resources.annual_need_units_per_person,
-                            decision_periods_per_year: self.config.migration.decision_periods_per_year,
+                            decision_periods_per_year: self
+                                .config
+                                .migration
+                                .decision_periods_per_year,
                             decision_index_in_year: migration_index,
                             day,
                         },
@@ -1218,8 +1218,8 @@ mod tests {
         for resource_periods in [1_u16, 4, 12, 365] {
             let mut resources = no_pressure_resources();
             resources.periods_per_year = resource_periods;
-            let migration = MigrationConfig::synthetic_validation_v1()
-                .with_decision_periods_per_year(4);
+            let migration =
+                MigrationConfig::synthetic_validation_v1().with_decision_periods_per_year(4);
             let config = ExperimentConfig::new(70 + u64::from(resource_periods), 2)
                 .with_world(WorldConfig::new(4, 4))
                 .with_population(PopulationConfig::new(64))
@@ -1227,7 +1227,10 @@ mod tests {
                 .with_resources(resources)
                 .with_migration(migration);
             let manifest = Simulation::new(config).unwrap().run().unwrap();
-            assert_eq!(manifest.resources.periods_processed, u64::from(resource_periods) * 2);
+            assert_eq!(
+                manifest.resources.periods_processed,
+                u64::from(resource_periods) * 2
+            );
             assert_eq!(manifest.migration.decision_boundaries, 8);
         }
     }
