@@ -1,3 +1,5 @@
+use std::io::{self, Write};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -110,12 +112,40 @@ struct ContinuationIdentityMaterial<'a> {
     state_digest64: u64,
 }
 
+struct Fnv64Writer {
+    hash: u64,
+}
+
+impl Fnv64Writer {
+    fn with_domain(domain: &[u8]) -> Self {
+        let mut hash = FNV_OFFSET_BASIS;
+        digest_bytes(&mut hash, domain);
+        Self { hash }
+    }
+
+    const fn finish(self) -> u64 {
+        self.hash
+    }
+}
+
+impl Write for Fnv64Writer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        digest_bytes(&mut self.hash, buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
 /// Compute the complete deterministic continuation identity for a checkpoint.
 ///
 /// JSON is used only as a deterministic byte encoding of the explicitly ordered struct above; the
 /// domain separator prevents accidental equivalence with other FNV-based AnthroSim digests. The
 /// checkpoint material uses ordered structs/vectors rather than unordered maps, so the encoding is
-/// stable across supported platforms.
+/// stable across supported platforms. Serialization is streamed directly into the digest so large
+/// checkpoints do not require a second full in-memory JSON representation.
 #[must_use]
 pub fn continuation_digest64(checkpoint: &SimulationCheckpoint) -> u64 {
     let material = ContinuationIdentityMaterial {
@@ -138,12 +168,10 @@ pub fn continuation_digest64(checkpoint: &SimulationCheckpoint) -> u64 {
         metrics: &checkpoint.metrics,
         state_digest64: checkpoint.state_digest64,
     };
-    let encoded = serde_json::to_vec(&material)
+    let mut writer = Fnv64Writer::with_domain(CONTINUATION_IDENTITY_DOMAIN);
+    serde_json::to_writer(&mut writer, &material)
         .expect("supported continuation-identity material must serialize deterministically");
-    let mut hash = FNV_OFFSET_BASIS;
-    digest_bytes(&mut hash, CONTINUATION_IDENTITY_DOMAIN);
-    digest_bytes(&mut hash, &encoded);
-    hash
+    writer.finish()
 }
 
 #[must_use]
@@ -245,6 +273,39 @@ mod tests {
             checkpoint.continuation_digest64,
             continuation_digest64(&checkpoint.clone())
         );
+    }
+
+    #[test]
+    fn streaming_continuation_digest_matches_buffered_reference_encoding() {
+        let checkpoint = crate::Simulation::new(ExperimentConfig::new(74, 2))
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        let material = ContinuationIdentityMaterial {
+            schema_version: checkpoint.schema_version,
+            model_version: &checkpoint.model_version,
+            model_semantics_id: &checkpoint.model_semantics_id,
+            git_commit: &checkpoint.git_commit,
+            resume_lineage: &checkpoint.resume_lineage,
+            experiment: &checkpoint.experiment,
+            time: checkpoint.time,
+            completed_years: checkpoint.completed_years,
+            terminal_stop_reason: &checkpoint.terminal_stop_reason,
+            world_digest64: checkpoint.world_digest64,
+            population: &checkpoint.population,
+            temporary_mobility: &checkpoint.temporary_mobility,
+            resources: &checkpoint.resources,
+            migration: &checkpoint.migration,
+            rng: &checkpoint.rng,
+            events: &checkpoint.events,
+            metrics: &checkpoint.metrics,
+            state_digest64: checkpoint.state_digest64,
+        };
+        let encoded = serde_json::to_vec(&material).unwrap();
+        let mut buffered_hash = FNV_OFFSET_BASIS;
+        digest_bytes(&mut buffered_hash, CONTINUATION_IDENTITY_DOMAIN);
+        digest_bytes(&mut buffered_hash, &encoded);
+        assert_eq!(continuation_digest64(&checkpoint), buffered_hash);
     }
 
     #[test]
