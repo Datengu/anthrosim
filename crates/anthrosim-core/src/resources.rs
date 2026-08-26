@@ -707,10 +707,10 @@ pub(crate) fn fixed_annual_quantity_for_period(
     periods_per_year: u16,
 ) -> Option<u64> {
     let (start, end) = resource_period_day_bounds(period_index_in_year, periods_per_year)?;
-    let before = u64::try_from(u128::from(annual) * u128::from(start) / u128::from(DAYS_PER_YEAR))
-        .ok()?;
-    let after = u64::try_from(u128::from(annual) * u128::from(end) / u128::from(DAYS_PER_YEAR))
-        .ok()?;
+    let before =
+        u64::try_from(u128::from(annual) * u128::from(start) / u128::from(DAYS_PER_YEAR)).ok()?;
+    let after =
+        u64::try_from(u128::from(annual) * u128::from(end) / u128::from(DAYS_PER_YEAR)).ok()?;
     after.checked_sub(before)
 }
 
@@ -811,14 +811,12 @@ fn seasonal_annual_quantity_for_period(
     }
     let before_weight = seasonal_cumulative_weight(start, phase, amplitude)?;
     let after_weight = seasonal_cumulative_weight(end, phase, amplitude)?;
-    let before = u64::try_from(
-        u128::from(annual) * u128::from(before_weight) / u128::from(denominator),
-    )
-    .ok()?;
-    let after = u64::try_from(
-        u128::from(annual) * u128::from(after_weight) / u128::from(denominator),
-    )
-    .ok()?;
+    let before =
+        u64::try_from(u128::from(annual) * u128::from(before_weight) / u128::from(denominator))
+            .ok()?;
+    let after =
+        u64::try_from(u128::from(annual) * u128::from(after_weight) / u128::from(denominator))
+            .ok()?;
     after.checked_sub(before)
 }
 
@@ -960,6 +958,7 @@ fn scale_permille(value: u64, scale: u16) -> u64 {
         .unwrap_or(u64::MAX)
 }
 
+#[cfg(test)]
 fn scaled_seasonal_factor_permille(
     day_of_year: u16,
     phase: u16,
@@ -1080,9 +1079,7 @@ mod tests {
         for periods in [1_u16, 3, 4, 5, 12, 365] {
             for annual in [0_u64, 1, 4, 100, 365, 1_001] {
                 let total = (0..periods)
-                    .map(|index| {
-                        fixed_annual_quantity_for_period(annual, index, periods).unwrap()
-                    })
+                    .map(|index| fixed_annual_quantity_for_period(annual, index, periods).unwrap())
                     .sum::<u64>();
                 assert_eq!(total, annual, "periods={periods}, annual={annual}");
             }
@@ -1110,8 +1107,7 @@ mod tests {
             let mut phase_opposite = 0_u64;
             for index in 0..periods {
                 phase_zero +=
-                    seasonal_annual_quantity_for_period(10_000, index, periods, 0, 1_000)
-                        .unwrap();
+                    seasonal_annual_quantity_for_period(10_000, index, periods, 0, 1_000).unwrap();
                 phase_opposite +=
                     seasonal_annual_quantity_for_period(10_000, index, periods, 182, 1_000)
                         .unwrap();
@@ -1120,8 +1116,7 @@ mod tests {
             assert_eq!(phase_opposite, 10_000, "phase 182, periods={periods}");
         }
 
-        let phase_zero_first = seasonal_annual_quantity_for_period(10_000, 0, 4, 0, 1_000)
-            .unwrap();
+        let phase_zero_first = seasonal_annual_quantity_for_period(10_000, 0, 4, 0, 1_000).unwrap();
         let phase_opposite_first =
             seasonal_annual_quantity_for_period(10_000, 0, 4, 182, 1_000).unwrap();
         assert_ne!(phase_zero_first, phase_opposite_first);
