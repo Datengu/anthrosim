@@ -1075,10 +1075,9 @@ mod tests {
         seed: u64,
         state: &str,
         stop_reason: Option<StopReason>,
-        final_population: Option<u64>,
-        births: Option<u64>,
-        deaths: Option<u64>,
+        terminal_counts: (Option<u64>, Option<u64>, Option<u64>),
     ) -> DerivedRunRow {
+        let (final_population, births, deaths) = terminal_counts;
         let run_id = format!("seed-{seed:020}");
         DerivedRunRow {
             schema_version: DERIVED_ANALYSIS_SCHEMA_VERSION,
@@ -1220,12 +1219,17 @@ mod tests {
                 1,
                 "completed",
                 Some(StopReason::DurationReached),
-                Some(10),
-                Some(4),
-                Some(2),
+                (Some(10), Some(4), Some(2)),
             ),
-            derived_row(&sweep, point, 2, "failed", None, None, None, None),
-            derived_row(&sweep, point, 3, "incomplete", None, None, None, None),
+            derived_row(&sweep, point, 2, "failed", None, (None, None, None)),
+            derived_row(
+                &sweep,
+                point,
+                3,
+                "incomplete",
+                None,
+                (None, None, None),
+            ),
         ];
 
         let points = build_point_rows(&sweep, &rows);
@@ -1276,9 +1280,7 @@ mod tests {
                 1,
                 "completed",
                 Some(StopReason::DurationReached),
-                Some(100),
-                Some(10),
-                Some(2),
+                (Some(100), Some(10), Some(2)),
             ),
             derived_row(
                 &sweep,
@@ -1286,9 +1288,7 @@ mod tests {
                 2,
                 "completed",
                 Some(StopReason::PopulationExtinct),
-                Some(0),
-                Some(4),
-                Some(12),
+                (Some(0), Some(4), Some(12)),
             ),
             derived_row(
                 &sweep,
@@ -1296,9 +1296,7 @@ mod tests {
                 3,
                 "completed",
                 Some(StopReason::PersonRecordLimitReached),
-                Some(999),
-                Some(1_000),
-                Some(1_000),
+                (Some(999), Some(1_000), Some(1_000)),
             ),
         ];
 
@@ -1366,9 +1364,7 @@ mod tests {
                 1,
                 "completed",
                 Some(StopReason::DurationReached),
-                Some(40),
-                Some(8),
-                Some(4),
+                (Some(40), Some(8), Some(4)),
             ),
             derived_row(
                 &sweep,
@@ -1376,9 +1372,7 @@ mod tests {
                 2,
                 "completed",
                 Some(StopReason::PersonRecordLimitReached),
-                Some(4_000),
-                Some(8_000),
-                Some(4_000),
+                (Some(4_000), Some(8_000), Some(4_000)),
             ),
         ];
 
