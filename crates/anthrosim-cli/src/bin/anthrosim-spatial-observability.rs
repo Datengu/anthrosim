@@ -208,10 +208,8 @@ fn validate_landscape_wrapper(
     let checkpoint_value: serde_json::Value = read_json(&checkpoint_path)?;
     let manifest_path = run_dir.join("manifest.json");
     let wrapper_manifest_path = run_dir.join("landscape-manifest.json");
-    let completed = artifact_fs::regular_file_exists(
-        &manifest_path,
-        "spatial-observability core manifest",
-    )?;
+    let completed =
+        artifact_fs::regular_file_exists(&manifest_path, "spatial-observability core manifest")?;
     let has_wrapper_manifest = artifact_fs::regular_file_exists(
         &wrapper_manifest_path,
         "spatial-observability landscape manifest",
@@ -403,10 +401,8 @@ fn discover_spatial_run_dirs(root: &Path) -> Result<Vec<PathBuf>, std::io::Error
             &checkpoint_path,
             "spatial-observability discovery checkpoint",
         )?;
-        let has_world = artifact_fs::regular_file_exists(
-            &world_path,
-            "spatial-observability discovery world",
-        )?;
+        let has_world =
+            artifact_fs::regular_file_exists(&world_path, "spatial-observability discovery world")?;
         let has_landscape_checkpoint = artifact_fs::regular_file_exists(
             &landscape_checkpoint_path,
             "spatial-observability discovery landscape checkpoint",
