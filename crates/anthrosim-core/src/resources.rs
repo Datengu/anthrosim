@@ -184,8 +184,8 @@ fn apportion_resource_claims(
                 .map_err(|_| ResourceError::AccountingOverflow)?;
 
             if awards > 0 {
-                let cell_phase = u64::try_from(cell_index)
-                    .map_err(|_| ResourceError::AccountingOverflow)?;
+                let cell_phase =
+                    u64::try_from(cell_index).map_err(|_| ResourceError::AccountingOverflow)?;
                 let rotation = usize::try_from(
                     period_sequence
                         .checked_add(cell_phase)
@@ -196,8 +196,7 @@ fn apportion_resource_claims(
 
                 for step in 0..awards {
                     let group_offset = (rotation + step) % group_len;
-                    let claim_index =
-                        remainder_order[remainder_group_start + group_offset];
+                    let claim_index = remainder_order[remainder_group_start + group_offset];
                     claim_harvest[claim_index] = claim_harvest[claim_index]
                         .checked_add(1)
                         .ok_or(ResourceError::AccountingOverflow)?;
@@ -517,12 +516,8 @@ impl ResourceSystem {
             cell_target[index] = self.cell_food_stock[index].min(cell_need[index]);
         }
 
-        let (claim_harvest, cell_allocated) = apportion_resource_claims(
-            &claims,
-            &cell_need,
-            &cell_target,
-            self.periods_processed,
-        )?;
+        let (claim_harvest, cell_allocated) =
+            apportion_resource_claims(&claims, &cell_need, &cell_target, self.periods_processed)?;
         let mut household_harvest = vec![0_u64; household_count];
         for (claim, allocation) in claims.iter().zip(claim_harvest.iter().copied()) {
             household_harvest[claim.household_index] = household_harvest[claim.household_index]
