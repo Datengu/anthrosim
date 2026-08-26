@@ -6,20 +6,20 @@ This document records the historical M8.6 terrain null-model result and the revi
 
 The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.
 
-## Current regression reference — model semantics v9
+## Current regression reference — model semantics v10
 
-The #204 response-time repair advanced the authoritative model identity to `anthrosim-model-semantics-v9`. The frozen M8.6 experiment was therefore rerun unchanged rather than tuning the repaired timing implementation toward v8 outputs.
+The issue #200 condition-mortality causality repair advanced the authoritative model identity to `anthrosim-model-semantics-v10`. The frozen M8.6 experiment was rerun unchanged and reviewed before rebaselining. The repair changes public mortality cause/field semantics and artifact identities; it does not alter the numerical condition hazard itself.
 
 Reviewed execution:
 
-- workflow run: `32923009999`;
-- branch head: `dbd73404f2c2f9e65d58c32e4f495acee4bb7e30`;
-- pull-request merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
-- artifact: `9590576288`;
-- artifact SHA-256: `909a4d1032c2f3da5a4c7f5c719008a70b6c04e268e9cdb2893f1cef7c04525d`;
-- aggregate canonical SHA-256: `fb90ad3a8870038d7f7e1ec42b34ffb3d1564be9255fc8f068b80673c35bb8c2`.
+- workflow run: `32930245492`;
+- branch head: `a329f68f3278a600dece4193b9a6179d4e981180`;
+- pull-request merge-ref build: `4a224061e4f4387430a33215518503b064810a1f`;
+- artifact: `9593020274`;
+- artifact SHA-256: `61295c9c97a13b30879784fa94f613e2a53312b6db60b4b749239801a1c8d182`;
+- aggregate canonical SHA-256: `bf078fdfd5a43673bfef0ab76203af5fda673868d8d18b81c754e9b8682a1d7f`.
 
-The source terrain identity, evidence catalogue and spatial-transform semantics are unchanged. The relevant upstream change is the global M3/M4 response-time model: M3 settlement resolution no longer multiplies physiological/scarcity response opportunity, and M4 has an independent permanent-migration decision clock.
+The source terrain identity, evidence catalogue and spatial-transform semantics are unchanged. The M8 aggregate/reference schema is now version 2 because secondary mortality output uses `conditionMortalityDeaths` rather than a scarcity-attributed death field. Spatial observability itself is schema version 3 for the corresponding per-cell wire change.
 
 All 32 runs completed the configured duration; no arm was degenerate. The overall predeclared classification remains:
 
@@ -27,24 +27,34 @@ All 32 runs completed the configured duration; no arm was degenerate. The overal
 
 Current primary-metric results are:
 
-| Primary metric | v9 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+| Primary metric | v10 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
 | --- | --- | ---: | ---: |
 | total migration distance | fragile | 11.83% | 3 / 5 / 0 |
 | cell-time occupied | not distinctive | 1.39% | 3 / 5 / 0 |
 | terminal population Herfindahl | not distinctive | 9.24% | 7 / 1 / 0 |
 | terminal largest-cell share | fragile | 11.38% | 5 / 3 / 0 |
 
-The v9 result therefore contains **no robust primary metric**. Total migration distance and terminal largest-cell share are fragile; cell-time occupied and terminal population Herfindahl are not distinctive under the predeclared criteria.
+The v10 result contains **no robust primary metric**. Total migration distance and terminal largest-cell share are fragile; cell-time occupied and terminal population Herfindahl are not distinctive under the predeclared criteria.
 
-This is a meaningful scientific-regression change, not a checksum-only update. Under v8, total migration distance was not distinctive in the then-current reference; earlier model-semantics versions had at times classified it as robust. Under v9 it exceeds the strong-arm median-effect magnitude threshold but fails sign-consistency and cross-arm direction criteria, so it is explicitly **fragile**, not robust. This is consistent with the repaired model definition: permanent-migration opportunities now arise from their own four-per-year default clock rather than being structurally tied to M3 settlement boundaries, while the resource/condition state observed at those decisions can still differ through legitimate elapsed-state dynamics.
+### Causal review of the v10 rebaseline
 
-The important benchmark-level conclusion is unchanged: the terrain-only null model does not produce a seed-stable robust primary spatial effect under the predeclared criteria.
+Every current primary metric, paired-effect fraction, sign count, robust criterion and overall classification matches the live v9 reference exactly. In particular, the strong-vs-flat migration-distance median absolute paired effect remains approximately **11.83%**, with signs **3 positive / 5 negative / 0 zero**. No older intermediate value is used as the reference.
+
+The only required frozen-reference changes are the declared schema/model-semantics identity and the experiment/configuration/state/aggregate identities that follow from the new v10 wire/model contract. The secondary mortality label is also corrected from resource-scarcity attribution to general condition-mediated mortality. No numerical scientific change has been hidden by this rebaseline.
+
+This exact stability is scientifically plausible for this particular repair: issue #200 corrects what a low-condition death is called and what can be causally inferred from it. The executable condition-mediated probability and its v9 elapsed-time scaling remain unchanged. Resource shortfall can still reduce condition, but a later low-condition death is no longer asserted to have resource scarcity as its unique cause because M4 travel can affect the same condition scalar.
+
+The important benchmark-level conclusion therefore remains unchanged: the terrain-only null model does not produce a seed-stable robust primary spatial effect under the predeclared criteria.
 
 ## Previous verification references
 
+### v9 — M3 response-time and M4 opportunity-clock repair
+
+The v9 #204 response-time repair separated M3 integration resolution from elapsed condition response and from the M4 permanent-migration opportunity clock. Its reviewed M8.6 reference classified the overall benchmark as `fragile_spatial_structure`, with no robust primary metric. Total migration distance and terminal largest-cell share were fragile; cell-time occupied and terminal population Herfindahl were not distinctive. The complete v10 primary scientific result reproduces that v9 reference exactly.
+
 ### v8 — M3 resource-time accounting repair
 
-The v8 reference followed the M3 annual-quantity/seasonal-accounting repair. It also classified the overall benchmark as `fragile_spatial_structure`, with no robust primary metric and terminal largest-cell share fragile. Total migration distance was not distinctive. That exact reference remains preserved in Git history and was superseded because v9 changes the authoritative response/opportunity clocks.
+The v8 reference followed the M3 annual-quantity/seasonal-accounting repair. It also classified the overall benchmark as `fragile_spatial_structure`, with no robust primary metric and terminal largest-cell share fragile. Total migration distance was not distinctive. That exact reference remains preserved in Git history and was superseded because v9 changed the authoritative response/opportunity clocks.
 
 ### v7 — M4 stay/relocation comparator repair
 
@@ -63,13 +73,14 @@ The original corrected M8.6 observation used `anthrosim-model-semantics-v1`. All
 The defensible current interpretation is bounded:
 
 - real-world-derived terrain can propagate through the deterministic model and alter simulated trajectories;
-- exact spatial effects are sensitive to upstream demographic, resource and migration semantics;
-- under current v9 semantics this terrain-only benchmark provides no robust primary spatial effect under its predeclared criteria;
+- exact spatial effects are conditional on upstream demographic, resource, condition and migration semantics;
+- under current v10 semantics this terrain-only benchmark provides no robust primary spatial effect under its predeclared criteria;
 - total migration distance and terminal largest-cell concentration are both fragile across seeds/arms;
+- condition-mediated death counts cannot by themselves identify resource scarcity as the unique upstream cause;
 - a visually plausible single run is inadequate evidence;
 - none of these synthetic benchmark effects validates the terrain-cost transformation as a historical human movement law.
 
-The v9 rebaseline is scientifically useful precisely because repairing a numerical/scheduling confound was allowed to alter downstream classifications instead of preserving an older result artificially.
+The v10 rebaseline is a causal-semantics/schema maintenance update with an explicitly reviewed null numerical effect on the primary benchmark result. That is different from the v9 rebaseline, where the scheduling repair legitimately changed a downstream classification.
 
 ## What this does not establish
 
@@ -100,4 +111,4 @@ The dedicated workflow preserves its generated artifact even when a frozen-refer
 
 ## M8 scientific conclusion
 
-M8 continues to demonstrate the generic evidence-grounded spatial execution path, while the v6→v7→v8→v9 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal semantics must be allowed to change those results; they must not be tuned back toward an older reference merely for apparent stability.
+M8 continues to demonstrate the generic evidence-grounded spatial execution path, while the v6→v7→v8→v9→v10 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal semantics must be allowed to change those results; where a repair produces no numerical scientific change, that null effect should be reviewed and recorded just as explicitly rather than inferred from green CI alone.

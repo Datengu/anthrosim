@@ -47,6 +47,10 @@ pub struct ResourceMetrics {
     pub unmet_need: u64,
     pub final_food_stock: u64,
     pub household_periods_with_unmet_need: u64,
+    /// Historical Rust field name retained for source compatibility. v10 serializes this as
+    /// `conditionMortalityDeaths`; it counts the general condition-mediated hazard, not a
+    /// resource-scarcity-specific cause.
+    #[serde(rename = "conditionMortalityDeaths")]
     pub scarcity_deaths: u64,
     pub digest64: u64,
 }
@@ -107,7 +111,7 @@ pub struct MetricSnapshot {
 }
 
 impl MetricSnapshot {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,7 +123,7 @@ pub struct MetricSeries {
 }
 
 impl MetricSeries {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub fn annual() -> Self {

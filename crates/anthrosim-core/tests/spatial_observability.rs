@@ -164,7 +164,7 @@ fn spatial_observability_is_deterministic_and_reconciles_terminal_state() {
     .unwrap();
 
     assert_eq!(first, second);
-    assert_eq!(first.schema_version, 2);
+    assert_eq!(first.schema_version, 3);
     assert_eq!(first.provenance, MetricProvenance::Derived);
     assert_eq!(
         first.semantics.population_location_basis,

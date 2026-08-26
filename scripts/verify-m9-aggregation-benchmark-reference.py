@@ -11,7 +11,7 @@ def require(label, actual, expected):
 
 
 def project_pair(pair):
-    continuous_keys=("residentPersonDays","visitorPersonDays","daysWithAnyVisitors","peakVisitors","permanentMigrations","resourceScarcityDeaths","journeysStarted","journeysCompleted")
+    continuous_keys=("residentPersonDays","visitorPersonDays","daysWithAnyVisitors","peakVisitors","permanentMigrations","conditionMortalityDeaths","journeysStarted","journeysCompleted")
     intermittent_keys=continuous_keys+("transitPersonDays","notStartedTotal","notStartedUnreachable","originCatchmentCells","totalTravelDays","totalRoundTripTravelCostUnits","totalRoundTripRouteDistanceEdges")
     return {
         "seed": pair["seed"],

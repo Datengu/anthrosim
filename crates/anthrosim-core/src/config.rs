@@ -36,7 +36,7 @@ pub struct ExperimentConfig {
 }
 
 impl ExperimentConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 9;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 10;
 
     #[must_use]
     pub fn new(seed: u64, duration_years: u64) -> Self {
@@ -327,12 +327,12 @@ impl Default for DemographyConfig {
     }
 }
 
-/// Transparent M3 energetic/resource assumptions.
+/// Transparent M3 energetic/resource assumptions plus the shared condition response used by M3.
 ///
 /// All resource quantities are abstract integer units. This configuration is
 /// an engine-validation mechanism, not a calibrated caloric or palaeoecological
 /// reconstruction. `periods_per_year` controls M3 settlement/integration only;
-/// condition and scarcity-mortality response coefficients below are interpreted
+/// condition-response and condition-mediated mortality coefficients below are interpreted
 /// against a fixed quarter-year reference interval and rescaled by elapsed days.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -348,21 +348,23 @@ pub struct ResourceConfig {
     /// 0 removes the seasonal swing; 1000 preserves the synthetic v0.1 baseline.
     pub seasonality_scale_permille: u16,
     pub cell_stock_capacity_years: u16,
-    /// Legacy wire name retained for input compatibility. Under schema v3 this is the maximum
+    /// Legacy wire name retained for input compatibility. Under schema v4 this is the maximum
     /// condition recovery over one reference quarter-year (365/4 days), not over an arbitrary
     /// configured resource period. M3 rescales it by actual elapsed interval duration.
     pub condition_recovery_per_period: u16,
-    /// Legacy wire name retained for input compatibility. Under schema v3 this is the maximum
+    /// Legacy wire name retained for input compatibility. Under schema v4 this is the maximum
     /// condition loss over one reference quarter-year and is rescaled by elapsed duration.
     pub max_condition_loss_per_period: u16,
-    /// Maximum scarcity-mortality probability at zero condition over one reference quarter-year.
-    /// The executable interval probability is survival-equivalent and duration-scaled; changing
-    /// `periods_per_year` therefore changes evaluation resolution, not the nominal annual hazard.
+    /// Historical Rust field name retained to minimize execution-code churn. In v10 configuration
+    /// this serializes only as `maxConditionMortalityProbabilityPerMillion`; no alias accepts the
+    /// former scarcity-specific wire name. The shared condition may reflect M3 resource balance,
+    /// M4 permanent-travel cost, and any future explicitly documented condition pathway.
+    #[serde(rename = "maxConditionMortalityProbabilityPerMillion")]
     pub max_scarcity_mortality_probability_per_million: u32,
 }
 
 impl ResourceConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
     #[must_use]
     pub fn synthetic_validation_v1() -> Self {

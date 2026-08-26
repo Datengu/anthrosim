@@ -274,10 +274,13 @@ jobs:
           assert all(row['failedRuns'] == 0 for row in points)
           assert all(row['incompleteRuns'] == 0 for row in points)
           assert all(row['personRecordLimitReachedRuns'] == 0 for row in points)
+          assert summary['schemaVersion'] == 3
           assert summary['runRows'] == 144
           assert summary['pointRows'] == 18
           assert summary['completedRuns'] == 144
           assert summary['nonCompletedRuns'] == 0
+          assert reference['schemaVersion'] == 3
+          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v10'
           assert record['sweepId'] == manifest['sweepId']
           assert record['modelVersion'] == manifest['modelVersion']
           assert record['gitCommit'] == manifest['gitCommit']
@@ -296,7 +299,7 @@ jobs:
                   'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationCompletedOnly'],
                   'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountCompletedOnly'],
                   'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleCompletedOnly'],
-                  'meanResourceScarcityDeathsCompletedOnly': row['meanResourceScarcityDeathsCompletedOnly'],
+                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsCompletedOnly'],
                   'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedCompletedOnly'],
                   'meanMigrationMovesCompletedOnly': row['meanMigrationMovesCompletedOnly'],
                   'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsCompletedOnly'],
