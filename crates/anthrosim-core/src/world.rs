@@ -229,6 +229,16 @@ impl World {
     }
 
     pub fn validate(&self) -> Result<(), WorldValidationError> {
+        if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
+            return Err(WorldValidationError::UnsupportedSchema {
+                found: self.schema_version,
+                supported: Self::CURRENT_SCHEMA_VERSION,
+            });
+        }
+        if self.width == 0 || self.height == 0 {
+            return Err(WorldValidationError::InvalidDimensions);
+        }
+
         let expected = u64::from(self.width) * u64::from(self.height);
         if self.cells.len() as u64 != expected {
             return Err(WorldValidationError::CellCountMismatch {
@@ -360,6 +370,10 @@ pub enum WorldError {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum WorldValidationError {
+    #[error("world schema {found} is unsupported; supported schema is {supported}")]
+    UnsupportedSchema { found: u32, supported: u32 },
+    #[error("world width and height must both be greater than zero")]
+    InvalidDimensions,
     #[error("world cell count mismatch: expected {expected}, found {actual}")]
     CellCountMismatch { expected: u64, actual: u64 },
     #[error("cell {cell:?} has out-of-range field {field}")]
@@ -545,6 +559,43 @@ mod tests {
     fn rejects_invalid_dimensions() {
         let result = World::generate(WorldConfig::new(0, 10), RngFactory::new(1));
         assert!(matches!(result, Err(WorldError::InvalidDimensions)));
+    }
+
+    #[test]
+    fn deserialized_world_rejects_unsupported_schema_versions() {
+        let baseline = serde_json::to_value(world(10, 2, 2)).unwrap();
+
+        for found in [0, World::CURRENT_SCHEMA_VERSION + 1] {
+            let mut value = baseline.clone();
+            value["schemaVersion"] = serde_json::json!(found);
+            let restored: World = serde_json::from_value(value).unwrap();
+
+            assert_eq!(
+                restored.validate(),
+                Err(WorldValidationError::UnsupportedSchema {
+                    found,
+                    supported: World::CURRENT_SCHEMA_VERSION,
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn deserialized_world_rejects_zero_dimensions() {
+        for (width, height) in [(0, 0), (0, 1), (1, 0)] {
+            let restored: World = serde_json::from_value(serde_json::json!({
+                "schemaVersion": World::CURRENT_SCHEMA_VERSION,
+                "width": width,
+                "height": height,
+                "cells": [],
+            }))
+            .unwrap();
+
+            assert_eq!(
+                restored.validate(),
+                Err(WorldValidationError::InvalidDimensions)
+            );
+        }
     }
 
     #[test]
