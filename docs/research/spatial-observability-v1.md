@@ -36,6 +36,8 @@ anthrosim-spatial-observability tree --root EXPERIMENT_OR_SWEEP --check
 
 The postprocessor requires the preserved normalized landscape, authoritative transformed/baseline world, a resolvable original founder population and checkpoint. For an inert M8.3 landscape-bound run, the `LandscapeCheckpoint` wrapper must reconcile with `checkpoint.json` and the exact landscape binding. For a transformed M8.4 run, the `SpatialLandscapeCheckpoint` wrapper must additionally reconcile the spatial mechanism binding and transformed world identity.
 
+Under model semantics v10, the public `spatial-observability.json` wire schema is version 3 because its per-cell condition-mediated mortality field replaces the former scarcity-attributed death field. The `v1` in this document title is the M8.5 contract version, not the artifact schema number.
+
 ### Resume population semantics
 
 `initial-population.json` and `resume-start-population.json` describe different moments and must never be treated as aliases:
@@ -107,7 +109,7 @@ For each cell, v1 records:
 - living person-days;
 - births;
 - deaths;
-- resource-scarcity deaths;
+- condition-mediated deaths;
 - household-migration moves in and out;
 - people moved in and out.
 
@@ -169,17 +171,18 @@ A second table groups moves and people by recorded distance. Aggregate move, peo
 
 These are simulated flows. They are not inferred historical routes and do not imply that straight lines between cell centres represent travelled paths.
 
-## Resource observability boundary
+## Resource and condition observability boundary
 
-M8.5 exposes terminal per-cell food stock because that state exists in the checkpoint, and it aggregates authoritative resource-scarcity deaths by event cell.
+M8.5 exposes terminal per-cell food stock because that state exists in the checkpoint, and it aggregates authoritative **condition-mediated deaths** by event cell. A condition-mediated death identifies the shared condition hazard, not a unique upstream resource cause. Resource shortfall can lower condition, but M4 travel can also lower the same condition state, so M8.5 must not relabel these events as resource-scarcity deaths.
 
 The current model does **not** serialize enough information to recover:
 
 - historical per-cell food stock between serialized checkpoint boundaries;
 - per-cell unmet resource need;
-- continuous historical person condition between authoritative death/checkpoint observations.
+- continuous historical person condition between authoritative death/checkpoint observations;
+- a decomposition of a condition deficit into resource-derived, travel-derived or other causal shares.
 
-These are listed explicitly in `unavailableObservables`.
+These are listed explicitly in `unavailableObservables` where applicable.
 
 M8.5 must not interpolate, back-calculate or visually smooth those missing histories. A later research question can justify new authoritative/derived instrumentation, but absence is preferable to fabricated precision.
 
@@ -208,7 +211,7 @@ The spatial panel exposes:
 - landscape/run/spatial identities when available;
 - normalized layer catalogue and evidence-input references;
 - normalized input overlays with nodata preserved;
-- derived occupancy persistence, person-days, terminal distribution, scarcity deaths and migration-out overlays when a report exists;
+- derived occupancy persistence, person-days, terminal distribution, condition-mediated deaths and migration-out overlays when a report exists;
 - per-cell source values, authoritative model-facing values and derived observables in separate sections.
 
 The existing historical population map remains a reconstructed display. The M8.5 panel does not convert it into authoritative historical state.
@@ -219,7 +222,7 @@ M8.5 can establish that:
 
 - spatial summaries are deterministic functions of preserved artifacts;
 - event-derived terminal distribution reconciles with authoritative checkpoint state;
-- aggregate births, deaths, scarcity deaths and migration totals reconcile with existing summaries;
+- aggregate births, deaths, condition-mediated deaths and migration totals reconcile with existing summaries;
 - source run/environment identities are attached to the report;
 - normalized nodata is preserved;
 - the explorer is read-only and optional;
