@@ -64,10 +64,9 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
 
     let resources_config = ResourceConfig::synthetic_validation_v1();
     let resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
-    let first_resource_boundary =
-        resource_period_day_bounds(0, resources_config.periods_per_year)
-            .expect("synthetic resource schedule has a first period")
-            .1;
+    let first_resource_boundary = resource_period_day_bounds(0, resources_config.periods_per_year)
+        .expect("synthetic resource schedule has a first period")
+        .1;
     let mut migration_config = MigrationConfig::synthetic_validation_v1();
     migration_config.enabled = true;
     migration_config.candidate_radius_cells = 1;
