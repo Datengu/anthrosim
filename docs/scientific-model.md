@@ -125,7 +125,7 @@ The implemented synthetic candidate utility is conceptually:
 candidate utility
   = local dynamic-resource score × resource weight
   + water/security proxy × water weight
-  + symmetric living-direct-parent-location score × kin weight
+  + reciprocal cross-household first-degree-kin location score × kin weight
   - distance/terrain travel penalty × travel weight
   - deterministic uncertainty penalty
   - relocation-risk penalty
@@ -162,9 +162,9 @@ Candidate uncertainty is represented by an independent deterministic stochastic 
 
 ### Kin proximity
 
-M4 uses only genealogical state that already exists in the model. Under the v13 kin contract, each household retains every unique cell containing a living direct parent of a living household member. Co-resident and external parents are treated identically by the collector, and female/male reproductive-parent role does not decide whether a location contributes. A cell receives the bounded kin contribution when at least one represented living direct parent is there; multiple parents at the same cell do not stack.
+M4 uses only genealogical state that already exists in the model. Under the v13 kin contract, each living parent-child relation that crosses household boundaries creates a reciprocal spatial tie: the child household retains the parent household's persistent residence and the parent household retains the child household's persistent residence. Female- and male-parent roles use the same rule. Same-household parent-child relations add no spatial term because M4 moves the household as one unit. A cell receives the bounded kin contribution when at least one reciprocal first-degree tie points to it; multiple relatives at one cell do not stack.
 
-There is no fixed first-N kin-location cap. This makes M4 utility invariant to irrelevant packed person/birth record ordering and prevents the M2 female-parent household-inheritance rule from silently turning the supposedly neutral M4 term into an external-father preference. The detailed normative contract is [`research/m4-kin-proxy-v1.md`](research/m4-kin-proxy-v1.md).
+There is no fixed first-N kin-location cap. This makes M4 utility invariant to irrelevant packed person/birth record ordering and prevents the M2 female-parent household-inheritance rule from silently turning the kin term into one-way attraction toward external fathers. Representing each cross-household genealogical edge in both directions also avoids inventing a stay bonus for co-resident relatives who would relocate with the household. The detailed normative contract is [`research/m4-kin-proxy-v1.md`](research/m4-kin-proxy-v1.md).
 
 This is deliberately narrow. It is not a model of clans, lineages, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial groups or culturally defined obligations.
 
