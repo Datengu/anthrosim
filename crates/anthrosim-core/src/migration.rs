@@ -19,7 +19,6 @@ use crate::{
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-const MAX_KIN_LOCATIONS_PER_HOUSEHOLD: usize = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -214,8 +213,13 @@ pub struct MigrationSystem {
     /// matching the M9.5 resource-accounting rule without inventing a physical transit cell.
     boundary_demand_living: Vec<u32>,
     post_move_cell_living: Vec<u32>,
-    kin_locations: Vec<[CellId; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]>,
-    kin_location_counts: Vec<u8>,
+    /// Every unique cell containing a living direct parent of a living household member.
+    ///
+    /// Co-resident parents are intentionally retained: excluding them would make the
+    /// female-parent household inheritance rule an accidental sex-specific M4 preference.
+    /// There is no record-order-dependent truncation; the set is bounded by represented
+    /// living direct-parent relationships in the authoritative population.
+    kin_locations: Vec<Vec<CellId>>,
     planned_destinations: Vec<CellId>,
     planned_condition_costs: Vec<u16>,
     candidates: Vec<CellId>,
@@ -260,8 +264,7 @@ impl MigrationSystem {
             cell_living: vec![0; cells],
             boundary_demand_living: vec![0; cells],
             post_move_cell_living: vec![0; cells],
-            kin_locations: vec![[CellId::INVALID; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]; households],
-            kin_location_counts: vec![0; households],
+            kin_locations: vec![Vec::new(); households],
             planned_destinations: vec![CellId::INVALID; households],
             planned_condition_costs: vec![0; households],
             candidates: Vec::with_capacity(candidate_capacity),
@@ -521,6 +524,7 @@ impl MigrationSystem {
         temporary_mobility: Option<&TemporaryMobilityState>,
     ) -> Result<(), MigrationError> {
         if self.living_members.len() != population.household_count()
+            || self.kin_locations.len() != population.household_count()
             || self.cell_living.len() != world.cell_count()
             || self.boundary_demand_living.len() != world.cell_count()
         {
@@ -531,9 +535,9 @@ impl MigrationSystem {
         self.cell_living.fill(0);
         self.boundary_demand_living.fill(0);
         self.post_move_cell_living.fill(0);
-        self.kin_locations
-            .fill([CellId::INVALID; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]);
-        self.kin_location_counts.fill(0);
+        for locations in &mut self.kin_locations {
+            locations.clear();
+        }
         self.planned_destinations.fill(CellId::INVALID);
         self.planned_condition_costs.fill(0);
 
@@ -588,17 +592,16 @@ impl MigrationSystem {
             .into_iter()
             .flatten()
             {
-                self.note_external_kin_location(population, household_index, household, parent)?;
+                self.note_kin_location(population, household_index, parent)?;
             }
         }
         Ok(())
     }
 
-    fn note_external_kin_location(
+    fn note_kin_location(
         &mut self,
         population: &Population,
         household_index: usize,
-        household: HouseholdId,
         parent: PersonId,
     ) -> Result<(), MigrationError> {
         if parent == PersonId::INVALID {
@@ -607,18 +610,12 @@ impl MigrationSystem {
         let Some(parent_snapshot) = population.person(parent) else {
             return Ok(());
         };
-        if !parent_snapshot.is_alive() || parent_snapshot.household == household {
+        if !parent_snapshot.is_alive() {
             return Ok(());
         }
-        let count = usize::from(self.kin_location_counts[household_index]);
         let locations = &mut self.kin_locations[household_index];
-        if locations[..count].contains(&parent_snapshot.location) {
-            return Ok(());
-        }
-        if count < MAX_KIN_LOCATIONS_PER_HOUSEHOLD {
-            locations[count] = parent_snapshot.location;
-            self.kin_location_counts[household_index] =
-                self.kin_location_counts[household_index].saturating_add(1);
+        if !locations.contains(&parent_snapshot.location) {
+            locations.push(parent_snapshot.location);
         }
         Ok(())
     }
@@ -731,14 +728,11 @@ impl MigrationSystem {
                 / 4,
         )
         .unwrap_or(PERMILLE_MAX);
-        let kin_count = usize::from(self.kin_location_counts[household_index]);
-        let kin_matches = self.kin_locations[household_index][..kin_count]
-            .iter()
-            .filter(|&&kin_cell| kin_cell == cell)
-            .count();
-        let kin_score = u16::try_from(kin_matches.saturating_mul(250))
-            .unwrap_or(PERMILLE_MAX)
-            .min(PERMILLE_MAX);
+        let kin_score = if self.kin_locations[household_index].contains(&cell) {
+            250
+        } else {
+            0
+        };
 
         Ok(ResidenceUtilityTerms {
             resource_score_permille: resource_score,
@@ -1303,9 +1297,15 @@ pub enum MigrationError {
 mod tests {
     use super::*;
     use crate::{
-        config::{ExperimentConfig, PopulationConfig, ResourceConfig, WorldConfig},
+        config::{
+            ExperimentConfig, ParameterProvenance, PopulationConfig, PopulationInitialization,
+            ResourceConfig, WorldConfig,
+        },
         focal_region::{FocalRegion, FocalRegionSource},
-        population::Population,
+        founder_initialization::{
+            FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+        },
+        population::{Population, ReproductiveSex},
         resources::ResourceSystem,
         rng::RngFactory,
         temporary_mobility::{
@@ -1586,6 +1586,313 @@ mod tests {
         assert!(visitor_aware_population > baseline_population);
         assert!(visitor_aware.resource_score_permille < baseline.resource_score_permille);
         assert!(visitor_aware.total_utility < baseline.total_utility);
+    }
+
+    fn declared_parent_role_fixture(world: &World, internal_parent_is_female: bool) -> Population {
+        let origin = world.cell_id(0, 0).unwrap();
+        let external = world.cell_id(1, 0).unwrap();
+        let household_one = HouseholdId::new(1);
+        let household_two = HouseholdId::new(2);
+        let internal_parent = PersonId::new(1);
+        let external_parent = PersonId::new(2);
+        let child = PersonId::new(3);
+
+        let (internal_sex, external_sex, female_parent, male_parent) = if internal_parent_is_female
+        {
+            (
+                ReproductiveSex::Female,
+                ReproductiveSex::Male,
+                Some(internal_parent),
+                Some(external_parent),
+            )
+        } else {
+            (
+                ReproductiveSex::Male,
+                ReproductiveSex::Female,
+                Some(external_parent),
+                Some(internal_parent),
+            )
+        };
+
+        let definition = FounderPopulationDefinition::new(
+            "m4-parent-role-symmetry",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            vec![
+                FounderHousehold {
+                    id: household_one,
+                    location: origin,
+                },
+                FounderHousehold {
+                    id: household_two,
+                    location: external,
+                },
+            ],
+            vec![
+                FounderPerson {
+                    id: internal_parent,
+                    birth_day: -18_250,
+                    reproductive_sex: internal_sex,
+                    household: household_one,
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: PERMILLE_MAX,
+                },
+                FounderPerson {
+                    id: external_parent,
+                    birth_day: -18_250,
+                    reproductive_sex: external_sex,
+                    household: household_two,
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: PERMILLE_MAX,
+                },
+                FounderPerson {
+                    id: child,
+                    birth_day: -7_300,
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: household_one,
+                    female_parent,
+                    male_parent,
+                    last_birth_day: None,
+                    condition_permille: PERMILLE_MAX,
+                },
+            ],
+        );
+        Population::initialize_declared_founder_state_v1(
+            PopulationConfig::new(3)
+                .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+            &definition,
+            world,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn co_resident_and_external_parent_roles_are_symmetric_kin_anchors() {
+        let factory = RngFactory::new(188_001);
+        let world = World::generate(WorldConfig::new(2, 1), factory).unwrap();
+        let origin = world.cell_id(0, 0).unwrap();
+        let external = world.cell_id(1, 0).unwrap();
+        let config = MigrationConfig::synthetic_validation_v1();
+
+        for internal_parent_is_female in [true, false] {
+            let population = declared_parent_role_fixture(&world, internal_parent_is_female);
+            let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+            migration
+                .prepare_snapshot(&population, &world, None)
+                .unwrap();
+
+            let anchors = &migration.kin_locations[0];
+            assert_eq!(anchors.len(), 2);
+            assert!(anchors.contains(&origin));
+            assert!(anchors.contains(&external));
+        }
+    }
+
+    fn many_parent_locations_fixture(world: &World, pair_order: [usize; 5]) -> Population {
+        let mut households = Vec::with_capacity(11);
+        households.push(FounderHousehold {
+            id: HouseholdId::new(1),
+            location: world.cell_id(0, 0).unwrap(),
+        });
+        for index in 0..10 {
+            households.push(FounderHousehold {
+                id: HouseholdId::new(index as u64 + 2),
+                location: world.cell_id(index as u32 + 1, 0).unwrap(),
+            });
+        }
+
+        let mut people = Vec::with_capacity(15);
+        for index in 0..5 {
+            people.push(FounderPerson {
+                id: PersonId::new(index as u64 + 1),
+                birth_day: -18_250,
+                reproductive_sex: ReproductiveSex::Female,
+                household: HouseholdId::new(index as u64 + 2),
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: PERMILLE_MAX,
+            });
+        }
+        for index in 0..5 {
+            people.push(FounderPerson {
+                id: PersonId::new(index as u64 + 6),
+                birth_day: -18_250,
+                reproductive_sex: ReproductiveSex::Male,
+                household: HouseholdId::new(index as u64 + 7),
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: PERMILLE_MAX,
+            });
+        }
+        for (child_index, pair_index) in pair_order.into_iter().enumerate() {
+            people.push(FounderPerson {
+                id: PersonId::new(child_index as u64 + 11),
+                birth_day: -7_300,
+                reproductive_sex: if child_index.is_multiple_of(2) {
+                    ReproductiveSex::Female
+                } else {
+                    ReproductiveSex::Male
+                },
+                household: HouseholdId::new(1),
+                female_parent: Some(PersonId::new(pair_index as u64 + 1)),
+                male_parent: Some(PersonId::new(pair_index as u64 + 6)),
+                last_birth_day: None,
+                condition_permille: PERMILLE_MAX,
+            });
+        }
+
+        let definition = FounderPopulationDefinition::new(
+            "m4-record-order-invariance",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            households,
+            people,
+        );
+        Population::initialize_declared_founder_state_v1(
+            PopulationConfig::new(15)
+                .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+            &definition,
+            world,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn all_parent_locations_are_retained_independent_of_person_record_order() {
+        let factory = RngFactory::new(188_002);
+        let world = World::generate(WorldConfig::new(11, 1), factory).unwrap();
+        let config = MigrationConfig::synthetic_validation_v1();
+        let forward = many_parent_locations_fixture(&world, [0, 1, 2, 3, 4]);
+        let reverse = many_parent_locations_fixture(&world, [4, 3, 2, 1, 0]);
+
+        let mut forward_migration = MigrationSystem::initialize(&forward, &world, &config).unwrap();
+        forward_migration
+            .prepare_snapshot(&forward, &world, None)
+            .unwrap();
+        let mut reverse_migration = MigrationSystem::initialize(&reverse, &world, &config).unwrap();
+        reverse_migration
+            .prepare_snapshot(&reverse, &world, None)
+            .unwrap();
+
+        let mut forward_anchors = forward_migration.kin_locations[0].clone();
+        let mut reverse_anchors = reverse_migration.kin_locations[0].clone();
+        forward_anchors.sort_unstable();
+        reverse_anchors.sort_unstable();
+        assert_eq!(forward_anchors.len(), 10);
+        assert_eq!(forward_anchors, reverse_anchors);
+        for x in 1..=10 {
+            assert!(forward_anchors.contains(&world.cell_id(x, 0).unwrap()));
+        }
+    }
+
+    #[test]
+    fn kin_weight_alone_rewards_a_living_direct_parent_cell() {
+        let factory = RngFactory::new(188_003);
+        let world = World::generate(WorldConfig::new(3, 1), factory).unwrap();
+        let origin = world.cell_id(0, 0).unwrap();
+        let kin_destination = world.cell_id(1, 0).unwrap();
+        let non_kin_destination = world.cell_id(2, 0).unwrap();
+        let definition = FounderPopulationDefinition::new(
+            "m4-kin-only-utility",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            vec![
+                FounderHousehold {
+                    id: HouseholdId::new(1),
+                    location: origin,
+                },
+                FounderHousehold {
+                    id: HouseholdId::new(2),
+                    location: kin_destination,
+                },
+            ],
+            vec![
+                FounderPerson {
+                    id: PersonId::new(1),
+                    birth_day: -18_250,
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: HouseholdId::new(2),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: PERMILLE_MAX,
+                },
+                FounderPerson {
+                    id: PersonId::new(2),
+                    birth_day: -7_300,
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: Some(PersonId::new(1)),
+                    last_birth_day: None,
+                    condition_permille: PERMILLE_MAX,
+                },
+            ],
+        );
+        let population = Population::initialize_declared_founder_state_v1(
+            PopulationConfig::new(2)
+                .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+            &definition,
+            &world,
+        )
+        .unwrap();
+        let resources =
+            ResourceSystem::initialize(&world, &ResourceConfig::synthetic_validation_v1()).unwrap();
+        let mut config = MigrationConfig::synthetic_validation_v1();
+        config.resource_weight = 0;
+        config.water_security_weight = 0;
+        config.kin_weight = 1;
+        config.travel_cost_weight = 0;
+        config.max_uncertainty_penalty_permille = 0;
+        config.relocation_risk_base_penalty_permille = 0;
+        config.relocation_risk_per_cell_permille = 0;
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
+
+        let period_need = 25;
+        let stay = migration
+            .evaluate_stay(0, origin, 1, &resources, &world, &config, period_need)
+            .unwrap();
+        let kin = migration
+            .evaluate_relocation(
+                0,
+                kin_destination,
+                1,
+                2,
+                &resources,
+                &world,
+                &config,
+                period_need,
+                0,
+            )
+            .unwrap();
+        let non_kin = migration
+            .evaluate_relocation(
+                0,
+                non_kin_destination,
+                2,
+                1,
+                &resources,
+                &world,
+                &config,
+                period_need,
+                0,
+            )
+            .unwrap();
+
+        assert_eq!(stay.kin_score_permille, 0);
+        assert_eq!(non_kin.kin_score_permille, 0);
+        assert_eq!(kin.kin_score_permille, 250);
+        assert_eq!(kin.total_utility - non_kin.total_utility, 250);
+        assert!(kin.total_utility > stay.total_utility);
     }
 
     #[test]

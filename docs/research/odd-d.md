@@ -1,7 +1,7 @@
 # AnthroSim ODD+D human decision-making supplement
 
 **Protocol:** ODD+D (Müller et al. 2013)  
-**AnthroSim baseline:** v0.3.0 / completed M9 / post-M9 v10 scientific-hardening semantics  
+**AnthroSim baseline:** v0.3.0 / completed M9 / post-M9 v13 scientific-hardening semantics  
 **Status:** formal living supplement to [`odd.md`](odd.md)  
 **Scientific status:** current human-decision mechanisms are synthetic / unvalidated
 
@@ -78,7 +78,7 @@ The model intentionally separates:
 | M4 stay/candidate utility | Synthetic residence-state utility plus relocation-only action costs; not validated psychology. |
 | M4 decision frequency | Explicit independently configured opportunity clock; synthetic default four/year, not an empirical relocation rate. |
 | M4 local information horizon | Explicit bounded-information assumption; current radius synthetic unless evidence-grounded. |
-| M4 kin contribution | Narrow direct-parent-location proxy; declared founder parent state can exist from the first boundary, but the proxy is not a theory of kinship, alliance or social obligation. |
+| M4 kin contribution | Symmetric living-direct-parent-location proxy: co-resident and external parents contribute by location regardless of reproductive-sex role, with no first-record truncation; not a theory of kinship, alliance or social obligation. |
 | M4 uncertainty | Stochastic candidate-action proxy; not calibrated perception or risk cognition. |
 | M4 travel condition effect | Synthetic relocation consequence that changes the shared condition mediator; under v10 any later condition-mediated death remains causal-neutral rather than being attributed uniquely to travel or resources. |
 | M9 temporary participation | Generic configured mechanism; motive/decision theory intentionally absent. |
@@ -108,7 +108,7 @@ Residence-state utility at both the current residence and candidate residences c
 
 - resource support;
 - water/security proxy;
-- narrow kin/parent-location proxy.
+- narrow symmetric living-direct-parent-location proxy, including co-resident and external parents.
 
 Only relocation candidates additionally pay:
 
@@ -185,7 +185,7 @@ Decision-relevant interaction occurs indirectly through:
 - shared household condition/resources;
 - same-cell competition for resources;
 - local crowding consequences;
-- direct-parent location used by the narrow kin proxy;
+- co-resident and external living direct-parent locations used symmetrically by the narrow kin proxy;
 - simultaneous relocation outcomes that affect later periods.
 
 There is no negotiation, signalling, exchange, coalition formation, imitation, conflict or strategic game among households.

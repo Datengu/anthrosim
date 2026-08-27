@@ -1,6 +1,6 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v10
+**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v13
 **Scientific status:** exploratory / unvalidated
 
 This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing and condition-mortality causal contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
@@ -125,7 +125,7 @@ The implemented synthetic candidate utility is conceptually:
 candidate utility
   = local dynamic-resource score × resource weight
   + water/security proxy × water weight
-  + bounded direct-parent-location score × kin weight
+  + symmetric living-direct-parent-location score × kin weight
   - distance/terrain travel penalty × travel weight
   - deterministic uncertainty penalty
   - relocation-risk penalty
@@ -162,7 +162,9 @@ Candidate uncertainty is represented by an independent deterministic stochastic 
 
 ### Kin proximity
 
-M4 uses only genealogical state that already exists in the model. For each household, it can retain a small bounded set of cells containing living direct parents of living household members when those parents reside outside the household. A candidate receives a limited kin contribution when it matches one of those cells.
+M4 uses only genealogical state that already exists in the model. Under the v13 kin contract, each household retains every unique cell containing a living direct parent of a living household member. Co-resident and external parents are treated identically by the collector, and female/male reproductive-parent role does not decide whether a location contributes. A cell receives the bounded kin contribution when at least one represented living direct parent is there; multiple parents at the same cell do not stack.
+
+There is no fixed first-N kin-location cap. This makes M4 utility invariant to irrelevant packed person/birth record ordering and prevents the M2 female-parent household-inheritance rule from silently turning the supposedly neutral M4 term into an external-father preference. The detailed normative contract is [`research/m4-kin-proxy-v1.md`](research/m4-kin-proxy-v1.md).
 
 This is deliberately narrow. It is not a model of clans, lineages, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial groups or culturally defined obligations.
 

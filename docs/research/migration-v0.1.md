@@ -74,7 +74,7 @@ The following describe the state of residing at a cell and therefore apply both 
 |---|---|---|
 | Resource score | Dynamic M3 food stock relative to the M4 decision interval's allocated annual demand after adding the moving household where applicable | Synthetic validation proxy |
 | Water/security score | Weighted water accessibility plus inverse environmental stress | Synthetic validation proxy |
-| Kin score | Presence of a bounded set of known, living direct-parent locations outside the household | Minimal genealogical proxy |
+| Kin score | Presence of any unique cell containing a known living direct parent of a living household member, including co-resident parents | Minimal genealogical proxy |
 
 ### Relocation-only action costs
 
@@ -99,9 +99,13 @@ The exact functional form and all default weights are placeholders. They must no
 
 ## Kin scope
 
-M4 uses only genealogical information already present in the model. For a household, the first implementation records up to four unique cells containing living direct parents of living household members when those parents reside outside the household. A candidate receives a bounded kin-proximity contribution when it matches one of those cells.
+M4 uses only genealogical information already present in the model. For a household, the v13 kin contract collects **every unique cell containing a living direct parent of a living household member**. A living parent counts regardless of reproductive-sex role and regardless of whether that parent shares the moving household. Co-resident parents therefore contribute a kin anchor at the current residence, while parents living elsewhere can contribute anchors at candidate residences.
 
-This is deliberately narrow. It is **not** a model of clans, descent groups, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial communities or culturally defined kin obligations. Those would require additional social state and evidence.
+The score is deliberately a binary per-cell presence proxy: a residence receives `250` kin-score permille when at least one represented living direct parent is at that cell and `0` otherwise. Multiple direct parents at the same cell do not stack. All unique represented parent cells are retained; there is no fixed first-N cap, so packed person-record/birth order cannot decide which kin locations exist in M4 utility.
+
+This symmetric rule is important because newborns normally join the female parent's household. The earlier external-parent-only rule silently removed the co-resident female-parent side in ordinary model-generated families and therefore made an apparently neutral kin term behave predominantly like an external male-parent/father-location signal. v13 removes that accidental interaction rather than adding a sex-specific social rule. Reproductive sex still has its limited M2 biological meaning and is **not** a model of social gender, patrilocality or descent.
+
+This is deliberately narrow. It is **not** a model of clans, descent groups, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial communities or culturally defined kin obligations. Those would require additional social state and evidence. The normative symmetry and ordering contract is [`m4-kin-proxy-v1.md`](m4-kin-proxy-v1.md).
 
 ## Deterministic stochastic choice
 
@@ -192,6 +196,8 @@ Once the milestone acceptance tests and CI pass, it is legitimate to say that th
 - identical configuration/seed yields identical migration decisions and traces;
 - worsened local resource/condition state directionally increases relocation pressure under otherwise equal inputs;
 - changing only M3 resource-period count does not multiply the configured M4 decision-opportunity count;
+- co-resident and external living direct-parent locations are treated symmetrically by M4 regardless of female/male parent role;
+- permuting otherwise-equivalent person/birth record order cannot remove or substitute represented kin-location anchors;
 - changing `migration.decisionPeriodsPerYear` changes M4 opportunity frequency independently of M3 settlement resolution;
 - living household members relocate together and packed population/occupancy invariants continue to reconcile;
 - selected moves impose explicit condition costs;
