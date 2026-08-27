@@ -29,6 +29,7 @@ mod spatial_invariants;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
 pub mod spatial_realization;
+pub mod spatial_scale;
 mod spatial_simulation;
 pub mod temporary_history;
 // M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
@@ -142,6 +143,10 @@ pub use spatial_observability::{
 pub use spatial_realization::{
     SpatialEnvironmentProvenance, SpatialRealizationMode, SpatialResidualSyntheticWorldField,
     SpatialResolvedRealization,
+};
+pub use spatial_scale::{
+    SpatialM4DistanceBasis, SpatialM9TravelCostBasis, SpatialResourceQuantityBasis,
+    SpatialScaleAssessment, SpatialScaleSemantics, SpatialScaleStatus,
 };
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
