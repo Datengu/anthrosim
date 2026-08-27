@@ -5,7 +5,7 @@ on:
       - fix/195-m4-proportional-weights
     paths:
       - .github/workflows/issue-195-implementation.yml
-      - .github/issue-195-trace-apply.py
+      - .github/issue-195-trace-apply-v2.py
 permissions:
   contents: write
 jobs:
@@ -20,7 +20,7 @@ jobs:
           toolchain: 1.97.1
           components: rustfmt, clippy
       - name: Apply complete trace repair
-        run: python .github/issue-195-trace-apply.py
+        run: python .github/issue-195-trace-apply-v2.py
       - name: Format
         run: cargo fmt --all
       - name: Core migration tests
