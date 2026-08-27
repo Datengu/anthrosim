@@ -5,6 +5,8 @@ use crate::{
     evidence::{EvidenceCatalog, EvidenceRecord},
 };
 
+const DEMOGRAPHY_PARAMETER_PATHS: &[&str] = &["demography.scheduleId"];
+
 const RESOURCE_PARAMETER_PATHS: &[&str] = &[
     "resources.periodsPerYear",
     "resources.annualNeedUnitsPerPerson",
@@ -80,9 +82,8 @@ impl EvidenceClosureAssessment {
 /// This is intentionally stricter than `ExperimentConfig` validation. Synthetic
 /// configurations remain executable and return `not_applicable_synthetic`.
 /// Empirical/evidence-informed claims return `closed` only where the current
-/// schema can prove complete scalar support. Empirical demographic schedules
-/// remain fail-closed until their collection payload has a stable, content-bound
-/// scientific identity rather than positional array addressing.
+/// schema can prove complete support. Demography uses one content-bound whole-schedule
+/// identity so evidence never depends on positional collection indices.
 #[must_use]
 pub fn assess_evidence_closure(experiment: &ExperimentConfig) -> EvidenceClosureAssessment {
     let claims = [
@@ -159,10 +160,19 @@ fn assess_empirical_claims(
     failures: &mut Vec<EvidenceClosureFailure>,
 ) {
     if is_evidence_claim(experiment.demography.provenance) {
-        failures.push(EvidenceClosureFailure {
-            subject: "demography.mortalityBands/fertilityBands".to_owned(),
-            class: EvidenceClosureFailureClass::UnsupportedScheduleIdentity,
-        });
+        if experiment.demography.has_content_bound_schedule_id() {
+            assess_parameter_paths(
+                catalog,
+                experiment.demography.provenance,
+                DEMOGRAPHY_PARAMETER_PATHS,
+                failures,
+            );
+        } else {
+            failures.push(EvidenceClosureFailure {
+                subject: "demography.scheduleId".to_owned(),
+                class: EvidenceClosureFailureClass::UnsupportedScheduleIdentity,
+            });
+        }
     }
 
     if is_evidence_claim(experiment.resources.provenance) {
@@ -382,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn empirical_demography_fails_closed_until_schedule_identity_exists() {
+    fn empirical_demography_without_content_bound_identity_fails_closed() {
         let mut experiment = ExperimentConfig::default();
         experiment.demography.provenance = ParameterProvenance::EmpiricalDirect;
         experiment.evidence = Some(EvidenceCatalog::new(vec![record(
@@ -392,7 +402,42 @@ mod tests {
         let assessment = assess_evidence_closure(&experiment);
         assert_eq!(assessment.status, EvidenceClosureStatus::NotClosed);
         assert!(assessment.failures.iter().any(|failure| {
-            failure.class == EvidenceClosureFailureClass::UnsupportedScheduleIdentity
+            failure.subject == "demography.scheduleId"
+                && failure.class == EvidenceClosureFailureClass::UnsupportedScheduleIdentity
+        }));
+    }
+
+    #[test]
+    fn fully_linked_content_bound_demography_schedule_can_close() {
+        let mut experiment = ExperimentConfig::default();
+        experiment.demography.provenance = ParameterProvenance::EvidenceInformed;
+        experiment.demography.schedule_id = experiment.demography.content_bound_schedule_id();
+        experiment.evidence = Some(
+            EvidenceCatalog::new(vec![record(ParameterProvenance::EvidenceInformed)])
+                .with_parameter_links(links(DEMOGRAPHY_PARAMETER_PATHS)),
+        );
+
+        let assessment = assess_evidence_closure(&experiment);
+        assert_eq!(assessment.status, EvidenceClosureStatus::Closed);
+        assert!(assessment.failures.is_empty());
+    }
+
+    #[test]
+    fn mutating_bound_demography_schedule_invalidates_evidence_closure() {
+        let mut experiment = ExperimentConfig::default();
+        experiment.demography.provenance = ParameterProvenance::EvidenceInformed;
+        experiment.demography.schedule_id = experiment.demography.content_bound_schedule_id();
+        experiment.demography.mortality_bands[0].annual_probability_per_million -= 1;
+        experiment.evidence = Some(
+            EvidenceCatalog::new(vec![record(ParameterProvenance::EvidenceInformed)])
+                .with_parameter_links(links(DEMOGRAPHY_PARAMETER_PATHS)),
+        );
+
+        let assessment = assess_evidence_closure(&experiment);
+        assert_eq!(assessment.status, EvidenceClosureStatus::NotClosed);
+        assert!(assessment.failures.iter().any(|failure| {
+            failure.subject == "demography.scheduleId"
+                && failure.class == EvidenceClosureFailureClass::UnsupportedScheduleIdentity
         }));
     }
 
