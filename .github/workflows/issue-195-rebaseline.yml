@@ -1,0 +1,26 @@
+name: issue-195-rebaseline
+on:
+  push:
+    branches:
+      - fix/195-m4-proportional-weights
+    paths:
+      - .github/issue-195-rebaseline-apply.py
+      - .github/workflows/issue-195-rebaseline.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update active M7.6 semantics assertion
+        run: python .github/issue-195-rebaseline-apply.py
+      - name: Commit CI reference update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ci.yml
+          git commit -m "test: bind M7.6 reference gate to model semantics v14"
+          git push
