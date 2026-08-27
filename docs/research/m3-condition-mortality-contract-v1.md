@@ -113,9 +113,9 @@ M4 travel condition cost remains an explicit synthetic movement consequence. Und
 
 This does **not** validate the travel-condition coefficient, imply that real migration raises mortality by the simulated amount, or establish a journey injury/energetics model.
 
-## 9. Remaining competing-risk limitation
+## 9. v15 competing-risk extension
 
-Issue #208 remains separate. On a day when the condition-mediated M3 hazard and annual M2 demographic mortality coincide, total and cause-specific mortality still require an explicit competing-risk attribution contract. v10 corrects what the M3 hazard itself means; it does not by itself solve same-boundary competition between M3 and M2.
+Issue #208 is resolved by the separate [`competing-mortality-risks-v1.md`](competing-mortality-risks-v1.md) contract. The v10 condition-mediated meaning above is unchanged: condition remains a general shared mediator. v15 additionally prevents that cause from receiving automatic priority over M2 background mortality merely because M3 executes first. The two cause-specific interval risks receive independent latent triggers; all-cause survival is their product, and dual-trigger attribution is risk-weighted with a symmetric deterministic draw.
 
 ## 10. Interpretation rule
 

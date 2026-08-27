@@ -56,6 +56,8 @@ pub enum EventKind {
         cell: CellId,
         cause: DeathCause,
         condition_permille: u16,
+        /// Cause-specific conditional probability for the elapsed interval in which this death
+        /// was resolved. Under v15 this is not the joint all-cause competing-risk probability.
         probability_per_million: u32,
     },
     HouseholdMigration {

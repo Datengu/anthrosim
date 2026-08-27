@@ -8,7 +8,8 @@ use crate::{
     config::{ExperimentConfig, PopulationInitialization},
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
-        process_demographic_year_recorded_with_founder_history, validate_demography_config,
+        process_demographic_year_after_competing_mortality_recorded_with_founder_history,
+        validate_demography_config,
     },
     events::EventLog,
     evidence::EvidenceError,
@@ -27,8 +28,8 @@ use crate::{
     provenance::{MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, SourceRevisionIdentity},
     research_readiness::assess_evidence_closure,
     resources::{
-        ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
-        ResourceStepOutcome, ResourceSystem, validate_resource_config,
+        BackgroundMortalityContext, ResourceConfigError, ResourceError, ResourcePeriodContext,
+        ResourceRngs, ResourceStepOutcome, ResourceSystem, validate_resource_config,
     },
     rng::RngFactory,
     temporary_mobility::{
@@ -445,18 +446,24 @@ impl Simulation {
                     let temporary_resource_period = self
                         .temporary_mobility
                         .resource_period_snapshot(day, &self.world)?;
-                    let outcome = self.resources.process_period_recorded_with_presence(
-                        &mut self.population,
-                        &ResourcePeriodContext {
-                            world: &self.world,
-                            config: &self.config.resources,
-                            period_index_in_year: resource_index,
-                            day,
-                        },
-                        &mut self.resource_rngs.scarcity_mortality,
-                        &mut self.events,
-                        temporary_resource_period.as_ref(),
-                    )?;
+                    let outcome = self
+                        .resources
+                        .process_period_recorded_with_presence_and_background(
+                            &mut self.population,
+                            &ResourcePeriodContext {
+                                world: &self.world,
+                                config: &self.config.resources,
+                                period_index_in_year: resource_index,
+                                day,
+                            },
+                            &mut self.resource_rngs.scarcity_mortality,
+                            Some(BackgroundMortalityContext {
+                                config: &self.config.demography,
+                                mortality_rng: self.demography_rngs.mortality_rng_mut(),
+                            }),
+                            &mut self.events,
+                            temporary_resource_period.as_ref(),
+                        )?;
                     resource_index = resource_index.saturating_add(1);
                     self.temporary_mobility.complete_resource_period(day)?;
                     self.temporary_mobility
@@ -499,15 +506,16 @@ impl Simulation {
             }
 
             self.time = SimTime::from_years(year);
-            let outcome = process_demographic_year_recorded_with_founder_history(
-                &mut self.population,
-                &self.world,
-                &self.config.demography,
-                self.time.days(),
-                &mut self.demography_rngs,
-                &mut self.events,
-                self.config.founder_population.as_ref(),
-            )?;
+            let outcome =
+                process_demographic_year_after_competing_mortality_recorded_with_founder_history(
+                    &mut self.population,
+                    &self.world,
+                    &self.config.demography,
+                    self.time.days(),
+                    &mut self.demography_rngs,
+                    &mut self.events,
+                    self.config.founder_population.as_ref(),
+                )?;
             self.temporary_mobility
                 .reconcile_after_population_change(&self.population);
             self.record_metric_snapshot();

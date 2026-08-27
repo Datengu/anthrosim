@@ -83,9 +83,7 @@ pub(crate) fn annual_probability_for_interval(
         .ok_or(MortalityMathError::ArithmeticOverflow)?;
     let denominator = scale
         .checked_mul(year)
-        .and_then(|value| {
-            value.checked_sub(probability.checked_mul(u128::from(start))?)
-        })
+        .and_then(|value| value.checked_sub(probability.checked_mul(u128::from(start))?))
         .ok_or(MortalityMathError::ArithmeticOverflow)?;
     if denominator == 0 {
         return Err(MortalityMathError::ZeroDenominator);
@@ -153,10 +151,12 @@ pub(crate) fn resolve_two_cause_competing_mortality(
         (true, false) => Ok(Some(CompetingMortalityCause::ConditionMediated)),
         (false, true) => Ok(Some(CompetingMortalityCause::Background)),
         (true, true) => {
-            let condition_weight =
-                u64::from(probability_fraction_per_million_ceil(condition_probability)?);
-            let background_weight =
-                u64::from(probability_fraction_per_million_ceil(background_probability)?);
+            let condition_weight = u64::from(probability_fraction_per_million_ceil(
+                condition_probability,
+            )?);
+            let background_weight = u64::from(probability_fraction_per_million_ceil(
+                background_probability,
+            )?);
             let total_weight = condition_weight
                 .checked_add(background_weight)
                 .ok_or(MortalityMathError::ArithmeticOverflow)?;
@@ -235,8 +235,7 @@ mod tests {
                 }
                 assert_eq!(
                     survival_numerator * u128::from(PROBABILITY_PER_MILLION),
-                    survival_denominator
-                        * u128::from(PROBABILITY_PER_MILLION - annual_probability),
+                    survival_denominator * u128::from(PROBABILITY_PER_MILLION - annual_probability),
                     "annual={annual_probability}, periods={periods}"
                 );
             }
