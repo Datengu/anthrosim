@@ -32,6 +32,14 @@ pub struct MigrationUtilityBreakdown {
     pub total_utility: i32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationCandidateChoiceWeight {
+    pub cell: CellId,
+    pub utility: i32,
+    pub weight: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MigrationDecisionTrace {
@@ -51,6 +59,8 @@ pub struct MigrationDecisionTrace {
     pub selected_weight: u64,
     pub total_move_weight: u64,
     pub choice_draw: u64,
+    /// Stable candidate-order table for every eligible alternative in the weighted draw.
+    pub eligible_candidate_weights: Vec<MigrationCandidateChoiceWeight>,
     /// Nominal per-person decrement requested by M4 before the zero-condition bound is applied.
     pub nominal_travel_condition_cost_per_person: u16,
     /// Exact summed condition loss actually realized by living movers after saturation at zero.
@@ -89,7 +99,8 @@ pub struct MigrationSummary {
 impl MigrationSummary {
     /// v2 represented move-conditional means as null when the move observation set was empty.
     /// v3 distinguishes the nominal requested decrement from exact realized condition loss in traces.
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    /// v4 preserves the complete eligible-candidate weight table for recorded M4 choices.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,7 +129,8 @@ pub struct MigrationCheckpointState {
 
 impl MigrationCheckpointState {
     /// v2 carries the explicit nominal/realized travel-condition fields in retained decision traces.
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v3 preserves the complete eligible-candidate weight table in retained decision traces.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -238,7 +250,8 @@ pub struct MigrationSystem {
 
 impl MigrationSystem {
     /// v2 records nominal and realized travel-condition effects separately in migration artifacts.
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v3 records all eligible candidate weights for each retained M4 choice trace.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 
     pub fn initialize(
         population: &Population,
@@ -877,6 +890,15 @@ impl MigrationSystem {
         if self.recorded_decision_traces.len()
             < usize::try_from(config.max_recorded_decision_traces).unwrap_or(usize::MAX)
         {
+            let eligible_candidate_weights = self
+                .evaluations
+                .iter()
+                .map(|evaluation| MigrationCandidateChoiceWeight {
+                    cell: evaluation.cell,
+                    utility: evaluation.utility.total_utility,
+                    weight: evaluation.weight,
+                })
+                .collect();
             self.recorded_decision_traces.push(MigrationDecisionTrace {
                 decision_day: day,
                 completed_day: day,
@@ -894,6 +916,7 @@ impl MigrationSystem {
                 selected_weight: selected.weight,
                 total_move_weight: total_weight,
                 choice_draw,
+                eligible_candidate_weights,
                 nominal_travel_condition_cost_per_person: nominal_condition_cost_per_person,
                 realized_travel_condition_loss_total: realized_condition_loss_total,
             });

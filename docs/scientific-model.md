@@ -131,7 +131,7 @@ candidate utility
   - relocation-risk penalty
 ```
 
-A candidate must exceed the configured minimum improvement over staying. Eligible alternatives receive weights proportional to utility improvement, and one is selected through the named deterministic `migration/choice` random stream.
+A candidate must strictly exceed the configured minimum improvement over staying. Under v14, each eligible alternative's stochastic weight is exactly its positive integer utility improvement above that required threshold, with no `+1` pseudocount; common positive scaling therefore preserves relative choice probabilities. One destination is selected through the named deterministic `migration/choice` random stream. Retained M4 decision traces preserve every eligible candidate's cell, utility and exact weight so the full categorical choice distribution can be reconstructed for recorded moves.
 
 This is not deterministic optimization: several locally acceptable destinations can compete. It is also not a cognitive model of deliberation. The current factors, functional form, thresholds, weights and decision opportunity rate are transparent synthetic assumptions.
 

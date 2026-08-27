@@ -111,9 +111,10 @@ pub use metrics::{
     ResourceMetrics,
 };
 pub use migration::{
-    MigrationCheckpointState, MigrationConfigError, MigrationDecisionTrace, MigrationError,
-    MigrationSummary, MigrationSystem, MigrationUtilityBreakdown, bounded_candidate_cells,
-    candidate_count_upper_bound, migration_pressure_permille, validate_migration_config,
+    MigrationCandidateChoiceWeight, MigrationCheckpointState, MigrationConfigError,
+    MigrationDecisionTrace, MigrationError, MigrationSummary, MigrationSystem,
+    MigrationUtilityBreakdown, bounded_candidate_cells, candidate_count_upper_bound,
+    migration_pressure_permille, validate_migration_config,
 };
 pub use population::{
     CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,

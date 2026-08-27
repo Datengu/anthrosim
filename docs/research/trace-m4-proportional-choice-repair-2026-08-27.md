@@ -10,7 +10,7 @@ M4 now uses the eligible candidate's exact positive utility improvement as its s
 
 ## Observability
 
-`MigrationDecisionTrace` already preserves `selectedWeight`, `totalMoveWeight`, and `choiceDraw`. These values expose the realized selected weight and total weighted draw space. The compact trace does not preserve every unselected candidate evaluation; this repair does not expand retained history solely for #195.
+`MigrationDecisionTrace` now preserves a stable candidate-order `eligibleCandidateWeights` table containing every eligible candidate's cell, utility and exact weight, in addition to `selectedWeight`, `totalMoveWeight`, and `choiceDraw`. For every retained move, a reviewer can reconstruct the complete categorical distribution as each candidate weight divided by the preserved total and can verify that the selected destination belongs to that table. The trace expansion remains bounded by the existing recorded-decision-trace cap and bounded M4 candidate radius.
 
 ## Compatibility
 
