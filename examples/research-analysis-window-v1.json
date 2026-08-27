@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "studyId": "example-settlement-study",
+  "analysisWindow": {
+    "analysisStartDay": 36500,
+    "selectionRule": "predeclared_fixed_duration",
+    "rationale": "Exclude the first 100 simulated years before evaluating the declared outcomes."
+  },
+  "sensitivityWindows": [
+    {
+      "id": "burn_in_50y",
+      "analysisStartDay": 18250,
+      "rationale": "Shorter plausible initialization interval."
+    },
+    {
+      "id": "burn_in_200y",
+      "analysisStartDay": 73000,
+      "rationale": "Longer plausible initialization interval."
+    }
+  ]
+}
