@@ -72,7 +72,10 @@ pub enum EventKind {
         selected_weight: u64,
         total_move_weight: u64,
         choice_draw: u64,
-        travel_condition_cost_per_person: u16,
+        /// Nominal per-person decrement requested by M4 before the zero-condition bound is applied.
+        nominal_travel_condition_cost_per_person: u16,
+        /// Exact summed condition loss actually realized by living movers after saturation at zero.
+        realized_travel_condition_loss_total: u64,
     },
     TemporaryJourneyNotStarted {
         event_schema_version: u32,
@@ -152,7 +155,9 @@ pub struct EventLog {
 }
 
 impl EventLog {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v3 makes M4's nominal per-person travel decrement explicit and records the exact realized
+    /// bounded condition loss for every authoritative household-migration event.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 
     #[must_use]
     pub const fn new() -> Self {
