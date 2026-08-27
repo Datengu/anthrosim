@@ -54,7 +54,7 @@ jobs:
           from pathlib import Path
           path = Path('crates/anthrosim-core/tests/spatial_boundary_dependence.rs')
           text = path.read_text()
-          function_start = text.index('fn m9_route_reachability_changes_at_hard_crop_then_converges_with_buffer')
+          function_start = text.index('fn m9_hard_wall_changes_reachability_until_the_same_inner_landscape_has_a_route_buffer')
           start = text.index('        let table = model.derive_table(&region, &world).unwrap();', function_start)
           end = text.index('\n}\n\nfn single_founder', start)
           lines = [
