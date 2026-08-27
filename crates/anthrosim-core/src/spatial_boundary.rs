@@ -90,10 +90,7 @@ impl SpatialBoundaryDeclaration {
         }
     }
 
-    pub fn validate(
-        &self,
-        evidence: Option<&EvidenceCatalog>,
-    ) -> Result<(), SpatialBoundaryError> {
+    pub fn validate(&self, evidence: Option<&EvidenceCatalog>) -> Result<(), SpatialBoundaryError> {
         if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
             return Err(SpatialBoundaryError::UnsupportedDeclarationSchema {
                 found: self.schema_version,
@@ -552,11 +549,17 @@ pub enum SpatialBoundaryError {
     Landscape(#[from] LandscapeError),
     #[error(transparent)]
     Evidence(#[from] EvidenceError),
-    #[error("spatial boundary declaration schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "spatial boundary declaration schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedDeclarationSchema { found: u32, supported: u32 },
-    #[error("spatial analysis-domain schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "spatial analysis-domain schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedAnalysisDomainSchema { found: u32, supported: u32 },
-    #[error("spatial extent-adequacy schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "spatial extent-adequacy schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedAdequacyCriterionSchema { found: u32, supported: u32 },
     #[error("spatial boundary declaration identifier is empty")]
     EmptyDeclarationId,
