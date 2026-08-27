@@ -279,7 +279,7 @@ jobs:
           assert all(row['scientificAggregationStatus'] == 'eligibleScientificOutcome' for row in runs)
           assert all(row['simulatedDays'] is not None for row in runs)
           assert all(row['endDay'] is not None for row in runs)
-          assert summary['schemaVersion'] == 4
+          assert summary['schemaVersion'] == 5
           assert summary['runRows'] == 144
           assert summary['pointRows'] == 18
           assert summary['completedRuns'] == 144

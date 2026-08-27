@@ -90,7 +90,10 @@ def pair(seed,c,t,definition):
     cs,ts=c["summary"],t["summary"]; a=definition["predeclaredAcceptance"]; end=int(definition["sharedSettings"]["years"])*365
     resident_equal=cs["residentPersonDays"]==ts["residentPersonDays"]
     diff=abs(ts["totalFocalPersonDays"]-cs["totalFocalPersonDays"]); diff_pm=Fraction(diff*1000,cs["totalFocalPersonDays"])
-    mean_res=Fraction(cs["residentPersonDays"],end); peak_pm=Fraction(ts["peakVisitors"]*1000,1)/mean_res if mean_res else Fraction(0)
+    mean_res=Fraction(cs["residentPersonDays"],end)
+    if mean_res == 0:
+        raise SystemExit(f"seed {seed}: peak visitor share is undefined because continuous mean residents is zero")
+    peak_pm=Fraction(ts["peakVisitors"]*1000,1)/mean_res
     checks={"pairedResidentPersonDaysEqual":resident_equal,"continuousJourneysStartedZero":cs["journeysStarted"]==0,"continuousVisitorPersonDaysZero":cs["visitorPersonDays"]==0,"continuousPeakVisitorsZero":cs["peakVisitors"]==0,"intermittentVisitorPersonDaysPositive":ts["visitorPersonDays"]>0,"intermittentJourneysCompletedPositive":ts["journeysCompleted"]>0,"intermittentDaysWithAnyVisitorsExact":ts["daysWithAnyVisitors"]==int(a["requireIntermittentDaysWithAnyVisitorsExact"]),"pairedFocalPersonDayDifferenceWithinBound":diff_pm<=int(a["maxPairedTotalFocalPersonDayDifferencePermille"]),"intermittentPeakVisitorShareAboveMinimum":peak_pm>=int(a["minIntermittentPeakVisitorShareOfContinuousMeanResidentsPermille"]),"noPermanentMigration":cs["permanentMigrations"]==0 and ts["permanentMigrations"]==0,"noConditionMortalityDeaths":cs["conditionMortalityDeaths"]==0 and ts["conditionMortalityDeaths"]==0,"intermittentOriginCatchmentNonempty":ts["originCatchmentCells"]>0,"intermittentTravelBurdenPositive":ts["totalTravelDays"]>0 and ts["totalRoundTripTravelCostUnits"]>0 and ts["totalRoundTripRouteDistanceEdges"]>0}
     return {"seed":seed,"continuous":cs,"intermittent":ts,"totalFocalPersonDayDifferencePermilleExact":frac_text(diff_pm),"totalFocalPersonDayDifferencePermilleRounded":rounded(diff_pm),"intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact":frac_text(peak_pm),"intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleRounded":rounded(peak_pm),"criteria":checks,"pass":all(checks.values())}
 

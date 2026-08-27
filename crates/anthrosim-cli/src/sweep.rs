@@ -9,8 +9,8 @@ use crate::{
 };
 
 const SWEEP_MANIFEST_SCHEMA_VERSION: u32 = 2;
-const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 4;
-const DERIVED_POINT_ANALYSIS_SCHEMA_VERSION: u32 = 5;
+const DERIVED_ANALYSIS_SCHEMA_VERSION: u32 = 5;
+const DERIVED_POINT_ANALYSIS_SCHEMA_VERSION: u32 = 6;
 const MAX_SWEEP_POINTS: usize = 100_000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -156,6 +156,10 @@ struct DerivedRunRow {
     resource_unmet_need: Option<u64>,
     migration_moves_completed: Option<u64>,
     migration_total_distance_cells: Option<u64>,
+    migration_mean_origin_resource_score_permille: Option<u16>,
+    migration_mean_destination_resource_score_permille: Option<u16>,
+    migration_mean_origin_water_security_score_permille: Option<u16>,
+    migration_mean_destination_water_security_score_permille: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -183,6 +187,9 @@ struct DerivedPointRow {
     person_record_limit_reached_runs: u64,
     scientifically_eligible_runs: u64,
     operationally_censored_runs: u64,
+    living_condition_defined_runs_scientifically_eligible_only: u64,
+    migration_move_observed_runs_scientifically_eligible_only: u64,
+    migration_move_occurrence_fraction_scientifically_eligible_only: Option<f64>,
     mean_final_living_population_scientifically_eligible_only: Option<f64>,
     mean_final_living_occupied_cell_count_scientifically_eligible_only: Option<f64>,
     mean_births_since_start_scientifically_eligible_only: Option<f64>,
@@ -194,6 +201,10 @@ struct DerivedPointRow {
     mean_migration_moves_scientifically_eligible_only: Option<f64>,
     mean_migration_total_distance_cells_scientifically_eligible_only: Option<f64>,
     pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only: Option<f64>,
+    mean_migration_origin_resource_score_permille_move_observed_only: Option<f64>,
+    mean_migration_destination_resource_score_permille_move_observed_only: Option<f64>,
+    mean_migration_origin_water_security_score_permille_move_observed_only: Option<f64>,
+    mean_migration_destination_water_security_score_permille_move_observed_only: Option<f64>,
     source_scientifically_eligible_run_ids: Vec<String>,
     source_operationally_censored_run_ids: Vec<String>,
 }
@@ -522,7 +533,7 @@ fn write_analysis_outputs(
         non_completed_runs: run_rows.len().saturating_sub(completed_runs),
         scientifically_eligible_runs,
         operationally_censored_runs,
-        note: "Descriptive analysis only. Point means pool provenance-valid scientific outcomes: durationReached and populationExtinct. personRecordLimitReached is an operational censoring event and is excluded from scientific aggregates while remaining explicit in run-level outputs.",
+        note: "Descriptive analysis only. Point means pool provenance-valid scientific outcomes: durationReached and populationExtinct, while undefined denominator-based values remain null and are averaged only where defined. personRecordLimitReached is an operational censoring event and is excluded from scientific aggregates while remaining explicit in run-level outputs.",
     };
     write_json(&analysis_directory.join("summary.json"), &summary)?;
     Ok(())
@@ -606,6 +617,10 @@ fn build_run_rows(
                 resource_unmet_need: None,
                 migration_moves_completed: None,
                 migration_total_distance_cells: None,
+                migration_mean_origin_resource_score_permille: None,
+                migration_mean_destination_resource_score_permille: None,
+                migration_mean_origin_water_security_score_permille: None,
+                migration_mean_destination_water_security_score_permille: None,
             };
 
             if state == "completed" {
@@ -654,6 +669,54 @@ fn build_run_rows(
                     )
                     .into());
                 }
+                if (run_manifest.population.living_population == 0)
+                    != run_manifest
+                        .population
+                        .mean_living_condition_permille
+                        .is_none()
+                {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "completed sweep row {} / {} has inconsistent living-condition nullability",
+                            point.point_id, row.run_id
+                        ),
+                    )
+                    .into());
+                }
+                let migration_means = [
+                    run_manifest.migration.mean_origin_resource_score_permille,
+                    run_manifest
+                        .migration
+                        .mean_destination_resource_score_permille,
+                    run_manifest
+                        .migration
+                        .mean_origin_water_security_score_permille,
+                    run_manifest
+                        .migration
+                        .mean_destination_water_security_score_permille,
+                ];
+                if run_manifest.migration.moves_completed == 0 {
+                    if migration_means.iter().any(Option::is_some) {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!(
+                                "completed sweep row {} / {} has migration-quality observations without a completed move",
+                                point.point_id, row.run_id
+                            ),
+                        )
+                        .into());
+                    }
+                } else if migration_means.iter().any(Option::is_none) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "completed sweep row {} / {} is missing migration-quality observations for completed moves",
+                            point.point_id, row.run_id
+                        ),
+                    )
+                    .into());
+                }
                 row.manifest_relative_path = Some(manifest_relative_path);
                 row.stop_reason = Some(stop_reason_label(run_manifest.stop_reason).to_owned());
                 let (scientific_aggregation_status, operational_censoring_reason) =
@@ -668,7 +731,7 @@ fn build_run_rows(
                 row.deaths_since_start = Some(run_manifest.population.deaths_since_start);
                 row.household_count = Some(run_manifest.population.household_count);
                 row.mean_living_condition_permille =
-                    Some(run_manifest.population.mean_living_condition_permille);
+                    run_manifest.population.mean_living_condition_permille;
                 row.authoritative_event_count =
                     Some(run_manifest.statistics.authoritative_event_count);
                 row.final_living_occupied_cell_count =
@@ -678,6 +741,17 @@ fn build_run_rows(
                 row.migration_moves_completed = Some(run_manifest.migration.moves_completed);
                 row.migration_total_distance_cells =
                     Some(run_manifest.migration.total_distance_cells);
+                row.migration_mean_origin_resource_score_permille =
+                    run_manifest.migration.mean_origin_resource_score_permille;
+                row.migration_mean_destination_resource_score_permille = run_manifest
+                    .migration
+                    .mean_destination_resource_score_permille;
+                row.migration_mean_origin_water_security_score_permille = run_manifest
+                    .migration
+                    .mean_origin_water_security_score_permille;
+                row.migration_mean_destination_water_security_score_permille = run_manifest
+                    .migration
+                    .mean_destination_water_security_score_permille;
             }
             rows.push(row);
         }
@@ -752,6 +826,15 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 .iter()
                 .filter(|row| row.stop_reason.as_deref() == Some("personRecordLimitReached"))
                 .count() as u64;
+            let living_condition_defined_runs = scientifically_eligible
+                .iter()
+                .filter(|row| row.mean_living_condition_permille.is_some())
+                .count() as u64;
+            let migration_move_observed_runs = scientifically_eligible
+                .iter()
+                .filter(|row| row.migration_moves_completed.is_some_and(|moves| moves > 0))
+                .count() as u64;
+            let scientifically_eligible_count = scientifically_eligible.len() as u64;
             let migration_moves = scientifically_eligible
                 .iter()
                 .filter_map(|row| row.migration_moves_completed)
@@ -786,8 +869,21 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                 duration_reached_runs,
                 population_extinct_runs,
                 person_record_limit_reached_runs,
-                scientifically_eligible_runs: scientifically_eligible.len() as u64,
+                scientifically_eligible_runs: scientifically_eligible_count,
                 operationally_censored_runs: operationally_censored.len() as u64,
+                living_condition_defined_runs_scientifically_eligible_only:
+                    living_condition_defined_runs,
+                migration_move_observed_runs_scientifically_eligible_only:
+                    migration_move_observed_runs,
+                migration_move_occurrence_fraction_scientifically_eligible_only:
+                    if scientifically_eligible_count == 0 {
+                        None
+                    } else {
+                        Some(
+                            migration_move_observed_runs as f64
+                                / scientifically_eligible_count as f64,
+                        )
+                    },
                 mean_final_living_population_scientifically_eligible_only: mean_u64(
                     scientifically_eligible
                         .iter()
@@ -839,6 +935,29 @@ fn build_point_rows(sweep: &SweepManifest, runs: &[DerivedRunRow]) -> Vec<Derive
                     } else {
                         Some(migration_distance as f64 / migration_moves as f64)
                     },
+                mean_migration_origin_resource_score_permille_move_observed_only: mean_u64(
+                    scientifically_eligible.iter().filter_map(|row| {
+                        row.migration_mean_origin_resource_score_permille
+                            .map(u64::from)
+                    }),
+                ),
+                mean_migration_destination_resource_score_permille_move_observed_only: mean_u64(
+                    scientifically_eligible.iter().filter_map(|row| {
+                        row.migration_mean_destination_resource_score_permille
+                            .map(u64::from)
+                    }),
+                ),
+                mean_migration_origin_water_security_score_permille_move_observed_only: mean_u64(
+                    scientifically_eligible.iter().filter_map(|row| {
+                        row.migration_mean_origin_water_security_score_permille
+                            .map(u64::from)
+                    }),
+                ),
+                mean_migration_destination_water_security_score_permille_move_observed_only:
+                    mean_u64(scientifically_eligible.iter().filter_map(|row| {
+                        row.migration_mean_destination_water_security_score_permille
+                            .map(u64::from)
+                    })),
                 source_scientifically_eligible_run_ids: scientifically_eligible
                     .iter()
                     .map(|row| format!("{}/{}", row.point_id, row.run_id))
@@ -865,7 +984,7 @@ fn mean_u64(values: impl Iterator<Item = u64>) -> Option<f64> {
 
 fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,scientific_aggregation_status,operational_censoring_reason,simulated_days,end_day,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,condition_mortality_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells\n",
+        "sweep_id,point_id,experiment_id,run_id,seed,state,attempt,status_relative_path,manifest_relative_path,world_width,world_height,initial_population,household_size,max_person_records,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,stop_reason,scientific_aggregation_status,operational_censoring_reason,simulated_days,end_day,state_digest64,final_living_population,births_since_start,deaths_since_start,household_count,mean_living_condition_permille,authoritative_event_count,final_living_occupied_cell_count,condition_mortality_deaths,resource_unmet_need,migration_moves_completed,migration_total_distance_cells,migration_mean_origin_resource_score_permille,migration_mean_destination_resource_score_permille,migration_mean_origin_water_security_score_permille,migration_mean_destination_water_security_score_permille\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -905,6 +1024,10 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
             optional_to_string(row.resource_unmet_need),
             optional_to_string(row.migration_moves_completed),
             optional_to_string(row.migration_total_distance_cells),
+            optional_to_string(row.migration_mean_origin_resource_score_permille),
+            optional_to_string(row.migration_mean_destination_resource_score_permille),
+            optional_to_string(row.migration_mean_origin_water_security_score_permille),
+            optional_to_string(row.migration_mean_destination_water_security_score_permille),
         ]));
     }
     fs::write(path, csv)
@@ -912,7 +1035,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
     let mut csv = String::from(
-        "sweep_id,point_id,experiment_id,initial_population,household_size,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,scientifically_eligible_runs,operationally_censored_runs,mean_final_living_population_scientifically_eligible_only,mean_final_living_occupied_cell_count_scientifically_eligible_only,mean_births_since_start_scientifically_eligible_only,mean_deaths_since_start_scientifically_eligible_only,mean_living_condition_permille_scientifically_eligible_only,mean_condition_mortality_deaths_scientifically_eligible_only,mean_resource_unmet_need_scientifically_eligible_only,mean_migration_moves_scientifically_eligible_only,mean_migration_total_distance_cells_scientifically_eligible_only,pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only,source_scientifically_eligible_run_ids,source_operationally_censored_run_ids\n",
+        "sweep_id,point_id,experiment_id,initial_population,household_size,resource_productivity_scale_permille,resource_seasonality_scale_permille,annual_food_need,disable_migration,migration_radius,planned_runs,completed_runs,failed_runs,incomplete_runs,other_non_completed_runs,duration_reached_runs,population_extinct_runs,person_record_limit_reached_runs,scientifically_eligible_runs,operationally_censored_runs,living_condition_defined_runs_scientifically_eligible_only,migration_move_observed_runs_scientifically_eligible_only,migration_move_occurrence_fraction_scientifically_eligible_only,mean_final_living_population_scientifically_eligible_only,mean_final_living_occupied_cell_count_scientifically_eligible_only,mean_births_since_start_scientifically_eligible_only,mean_deaths_since_start_scientifically_eligible_only,mean_living_condition_permille_scientifically_eligible_only,mean_condition_mortality_deaths_scientifically_eligible_only,mean_resource_unmet_need_scientifically_eligible_only,mean_migration_moves_scientifically_eligible_only,mean_migration_total_distance_cells_scientifically_eligible_only,pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only,mean_migration_origin_resource_score_permille_move_observed_only,mean_migration_destination_resource_score_permille_move_observed_only,mean_migration_origin_water_security_score_permille_move_observed_only,mean_migration_destination_water_security_score_permille_move_observed_only,source_scientifically_eligible_run_ids,source_operationally_censored_run_ids\n",
     );
     for row in rows {
         csv.push_str(&csv_line(&[
@@ -936,6 +1059,13 @@ fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Err
             row.person_record_limit_reached_runs.to_string(),
             row.scientifically_eligible_runs.to_string(),
             row.operationally_censored_runs.to_string(),
+            row.living_condition_defined_runs_scientifically_eligible_only
+                .to_string(),
+            row.migration_move_observed_runs_scientifically_eligible_only
+                .to_string(),
+            row.migration_move_occurrence_fraction_scientifically_eligible_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
             row.mean_final_living_population_scientifically_eligible_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
@@ -964,6 +1094,18 @@ fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Err
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
             row.pooled_mean_migration_distance_cells_per_move_scientifically_eligible_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_migration_origin_resource_score_permille_move_observed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_migration_destination_resource_score_permille_move_observed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_migration_origin_water_security_score_permille_move_observed_only
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            row.mean_migration_destination_water_security_score_permille_move_observed_only
                 .map(|value| value.to_string())
                 .unwrap_or_default(),
             row.source_scientifically_eligible_run_ids.join("|"),
@@ -1142,6 +1284,10 @@ mod tests {
             resource_unmet_need: None,
             migration_moves_completed: None,
             migration_total_distance_cells: None,
+            migration_mean_origin_resource_score_permille: None,
+            migration_mean_destination_resource_score_permille: None,
+            migration_mean_origin_water_security_score_permille: None,
+            migration_mean_destination_water_security_score_permille: None,
         }
     }
 
@@ -1495,6 +1641,84 @@ mod tests {
     }
 
     #[test]
+    fn undefined_empty_set_means_are_excluded_without_becoming_zero_observations() {
+        let dimensions = SweepDimensions {
+            population: vec![12],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        let sweep = build_sweep_manifest(small_settings(), vec![1, 2], dimensions).expect("sweep");
+        let point = &sweep.points[0];
+        let mut survivor = derived_row(
+            &sweep,
+            point,
+            1,
+            "completed",
+            Some(StopReason::DurationReached),
+            (Some(100), Some(10), Some(2)),
+        );
+        survivor.mean_living_condition_permille = Some(800);
+        survivor.migration_moves_completed = Some(2);
+        survivor.migration_total_distance_cells = Some(6);
+        survivor.migration_mean_origin_resource_score_permille = Some(300);
+        survivor.migration_mean_destination_resource_score_permille = Some(700);
+        survivor.migration_mean_origin_water_security_score_permille = Some(400);
+        survivor.migration_mean_destination_water_security_score_permille = Some(900);
+
+        let mut extinct = derived_row(
+            &sweep,
+            point,
+            2,
+            "completed",
+            Some(StopReason::PopulationExtinct),
+            (Some(0), Some(4), Some(12)),
+        );
+        extinct.mean_living_condition_permille = None;
+        extinct.migration_moves_completed = Some(0);
+        extinct.migration_total_distance_cells = Some(0);
+
+        let summary = &build_point_rows(&sweep, &[survivor, extinct])[0];
+        assert_eq!(summary.scientifically_eligible_runs, 2);
+        assert_eq!(summary.population_extinct_runs, 1);
+        assert_eq!(
+            summary.living_condition_defined_runs_scientifically_eligible_only,
+            1
+        );
+        assert_eq!(
+            summary.mean_living_condition_permille_scientifically_eligible_only,
+            Some(800.0)
+        );
+        assert_eq!(
+            summary.migration_move_observed_runs_scientifically_eligible_only,
+            1
+        );
+        assert_eq!(
+            summary.migration_move_occurrence_fraction_scientifically_eligible_only,
+            Some(0.5)
+        );
+        assert_eq!(
+            summary.mean_migration_origin_resource_score_permille_move_observed_only,
+            Some(300.0)
+        );
+        assert_eq!(
+            summary.mean_migration_destination_resource_score_permille_move_observed_only,
+            Some(700.0)
+        );
+        assert_eq!(
+            summary.mean_migration_origin_water_security_score_permille_move_observed_only,
+            Some(400.0)
+        );
+        assert_eq!(
+            summary.mean_migration_destination_water_security_score_permille_move_observed_only,
+            Some(900.0)
+        );
+    }
+
+    #[test]
     fn person_record_safety_ceiling_cannot_inject_truncated_run_into_scientific_mean() {
         let dimensions = SweepDimensions {
             population: vec![12],
@@ -1572,6 +1796,19 @@ mod tests {
         }));
         assert!(runs.iter().all(|row| row.simulated_days == Some(0)));
         assert!(runs.iter().all(|row| row.end_day == Some(0)));
+        assert!(runs.iter().all(|row| {
+            row.migration_moves_completed == Some(0)
+                && row.migration_mean_origin_resource_score_permille.is_none()
+                && row
+                    .migration_mean_destination_resource_score_permille
+                    .is_none()
+                && row
+                    .migration_mean_origin_water_security_score_permille
+                    .is_none()
+                && row
+                    .migration_mean_destination_water_security_score_permille
+                    .is_none()
+        }));
         assert_eq!(points.len(), 2);
         assert!(
             points
@@ -1591,6 +1828,14 @@ mod tests {
                 .iter()
                 .all(|row| row.operationally_censored_runs == 0)
         );
+        assert!(
+            points
+                .iter()
+                .all(|row| row.migration_move_observed_runs_scientifically_eligible_only == 0)
+        );
+        assert!(points.iter().all(|row| {
+            row.migration_move_occurrence_fraction_scientifically_eligible_only == Some(0.0)
+        }));
         assert!(
             points
                 .iter()
@@ -1620,6 +1865,11 @@ mod tests {
                 && row.get("simulatedDays").is_some()
                 && row.get("endDay").is_some()
         }));
+        assert!(runs_json.as_array().unwrap().iter().all(|row| {
+            row.get("migrationMeanOriginResourceScorePermille") == Some(&serde_json::Value::Null)
+                && row.get("migrationMeanDestinationResourceScorePermille")
+                    == Some(&serde_json::Value::Null)
+        }));
         let points_json: serde_json::Value =
             read_json(&root.join("analysis/points.json")).expect("points json");
         assert!(points_json.as_array().unwrap().iter().all(|row| {
@@ -1641,10 +1891,18 @@ mod tests {
         assert!(runs_csv.contains("operational_censoring_reason"));
         assert!(runs_csv.contains("simulated_days"));
         assert!(runs_csv.contains("end_day"));
+        assert!(runs_csv.contains("migration_mean_origin_resource_score_permille"));
         assert!(!runs_csv.contains("resource_scarcity_deaths"));
         let points_csv = fs::read_to_string(root.join("analysis/points.csv")).expect("points csv");
         assert!(points_csv.contains("household_size"));
         assert!(points_csv.contains("annual_food_need"));
+        assert!(points_csv.contains("living_condition_defined_runs_scientifically_eligible_only"));
+        assert!(
+            points_csv.contains("migration_move_occurrence_fraction_scientifically_eligible_only")
+        );
+        assert!(
+            points_csv.contains("mean_migration_origin_resource_score_permille_move_observed_only")
+        );
         assert!(
             points_csv.contains("mean_condition_mortality_deaths_scientifically_eligible_only")
         );
