@@ -1,6 +1,4 @@
-use anthrosim_core::{
-    EvidenceClosureStatus, ExperimentConfig, ParameterProvenance, Simulation,
-};
+use anthrosim_core::{EvidenceClosureStatus, ExperimentConfig, ParameterProvenance, Simulation};
 
 #[test]
 fn completed_run_preserves_synthetic_evidence_closure_status() {
