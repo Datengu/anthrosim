@@ -173,11 +173,11 @@ pub use spatial_simulation::{
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
 };
 pub use study_protocol::{
-    StudyAmendmentTiming, StudyAnalysisWindow, StudyAnalysisWindowSelectionRule,
-    StudyComparison, StudyCorroborationTarget, StudyEnsemblePolicy, StudyEvidenceAssignment,
-    StudyEvidenceRole, StudyHypothesis, StudyHypothesisKind, StudyManipulationCheck,
-    StudyObservable, StudyObservableRole, StudyProtocol, StudyProtocolAmendment,
-    StudyProtocolError, StudyRunHandling, StudyScientificStatus, StudyUncertaintyPlan,
+    StudyAmendmentTiming, StudyAnalysisWindow, StudyAnalysisWindowSelectionRule, StudyComparison,
+    StudyCorroborationTarget, StudyEnsemblePolicy, StudyEvidenceAssignment, StudyEvidenceRole,
+    StudyHypothesis, StudyHypothesisKind, StudyManipulationCheck, StudyObservable,
+    StudyObservableRole, StudyProtocol, StudyProtocolAmendment, StudyProtocolError,
+    StudyRunHandling, StudyScientificStatus, StudyUncertaintyPlan,
 };
 pub use temporary_history::{TemporaryMobilityHistoryError, validate_temporary_mobility_history};
 pub use temporary_mobility::{
