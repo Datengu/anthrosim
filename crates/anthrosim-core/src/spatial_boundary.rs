@@ -517,6 +517,206 @@ impl SpatialExtentAdequacyCriterion {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialExtentMetricObservation {
+    pub metric_id: String,
+    pub value: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialExtentObservation {
+    pub buffer_cells: u32,
+    pub metrics: Vec<SpatialExtentMetricObservation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialExtentMetricComparison {
+    pub metric_id: String,
+    pub previous_value: u64,
+    pub current_value: u64,
+    pub absolute_difference: u64,
+    pub relative_difference_permille: u16,
+    pub absolute_within_tolerance: Option<bool>,
+    pub relative_within_tolerance: Option<bool>,
+    pub within_tolerance: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialExtentExtensionComparison {
+    pub previous_buffer_cells: u32,
+    pub current_buffer_cells: u32,
+    pub eligible_for_stability_sequence: bool,
+    pub all_metrics_within_tolerance: bool,
+    pub metrics: Vec<SpatialExtentMetricComparison>,
+}
+
+/// Machine-readable evaluation of a predeclared extent-adequacy criterion.
+///
+/// This compares adjacent enlargements of one fixed physical analysis domain. `adequate` is true
+/// only when the required number of *trailing* eligible enlargements all satisfy every declared
+/// metric tolerance. It does not imply that unmeasured outputs are boundary-insensitive.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialExtentConvergenceAssessment {
+    pub schema_version: u32,
+    pub criterion: SpatialExtentAdequacyCriterion,
+    pub observations: Vec<SpatialExtentObservation>,
+    pub comparisons: Vec<SpatialExtentExtensionComparison>,
+    pub trailing_stable_extensions: u16,
+    pub latest_extension_within_tolerance: bool,
+    pub latest_extension_eligible_for_stability_sequence: bool,
+    pub material_boundary_dependence_at_latest_extension: bool,
+    pub adequate: bool,
+}
+
+impl SpatialExtentConvergenceAssessment {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+}
+
+/// Evaluate observed inner-domain metrics from progressively enlarged simulation domains.
+///
+/// Buffers must be strictly increasing and every observation must contain exactly the metrics
+/// named by the criterion. Relative differences use `max(previous, current)` as a symmetric
+/// denominator and round upward to whole permille so a small non-zero change cannot disappear by
+/// integer truncation. If both absolute and relative tolerances are declared, both must pass.
+pub fn assess_spatial_extent_convergence(
+    criterion: SpatialExtentAdequacyCriterion,
+    observations: Vec<SpatialExtentObservation>,
+) -> Result<SpatialExtentConvergenceAssessment, SpatialBoundaryError> {
+    criterion.validate()?;
+    if observations.len() < 2 {
+        return Err(SpatialBoundaryError::TooFewExtentObservations);
+    }
+
+    let expected_metric_ids = criterion
+        .metric_tolerances
+        .iter()
+        .map(|tolerance| tolerance.metric_id.as_str())
+        .collect::<BTreeSet<_>>();
+    for (index, observation) in observations.iter().enumerate() {
+        if index > 0 && observation.buffer_cells <= observations[index - 1].buffer_cells {
+            return Err(SpatialBoundaryError::NonIncreasingExtentBuffers {
+                previous: observations[index - 1].buffer_cells,
+                current: observation.buffer_cells,
+            });
+        }
+        let mut observed_ids = BTreeSet::new();
+        for metric in &observation.metrics {
+            if metric.metric_id.trim().is_empty() {
+                return Err(SpatialBoundaryError::EmptyExtentObservationMetricId);
+            }
+            if !observed_ids.insert(metric.metric_id.as_str()) {
+                return Err(SpatialBoundaryError::DuplicateExtentObservationMetricId(
+                    metric.metric_id.clone(),
+                ));
+            }
+            if !expected_metric_ids.contains(metric.metric_id.as_str()) {
+                return Err(SpatialBoundaryError::UnexpectedExtentObservationMetric(
+                    metric.metric_id.clone(),
+                ));
+            }
+        }
+        for expected in &expected_metric_ids {
+            if !observed_ids.contains(expected) {
+                return Err(SpatialBoundaryError::MissingExtentObservationMetric(
+                    (*expected).to_owned(),
+                ));
+            }
+        }
+    }
+
+    let mut comparisons = Vec::with_capacity(observations.len() - 1);
+    for pair in observations.windows(2) {
+        let previous = &pair[0];
+        let current = &pair[1];
+        let mut metric_comparisons = Vec::with_capacity(criterion.metric_tolerances.len());
+        let mut all_metrics_within_tolerance = true;
+        for tolerance in &criterion.metric_tolerances {
+            let previous_value = previous
+                .metrics
+                .iter()
+                .find(|metric| metric.metric_id == tolerance.metric_id)
+                .expect("validated extent observation metric must exist")
+                .value;
+            let current_value = current
+                .metrics
+                .iter()
+                .find(|metric| metric.metric_id == tolerance.metric_id)
+                .expect("validated extent observation metric must exist")
+                .value;
+            let absolute_difference = previous_value.abs_diff(current_value);
+            let denominator = previous_value.max(current_value);
+            let relative_difference_permille = if denominator == 0 {
+                0
+            } else {
+                let numerator = u128::from(absolute_difference) * 1_000;
+                let denominator = u128::from(denominator);
+                let rounded_up = numerator.div_ceil(denominator).min(1_000);
+                u16::try_from(rounded_up).map_err(|_| SpatialBoundaryError::AccountingOverflow)?
+            };
+            let absolute_within_tolerance = tolerance
+                .max_absolute_difference
+                .map(|limit| absolute_difference <= limit);
+            let relative_within_tolerance = tolerance
+                .max_relative_difference_permille
+                .map(|limit| relative_difference_permille <= limit);
+            let within_tolerance = absolute_within_tolerance.unwrap_or(true)
+                && relative_within_tolerance.unwrap_or(true);
+            all_metrics_within_tolerance &= within_tolerance;
+            metric_comparisons.push(SpatialExtentMetricComparison {
+                metric_id: tolerance.metric_id.clone(),
+                previous_value,
+                current_value,
+                absolute_difference,
+                relative_difference_permille,
+                absolute_within_tolerance,
+                relative_within_tolerance,
+                within_tolerance,
+            });
+        }
+        let eligible_for_stability_sequence = criterion
+            .minimum_buffer_cells
+            .is_none_or(|minimum| previous.buffer_cells >= minimum);
+        comparisons.push(SpatialExtentExtensionComparison {
+            previous_buffer_cells: previous.buffer_cells,
+            current_buffer_cells: current.buffer_cells,
+            eligible_for_stability_sequence,
+            all_metrics_within_tolerance,
+            metrics: metric_comparisons,
+        });
+    }
+
+    let trailing_stable_extensions_usize = comparisons
+        .iter()
+        .rev()
+        .take_while(|comparison| {
+            comparison.eligible_for_stability_sequence && comparison.all_metrics_within_tolerance
+        })
+        .count();
+    let trailing_stable_extensions =
+        u16::try_from(trailing_stable_extensions_usize).unwrap_or(u16::MAX);
+    let latest = comparisons
+        .last()
+        .expect("two observations must produce one comparison");
+    let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;
+
+    Ok(SpatialExtentConvergenceAssessment {
+        schema_version: SpatialExtentConvergenceAssessment::CURRENT_SCHEMA_VERSION,
+        criterion,
+        observations,
+        comparisons,
+        trailing_stable_extensions,
+        latest_extension_within_tolerance: latest.all_metrics_within_tolerance,
+        latest_extension_eligible_for_stability_sequence: latest.eligible_for_stability_sequence,
+        material_boundary_dependence_at_latest_extension: !latest.all_metrics_within_tolerance,
+        adequate,
+    })
+}
+
 fn simulation_extent(
     landscape: &LandscapeBundle,
 ) -> Result<SpatialAnalysisExtent, SpatialBoundaryError> {
@@ -613,6 +813,20 @@ pub enum SpatialBoundaryError {
     ExtentMetricWithoutTolerance(String),
     #[error("spatial extent metric {metric_id} relative tolerance exceeds 1000 permille")]
     RelativeToleranceOutOfRange { metric_id: String },
+    #[error("spatial extent convergence requires at least two observations")]
+    TooFewExtentObservations,
+    #[error(
+        "spatial extent buffers must increase strictly; previous {previous}, current {current}"
+    )]
+    NonIncreasingExtentBuffers { previous: u32, current: u32 },
+    #[error("spatial extent observation metric identifier is empty")]
+    EmptyExtentObservationMetricId,
+    #[error("duplicate spatial extent observation metric identifier {0}")]
+    DuplicateExtentObservationMetricId(String),
+    #[error("unexpected spatial extent observation metric {0}")]
+    UnexpectedExtentObservationMetric(String),
+    #[error("missing spatial extent observation metric {0}")]
+    MissingExtentObservationMetric(String),
     #[error("spatial coordinate extent overflowed")]
     CoordinateExtentOverflow,
 }

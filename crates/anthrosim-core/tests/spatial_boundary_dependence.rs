@@ -7,12 +7,12 @@ use anthrosim_core::{
     LandscapeValueDomain, MigrationConfig, NoDataPolicy, ParameterProvenance, PopulationConfig,
     ReproductiveSex, ResourceConfig, SpatialAnalysisDomain, SpatialAnalysisExtent,
     SpatialBoundaryDeclaration, SpatialBoundaryError, SpatialBoundaryInterpretation,
-    SpatialExtentAdequacyCriterion, SpatialExtentMetricTolerance, SpatialFieldTransform,
-    SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField,
-    TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
-    TemporaryTravelResolution, TemporaryTriggerTiming, TransformDirection, World, WorldConfig,
-    assess_spatial_boundary, bounded_candidate_cells, derive_temporary_mobility_observability,
-    transform_landscape,
+    SpatialExtentAdequacyCriterion, SpatialExtentMetricObservation, SpatialExtentMetricTolerance,
+    SpatialExtentObservation, SpatialFieldTransform, SpatialLandscapeSimulation,
+    SpatialMechanismConfig, SpatialTargetField, TemporaryMobilityConfig, TemporaryMobilitySchedule,
+    TemporaryTravelModel, TemporaryTravelResolution, TemporaryTriggerTiming, TransformDirection,
+    World, WorldConfig, assess_spatial_boundary, assess_spatial_extent_convergence,
+    bounded_candidate_cells, derive_temporary_mobility_observability, transform_landscape,
 };
 
 const DOMAIN: LandscapeValueDomain = LandscapeValueDomain { min: 0, max: 1_000 };
@@ -326,26 +326,38 @@ fn m9_hard_wall_changes_reachability_until_the_same_inner_landscape_has_a_route_
         )
         .unwrap();
         let table = model.derive_table(&region, &world).unwrap();
+        let resolution = table.resolution(origin).unwrap();
+        let destination_extent = match resolution {
+            TemporaryTravelResolution::Reachable { destination, .. } => {
+                Some(landscape.cell_extent(destination).unwrap())
+            }
+            TemporaryTravelResolution::Unreachable => None,
+        };
         (
-            table.resolution(origin).unwrap(),
+            resolution,
             table.accumulated_cost_units(origin),
+            destination_extent,
         )
     };
 
     let tight_resolution = resolution(&tight);
     assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);
     assert_eq!(tight_resolution.1, None);
+    assert_eq!(tight_resolution.2, None);
     let buffered_resolution = resolution(&buffered);
     let larger_resolution = resolution(&larger);
-    assert_eq!(buffered_resolution, larger_resolution);
-    assert!(matches!(
-        buffered_resolution.0,
-        TemporaryTravelResolution::Reachable {
-            outbound_travel_days: 3,
-            return_travel_days: 3,
-            ..
-        }
-    ));
+    assert_eq!(buffered_resolution.1, larger_resolution.1);
+    assert_eq!(buffered_resolution.2, larger_resolution.2);
+    for route_resolution in [buffered_resolution.0, larger_resolution.0] {
+        assert!(matches!(
+            route_resolution,
+            TemporaryTravelResolution::Reachable {
+                outbound_travel_days: 3,
+                return_travel_days: 3,
+                ..
+            }
+        ));
+    }
     assert_eq!(buffered_resolution.1, Some(8_000));
 }
 
@@ -596,4 +608,94 @@ fn m9_boundary_reachability_propagates_into_focal_visits_and_destination_resourc
     assert_eq!(tight, (0, 0, 1, 0));
     assert_eq!(buffered, (5, 1, 0, 5));
     assert_eq!(larger, buffered);
+}
+
+#[test]
+fn study_specific_convergence_evaluator_reports_trailing_stability() {
+    let criterion = SpatialExtentAdequacyCriterion {
+        schema_version: SpatialExtentAdequacyCriterion::CURRENT_SCHEMA_VERSION,
+        criterion_id: "fixed-inner-visitation-v1".to_owned(),
+        required_consecutive_stable_extensions: 2,
+        minimum_buffer_cells: Some(1),
+        metric_tolerances: vec![SpatialExtentMetricTolerance {
+            metric_id: "visitor_person_days".to_owned(),
+            max_absolute_difference: Some(0),
+            max_relative_difference_permille: Some(0),
+        }],
+    };
+    let observation = |buffer_cells, value| SpatialExtentObservation {
+        buffer_cells,
+        metrics: vec![SpatialExtentMetricObservation {
+            metric_id: "visitor_person_days".to_owned(),
+            value,
+        }],
+    };
+    let assessment = assess_spatial_extent_convergence(
+        criterion,
+        vec![
+            observation(0, 0),
+            observation(1, 5),
+            observation(2, 5),
+            observation(3, 5),
+        ],
+    )
+    .unwrap();
+
+    assert!(!assessment.comparisons[0].all_metrics_within_tolerance);
+    assert!(!assessment.comparisons[0].eligible_for_stability_sequence);
+    assert_eq!(
+        assessment.comparisons[0].metrics[0].relative_difference_permille,
+        1_000
+    );
+    assert!(assessment.comparisons[1].all_metrics_within_tolerance);
+    assert!(assessment.comparisons[1].eligible_for_stability_sequence);
+    assert!(assessment.comparisons[2].all_metrics_within_tolerance);
+    assert_eq!(assessment.trailing_stable_extensions, 2);
+    assert!(assessment.latest_extension_within_tolerance);
+    assert!(!assessment.material_boundary_dependence_at_latest_extension);
+    assert!(assessment.adequate);
+}
+
+#[test]
+fn convergence_relative_difference_rounds_up_and_all_declared_tolerances_must_pass() {
+    let criterion = SpatialExtentAdequacyCriterion {
+        schema_version: SpatialExtentAdequacyCriterion::CURRENT_SCHEMA_VERSION,
+        criterion_id: "strict-dual-tolerance-v1".to_owned(),
+        required_consecutive_stable_extensions: 1,
+        minimum_buffer_cells: None,
+        metric_tolerances: vec![SpatialExtentMetricTolerance {
+            metric_id: "migration_count".to_owned(),
+            max_absolute_difference: Some(1),
+            max_relative_difference_permille: Some(0),
+        }],
+    };
+    let assessment = assess_spatial_extent_convergence(
+        criterion,
+        vec![
+            SpatialExtentObservation {
+                buffer_cells: 1,
+                metrics: vec![SpatialExtentMetricObservation {
+                    metric_id: "migration_count".to_owned(),
+                    value: 1_000,
+                }],
+            },
+            SpatialExtentObservation {
+                buffer_cells: 2,
+                metrics: vec![SpatialExtentMetricObservation {
+                    metric_id: "migration_count".to_owned(),
+                    value: 1_001,
+                }],
+            },
+        ],
+    )
+    .unwrap();
+
+    let metric = &assessment.comparisons[0].metrics[0];
+    assert_eq!(metric.absolute_difference, 1);
+    assert_eq!(metric.relative_difference_permille, 1);
+    assert_eq!(metric.absolute_within_tolerance, Some(true));
+    assert_eq!(metric.relative_within_tolerance, Some(false));
+    assert!(!metric.within_tolerance);
+    assert!(assessment.material_boundary_dependence_at_latest_extension);
+    assert!(!assessment.adequate);
 }
