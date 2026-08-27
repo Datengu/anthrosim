@@ -1,0 +1,31 @@
+name: Temporary rustfmt 212
+
+on:
+  push:
+    branches:
+      - fix/212-separate-spatial-realization-seeds
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/212-separate-spatial-realization-seeds
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Format and remove one-shot workflow
+        run: |
+          cargo fmt --all
+          git rm .github/workflows/tmp-format-212.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates
+          git commit -m "style: format spatial realization split"
+          git push origin HEAD:fix/212-separate-spatial-realization-seeds
