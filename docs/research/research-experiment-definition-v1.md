@@ -40,7 +40,7 @@ A dimension replacement is applied to the serialized authoritative configuration
 
 `kind: "numeric"` is for scalar numeric parameter uncertainty. Its target and all proposed values must be JSON numbers.
 
-`kind: "structural"` is for discrete non-numeric model/assumption alternatives, including booleans, model identifiers, enum alternatives, optional mechanism blocks, or whole typed sub-configurations. A structural dimension may not target an ordinary numeric field, and a numeric dimension may not target a structural field.
+`kind: "structural"` is for discrete non-numeric executable model/assumption alternatives, including booleans, typed enum alternatives, optional mechanism blocks, or whole typed sub-configurations. A structural dimension may not target an ordinary numeric field, and a numeric dimension may not target a structural field. Free-form provenance labels such as `modelId` or `scheduleId` may accompany a real structural alternative, but changing a label alone does not establish that executable model structure changed.
 
 This classification is preserved in point/run analysis rows. Downstream analysis must therefore treat structural alternatives as distinct model structures/categories rather than pooling them as a scalar response axis.
 
