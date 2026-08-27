@@ -1,6 +1,8 @@
 name: Temporary #211 boundary validation
 
 on:
+  push:
+    branches: [feat/211-spatial-boundary-contract]
   pull_request:
     branches: [main]
 
@@ -30,46 +32,15 @@ jobs:
           from pathlib import Path
           path = Path('crates/anthrosim-core/tests/spatial_boundary_dependence.rs')
           text = path.read_text()
-          old = '''        let table = model.derive_table(&region, &world).unwrap();
-        table.resolution(origin).cloned().unwrap()
-    };
-
-    assert_eq!(resolution(&tight), TemporaryTravelResolution::Unreachable);
-    let buffered_resolution = resolution(&buffered);
-    let larger_resolution = resolution(&larger);
-    assert_eq!(buffered_resolution, larger_resolution);
-    assert!(matches!(
-        buffered_resolution,
-        TemporaryTravelResolution::Reachable {
-            outbound_travel_days: 3,
-            return_travel_days: 3,
-            accumulated_cost_units: 8_000,
-        }
-    ));
-'''
-          new = '''        let table = model.derive_table(&region, &world).unwrap();
-        (table.resolution(origin).unwrap(), table.accumulated_cost_units(origin))
-    };
-
-    let tight_resolution = resolution(&tight);
-    assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);
-    assert_eq!(tight_resolution.1, None);
-    let buffered_resolution = resolution(&buffered);
-    let larger_resolution = resolution(&larger);
-    assert_eq!(buffered_resolution, larger_resolution);
-    assert!(matches!(
-        buffered_resolution.0,
-        TemporaryTravelResolution::Reachable {
-            outbound_travel_days: 3,
-            return_travel_days: 3,
-            ..
-        }
-    ));
-    assert_eq!(buffered_resolution.1, Some(8_000));
-'''
-          if old not in text:
+          text = text.replace('table.resolution(origin).cloned().unwrap()', '(table.resolution(origin).unwrap(), table.accumulated_cost_units(origin))')
+          text = text.replace('    assert_eq!(resolution(&tight), TemporaryTravelResolution::Unreachable);', '    let tight_resolution = resolution(&tight);\n    assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);\n    assert_eq!(tight_resolution.1, None);')
+          text = text.replace('        buffered_resolution,\n        TemporaryTravelResolution::Reachable {', '        buffered_resolution.0,\n        TemporaryTravelResolution::Reachable {')
+          text = text.replace('            accumulated_cost_units: 8_000,', '            ..')
+          needle = '            return_travel_days: 3,\n            ..\n        }\n    ));\n}'
+          replacement = '            return_travel_days: 3,\n            ..\n        }\n    ));\n    assert_eq!(buffered_resolution.1, Some(8_000));\n}'
+          if needle not in text:
               raise SystemExit('expected M9 assertion block not found')
-          path.write_text(text.replace(old, new))
+          path.write_text(text.replace(needle, replacement, 1))
           PY
           cargo fmt --all
           cargo fmt --all -- --check
