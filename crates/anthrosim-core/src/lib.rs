@@ -146,7 +146,8 @@ pub use spatial_realization::{
 };
 pub use spatial_scale::{
     SpatialM2InteractionBasis, SpatialM4DistanceBasis, SpatialM9TravelCostBasis,
-    SpatialResourceQuantityBasis, SpatialScaleAssessment, SpatialScaleSemantics, SpatialScaleStatus,
+    SpatialResourceQuantityBasis, SpatialScaleAssessment, SpatialScaleSemantics,
+    SpatialScaleStatus,
 };
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
