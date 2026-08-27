@@ -171,6 +171,15 @@ function renderTemporaryMobility() {
     ["Completed", summary.journeysCompleted],
     ["Visitor person-days", summary.visitorPersonDays],
     ["Transit person-days", summary.transitPersonDays],
+    ["Planned round-trip travel days", summary.plannedRoundTripTravelDays],
+    ["Observed transit days", summary.observedTransitDays],
+    ["Unrealized planned transit days", summary.unrealizedPlannedTransitDays],
+    ["Planned round-trip route cost", summary.plannedRoundTripTravelCostUnits],
+    ["Realized route cost", summary.realizedTravelCostUnits],
+    ["Unrealized planned route cost", summary.unrealizedPlannedTravelCostUnits],
+    ["Planned round-trip route edges", summary.plannedRoundTripRouteDistanceEdges],
+    ["Realized route edges", summary.realizedRouteDistanceEdges],
+    ["Unrealized planned route edges", summary.unrealizedPlannedRouteDistanceEdges],
     ["Peak visitors", summary.peakVisitors],
     ["Mean visitors", meanVisitors],
   ];
@@ -182,6 +191,7 @@ function renderTemporaryMobility() {
 
   const metadata = byId("temporary-metadata");
   metadata.replaceChildren();
+  addDefinition(metadata, "Report schema", report.schemaVersion);
   addDefinition(metadata, "Focal region", report.source.regionId);
   addDefinition(metadata, "Region identity", report.source.regionIdentity);
   addDefinition(metadata, "Program identity", report.source.temporaryMobilityProgramIdentity);
@@ -189,7 +199,7 @@ function renderTemporaryMobility() {
   addDefinition(metadata, "Observation boundary", `day ${formatNumber(report.source.endDay)}`);
   addDefinition(metadata, "Run state digest", report.source.runStateDigest64);
   byId("temporary-provenance").textContent =
-    "Derived from authoritative events/checkpoint state. Persistent residence, visiting and transit remain separate; transit has no invented map cell.";
+    "Derived from authoritative events/checkpoint state. Planned route burden is kept separate from elapsed transit and completed-leg realized cost/distance; unfinished future legs remain explicitly unrealized.";
   byId("temporary-raw").textContent = JSON.stringify(report, null, 2);
 }
 

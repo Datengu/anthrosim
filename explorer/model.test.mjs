@@ -110,7 +110,7 @@ function withTemporaryObservability(bundle = fixture()) {
   bundle.checkpoint.gitCommit = null;
   bundle.checkpoint.worldDigest64 = "777";
   bundle.temporaryObservability = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     provenance: "derived",
     source: {
       modelVersion: bundle.checkpoint.modelVersion,
@@ -139,10 +139,27 @@ function withTemporaryObservability(bundle = fixture()) {
       journeysStarted: 2,
       notStartedTotal: 1,
       arrivals: 2,
-      journeysCompleted: 2,
+      journeysCompleted: 1,
       peakVisitors: 3,
       meanVisitorsMillipersons: 18,
+      plannedOutboundTravelDays: "3",
+      plannedReturnTravelDays: "3",
+      plannedRoundTripTravelDays: "6",
+      observedOutboundTransitDays: "3",
+      observedReturnTransitDays: "1",
+      observedTransitDays: "4",
+      unrealizedPlannedTransitDays: "2",
+      plannedRoundTripTravelCostUnits: "20",
+      realizedTravelCostUnits: "10",
+      unrealizedPlannedTravelCostUnits: "10",
+      plannedTravelCostUnavailableJourneys: 0,
+      plannedRoundTripRouteDistanceEdges: "8",
+      realizedRouteDistanceEdges: "4",
+      unrealizedPlannedRouteDistanceEdges: "4",
+      plannedRouteDistanceUnavailableJourneys: 0,
     },
+    journeys: [],
+    originCatchment: [],
   };
   return bundle;
 }
@@ -169,13 +186,19 @@ test("completed bundle validation reconciles manifest, events, metrics and schem
   assert.equal(result.personRecords, 3);
 });
 
-test("optional temporary observability validates its provenance and person-day partition", () => {
+test("optional temporary observability validates provenance, person-days and travel burden", () => {
   const bundle = withTemporaryObservability();
   const result = validateBundle(bundle);
   assert.equal(result.hasTemporaryObservability, true);
 
   bundle.temporaryObservability.summary.visitorPersonDays = "21";
   assert.throws(() => validateBundle(bundle), /physical person-day partition does not reconcile/);
+});
+
+test("temporary observability rejects planned burden that hides future travel as realized", () => {
+  const bundle = withTemporaryObservability();
+  bundle.temporaryObservability.summary.realizedTravelCostUnits = "20";
+  assert.throws(() => validateBundle(bundle), /planned travel cost does not reconcile/);
 });
 
 test("temporary observability preserves unsafe person-day integers exactly", () => {
