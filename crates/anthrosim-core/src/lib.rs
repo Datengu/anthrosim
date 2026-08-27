@@ -21,6 +21,7 @@ pub mod metrics;
 pub mod migration;
 pub mod population;
 pub mod provenance;
+pub mod research_experiment;
 pub mod research_readiness;
 pub mod resources;
 pub mod rng;
@@ -120,6 +121,11 @@ pub use population::{
 };
 pub use provenance::{
     MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, ResumeLineageError, SourceRevisionIdentity,
+};
+pub use research_experiment::{
+    ResearchCoordinate, ResearchDimension, ResearchDimensionKind, ResearchExperimentDefinition,
+    ResearchExperimentError, ResearchPoint, ResearchRunConfig, ResearchSpatialConfig,
+    research_run_identity, validate_resolved_research_run,
 };
 pub use research_readiness::{
     EvidenceClosureAssessment, EvidenceClosureFailure, EvidenceClosureFailureClass,
