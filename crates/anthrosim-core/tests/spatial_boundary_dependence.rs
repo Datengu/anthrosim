@@ -1,17 +1,18 @@
 use anthrosim_core::ids::{CellId, HouseholdId, PersonId};
 use anthrosim_core::rng::RngFactory;
 use anthrosim_core::{
-    DemographyConfig, EvidenceCatalog, EvidenceRecord, EvidenceSource, ExperimentConfig, FocalRegion,
-    FocalRegionSource, FounderGenealogyStatus, FounderHousehold, FounderPerson,
+    DemographyConfig, EvidenceCatalog, EvidenceRecord, EvidenceSource, ExperimentConfig,
+    FocalRegion, FocalRegionSource, FounderGenealogyStatus, FounderHousehold, FounderPerson,
     FounderPopulationDefinition, GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole,
     LandscapeValueDomain, MigrationConfig, NoDataPolicy, ParameterProvenance, PopulationConfig,
     ReproductiveSex, ResourceConfig, SpatialAnalysisDomain, SpatialAnalysisExtent,
     SpatialBoundaryDeclaration, SpatialBoundaryError, SpatialBoundaryInterpretation,
     SpatialExtentAdequacyCriterion, SpatialExtentMetricTolerance, SpatialFieldTransform,
-    SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField, TemporaryMobilityConfig,
-    TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTravelResolution,
-    TemporaryTriggerTiming, TransformDirection, World, WorldConfig, assess_spatial_boundary,
-    bounded_candidate_cells, derive_temporary_mobility_observability, transform_landscape,
+    SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField,
+    TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
+    TemporaryTravelResolution, TemporaryTriggerTiming, TransformDirection, World, WorldConfig,
+    assess_spatial_boundary, bounded_candidate_cells, derive_temporary_mobility_observability,
+    transform_landscape,
 };
 
 const DOMAIN: LandscapeValueDomain = LandscapeValueDomain { min: 0, max: 1_000 };
@@ -238,7 +239,10 @@ fn fixed_physical_inner_domain_exposes_m4_candidate_clipping_then_converges_with
     let larger_assessment = assess(&larger);
 
     assert_eq!(tight_assessment.minimum_analysis_buffer_cells, 1);
-    assert_eq!(tight_assessment.analysis_cells_with_truncated_m4_candidates, 1);
+    assert_eq!(
+        tight_assessment.analysis_cells_with_truncated_m4_candidates,
+        1
+    );
     assert!(!tight_assessment.m4_analysis_horizon_clear_of_boundary);
     assert!(tight_assessment.cells[0].m4_candidate_set_truncated);
     assert!(tight_assessment.cells[0].m4_missing_candidate_count > 0);
@@ -322,21 +326,27 @@ fn m9_hard_wall_changes_reachability_until_the_same_inner_landscape_has_a_route_
         )
         .unwrap();
         let table = model.derive_table(&region, &world).unwrap();
-        table.resolution(origin).cloned().unwrap()
+        (
+            table.resolution(origin).unwrap(),
+            table.accumulated_cost_units(origin),
+        )
     };
 
-    assert_eq!(resolution(&tight), TemporaryTravelResolution::Unreachable);
+    let tight_resolution = resolution(&tight);
+    assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);
+    assert_eq!(tight_resolution.1, None);
     let buffered_resolution = resolution(&buffered);
     let larger_resolution = resolution(&larger);
     assert_eq!(buffered_resolution, larger_resolution);
     assert!(matches!(
-        buffered_resolution,
+        buffered_resolution.0,
         TemporaryTravelResolution::Reachable {
             outbound_travel_days: 3,
             return_travel_days: 3,
-            accumulated_cost_units: 8_000,
+            ..
         }
     ));
+    assert_eq!(buffered_resolution.1, Some(8_000));
 }
 
 fn single_founder(cell: CellId) -> FounderPopulationDefinition {
@@ -385,11 +395,7 @@ fn m4_extent_landscape(max_x: i64) -> LandscapeBundle {
         3,
         |_, _| 0,
         |x, y| {
-            if x == 4 && y == 1 {
-                1_000
-            } else {
-                0
-            }
+            if x == 4 && y == 1 { 1_000 } else { 0 }
         },
     )
 }
@@ -495,10 +501,7 @@ fn travel_resource_mechanisms() -> SpatialMechanismConfig {
     )
 }
 
-fn m9_experiment(
-    landscape: &LandscapeBundle,
-    with_temporary_mobility: bool,
-) -> ExperimentConfig {
+fn m9_experiment(landscape: &LandscapeBundle, with_temporary_mobility: bool) -> ExperimentConfig {
     let origin = cell_at(landscape, 0, 1);
     let destination = cell_at(landscape, 4, 1);
     let mut resources = ResourceConfig::synthetic_validation_v1();
@@ -558,12 +561,9 @@ fn m9_resource_and_focal_result(landscape: LandscapeBundle) -> (u64, u64, u64, u
         .cell_food_stock(destination)
         .unwrap();
 
-    let enabled_simulation = SpatialLandscapeSimulation::new(
-        m9_experiment(&landscape, true),
-        landscape,
-        mechanisms,
-    )
-    .unwrap();
+    let enabled_simulation =
+        SpatialLandscapeSimulation::new(m9_experiment(&landscape, true), landscape, mechanisms)
+            .unwrap();
     let world = enabled_simulation.world().clone();
     let initial_population = enabled_simulation.population().clone();
     let enabled = enabled_simulation.checkpoint_at_year(1).unwrap();
