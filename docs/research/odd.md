@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** v0.3.0 package / post-M9 scientific-hardening line / model semantics v10  
+**AnthroSim baseline:** v0.3.0 package / post-M9 scientific-hardening line / model semantics v13  
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
@@ -172,7 +172,7 @@ No general behavioural learning, cultural adaptation or evolving strategy is pre
 
 ### 4.4 Objectives
 
-M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a narrow direct-parent/kin proxy are treated as residence-state terms. The resource-support term compares available dynamic stock against annual per-person resource need allocated over the current **M4 decision interval**. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
+M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a symmetric living-direct-parent location proxy are treated as residence-state terms. The kin proxy includes co-resident and external living direct parents without a fixed record-order-dependent cap; reproductive-sex role does not decide whether a represented parent location contributes. The resource-support term compares available dynamic stock against annual per-person resource need allocated over the current **M4 decision interval**. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
 
 The M4 opportunity clock itself is a model assumption: `migration.decisionPeriodsPerYear` is independently configurable and defaults to four/year in the synthetic validation baseline. Neither the utility equation nor that opportunity frequency is claimed to reproduce real human decision cognition/rates.
 
@@ -201,7 +201,7 @@ Major interactions include:
 - within-household resource sharing;
 - same-cell competition for renewable resources;
 - reproduction through pre-same-boundary-M4 persistent-residence parent eligibility;
-- a narrow genealogical/parent-location contribution to M4 utility, including declared living direct-parent state available from day 0 when supplied;
+- a narrow symmetric living-direct-parent-location contribution to M4 utility, including co-resident and external declared parent state available from day 0 when supplied;
 - crowding/resource consequences after multiple households relocate or visit.
 
 M4 decisions at one boundary use a common pre-move snapshot so household iteration order does not become a hidden information advantage. Households do not anticipate one another's simultaneous moves.
@@ -324,7 +324,7 @@ Evaluates pressured households against bounded local alternatives on an independ
 
 The resource-support term uses annual per-person need allocated over the current M4 decision interval using the same cumulative elapsed-day annual-allocation rule as M3. M4 therefore does not depend on the number of M3 resource boundaries for its opportunity count or demand denominator. Selected moves change persistent residence and can reduce the shared condition state through the configured travel-condition cost.
 
-Primary specifications: [`migration-v0.1.md`](migration-v0.1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md), [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md).  
+Primary specifications: [`migration-v0.1.md`](migration-v0.1.md), [`m4-kin-proxy-v1.md`](m4-kin-proxy-v1.md), [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md), [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md).  
 Primary implementation: `crates/anthrosim-core/src/migration.rs`, `crates/anthrosim-core/src/simulation.rs`, `crates/anthrosim-core/src/spatial_simulation.rs` and related spatial/migration code.
 
 ### M5–M7 — observability and experiment infrastructure
