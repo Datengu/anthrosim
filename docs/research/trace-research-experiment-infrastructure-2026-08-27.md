@@ -16,11 +16,11 @@ That gap was a TRACE reproducibility problem: a study could appear to define its
 The research definition preserves:
 
 - one complete exact base `ExperimentConfig`;
-- optional exact spatial landscape/mechanism configuration;
+- optional exact spatial model-semantics identity, landscape and mechanism configuration;
 - an ordered seed set;
 - ordered sensitivity/uncertainty dimensions with stable IDs, typed classification (`numeric` or `structural`), exact configuration paths and permitted values.
 
-Expansion creates complete resulting typed configurations before any scientific run directory is published. Unknown paths, malformed paths, type/classification mismatches, invalid structural/model variants and invalid resulting simulator configurations fail closed.
+Expansion creates complete resulting typed configurations before any scientific run directory is published. Unknown paths, malformed paths, type/classification mismatches, invalid typed enum/model alternatives, incompatible spatial semantics and invalid resulting simulator configurations fail closed. Cartesian expansion is deterministic and is rejected above 100,000 scientific points rather than allocating an unbounded experiment plan.
 
 The normal `Simulation` / `SpatialLandscapeSimulation` constructors remain the validation and execution boundary. No sensitivity-specific model implementation was introduced.
 
@@ -28,11 +28,19 @@ The normative contract is documented in [`research-experiment-definition-v1.md`]
 
 ## Reproducibility and recovery interpretation
 
-The immutable research manifest records the complete definition, source revision, deterministic expanded point plan, exact point coordinates and all exact seed-specific resulting configurations. Point/run identities bind those records.
+The runner publishes a redundant immutable `research-plan.json` / `research-manifest.json` pair before scientific execution. Each records the complete definition, source revision, deterministic expanded point plan, exact point coordinates and all exact seed-specific resulting configurations. Definition, point, run and execution identities bind those records. The plan is published first so a crash between the two atomic root-metadata writes can reconstruct the missing manifest before any child scientific run begins.
 
-Mutable run lifecycle state is separate from the immutable plan. Existing valid bundles are revalidated during `--retry` and retained only when they still match the exact planned configuration. Missing or failed runs are recreated from the immutable plan. This extends the crash-recoverable orchestration principle of #172 to the new research-definition surface rather than weakening it.
+Mutable run lifecycle state is separate from the immutable plan. Missing or malformed mutable state can be reconstructed from the immutable plan and provenance-valid child bundles. During `--retry`, a missing or malformed immutable root copy is reconstructed only when the other copy exactly corroborates the requested definition/source; a valid conflicting copy fails closed. Existing child bundles are retained only after semantic bundle validation plus exact planned `ExperimentConfig`, source revision and, when spatial, spatial-semantics/landscape/mechanism reconciliation. Missing or failed children are recreated from the same immutable run identity. End-to-end retry coverage deletes a completed child and verifies recreation with the same configuration, run identity and deterministic state digest.
+
+This extends the crash-recoverable orchestration principle of #172 to the new research-definition surface rather than weakening it.
 
 Derived point/run analysis records include every varied coordinate and its numeric/structural classification plus the full resulting configuration. Analysts therefore do not need to infer hidden differences from source defaults or from fixed-column sweep code.
+
+## Structural-variation interpretation
+
+Numeric dimensions are scalar parameter axes. Structural dimensions are categorical/non-numeric executable alternatives and remain visibly classified as structural in provenance and analysis outputs so downstream tooling cannot accidentally treat them as ordinary scalar coordinates.
+
+Free-form provenance labels such as a `modelId` or `scheduleId` do not, by themselves, create a causal structural alternative. A study claiming a structural comparison must vary an executable typed field or configuration block (and may also vary its accompanying provenance label where appropriate). Typed enum alternatives and spatial mechanism alternatives are covered by the v1 validation/tests.
 
 ## Backward-compatibility boundary
 
@@ -50,23 +58,24 @@ Any unexplained numerical change in protected M7.6/M8.6/M9.7 references is there
 
 ## Verification scope for #205
 
-Acceptance evidence must demonstrate, at minimum:
+Acceptance coverage demonstrates:
 
 - demographic timing variation;
 - M3 timing variation (`periodsPerYear`);
 - condition-mediated mortality-response variation;
 - an M4 utility/travel parameter;
-- a spatial/M8 or M9 alternative;
+- a spatial/M8 structural alternative;
 - simultaneous dimensions and deterministic Cartesian order;
 - stable identities for the same definition and identity changes when scientific values change;
 - exact paired seed substitution;
-- fail-closed invalid field/type/value/model handling before scientific execution;
+- fail-closed unknown field, wrong type, invalid typed enum, reserved identity path, incompatible spatial semantics and excessive Cartesian expansion handling before scientific execution;
 - exact full resulting configuration in immutable point/run provenance;
 - self-describing analysis rows with all varied coordinates;
 - explicit structural alternatives that cannot be silently treated as numeric axes;
-- retry/recovery using the same exact point/run configurations.
+- retry/recovery using the same exact point/run configurations, source identity and deterministic result;
+- recovery of one missing/malformed immutable root copy and of missing/malformed mutable execution state.
 
-Repository protection gates remain authoritative for trajectory/reference stability and cross-platform determinism.
+Repository protection gates remain authoritative for trajectory/reference stability and cross-platform determinism. #205 does not authorize rebaselining a scientific reference merely because orchestration schemas or identities changed.
 
 ## What this closes — and what it does not
 
