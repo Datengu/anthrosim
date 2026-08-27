@@ -225,10 +225,7 @@ fn assess_parameter_paths(
             .filter(|record| record.provenance == claim)
             .collect::<Vec<_>>();
 
-        if compatible
-            .iter()
-            .all(|record| !has_reproducible_source_identity(record))
-        {
+        if compatible.iter().all(|record| !has_reproducible_source_identity(record)) {
             failures.push(EvidenceClosureFailure {
                 subject: (*path).to_owned(),
                 class: EvidenceClosureFailureClass::MissingReproducibleSourceIdentity,
