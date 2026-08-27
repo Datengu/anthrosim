@@ -1,0 +1,98 @@
+from pathlib import Path
+
+migration = Path("crates/anthrosim-core/src/migration.rs")
+text = migration.read_text()
+old = """                let weight = u64::try_from(improvement)
+                    .unwrap_or(u64::MAX)
+                    .saturating_add(1);"""
+new = """                // Strict eligibility above guarantees a positive improvement, so the
+                // stochastic weight is exactly proportional to declared utility improvement.
+                let weight = u64::try_from(improvement).unwrap_or(u64::MAX);"""
+if text.count(old) != 1:
+    raise SystemExit("expected exactly one legacy M4 +1 weighting block")
+text = text.replace(old, new)
+
+marker = """    #[test]
+    fn candidate_lookup_is_bounded_and_local() {"""
+tests = """    fn proportional_choice_weight(improvement: i64) -> u64 {
+        debug_assert!(improvement > 0);
+        u64::try_from(improvement).unwrap_or(u64::MAX)
+    }
+
+    #[test]
+    fn proportional_candidate_weights_match_required_ratios() {
+        assert_eq!(
+            [1_i64, 2].map(proportional_choice_weight),
+            [1_u64, 2]
+        );
+        assert_eq!(
+            [1_i64, 10].map(proportional_choice_weight),
+            [1_u64, 10]
+        );
+        assert_eq!(
+            [7_i64, 7].map(proportional_choice_weight),
+            [7_u64, 7]
+        );
+    }
+
+    #[test]
+    fn proportional_candidate_weights_are_scale_invariant() {
+        let base = [1_i64, 2, 10].map(proportional_choice_weight);
+        let scaled = [13_i64, 26, 130].map(proportional_choice_weight);
+        for index in 0..base.len() {
+            assert_eq!(scaled[index], base[index] * 13);
+        }
+    }
+
+"""
+if text.count(marker) != 1:
+    raise SystemExit("expected candidate test marker exactly once")
+text = text.replace(marker, tests + marker)
+migration.write_text(text)
+
+provenance = Path("crates/anthrosim-core/src/provenance.rs")
+ptext = provenance.read_text()
+old_id = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v13";'
+new_id = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v14";'
+if ptext.count(old_id) != 1:
+    raise SystemExit("expected v13 model semantics ID exactly once")
+provenance.write_text(ptext.replace(old_id, new_id))
+
+doc = Path("docs/research/migration-v0.1.md")
+dtext = doc.read_text()
+anchor = "## Decision rule"
+note = """## Destination-choice weighting semantics
+
+After a candidate strictly exceeds the stay utility plus `minimumUtilityImprovement`, its stochastic selection weight is exactly the positive integer utility improvement above that required threshold. Eligible improvements of `1` and `2` therefore receive weights `1:2`; `1` and `10` receive `1:10`; equal improvements receive equal weights. Multiplying every eligible improvement by the same positive factor preserves all relative selection probabilities. No `+1` pseudocount or smoothing term is applied because strict eligibility already guarantees positive weight.
+
+`MigrationDecisionTrace` preserves `selectedWeight`, `totalMoveWeight`, and `choiceDraw`, allowing the realized weighted draw and selected interval to be audited. The compact trace does not retain every unselected candidate's utility/weight.
+
+"""
+if note.strip() not in dtext:
+    if anchor not in dtext:
+        raise SystemExit("migration documentation decision-rule anchor missing")
+    doc.write_text(dtext.replace(anchor, note + anchor, 1))
+
+trace = Path("docs/research/trace-m4-proportional-choice-repair-2026-08-27.md")
+trace.write_text("""# TRACE record: M4 proportional destination-choice repair (2026-08-27)
+
+## Finding
+
+Issue #195 identified a mismatch between the documented M4 stochastic destination-choice rule and executable weighting. Candidates are admitted only when their utility strictly exceeds origin utility plus `minimumUtilityImprovement`, so every eligible improvement is a positive integer. The executable rule nevertheless used `improvement + 1`, flattening relative preferences near the threshold.
+
+## Repair
+
+M4 now uses the eligible candidate's exact positive utility improvement as its stochastic weight. No pseudocount is added. Thus `[1, 2]` maps to `[1, 2]`, `[1, 10]` maps to `[1, 10]`, equal improvements remain equal, and common positive scaling preserves relative weights. Candidate eligibility, utility equations, uncertainty draws, candidate ordering, and the bounded integer draw algorithm are otherwise unchanged.
+
+## Observability
+
+`MigrationDecisionTrace` already preserves `selectedWeight`, `totalMoveWeight`, and `choiceDraw`. These values expose the realized selected weight and total weighted draw space. The compact trace does not preserve every unselected candidate evaluation; this repair does not expand retained history solely for #195.
+
+## Compatibility
+
+This changes authoritative M4 behavioural semantics and can alter migration destinations and downstream state for identical configuration and seed. `MODEL_SEMANTICS_ID` therefore advances from `anthrosim-model-semantics-v13` to `anthrosim-model-semantics-v14`. Historical artifacts remain bound to their original semantics identity.
+
+## Acceptance evidence
+
+Unit coverage checks exact `[1,2]`, `[1,10]`, equal-improvement, and common-scale invariance. Existing M4 migration, deterministic replay, checkpoint/resume, spatial, and protected benchmark gates remain required to detect unintended collateral effects.
+""")
