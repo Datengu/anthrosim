@@ -48,6 +48,7 @@ fn migration_experiment(enabled: bool) -> ExperimentConfig {
 fn pressure_driven_migration_completes_local_auditable_moves() {
     let config = migration_experiment(true);
     let radius = config.migration.candidate_radius_cells;
+    let minimum_utility_improvement = config.migration.minimum_utility_improvement;
     let manifest = Simulation::new(config).unwrap().run().unwrap();
 
     assert!(manifest.migration.moves_completed > 0);
@@ -63,6 +64,33 @@ fn pressure_driven_migration_completes_local_auditable_moves() {
         assert!(trace.destination_utility.total_utility > trace.origin_utility.total_utility);
         assert_eq!(trace.decision_day, trace.completed_day);
         assert!(trace.people_moved > 0);
+        assert!(!trace.eligible_candidate_weights.is_empty());
+        assert_eq!(
+            trace
+                .eligible_candidate_weights
+                .iter()
+                .map(|candidate| candidate.weight)
+                .sum::<u64>(),
+            trace.total_move_weight
+        );
+        let required = trace
+            .origin_utility
+            .total_utility
+            .saturating_add(i32::try_from(minimum_utility_improvement).unwrap_or(i32::MAX));
+        for candidate in &trace.eligible_candidate_weights {
+            assert!(candidate.utility > required);
+            assert_eq!(
+                candidate.weight,
+                u64::try_from(i64::from(candidate.utility) - i64::from(required)).unwrap()
+            );
+        }
+        let selected = trace
+            .eligible_candidate_weights
+            .iter()
+            .find(|candidate| candidate.cell == trace.destination)
+            .expect("selected destination must be present in eligible weight table");
+        assert_eq!(selected.weight, trace.selected_weight);
+        assert_eq!(selected.utility, trace.destination_utility.total_utility);
     }
 }
 
