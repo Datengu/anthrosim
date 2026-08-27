@@ -8,6 +8,7 @@ use crate::{
     migration::{MigrationSummary, MigrationSystem},
     population::{Population, PopulationSummary},
     provenance::ResumeLineage,
+    research_readiness::EvidenceClosureAssessment,
     resources::{ResourceSummary, ResourceSystem},
     time::SimTime,
     world::{World, WorldSummary},
@@ -71,6 +72,12 @@ pub struct RunManifest {
     #[serde(default)]
     pub resume_lineage: ResumeLineage,
     pub experiment: ExperimentConfig,
+    /// Preserved research-readiness assessment for the exact immutable experiment.
+    ///
+    /// This is separate from ordinary execution validity: a successful run may be synthetic or
+    /// explicitly not evidence-closed. Recorded-run invariant validation recomputes this value from
+    /// `experiment` so downstream tooling cannot safely relabel readiness without detection.
+    pub evidence_closure: EvidenceClosureAssessment,
     pub artifact_schemas: ArtifactSchemas,
     pub world: WorldSummary,
     pub population: PopulationSummary,
@@ -86,5 +93,6 @@ pub struct RunManifest {
 impl RunManifest {
     pub const PRE_CONTINUATION_IDENTITY_SCHEMA_VERSION: u32 = 11;
     pub const PRE_UNDEFINED_EMPTY_MEANS_SCHEMA_VERSION: u32 = 12;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 13;
+    pub const PRE_EVIDENCE_CLOSURE_SCHEMA_VERSION: u32 = 13;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 14;
 }
