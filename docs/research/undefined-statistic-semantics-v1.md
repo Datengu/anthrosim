@@ -23,7 +23,7 @@ This distinction matters because zero is scientifically meaningful on the affect
 - If `livingPopulation > 0`, the field is defined and is a numeric value in the model's condition scale. A genuine mean of zero remains `0`.
 - If `livingPopulation == 0`, the field is `null`. An extinct population has no living-condition observations, so the mean is undefined rather than zero.
 
-The same nullable meaning propagates through terminal run manifests and metric snapshots.
+The same nullable meaning propagates through population summaries, resource summaries, terminal run manifests and metric snapshots. `ResourceSummary` repeats this population-level diagnostic for resource-facing observability, so it follows the same nullability rule rather than reintroducing a zero sentinel.
 
 ## Migration-quality means
 
@@ -74,11 +74,12 @@ The nullable contract is explicitly versioned:
 
 - `RunManifest`: schema v13;
 - `MetricSeries` / `MetricSnapshot`: schema v3;
+- `ResourceSummary`: schema v3;
 - `MigrationSummary`: schema v2;
 - sweep run/summary derived-analysis schema: v5;
 - sweep point-analysis schema: v6.
 
-The migration checkpoint-state schema remains unchanged because it stores raw totals and counts rather than the affected derived means.
+The authoritative `ResourceSystem` and migration checkpoint-state schemas remain unchanged because they store model state/raw totals and counts rather than the affected derived means.
 
 ## Audit note
 
