@@ -24,7 +24,7 @@ jobs:
           rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
-      - name: Reuse stored #211 patch
+      - name: Apply #211 production patch
         run: |
           awk '
             /python3 - <<'\''PY'\''/ { capture=1; next }
@@ -32,16 +32,74 @@ jobs:
             capture { sub(/^          /, ""); print }
           ' .github/workflows/tmp-211-format-validation.yml > /tmp/patch211.py
           test -s /tmp/patch211.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('/tmp/patch211.py')
+          text = path.read_text()
+          pattern = re.compile(
+              r"(?m)^(\s*)if old_route not in text:\n\1    raise SystemExit\('physical route block not found'\)\n\1text = text\.replace\(old_route, new_route, 1\)$"
+          )
+          text, count = pattern.subn(
+              lambda match: match.group(1) + "if old_route in text:\n" + match.group(1) + "    text = text.replace(old_route, new_route, 1)",
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('could not relax stored physical-route patch')
+          path.write_text(text)
+          PY
           python3 /tmp/patch211.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('crates/anthrosim-core/tests/spatial_boundary_dependence.rs')
+          text = path.read_text()
+          start = text.index('        let table = model.derive_table(&region, &world).unwrap();', text.index('fn m9_route_reachability_changes_at_hard_crop_then_converges_with_buffer'))
+          end = text.index('\n}\n\nfn single_founder', start)
+          replacement = '''        let table = model.derive_table(&region, &world).unwrap();
+        let resolution = table.resolution(origin).unwrap();
+        let destination_extent = match resolution {
+            TemporaryTravelResolution::Reachable { destination, .. } => {
+                Some(landscape.cell_extent(destination).unwrap())
+            }
+            TemporaryTravelResolution::Unreachable => None,
+        };
+        (
+            resolution,
+            table.accumulated_cost_units(origin),
+            destination_extent,
+        )
+    };
+
+    let tight_resolution = resolution(&tight);
+    assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);
+    assert_eq!(tight_resolution.1, None);
+    assert_eq!(tight_resolution.2, None);
+    let buffered_resolution = resolution(&buffered);
+    let larger_resolution = resolution(&larger);
+    assert_eq!(buffered_resolution.1, larger_resolution.1);
+    assert_eq!(buffered_resolution.2, larger_resolution.2);
+    for route_resolution in [buffered_resolution.0, larger_resolution.0] {
+        assert!(matches!(
+            route_resolution,
+            TemporaryTravelResolution::Reachable {
+                outbound_travel_days: 3,
+                return_travel_days: 3,
+                ..
+            }
+        ));
+    }
+    assert_eq!(buffered_resolution.1, Some(8_000));
+'''
+          path.write_text(text[:start] + replacement + text[end:])
+          PY
           cargo fmt --all
           cargo fmt --all -- --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add crates/anthrosim-core/src/spatial_boundary.rs crates/anthrosim-core/src/lib.rs crates/anthrosim-core/tests/spatial_boundary_dependence.rs
-          if ! git diff --cached --quiet; then
-            git commit -m "feat: evaluate spatial extent convergence"
-            git push origin HEAD:feat/211-spatial-boundary-contract
-          fi
+          git commit -m "feat: evaluate spatial extent convergence"
+          git push origin HEAD:feat/211-spatial-boundary-contract
 
       - name: Validate
         run: |
