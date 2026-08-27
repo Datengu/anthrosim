@@ -711,6 +711,9 @@ pub fn assess_spatial_extent_convergence(
     let latest_extension_within_tolerance = latest.all_metrics_within_tolerance;
     let latest_extension_eligible_for_stability_sequence = latest.eligible_for_stability_sequence;
     let material_boundary_dependence_at_latest_extension = !latest_extension_within_tolerance;
+    let latest_extension_within_tolerance = latest.all_metrics_within_tolerance;
+    let latest_extension_eligible_for_stability_sequence = latest.eligible_for_stability_sequence;
+    let material_boundary_dependence_at_latest_extension = !latest_extension_within_tolerance;
     let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;
 
     Ok(SpatialExtentConvergenceAssessment {
