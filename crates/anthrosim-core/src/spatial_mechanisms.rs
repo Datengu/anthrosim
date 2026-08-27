@@ -81,7 +81,7 @@ impl SpatialMechanismConfig {
     }
 
     #[must_use]
-    pub const fn with_run_realization(mut self, realization: SpatialRunRealization) -> Self {
+    pub fn with_run_realization(mut self, realization: SpatialRunRealization) -> Self {
         self.run_realization = Some(realization);
         self
     }
@@ -236,7 +236,7 @@ impl SpatialFieldTransform {
         Self {
             target,
             source_layer_id: source_layer_id.into(),
-            expected_unit,
+            expected_unit: expected_unit.into(),
             source_domain,
             target_min,
             target_max,
