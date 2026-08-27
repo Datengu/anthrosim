@@ -282,14 +282,11 @@ fn spatial_resume_revalidates_focal_region_against_bound_landscape() {
 #[test]
 fn recorded_run_validation_revalidates_focal_region_against_bound_landscape() {
     let source_landscape = landscape();
-    let mut run = SpatialLandscapeSimulation::new(
-        valid_config(),
-        source_landscape.clone(),
-        mechanisms(),
-    )
-    .unwrap()
-    .run_recorded()
-    .unwrap();
+    let mut run =
+        SpatialLandscapeSimulation::new(valid_config(), source_landscape.clone(), mechanisms())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
     let tampered = tampered_region();
     run.manifest
         .core_manifest
