@@ -18,7 +18,8 @@ pub struct PopulationMetrics {
     pub births_since_start: u64,
     pub deaths_since_start: u64,
     pub living_occupied_cell_count: u64,
-    pub mean_living_condition_permille: u16,
+    /// Mean condition among living people, or `None` when the living set is empty.
+    pub mean_living_condition_permille: Option<u16>,
     pub living_below_half_condition: u64,
     pub digest64: u64,
 }
@@ -111,7 +112,9 @@ pub struct MetricSnapshot {
 }
 
 impl MetricSnapshot {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v3 makes empty-set living-condition means explicitly nullable rather than encoding them as
+    /// an in-domain zero value.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,7 +126,8 @@ pub struct MetricSeries {
 }
 
 impl MetricSeries {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v3 carries v3 snapshots with explicit undefined-value semantics.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 
     #[must_use]
     pub fn annual() -> Self {

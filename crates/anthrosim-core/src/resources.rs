@@ -41,13 +41,15 @@ pub struct ResourceSummary {
     /// `conditionMortalityDeaths`; it is not a resource-scarcity-specific cause count.
     #[serde(rename = "conditionMortalityDeaths")]
     pub scarcity_deaths: u64,
-    pub mean_living_condition_permille: u16,
+    /// Mean condition across living people, or `None` when no living people remain.
+    pub mean_living_condition_permille: Option<u16>,
     pub living_below_half_condition: u64,
     pub digest64: u64,
 }
 
 impl ResourceSummary {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v3 represents the living-condition mean as null when the living set is empty.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 /// Dynamic M3 resource state.
@@ -1823,6 +1825,12 @@ mod tests {
         assert_eq!(population.living_count(), 0);
         assert_eq!(system.scarcity_deaths, 100);
         assert!(system.unmet_need > 0);
+        let summary = system.summary(&population);
+        assert_eq!(summary.mean_living_condition_permille, None);
+        assert_eq!(
+            serde_json::to_value(summary).unwrap()["meanLivingConditionPermille"],
+            serde_json::Value::Null
+        );
     }
 
     #[test]

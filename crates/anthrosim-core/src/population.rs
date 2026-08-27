@@ -72,7 +72,10 @@ pub struct PopulationSummary {
     /// Number of cells containing at least one living persistent resident.
     /// M9 temporary visitors/transit are intentionally excluded.
     pub living_occupied_cell_count: u64,
-    pub mean_living_condition_permille: u16,
+    /// Mean condition among living people, or `None` when no living people exist.
+    ///
+    /// Zero remains a valid defined mean when living people have zero condition.
+    pub mean_living_condition_permille: Option<u16>,
     pub living_below_half_condition: u64,
     pub digest64: u64,
 }
@@ -892,7 +895,7 @@ impl Population {
     }
 
     #[must_use]
-    pub fn mean_living_condition_permille(&self) -> u16 {
+    pub fn mean_living_condition_permille(&self) -> Option<u16> {
         let mut total = 0_u64;
         let mut count = 0_u64;
         for index in 0..self.person_count() {
@@ -901,7 +904,8 @@ impl Population {
                 count = count.saturating_add(1);
             }
         }
-        u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX)
+        let mean = total.checked_div(count)?;
+        Some(u16::try_from(mean).unwrap_or(PERMILLE_MAX))
     }
 
     #[must_use]
@@ -1386,9 +1390,38 @@ mod tests {
         let before = population.digest64();
         assert!(population.set_condition_at_index(0, 250));
         assert_eq!(population.condition_at_index(0), Some(250));
-        assert!(population.mean_living_condition_permille() < 1_000);
+        assert!(
+            population
+                .mean_living_condition_permille()
+                .is_some_and(|mean| mean < 1_000)
+        );
         assert_eq!(population.living_below_condition(500), 1);
         assert_ne!(before, population.digest64());
+    }
+
+    #[test]
+    fn living_condition_mean_distinguishes_undefined_from_true_zero() {
+        let world = test_world(43);
+        let mut population =
+            Population::initialize(PopulationConfig::new(3), &world, RngFactory::new(43)).unwrap();
+
+        for index in 0..population.person_count() {
+            assert!(population.set_condition_at_index(index, 0));
+        }
+        assert_eq!(population.mean_living_condition_permille(), Some(0));
+        assert_eq!(population.summary().mean_living_condition_permille, Some(0));
+
+        for index in 0..population.person_count() {
+            assert!(population.mark_death(index, 1));
+        }
+        assert_eq!(population.living_count(), 0);
+        assert_eq!(population.mean_living_condition_permille(), None);
+        let summary = population.summary();
+        assert_eq!(summary.mean_living_condition_permille, None);
+        assert_eq!(
+            serde_json::to_value(summary).unwrap()["meanLivingConditionPermille"],
+            serde_json::Value::Null
+        );
     }
 
     #[test]
