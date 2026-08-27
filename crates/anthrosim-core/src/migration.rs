@@ -71,17 +71,22 @@ pub struct MigrationSummary {
     pub southward_steps: u64,
     pub westward_steps: u64,
     pub travel_condition_cost_total: u64,
-    pub mean_origin_resource_score_permille: u16,
-    pub mean_destination_resource_score_permille: u16,
-    pub mean_origin_water_security_score_permille: u16,
-    pub mean_destination_water_security_score_permille: u16,
+    /// Mean origin resource score across completed moves, or `None` when no moves occurred.
+    pub mean_origin_resource_score_permille: Option<u16>,
+    /// Mean destination resource score across completed moves, or `None` when no moves occurred.
+    pub mean_destination_resource_score_permille: Option<u16>,
+    /// Mean origin water-security score across completed moves, or `None` when no moves occurred.
+    pub mean_origin_water_security_score_permille: Option<u16>,
+    /// Mean destination water-security score across completed moves, or `None` when no moves occurred.
+    pub mean_destination_water_security_score_permille: Option<u16>,
     pub occupied_cell_delta_from_migration: i64,
     pub recorded_decision_traces: Vec<MigrationDecisionTrace>,
     pub digest64: u64,
 }
 
 impl MigrationSummary {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    /// v2 represents move-conditional means as null when the move observation set is empty.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1163,8 +1168,9 @@ fn draw_bounded<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u64) -> u64 {
     }
 }
 
-fn mean_score(total: u64, count: u64) -> u16 {
-    u16::try_from(total.checked_div(count).unwrap_or(0)).unwrap_or(PERMILLE_MAX)
+fn mean_score(total: u64, count: u64) -> Option<u16> {
+    let mean = total.checked_div(count)?;
+    Some(u16::try_from(mean).unwrap_or(PERMILLE_MAX))
 }
 
 fn digest_u64(hash: &mut u64, value: u64) {
@@ -1293,6 +1299,35 @@ mod tests {
         let deteriorated = migration_pressure_permille(600, 300, &config);
         assert_eq!(healthy, 0);
         assert!(deteriorated > healthy);
+    }
+
+    #[test]
+    fn migration_score_means_distinguish_undefined_from_true_zero() {
+        assert_eq!(mean_score(0, 0), None);
+        assert_eq!(mean_score(0, 1), Some(0));
+        assert_eq!(mean_score(750, 1), Some(750));
+
+        let factory = RngFactory::new(42);
+        let world = World::generate(WorldConfig::new(4, 4), factory).unwrap();
+        let population =
+            Population::initialize(PopulationConfig::new(20), &world, factory).unwrap();
+        let migration = MigrationSystem::initialize(
+            &population,
+            &world,
+            &MigrationConfig::synthetic_validation_v1(),
+        )
+        .unwrap();
+        let summary = migration.summary();
+        assert_eq!(summary.moves_completed, 0);
+        assert_eq!(summary.mean_origin_resource_score_permille, None);
+        assert_eq!(summary.mean_destination_resource_score_permille, None);
+        assert_eq!(summary.mean_origin_water_security_score_permille, None);
+        assert_eq!(summary.mean_destination_water_security_score_permille, None);
+        let json = serde_json::to_value(summary).unwrap();
+        assert_eq!(json["meanOriginResourceScorePermille"], serde_json::Value::Null);
+        assert_eq!(json["meanDestinationResourceScorePermille"], serde_json::Value::Null);
+        assert_eq!(json["meanOriginWaterSecurityScorePermille"], serde_json::Value::Null);
+        assert_eq!(json["meanDestinationWaterSecurityScorePermille"], serde_json::Value::Null);
     }
 
     #[test]
