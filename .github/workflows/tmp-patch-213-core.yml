@@ -19,6 +19,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           path = Path('crates/anthrosim-core/src/spatial_simulation.rs')
           text = path.read_text()
@@ -27,139 +28,139 @@ jobs:
               global text
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f'expected exactly one match, found {count}: {old[:100]!r}')
+                  raise SystemExit(f'expected exactly one match, found {count}: {old[:120]!r}')
               text = text.replace(old, new, 1)
 
           replace_once(
               '    config::ExperimentConfig,\n',
-              '    config::{ExperimentConfig, PopulationInitialization},\n'
+              '    config::{ExperimentConfig, PopulationInitialization},\n',
           )
           replace_once(
               '    focal_region::{FocalRegionBindingError, FocalRegionSource},\n',
-              '    focal_region::{FocalRegionBindingError, FocalRegionSource},\n    founder_initialization::FounderGenealogyStatus,\n'
+              '    focal_region::{FocalRegionBindingError, FocalRegionSource},\n'
+              '    founder_initialization::FounderGenealogyStatus,\n',
           )
           replace_once(
               '        let population = Population::initialize(config.population, &world, population_rng_factory)?;\n',
-              '''        let population = match config.population.initialization {
-              PopulationInitialization::SyntheticValidationV1 => {
-                  Population::initialize(config.population, &world, population_rng_factory)?
-              }
-              PopulationInitialization::DeclaredFounderStateV1 => {
-                  let definition = config
-                      .founder_population
-                      .as_ref()
-                      .ok_or(SpatialLandscapeError::MissingFounderPopulationDefinition)?;
-                  Population::initialize_declared_founder_state_v1(
-                      config.population,
-                      definition,
-                      &world,
-                  )?
-              }
-          };
-          '''
+              dedent('''\
+                      let population = match config.population.initialization {
+                          PopulationInitialization::SyntheticValidationV1 => {
+                              Population::initialize(config.population, &world, population_rng_factory)?
+                          }
+                          PopulationInitialization::DeclaredFounderStateV1 => {
+                              let definition = config
+                                  .founder_population
+                                  .as_ref()
+                                  .ok_or(SpatialLandscapeError::MissingFounderPopulationDefinition)?;
+                              Population::initialize_declared_founder_state_v1(
+                                  config.population,
+                                  definition,
+                                  &world,
+                              )?
+                          }
+                      };
+              ''').replace('let population', '        let population', 1),
           )
-          replace_once(
-              '''        checkpoint
-              .spatial
-              .validate(&world, &checkpoint.core_checkpoint.experiment)?;
-          ''',
-              '''        validate_founder_population_against_world(
-              &checkpoint.core_checkpoint.experiment,
-              &world,
-          )?;
-          checkpoint
-              .spatial
-              .validate(&world, &checkpoint.core_checkpoint.experiment)?;
-          '''
+
+          old_checkpoint = (
+              '        checkpoint\n'
+              '            .spatial\n'
+              '            .validate(&world, &checkpoint.core_checkpoint.experiment)?;\n'
           )
-          replace_once(
-              '''    run.checkpoint
-              .spatial
-              .validate(&world, &run.checkpoint.core_checkpoint.experiment)?;
-          ''',
-              '''    validate_founder_population_against_world(
-              &run.checkpoint.core_checkpoint.experiment,
-              &world,
-          )?;
-          run.checkpoint
-              .spatial
-              .validate(&world, &run.checkpoint.core_checkpoint.experiment)?;
-          '''
+          new_checkpoint = (
+              '        validate_founder_population_against_world(\n'
+              '            &checkpoint.core_checkpoint.experiment,\n'
+              '            &world,\n'
+              '        )?;\n'
+              + old_checkpoint
           )
+          replace_once(old_checkpoint, new_checkpoint)
+
+          old_recorded = (
+              '    run.checkpoint\n'
+              '        .spatial\n'
+              '        .validate(&world, &run.checkpoint.core_checkpoint.experiment)?;\n'
+          )
+          new_recorded = (
+              '    validate_founder_population_against_world(\n'
+              '        &run.checkpoint.core_checkpoint.experiment,\n'
+              '        &world,\n'
+              '    )?;\n'
+              + old_recorded
+          )
+          replace_once(old_recorded, new_recorded)
+
           replace_once(
               '    validate_demography_config(&config.demography)?;\n',
-              '    validate_founder_population_binding(config)?;\n    validate_demography_config(&config.demography)?;\n'
+              '    validate_founder_population_binding(config)?;\n'
+              '    validate_demography_config(&config.demography)?;\n',
           )
-          marker = 'fn validate_spatial_temporary_mobility_definition(\n'
-          helpers = '''fn validate_founder_population_binding(
-          config: &ExperimentConfig,
-          ) -> Result<(), SpatialLandscapeError> {
-              match (
-                  config.population.initialization,
-                  config.founder_population.as_ref(),
-              ) {
-                  (PopulationInitialization::SyntheticValidationV1, None) => Ok(()),
-                  (PopulationInitialization::SyntheticValidationV1, Some(_)) => {
-                      Err(SpatialLandscapeError::UnexpectedFounderPopulationDefinition)
-                  }
-                  (PopulationInitialization::DeclaredFounderStateV1, None) => {
-                      Err(SpatialLandscapeError::MissingFounderPopulationDefinition)
-                  }
-                  (PopulationInitialization::DeclaredFounderStateV1, Some(definition)) => {
-                      if config.migration.enabled
-                          && config.migration.kin_weight > 0
-                          && definition.genealogy_status
-                              != FounderGenealogyStatus::CompleteLivingDirectParents
-                      {
-                          return Err(SpatialLandscapeError::FounderKinStateUnspecified);
+
+          helper_marker = 'fn validate_spatial_temporary_mobility_definition(\n'
+          helpers = dedent('''\
+              fn validate_founder_population_binding(
+                  config: &ExperimentConfig,
+              ) -> Result<(), SpatialLandscapeError> {
+                  match (
+                      config.population.initialization,
+                      config.founder_population.as_ref(),
+                  ) {
+                      (PopulationInitialization::SyntheticValidationV1, None) => Ok(()),
+                      (PopulationInitialization::SyntheticValidationV1, Some(_)) => {
+                          Err(SpatialLandscapeError::UnexpectedFounderPopulationDefinition)
                       }
-                      Ok(())
+                      (PopulationInitialization::DeclaredFounderStateV1, None) => {
+                          Err(SpatialLandscapeError::MissingFounderPopulationDefinition)
+                      }
+                      (PopulationInitialization::DeclaredFounderStateV1, Some(definition)) => {
+                          if config.migration.enabled
+                              && config.migration.kin_weight > 0
+                              && definition.genealogy_status
+                                  != FounderGenealogyStatus::CompleteLivingDirectParents
+                          {
+                              return Err(SpatialLandscapeError::FounderKinStateUnspecified);
+                          }
+                          Ok(())
+                      }
                   }
               }
-          }
 
-          fn validate_founder_population_against_world(
-              config: &ExperimentConfig,
-              world: &World,
-          ) -> Result<(), SpatialLandscapeError> {
-              if let Some(definition) = &config.founder_population {
-                  definition
-                      .validate(
-                          config.population.initial_population,
-                          config.population.max_person_records,
-                          world,
-                      )
-                      .map_err(PopulationError::from)?;
+              fn validate_founder_population_against_world(
+                  config: &ExperimentConfig,
+                  world: &World,
+              ) -> Result<(), SpatialLandscapeError> {
+                  if let Some(definition) = &config.founder_population {
+                      definition
+                          .validate(
+                              config.population.initial_population,
+                              config.population.max_person_records,
+                              world,
+                          )
+                          .map_err(PopulationError::from)?;
+                  }
+                  Ok(())
               }
-              Ok(())
-          }
 
-          '''
-          if text.count(marker) != 1:
-              raise SystemExit('temporary mobility marker mismatch')
-          text = text.replace(marker, helpers + marker, 1)
-          replace_once(
-              '''    DurationOutOfRange {
-              duration_years: u64,
-              maximum_years: u64,
-          },
-          #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]
-          ''',
-              '''    DurationOutOfRange {
-              duration_years: u64,
-              maximum_years: u64,
-          },
-          #[error("declared founder initialization requires founderPopulation in experiment config")]
-          MissingFounderPopulationDefinition,
-          #[error("synthetic founder initialization cannot carry a founderPopulation definition")]
-          UnexpectedFounderPopulationDefinition,
-          #[error(
-              "declared founder genealogy is unspecified while the active migration model gives kin non-zero weight"
-          )]
-          FounderKinStateUnspecified,
-          #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]
-          '''
-          )
+          ''')
+          if text.count(helper_marker) != 1:
+              raise SystemExit('founder helper insertion marker mismatch')
+          text = text.replace(helper_marker, helpers + helper_marker, 1)
+
+          error_marker = '    #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]\n'
+          error_block = dedent('''\
+              #[error("declared founder initialization requires founderPopulation in experiment config")]
+              MissingFounderPopulationDefinition,
+              #[error("synthetic founder initialization cannot carry a founderPopulation definition")]
+              UnexpectedFounderPopulationDefinition,
+              #[error(
+                  "declared founder genealogy is unspecified while the active migration model gives kin non-zero weight"
+              )]
+              FounderKinStateUnspecified,
+          ''')
+          error_block = ''.join('    ' + line if line.strip() else line for line in error_block.splitlines(keepends=True))
+          if text.count(error_marker) != 1:
+              raise SystemExit('founder error insertion marker mismatch')
+          text = text.replace(error_marker, error_block + error_marker, 1)
 
           path.write_text(text)
           PY
