@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::evidence::EvidenceCatalog;
+use crate::{evidence::EvidenceCatalog, ids::CellId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,12 +11,14 @@ pub struct LandscapeBundle {
     pub schema_version: u32,
     pub width: u32,
     pub height: u32,
+    pub grid_convention: GridConvention,
     pub geometry: GridGeometry,
     pub layers: Vec<LandscapeLayer>,
 }
 
 impl LandscapeBundle {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    /// v2 makes the normalized row/column-to-CRS convention explicit and machine-readable.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
     pub fn new(
@@ -29,6 +31,7 @@ impl LandscapeBundle {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             width,
             height,
+            grid_convention: GridConvention::north_up_area_v1(),
             geometry,
             layers,
         }
@@ -44,6 +47,40 @@ impl LandscapeBundle {
         self.layers.iter().find(|layer| layer.layer_id == id)
     }
 
+    /// Convert an authoritative row-major `CellId` into zero-based `(x, y)` grid coordinates.
+    ///
+    /// Under the v2 convention, `x` increases with columns from left to right and `y` increases
+    /// with rows from top to bottom. CRS X therefore increases with `x`, while CRS Y decreases
+    /// with `y`.
+    #[must_use]
+    pub fn grid_coordinates(&self, cell: CellId) -> Option<(u32, u32)> {
+        let zero_based = cell.0.checked_sub(1)?;
+        if zero_based >= self.cell_count() || self.width == 0 {
+            return None;
+        }
+        let width = u64::from(self.width);
+        let x = u32::try_from(zero_based % width).ok()?;
+        let y = u32::try_from(zero_based / width).ok()?;
+        Some((x, y))
+    }
+
+    /// Exact CRS-aligned outer extent for an authoritative cell.
+    pub fn cell_extent(&self, cell: CellId) -> Result<GridCellExtent, LandscapeError> {
+        let (x, y) = self
+            .grid_coordinates(cell)
+            .ok_or(LandscapeError::InvalidCellId { cell })?;
+        self.geometry.cell_extent(x, y)
+    }
+
+    /// Exact cell centre represented in doubled coordinate units.
+    ///
+    /// Divide each returned component by two to obtain the CRS coordinate. This avoids floating
+    /// point and still represents half-unit centres when an odd integer cell size is used.
+    pub fn cell_centre_2x(&self, cell: CellId) -> Result<GridCellCentre2x, LandscapeError> {
+        let extent = self.cell_extent(cell)?;
+        Ok(extent.centre_2x())
+    }
+
     pub fn validate(&self) -> Result<(), LandscapeError> {
         if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
             return Err(LandscapeError::UnsupportedSchema {
@@ -54,7 +91,9 @@ impl LandscapeBundle {
         if self.width == 0 || self.height == 0 {
             return Err(LandscapeError::InvalidDimensions);
         }
+        self.grid_convention.validate()?;
         self.geometry.validate()?;
+        self.geometry.validate_extent(self.width, self.height)?;
 
         let expected = self.cell_count();
         let _ = usize::try_from(expected).map_err(|_| LandscapeError::CellCountTooLarge {
@@ -123,6 +162,7 @@ impl LandscapeBundle {
         digest.write_u32(self.schema_version);
         digest.write_u32(self.width);
         digest.write_u32(self.height);
+        self.grid_convention.write_digest(&mut digest);
         self.geometry.write_digest(&mut digest);
         digest.write_u64(self.layers.len() as u64);
         for layer in &self.layers {
@@ -141,9 +181,84 @@ impl LandscapeBundle {
     }
 }
 
+/// Machine-readable v2 relationship between row-major grid indices and CRS coordinates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GridConvention {
+    pub origin_anchor: GridOriginAnchor,
+    pub column_direction: GridColumnDirection,
+    pub row_direction: GridRowDirection,
+    pub cell_interpretation: GridCellInterpretation,
+}
+
+impl GridConvention {
+    #[must_use]
+    pub const fn north_up_area_v1() -> Self {
+        Self {
+            origin_anchor: GridOriginAnchor::UpperLeftOuterCorner,
+            column_direction: GridColumnDirection::IncreasingX,
+            row_direction: GridRowDirection::DecreasingY,
+            cell_interpretation: GridCellInterpretation::Area,
+        }
+    }
+
+    fn validate(self) -> Result<(), LandscapeError> {
+        if self != Self::north_up_area_v1() {
+            return Err(LandscapeError::UnsupportedGridConvention);
+        }
+        Ok(())
+    }
+
+    fn write_digest(self, digest: &mut StableDigest) {
+        digest.write_u8(match self.origin_anchor {
+            GridOriginAnchor::UpperLeftOuterCorner => 0,
+        });
+        digest.write_u8(match self.column_direction {
+            GridColumnDirection::IncreasingX => 0,
+        });
+        digest.write_u8(match self.row_direction {
+            GridRowDirection::DecreasingY => 0,
+        });
+        digest.write_u8(match self.cell_interpretation {
+            GridCellInterpretation::Area => 0,
+        });
+    }
+}
+
+impl Default for GridConvention {
+    fn default() -> Self {
+        Self::north_up_area_v1()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GridOriginAnchor {
+    UpperLeftOuterCorner,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GridColumnDirection {
+    IncreasingX,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GridRowDirection {
+    DecreasingY,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GridCellInterpretation {
+    Area,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GridGeometry {
+    /// CRS coordinate of the upper-left outer corner of row 0 / column 0.
     pub origin_x: i64,
     pub origin_y: i64,
     pub cell_size_x: u64,
@@ -166,6 +281,47 @@ impl GridGeometry {
         Ok(())
     }
 
+    fn validate_extent(&self, width: u32, height: u32) -> Result<(), LandscapeError> {
+        self.cell_extent(width - 1, height - 1).map(|_| ())
+    }
+
+    /// Exact outer extent for zero-based grid coordinates under the v2 convention.
+    pub fn cell_extent(&self, x: u32, y: u32) -> Result<GridCellExtent, LandscapeError> {
+        let origin_x = i128::from(self.origin_x);
+        let origin_y = i128::from(self.origin_y);
+        let size_x = i128::from(self.cell_size_x);
+        let size_y = i128::from(self.cell_size_y);
+        let x_offset = i128::from(x)
+            .checked_mul(size_x)
+            .ok_or(LandscapeError::CoordinateExtentOverflow)?;
+        let y_offset = i128::from(y)
+            .checked_mul(size_y)
+            .ok_or(LandscapeError::CoordinateExtentOverflow)?;
+        let min_x = origin_x
+            .checked_add(x_offset)
+            .ok_or(LandscapeError::CoordinateExtentOverflow)?;
+        let max_x = min_x
+            .checked_add(size_x)
+            .ok_or(LandscapeError::CoordinateExtentOverflow)?;
+        let max_y = origin_y
+            .checked_sub(y_offset)
+            .ok_or(LandscapeError::CoordinateExtentOverflow)?;
+        let min_y = max_y
+            .checked_sub(size_y)
+            .ok_or(LandscapeError::CoordinateExtentOverflow)?;
+        Ok(GridCellExtent {
+            min_x: i64::try_from(min_x).map_err(|_| LandscapeError::CoordinateExtentOverflow)?,
+            min_y: i64::try_from(min_y).map_err(|_| LandscapeError::CoordinateExtentOverflow)?,
+            max_x: i64::try_from(max_x).map_err(|_| LandscapeError::CoordinateExtentOverflow)?,
+            max_y: i64::try_from(max_y).map_err(|_| LandscapeError::CoordinateExtentOverflow)?,
+        })
+    }
+
+    #[must_use]
+    pub const fn has_square_cells(&self) -> bool {
+        self.cell_size_x == self.cell_size_y
+    }
+
     fn write_digest(&self, digest: &mut StableDigest) {
         digest.write_i64(self.origin_x);
         digest.write_i64(self.origin_y);
@@ -174,6 +330,30 @@ impl GridGeometry {
         digest.write_str(&self.coordinate_unit);
         digest.write_str(&self.spatial_reference);
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GridCellExtent {
+    pub min_x: i64,
+    pub min_y: i64,
+    pub max_x: i64,
+    pub max_y: i64,
+}
+
+impl GridCellExtent {
+    #[must_use]
+    pub fn centre_2x(self) -> GridCellCentre2x {
+        GridCellCentre2x {
+            x_twice: i128::from(self.min_x) + i128::from(self.max_x),
+            y_twice: i128::from(self.min_y) + i128::from(self.max_y),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GridCellCentre2x {
+    pub x_twice: i128,
+    pub y_twice: i128,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -294,8 +474,14 @@ pub enum LandscapeError {
     InvalidDimensions,
     #[error("landscape cell count {cell_count} cannot be represented on this platform")]
     CellCountTooLarge { cell_count: u64 },
+    #[error("landscape uses an unsupported grid convention")]
+    UnsupportedGridConvention,
     #[error("landscape cell sizes must both be greater than zero")]
     InvalidCellSize,
+    #[error("landscape CRS extent cannot be represented in signed 64-bit coordinate units")]
+    CoordinateExtentOverflow,
+    #[error("landscape references invalid cell id {cell:?}")]
+    InvalidCellId { cell: CellId },
     #[error("landscape coordinate unit is empty")]
     EmptyCoordinateUnit,
     #[error("landscape spatial reference is empty")]
@@ -469,5 +655,76 @@ mod tests {
         let landscape = evidence_landscape("terrain-input");
         let catalog = evidence_catalog("terrain-input");
         assert_eq!(landscape.validate_evidence_context(Some(&catalog)), Ok(()));
+    }
+
+    #[test]
+    fn asymmetric_fixture_has_unambiguous_row_major_crs_geometry() {
+        let landscape = LandscapeBundle::new(
+            3,
+            2,
+            GridGeometry {
+                origin_x: 1_000,
+                origin_y: 2_000,
+                cell_size_x: 10,
+                cell_size_y: 20,
+                coordinate_unit: "metre".to_owned(),
+                spatial_reference: "LOCAL_CS[test]".to_owned(),
+            },
+            vec![LandscapeLayer {
+                layer_id: "labels".to_owned(),
+                role: LandscapeLayerRole::Auxiliary,
+                unit: "ordinal".to_owned(),
+                value_domain: Some(LandscapeValueDomain { min: 1, max: 6 }),
+                evidence_input_id: None,
+                values: (1..=6).map(Some).collect(),
+            }],
+        );
+        landscape.validate().expect("valid v2 landscape");
+
+        assert_eq!(
+            landscape.grid_convention,
+            GridConvention::north_up_area_v1()
+        );
+        assert_eq!(landscape.grid_coordinates(CellId::new(1)), Some((0, 0)));
+        assert_eq!(landscape.grid_coordinates(CellId::new(4)), Some((0, 1)));
+        assert_eq!(landscape.grid_coordinates(CellId::new(6)), Some((2, 1)));
+        assert_eq!(
+            landscape.cell_extent(CellId::new(1)).unwrap(),
+            GridCellExtent {
+                min_x: 1_000,
+                min_y: 1_980,
+                max_x: 1_010,
+                max_y: 2_000,
+            }
+        );
+        assert_eq!(
+            landscape.cell_extent(CellId::new(6)).unwrap(),
+            GridCellExtent {
+                min_x: 1_020,
+                min_y: 1_960,
+                max_x: 1_030,
+                max_y: 1_980,
+            }
+        );
+        assert_eq!(
+            landscape.cell_centre_2x(CellId::new(6)).unwrap(),
+            GridCellCentre2x {
+                x_twice: 2_050,
+                y_twice: 3_940,
+            }
+        );
+    }
+
+    #[test]
+    fn ambiguous_v1_landscape_is_rejected() {
+        let mut landscape = evidence_landscape("terrain-input");
+        landscape.schema_version = 1;
+        assert!(matches!(
+            landscape.validate(),
+            Err(LandscapeError::UnsupportedSchema {
+                found: 1,
+                supported: 2
+            })
+        ));
     }
 }

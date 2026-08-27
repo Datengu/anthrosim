@@ -90,8 +90,9 @@ pub use invariants::{
     validate_run_artifacts_with_world,
 };
 pub use landscape::{
-    GridGeometry, LandscapeBundle, LandscapeError, LandscapeLayer, LandscapeLayerRole,
-    LandscapeValueDomain,
+    GridCellCentre2x, GridCellExtent, GridCellInterpretation, GridColumnDirection, GridConvention,
+    GridGeometry, GridOriginAnchor, GridRowDirection, LandscapeBundle, LandscapeError,
+    LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
 };
 pub use landscape_binding::{
     LandscapeBinding, LandscapeBindingError, LandscapeCheckpoint, LandscapeRecordedRun,

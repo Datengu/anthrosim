@@ -12,10 +12,12 @@ use crate::{
 /// Compatibility identity for the M8.4 landscape-to-model transformation and spatial-run
 /// realization semantics.
 ///
-/// v2 separates the environment and stochastic founder realizations from the core process seed.
-/// Synthetic execution outside the spatial host continues to use the independent core
-/// `MODEL_SEMANTICS_ID` contract.
-pub const SPATIAL_MODEL_SEMANTICS_ID: &str = "anthrosim-spatial-transform-semantics-v2";
+/// v3 binds spatial execution to the unambiguous landscape geometry-v2 convention and prevents
+/// M4/M9 grid-step movement on rectangular cells, where equal cardinal steps would otherwise
+/// represent unequal physical distances. Physical resolution normalization remains a separate
+/// #203 contract. Synthetic execution outside the spatial host continues to use the independent
+/// core `MODEL_SEMANTICS_ID` contract.
+pub const SPATIAL_MODEL_SEMANTICS_ID: &str = "anthrosim-spatial-transform-semantics-v3";
 
 /// Optional explicit realization seeds for a spatial run.
 ///

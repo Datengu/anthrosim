@@ -35,7 +35,7 @@
     {
       "inputId": "mapzen_skadi_n46e007",
       "evidenceId": "mapzen_skadi_n46e007_elevation",
-      "format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v1",
+      "format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v2",
       "spatialReference": "EPSG:4326",
       "contentDigest": "sha256:cf790a87057dfdf126f9b314d9ec71d407afdedbe71c79e2b14c903d024ce0b9"
     }
