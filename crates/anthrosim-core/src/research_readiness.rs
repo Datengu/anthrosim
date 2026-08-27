@@ -414,7 +414,7 @@ fn assess_parameter_paths(
             .copied()
             .filter(|record| record.provenance == claim)
             .collect::<Vec<_>>();
-        assess_compatible_records(*path, claim, &compatible, failures);
+        assess_compatible_records(path, claim, &compatible, failures);
     }
 }
 
