@@ -277,9 +277,7 @@ pub enum LandscapeBindingError {
         landscape_width: u32,
         landscape_height: u32,
     },
-    #[error(
-        "landscape binding schema {found} is unsupported; supported schema is {supported}"
-    )]
+    #[error("landscape binding schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedLandscapeBindingSchema { found: u32, supported: u32 },
     #[error(
         "landscape binding mismatch: checkpoint expects {expected}, supplied bundle is {actual}"
