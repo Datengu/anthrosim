@@ -184,6 +184,10 @@ enum Command {
         #[arg(long)]
         temporary_mobility: Option<PathBuf>,
 
+        /// Optional declared founder-state JSON shared by every spatial run. Its person count replaces --population.
+        #[arg(long, requires = "landscape")]
+        founder_population: Option<PathBuf>,
+
         /// Optional normalized M8.1 LandscapeBundle JSON; requires --mechanisms.
         #[arg(long, requires = "mechanisms")]
         landscape: Option<PathBuf>,
@@ -271,6 +275,14 @@ enum Command {
         /// Optional versioned M9 temporary-mobility definition JSON shared by every point/run.
         #[arg(long)]
         temporary_mobility: Option<PathBuf>,
+
+        /// Optional declared founder-state JSON shared by every spatial point/run. Its person count replaces --population.
+        #[arg(
+            long,
+            requires = "landscape",
+            conflicts_with_all = ["sweep_population", "sweep_household_size"]
+        )]
+        founder_population: Option<PathBuf>,
 
         /// Optional normalized M8.1 LandscapeBundle JSON shared by every point; requires --mechanisms.
         #[arg(long, requires = "mechanisms")]
@@ -509,6 +521,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             disable_migration,
             migration_radius,
             temporary_mobility,
+            founder_population,
             landscape,
             mechanisms,
             evidence,
@@ -516,7 +529,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             retry,
         } => {
             let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
-            let spatial = match (landscape, mechanisms) {
+            let mut spatial = match (landscape, mechanisms) {
                 (Some(landscape), Some(mechanisms)) => Some(load_spatial_run_settings(
                     &landscape,
                     &mechanisms,
@@ -525,6 +538,25 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 (None, None) => None,
                 _ => unreachable!("clap requires landscape and mechanisms together"),
             };
+            let founder_population = founder_population
+                .as_deref()
+                .map(read_json::<FounderPopulationDefinition>)
+                .transpose()?;
+            let configured_population = founder_population
+                .as_ref()
+                .map(|definition| {
+                    u32::try_from(definition.people.len()).map_err(|_| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "declared founder population exceeds the supported u32 initial-population range",
+                        )
+                    })
+                })
+                .transpose()?
+                .unwrap_or(population);
+            if let Some(spatial) = &mut spatial {
+                spatial.founder_population = founder_population;
+            }
             let temporary_mobility = temporary_mobility
                 .as_deref()
                 .map(load_temporary_mobility_config)
@@ -533,7 +565,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 years,
                 world_width,
                 world_height,
-                population,
+                population: configured_population,
                 household_size,
                 max_person_records,
                 resource_productivity_scale_permille,
@@ -562,6 +594,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             disable_migration,
             migration_radius,
             temporary_mobility,
+            founder_population,
             landscape,
             mechanisms,
             evidence,
@@ -576,7 +609,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             retry,
         } => {
             let seeds = resolve_ensemble_seeds(seeds, seed_start, seed_count)?;
-            let spatial = match (landscape, mechanisms) {
+            let mut spatial = match (landscape, mechanisms) {
                 (Some(landscape), Some(mechanisms)) => Some(load_spatial_run_settings(
                     &landscape,
                     &mechanisms,
@@ -585,6 +618,25 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 (None, None) => None,
                 _ => unreachable!("clap requires landscape and mechanisms together"),
             };
+            let founder_population = founder_population
+                .as_deref()
+                .map(read_json::<FounderPopulationDefinition>)
+                .transpose()?;
+            let configured_population = founder_population
+                .as_ref()
+                .map(|definition| {
+                    u32::try_from(definition.people.len()).map_err(|_| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "declared founder population exceeds the supported u32 initial-population range",
+                        )
+                    })
+                })
+                .transpose()?
+                .unwrap_or(population);
+            if let Some(spatial) = &mut spatial {
+                spatial.founder_population = founder_population;
+            }
             let temporary_mobility = temporary_mobility
                 .as_deref()
                 .map(load_temporary_mobility_config)
@@ -593,7 +645,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 years,
                 world_width,
                 world_height,
-                population,
+                population: configured_population,
                 household_size,
                 max_person_records,
                 resource_productivity_scale_permille,
