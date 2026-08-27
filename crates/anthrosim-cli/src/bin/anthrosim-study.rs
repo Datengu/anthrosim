@@ -108,12 +108,10 @@ impl StudyExecutionPlan {
         }
         self.protocol.validate()?;
         self.definition.validate()?;
-        let expected_protocol_identity = self.protocol.identity()?;
-        if self.protocol_identity != expected_protocol_identity {
+        if self.protocol_identity != self.protocol.identity()? {
             return Err("study plan protocol identity does not match embedded protocol".into());
         }
-        let expected_definition_identity = self.definition.identity()?;
-        if self.definition_identity != expected_definition_identity {
+        if self.definition_identity != self.definition.identity()? {
             return Err("study plan definition identity does not match embedded definition".into());
         }
         if self.research_relative_dir != Path::new(RESEARCH_DIR) {
@@ -335,7 +333,8 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
             )
             .into());
         }
-        let identity: AnalysisIdentityView = read_json_regular(&path, "research analysis artifact")?;
+        let identity: AnalysisIdentityView =
+            read_json_regular(&path, "research analysis artifact")?;
         if identity.schema_version != 1 || identity.research_id != research.research_id {
             return Err(format!(
                 "research analysis artifact does not belong to bound research execution: {}",
@@ -477,14 +476,12 @@ fn research_execution_identity(
         definition_identity: &'a str,
         source: &'a SourceRevisionIdentity,
     }
-    stable_identity(
-        "research-execution-v1",
-        &Identity {
-            schema_version: 1,
-            definition_identity,
-            source,
-        },
-    )
+    let bytes = serde_json::to_vec(&Identity {
+        schema_version: 1,
+        definition_identity,
+        source,
+    })?;
+    Ok(format!("research-execution-v1-{:016x}", fnv1a64(&bytes)))
 }
 
 fn result_binding_identity(binding: &StudyResultBinding) -> Result<String, Box<dyn Error>> {
@@ -732,7 +729,8 @@ mod tests {
     fn fake_research_root(root: &Path, plan: &StudyExecutionPlan, run_state: &str) {
         let research = root.join(RESEARCH_DIR);
         fs::create_dir_all(research.join("analysis")).unwrap();
-        let research_id = research_execution_identity(&plan.definition_identity, &plan.source).unwrap();
+        let research_id =
+            research_execution_identity(&plan.definition_identity, &plan.source).unwrap();
         let research_manifest = serde_json::json!({
             "schemaVersion": 1,
             "researchId": research_id,
@@ -766,6 +764,35 @@ mod tests {
                 "researchId": research_id,
                 "runs": []
             }),
+        );
+    }
+
+    #[test]
+    fn research_execution_identity_matches_runner_field_order_contract() {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct RunnerIdentity<'a> {
+            schema_version: u32,
+            definition_identity: &'a str,
+            source: &'a SourceRevisionIdentity,
+        }
+
+        let source = SourceRevisionIdentity::current();
+        let definition_identity = "research-definition-v1-test";
+        let bytes = serde_json::to_vec(&RunnerIdentity {
+            schema_version: 1,
+            definition_identity,
+            source: &source,
+        })
+        .unwrap();
+        assert!(
+            std::str::from_utf8(&bytes)
+                .unwrap()
+                .starts_with("{\"schemaVersion\":1,\"definitionIdentity\":")
+        );
+        assert_eq!(
+            research_execution_identity(definition_identity, &source).unwrap(),
+            format!("research-execution-v1-{:016x}", fnv1a64(&bytes))
         );
     }
 
@@ -855,7 +882,12 @@ mod tests {
         assert_eq!(first.run_counts.completed, 1);
         assert_eq!(first.run_counts.failed, 0);
         assert_eq!(first.result_artifacts.len(), 2);
-        assert!(first.result_artifacts.iter().all(|artifact| artifact.digest64 != 0));
+        assert!(
+            first
+                .result_artifacts
+                .iter()
+                .all(|artifact| artifact.digest64 != 0)
+        );
         assert!(first.result_identity.starts_with("study-result-v1-"));
         assert!(first.confirmatory_pre_result_claim_eligible);
 
