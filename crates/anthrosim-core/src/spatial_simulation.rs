@@ -27,6 +27,7 @@ use crate::{
     },
     population::{Population, PopulationError},
     provenance::{MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, SourceRevisionIdentity},
+    research_readiness::assess_evidence_closure,
     resources::{
         ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
         ResourceStepOutcome, ResourceSystem, validate_resource_config,
@@ -753,6 +754,7 @@ impl SpatialLandscapeSimulation {
             git_commit: option_env!("ANTHROSIM_GIT_COMMIT").map(str::to_owned),
             resume_lineage: self.resume_lineage.clone(),
             experiment: self.config.clone(),
+            evidence_closure: assess_evidence_closure(&self.config),
             artifact_schemas: ArtifactSchemas::current(),
             world: self.world.summary(),
             population: self.population.summary(),
