@@ -31,7 +31,7 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
-    def make_research_root(self, root: Path) -> tuple[dict, Path]:
+    def make_research_root(self, root: Path) -> tuple[dict, Path, Path]:
         relative_dir = "points/point-000000/runs/seed-000000-00000000000000000011"
         manifest = {
             "schemaVersion": 1,
@@ -39,7 +39,7 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
             "definitionIdentity": "research-definition-v1-test",
             "source": {
                 "modelVersion": "0.3.0",
-                "modelSemanticsId": "anthrosim-model-semantics-v13",
+                "modelSemanticsId": "anthrosim-model-semantics-v14",
                 "gitCommit": "0123456789abcdef",
             },
             "definition": {"schemaVersion": 1},
@@ -90,6 +90,18 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
         self.write_json(root / "research-state.json", state)
         run_dir = root / relative_dir
         self.write_json(
+            run_dir / "manifest.json",
+            {
+                "schemaVersion": 17,
+                "modelVersion": "0.3.0",
+                "modelSemanticsId": "anthrosim-model-semantics-v14",
+                "stateDigest64": 123,
+                "startTime": 0,
+                "endTime": 730,
+                "stopReason": "duration_reached",
+            },
+        )
+        self.write_json(
             run_dir / "metrics.json",
             {
                 "schemaVersion": 3,
@@ -127,14 +139,14 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
                 ],
             },
         )
-        return manifest, protocol_path
+        return manifest, protocol_path, run_dir
 
     def test_declared_window_is_bound_to_research_identity_and_filters_snapshot_days(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory)
             root = parent / "research"
             root.mkdir()
-            manifest, protocol = self.make_research_root(root)
+            manifest, protocol, _ = self.make_research_root(root)
 
             first = self.run_cli(root, protocol)
             output_dir = Path(first.stdout.strip())
@@ -146,11 +158,19 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
             self.assertEqual(result["schemaVersion"], 1)
             self.assertEqual(result["researchId"], manifest["researchId"])
             self.assertEqual(result["definitionIdentity"], manifest["definitionIdentity"])
-            self.assertTrue(result["protocolIdentity"].startswith("analysis-window-protocol-v1-sha256-"))
+            self.assertTrue(
+                result["protocolIdentity"].startswith("analysis-window-protocol-v1-sha256-")
+            )
             self.assertEqual(result["runCount"], 1)
             self.assertEqual(result["completedRunCount"], 1)
 
             row = result["runs"][0]
+            self.assertEqual(row["executionIntervalBasis"], "realized_run_manifest")
+            self.assertEqual(row["stopReason"], "duration_reached")
+            self.assertEqual(
+                row["plannedExecutionInterval"],
+                {"startDay": 0, "endDayInclusive": 730},
+            )
             self.assertEqual(
                 row["primaryWindow"]["executionInterval"],
                 {"startDay": 0, "endDayInclusive": 730},
@@ -164,6 +184,7 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
                 {"startDay": 365, "endDayInclusive": 730},
             )
             selection = row["metricSnapshotSelection"]
+            self.assertEqual(selection["realizedTerminalSnapshotDay"], 730)
             self.assertEqual(selection["precedingSnapshotDay"], 0)
             self.assertTrue(selection["analysisStartBoundarySnapshotAvailable"])
             self.assertEqual(selection["includedSnapshotDays"], [365, 730])
@@ -178,7 +199,7 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
             parent = Path(directory)
             root = parent / "research"
             root.mkdir()
-            _, protocol = self.make_research_root(root)
+            _, protocol, _ = self.make_research_root(root)
             first = Path(self.run_cli(root, protocol).stdout.strip())
 
             changed = json.loads(protocol.read_text(encoding="utf-8"))
@@ -195,12 +216,12 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
             self.assertEqual(selection["precedingSnapshotDay"], 365)
             self.assertEqual(selection["includedSnapshotDays"], [730])
 
-    def test_window_beyond_execution_fails_closed(self) -> None:
+    def test_window_beyond_planned_execution_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory)
             root = parent / "research"
             root.mkdir()
-            _, protocol = self.make_research_root(root)
+            _, protocol, _ = self.make_research_root(root)
             bad = json.loads(protocol.read_text(encoding="utf-8"))
             bad["analysisWindow"]["analysisStartDay"] = 731
             bad_path = parent / "bad-window.json"
@@ -208,14 +229,98 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
 
             result = self.run_cli(root, bad_path, check=False)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("beyond run terminal day 730", result.stderr)
+            self.assertIn("beyond realized run terminal day 730", result.stderr)
+
+    def test_early_termination_is_not_silently_extended_to_planned_duration(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / "research"
+            root.mkdir()
+            _, protocol, run_dir = self.make_research_root(root)
+            self.write_json(
+                run_dir / "manifest.json",
+                {
+                    "schemaVersion": 17,
+                    "modelVersion": "0.3.0",
+                    "modelSemanticsId": "anthrosim-model-semantics-v14",
+                    "stateDigest64": 123,
+                    "startTime": 0,
+                    "endTime": 300,
+                    "stopReason": "population_extinct",
+                },
+            )
+            self.write_json(
+                run_dir / "metrics.json",
+                {
+                    "schemaVersion": 3,
+                    "cadence": "annual_boundary_plus_terminal",
+                    "snapshots": [
+                        {"schemaVersion": 3, "day": 0},
+                        {"schemaVersion": 3, "day": 300},
+                    ],
+                },
+            )
+
+            result = self.run_cli(root, protocol, check=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("beyond realized run terminal day 300", result.stderr)
+
+    def test_default_analysis_end_uses_realized_early_terminal_day(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / "research"
+            root.mkdir()
+            _, protocol, run_dir = self.make_research_root(root)
+            protocol_value = json.loads(protocol.read_text(encoding="utf-8"))
+            protocol_value["sensitivityWindows"] = []
+            self.write_json(protocol, protocol_value)
+            self.write_json(
+                run_dir / "manifest.json",
+                {
+                    "schemaVersion": 17,
+                    "modelVersion": "0.3.0",
+                    "modelSemanticsId": "anthrosim-model-semantics-v14",
+                    "stateDigest64": 123,
+                    "startTime": 0,
+                    "endTime": 500,
+                    "stopReason": "population_extinct",
+                },
+            )
+            self.write_json(
+                run_dir / "metrics.json",
+                {
+                    "schemaVersion": 3,
+                    "cadence": "annual_boundary_plus_terminal",
+                    "snapshots": [
+                        {"schemaVersion": 3, "day": 0},
+                        {"schemaVersion": 3, "day": 365},
+                        {"schemaVersion": 3, "day": 500},
+                    ],
+                },
+            )
+
+            output_dir = Path(self.run_cli(root, protocol).stdout.strip())
+            result = json.loads((output_dir / "analysis-window-manifest.json").read_text())
+            row = result["runs"][0]
+            self.assertEqual(row["stopReason"], "population_extinct")
+            self.assertEqual(
+                row["primaryWindow"]["executionInterval"],
+                {"startDay": 0, "endDayInclusive": 500},
+            )
+            self.assertEqual(
+                row["primaryWindow"]["analysisInterval"],
+                {"startDay": 365, "endDayInclusive": 500},
+            )
+            self.assertEqual(
+                row["metricSnapshotSelection"]["includedSnapshotDays"], [365, 500]
+            )
 
     def test_duplicate_sensitivity_window_and_empty_rationale_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory)
             root = parent / "research"
             root.mkdir()
-            _, protocol = self.make_research_root(root)
+            _, protocol, _ = self.make_research_root(root)
             bad = json.loads(protocol.read_text(encoding="utf-8"))
             duplicate = copy.deepcopy(bad["sensitivityWindows"][0])
             bad["sensitivityWindows"].append(duplicate)
@@ -236,7 +341,7 @@ class ResearchAnalysisWindowCliTests(unittest.TestCase):
             parent = Path(directory)
             root = parent / "research"
             root.mkdir()
-            manifest, protocol = self.make_research_root(root)
+            manifest, protocol, _ = self.make_research_root(root)
             changed_plan = copy.deepcopy(manifest)
             changed_plan["researchId"] = "different-research"
             self.write_json(root / "research-plan.json", changed_plan)
