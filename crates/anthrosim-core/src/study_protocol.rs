@@ -61,7 +61,10 @@ impl StudyProtocol {
         string_list(&self.sensitivity_plan, "sensitivityPlan")?;
         string_list(&self.equifinality_plan, "equifinalityPlan")?;
         string_list(&self.permitted_interpretations, "permittedInterpretations")?;
-        string_list(&self.prohibited_interpretations, "prohibitedInterpretations")?;
+        string_list(
+            &self.prohibited_interpretations,
+            "prohibitedInterpretations",
+        )?;
 
         match (&self.amendment, self.protocol_revision) {
             (None, 1) => {}
@@ -190,9 +193,11 @@ impl StudyProtocol {
             }
             for comparison in &self.comparisons {
                 if comparison.hypothesis_ids.len() < 2 {
-                    return Err(StudyProtocolError::ConfirmatoryComparisonNeedsTwoHypotheses(
-                        comparison.id.clone(),
-                    ));
+                    return Err(
+                        StudyProtocolError::ConfirmatoryComparisonNeedsTwoHypotheses(
+                            comparison.id.clone(),
+                        ),
+                    );
                 }
                 if comparison.observable_ids.is_empty() {
                     return Err(StudyProtocolError::ConfirmatoryComparisonNeedsObservable(
@@ -209,7 +214,9 @@ impl StudyProtocol {
             }
             for observable in primary_observables {
                 if !referenced_observables.contains(observable) {
-                    return Err(StudyProtocolError::UnusedPrimaryObservable(observable.to_owned()));
+                    return Err(StudyProtocolError::UnusedPrimaryObservable(
+                        observable.to_owned(),
+                    ));
                 }
             }
         }
@@ -371,7 +378,10 @@ pub struct StudyEvidenceAssignment {
 
 impl StudyEvidenceAssignment {
     fn validate(&self, index: usize) -> Result<(), StudyProtocolError> {
-        nonempty(&self.evidence_id, &format!("evidenceRoles[{index}].evidenceId"))?;
+        nonempty(
+            &self.evidence_id,
+            &format!("evidenceRoles[{index}].evidenceId"),
+        )?;
         nonempty(&self.target, &format!("evidenceRoles[{index}].target"))?;
         nonempty(&self.notes, &format!("evidenceRoles[{index}].notes"))
     }
@@ -386,8 +396,14 @@ pub struct StudyUncertaintyPlan {
 
 impl StudyUncertaintyPlan {
     fn validate(&self) -> Result<(), StudyProtocolError> {
-        string_list(&self.parameter_uncertainty, "uncertainty.parameterUncertainty")?;
-        string_list(&self.structural_uncertainty, "uncertainty.structuralUncertainty")
+        string_list(
+            &self.parameter_uncertainty,
+            "uncertainty.parameterUncertainty",
+        )?;
+        string_list(
+            &self.structural_uncertainty,
+            "uncertainty.structuralUncertainty",
+        )
     }
 }
 
@@ -549,7 +565,9 @@ pub enum StudyProtocolError {
     ZeroRevision,
     #[error("study protocol revision 1 must not declare an amendment")]
     AmendmentOnInitialRevision,
-    #[error("study protocol revisions after 1 must declare the previous protocol and amendment timing")]
+    #[error(
+        "study protocol revisions after 1 must declare the previous protocol and amendment timing"
+    )]
     MissingAmendment,
     #[error("study protocol field {0} must be non-empty")]
     EmptyField(String),
@@ -638,12 +656,15 @@ mod tests {
                 hypothesis_ids: vec!["null".to_owned(), "resource_effect".to_owned()],
                 observable_ids: vec!["scarcity_deaths".to_owned()],
                 prediction: "Lower productivity has higher scarcity mortality.".to_owned(),
-                decision_criterion: "Support resource_effect only if the predeclared contrast is positive."
-                    .to_owned(),
+                decision_criterion:
+                    "Support resource_effect only if the predeclared contrast is positive."
+                        .to_owned(),
             }],
             evidence_roles: vec![],
             uncertainty: StudyUncertaintyPlan {
-                parameter_uncertainty: vec!["Sweep declared resource productivity range.".to_owned()],
+                parameter_uncertainty: vec![
+                    "Sweep declared resource productivity range.".to_owned(),
+                ],
                 structural_uncertainty: vec![],
             },
             ensemble_policy: StudyEnsemblePolicy {
@@ -657,10 +678,12 @@ mod tests {
                 exclusion_rules: vec!["Exclude only predeclared operational failures.".to_owned()],
                 censoring_rules: vec!["Report operational censoring separately.".to_owned()],
             },
-            sensitivity_plan: vec!["Repeat the contrast over declared uncertainty dimensions."
-                .to_owned()],
-            equifinality_plan: vec!["Report alternative parameter combinations with equivalent outputs."
-                .to_owned()],
+            sensitivity_plan: vec![
+                "Repeat the contrast over declared uncertainty dimensions.".to_owned(),
+            ],
+            equifinality_plan: vec![
+                "Report alternative parameter combinations with equivalent outputs.".to_owned(),
+            ],
             manipulation_checks: vec![StudyManipulationCheck {
                 id: "resource_realized".to_owned(),
                 mechanism: "M3 resource productivity".to_owned(),
@@ -686,7 +709,9 @@ mod tests {
         assert_eq!(first, protocol.clone().identity().unwrap());
 
         let mut changed = protocol;
-        changed.comparisons[0].decision_criterion.push_str(" Require two-sided robustness.");
+        changed.comparisons[0]
+            .decision_criterion
+            .push_str(" Require two-sided robustness.");
         assert_ne!(first, changed.identity().unwrap());
     }
 
@@ -731,7 +756,8 @@ mod tests {
         let original_identity = original.identity().unwrap();
         let mut amended = original;
         amended.protocol_revision = 2;
-        amended.analysis_method = "Revised paired comparison after inspecting prior outputs.".to_owned();
+        amended.analysis_method =
+            "Revised paired comparison after inspecting prior outputs.".to_owned();
         amended.amendment = Some(StudyProtocolAmendment {
             previous_protocol_identity: original_identity.clone(),
             timing: StudyAmendmentTiming::AfterResultInspection,
@@ -750,6 +776,9 @@ mod tests {
     fn later_revision_without_amendment_is_rejected() {
         let mut protocol = confirmatory_protocol();
         protocol.protocol_revision = 2;
-        assert_eq!(protocol.validate(), Err(StudyProtocolError::MissingAmendment));
+        assert_eq!(
+            protocol.validate(),
+            Err(StudyProtocolError::MissingAmendment)
+        );
     }
 }
