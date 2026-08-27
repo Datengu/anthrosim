@@ -1,73 +1,70 @@
-# M4 reciprocal first-degree kin-location proxy v1
+# M4 kin proxy — reciprocal first-degree residence null model
 
-**Status:** normative post-M9 scientific-hardening contract  
-**Model semantics:** `anthrosim-model-semantics-v13`  
-**Scientific status:** synthetic / unvalidated
+## Status
 
-## Purpose
+This document defines the normative M4 kin-residence proxy introduced for issue #188. It is a deliberately minimal **null-model** representation of first-degree kin proximity. It is not an empirical reconstruction of matrilocality, patrilocality, descent, marriage residence, household authority, inheritance, fosterage or wider social-network structure.
 
-M4 has a deliberately narrow genealogical residence term so represented close-kin relationships can affect permanent-migration utility without introducing a general social-network or kinship model. This contract defines that term so reproductive-sex role, household inheritance and packed person-record order cannot become accidental one-way social rules.
+## Scientific problem repaired
 
-## Authoritative rule
+Before model semantics v13, M4 collected parent locations one way from child records. Model-born children inherit the female parent's household. M4 then discarded parent locations belonging to the moving household, making the female-parent side structurally unavailable as an external kin anchor while the male-parent side could remain external. The supposedly neutral kin term therefore behaved predominantly as a paternal/father-location signal.
 
-At each M4 decision boundary, M4 considers each represented living parent-child relation for which both people are alive.
+The old representation also retained only the first four unique external parent locations encountered during the packed person scan. Equivalent kin graphs could therefore produce different M4 inputs when person/birth insertion order changed.
 
-- If parent and child belong to the **same household**, the relation creates no spatial kin anchor. M4 moves that household as one unit, so the relation would remain co-resident after either staying or relocating and does not distinguish residence alternatives.
-- If parent and child belong to **different households**, the relation is represented reciprocally:
-  - the child's household retains the parent's current persistent-residence cell;
-  - the parent's household retains the child's current persistent-residence cell.
-- `female_parent` and `male_parent` links use exactly the same rule.
-- Every unique resulting cell is retained. There is no first-N truncation or encounter-order priority.
+Both behaviours were implementation artefacts rather than declared social assumptions.
 
-For any residence cell `c`:
+## Normative v13 rule
 
-```text
-kinScore(c) = 250  if c is in the household's reciprocal cross-household first-degree-kin set
-              0    otherwise
-```
+For every represented living parent-child relationship:
 
-Multiple represented first-degree relatives at one cell do not stack. The configured `migration.kinWeight` multiplies this score in the ordinary M4 residence utility.
+1. identify the current persistent household of the child and of the living parent;
+2. if both belong to the same household, create **no** spatial kin anchor because M4 moves that household as one unit;
+3. if they belong to different households, add the parent's household residence as a kin anchor for the child's household **and** add the child's household residence as a kin anchor for the parent's household;
+4. apply exactly the same rule to `female_parent` and `male_parent`;
+5. retain every unique resulting kin cell; there is no fixed first-four truncation and encounter order has no scientific meaning.
 
-## Why the relation is reciprocal
+The evaluated kin score remains deliberately narrow and binary:
 
-Model-born children join the female parent's persistent household. Under the pre-v13 parent-only external-anchor rule, that storage/lifecycle convention made the female parent structurally unable to provide an external anchor while a male parent from another household could do so. An apparently gender-neutral direct-parent term therefore behaved predominantly as attraction toward external father locations.
+- `kinScorePermille = 250` when the candidate cell is one of the household's reciprocal cross-household first-degree kin anchors;
+- `kinScorePermille = 0` otherwise;
+- multiple represented relatives at the same candidate cell do not stack.
 
-Simply counting co-resident parents at their pre-move cell would remove the explicit household filter but create a different artefact: it would reward staying near a parent who is actually part of the moving household and would relocate with it. The v13 rule therefore treats the **cross-household genealogical edge**, rather than only the parent endpoint, as the spatial relation. A living cross-household parent-child tie connects both households to one another's persistent residence with equal strength, regardless of whether the represented parent is female or male.
+This means the current proxy represents **presence of at least one living cross-household parent-child connection at a cell**, not kin count, relatedness coefficient, lineage membership or network centrality.
 
-This is a null-model symmetry rule. It does not assert matrilocality, patrilocality, descent ideology, household authority or a measured human preference.
+## Why co-resident relatives do not create a stay bonus
 
-## Same-household relatives
+An earlier candidate repair simply retained same-household parent locations. Scientific regression review rejected that formulation: because those relatives move with the household, rewarding their pre-move cell creates an unintended household-inertia term rather than spatial kin proximity.
 
-A same-household parent-child relation is genealogically real but spatially non-discriminating for M4 because all living household members relocate together. It therefore contributes no location-specific kin utility. AnthroSim does not currently model internal household cohesion, bargaining or fission as a separate migration term.
+Under the normative v13 rule, co-resident first-degree kin remain socially represented by household membership but do not independently bias the household toward its current cell.
 
-## Record-order invariance
+## Symmetry and invariance requirements
 
-The kin-location set contains every unique location produced by the reciprocal cross-household first-degree relations. It has no first-four or first-N selection rule. Reordering otherwise-equivalent person/birth records cannot cause a later kin location to disappear merely because another relationship happened to be encountered first.
+The implementation must preserve the following properties:
 
-The transient vector order used while collecting cells has no scientific meaning. M4 asks only whether an evaluated cell is present in the complete unique set.
+- swapping otherwise-equivalent female-parent and male-parent roles does not change represented kin anchors;
+- every cross-household living parent-child relationship is reciprocal between the two households;
+- permuting packed person records or birth insertion order without changing the represented kin graph does not change the kin-location set or kin utility;
+- more than four qualifying locations remain represented;
+- duplicate relationships pointing to one cell do not multiply the binary score;
+- same-household parent-child relationships do not create a residence-specific preference.
 
-## Scope and non-claims
+These are scientific semantics, not merely test conveniences.
 
-This proxy is intentionally minimal. It includes only represented living **parent-child** relations and their reciprocal household-level spatial link. It does **not** represent:
+## Controlled utility interpretation
 
-- siblings, cousins, clans, lineages or bilateral kindreds generally;
-- marriage, residence rules or descent systems;
-- friendship, exchange, alliance or political obligation;
-- culturally differentiated maternal versus paternal ties;
-- kin-distance decay, relationship strength or household fission;
-- empirical prehistoric mobility preferences.
+When resource, water, travel, uncertainty and relocation-risk contributions are neutralized, evaluating the child household at the parent's cell and the parent household at the child's cell must produce the same declared `250` kin advantage.
 
-The synthetic default `kinWeight` remains a mechanism-testing value, not a measured social coefficient. A study that interprets kin-sensitive migration must evidence-ground or structurally sensitivity-test an appropriate social model rather than treating this null proxy as anthropology.
+The scalar `250` remains a synthetic/null-model weight. It has not been calibrated to archaeological or ethnographic evidence and must not be interpreted as a measured historical strength of kin preference.
 
-## Verification invariants
+## Provenance and downstream consequences
 
-The implementation must prove with controlled tests that:
+This repair changes authoritative M4 residence utility and therefore advances `MODEL_SEMANTICS_ID` from `anthrosim-model-semantics-v12` to `anthrosim-model-semantics-v13`.
 
-- an otherwise-equivalent cross-household female-parent link and male-parent link create the same kin locations and utilities;
-- every cross-household parent-child link is reciprocal between the two households;
-- same-household parent-child links create no residence-specific anchor;
-- more than four unique kin locations remain represented;
-- changing only irrelevant person-record/child insertion order cannot change the represented kin-location set or its cell-wise utility;
-- with all non-kin attraction/action terms neutralized, a reciprocal first-degree-kin cell increases residence utility by exactly the configured kin contribution.
+The change can legitimately alter later resource access, condition, demographic events and spatial structure through changed permanent-migration decisions. Frozen downstream scientific references must therefore be causally reviewed rather than assumed to remain numerically identical.
 
-These are model-verification claims only. They do not validate the proxy against archaeological or ethnographic evidence.
+The reviewed M8.6 rebaseline localizes the first divergence in every one of its 32 runs to the newly represented reciprocal kin term. The reviewed M7.6 rebaseline provides an independent factorial control: all 72 migration-enabled runs change while all 72 migration-disabled runs remain scientifically identical to the immediate v12 control. Together these checks support attribution of downstream changes to M4 rather than an unrelated resource or demographic modification.
+
+## Interpretation boundary
+
+The v13 proxy fixes symmetry and record-order defects in the null model. It does **not** establish that real households treated maternal and paternal kin identically, that first-degree kin were the dominant social ties, that households migrated as indivisible units, or that `250` is historically realistic.
+
+Future case-study work should treat alternative kinship/residence systems and kin weights as explicit evidence-backed hypotheses or sensitivity dimensions rather than silently inferring them from this null rule.
