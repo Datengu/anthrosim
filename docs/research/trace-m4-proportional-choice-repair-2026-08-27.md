@@ -19,3 +19,9 @@ This changes authoritative M4 behavioural semantics and can alter migration dest
 ## Acceptance evidence
 
 The production weighting helper is exercised directly by unit coverage for exact `[1,2]`, `[1,10]`, equal-improvement, and common-scale invariance properties. Existing M4 migration, deterministic replay, checkpoint/resume, spatial, and protected benchmark gates remain required to detect unintended collateral effects.
+
+The first exact-head protection pass produced the expected scientific-reference failures rather than silent drift. M7.6 completed all 144 runs successfully: all nine migration-disabled paired control point summaries remained exactly equal to the v13 reference, while migration-enabled point summaries changed under the corrected M4 choice kernel. The v14 M7.6 reference therefore records the same source definition, paired seeds, completion/censoring rules, M3 semantics and demographic semantics with the corrected migration-enabled outcomes.
+
+M8.6 also changed materially while retaining its overall `fragile_spatial_structure` benchmark class. Under v14, `terminalPopulationHerfindahlPerMillion` is the robust metric, while `migrationTotalDistanceCells` and `terminalLargestCellSharePermille` are fragile; `cellTimeOccupiedPermille` remains not distinctive. The exact aggregate and all per-arm terminal state digests are preserved in the rebaselined reference together with workflow/artifact provenance. By contrast, the applicable M9.7 benchmark remained exactly equal to its protected reference, providing an additional negative-control check that the repair did not cause unrelated temporary-mobility benchmark drift.
+
+These reference updates are synthetic regression evidence for the corrected executable semantics. They are not empirical calibration, archaeological validation, or evidence that the v14 outputs are historically realistic.
