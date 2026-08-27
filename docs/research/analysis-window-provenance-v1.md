@@ -2,7 +2,7 @@
 
 Status: normative study-analysis contract for GitHub issue #219.
 
-AnthroSim research executions preserve the exact simulated configuration and complete execution interval. That is not the same thing as declaring which part of the trajectory a scientific study will analyse. This contract makes the distinction explicit without changing authoritative simulation state.
+AnthroSim research executions preserve the exact simulated configuration and execution artifacts. That is not the same thing as declaring which part of the trajectory a scientific study will analyse. This contract makes the distinction explicit without changing authoritative simulation state.
 
 ## Scientific purpose
 
@@ -12,7 +12,7 @@ The v1 analysis-window protocol therefore freezes a study-facing observation rul
 
 - the study (`studyId`);
 - the first simulated day included in the primary analysis (`analysisStartDay`);
-- an optional final included day (`analysisEndDayInclusive`), otherwise the run's terminal day;
+- an optional final included day (`analysisEndDayInclusive`), otherwise the run's realized terminal day;
 - why that boundary was chosen (`selectionRule` plus a non-empty `rationale`);
 - optional predeclared alternative windows for initialization/path-dependence sensitivity.
 
@@ -28,15 +28,19 @@ A convergence-based rule still requires the study to document the diagnostic in 
 
 ## Interval semantics
 
-For a run whose configured duration ends at terminal day `T`:
+A research definition has a configured maximum duration, but a completed run can terminate earlier, for example because the population becomes extinct. Those two boundaries must not be conflated.
 
-- execution interval: `[0, T]`;
+For every planned run the output therefore preserves the configured maximum execution interval. For a completed run it additionally reads the authoritative `manifest.json` and uses its realized `endTime` as terminal day `T`:
+
+- realized execution interval: `[0, T]`;
 - burn-in/equilibration interval: `[0, analysisStartDay)`;
 - primary analysis interval: `[analysisStartDay, analysisEndDayInclusive]`.
 
-The analysis end defaults to `T`. Every declared primary and sensitivity interval is validated against every planned run, which matters because the #205 research definition can itself vary run duration as a scientific dimension. A window that falls outside even one planned run fails closed rather than being silently clipped.
+If no explicit analysis end is declared, the end defaults to that run's realized `T`. If an early-terminated completed run ends before the declared start or an explicit declared end, the tool fails closed rather than pretending that nonexistent days were observed or silently shortening a predeclared fixed interval. The run manifest's state digest must also agree with the immutable research execution state.
 
-An `analysisStartDay` of zero means that the initial state is included in the analysis and the burn-in interval is empty.
+For runs that are not yet completed, interval validation can only use the configured maximum duration and the output labels that basis as planned rather than realized. Scientific analysis of completed runs is always bounded by realized execution.
+
+This distinction matters because the #205 research definition can vary run duration as a scientific dimension and because stop reasons can vary across seeds. An `analysisStartDay` of zero means that the initial state is included in the analysis and the burn-in interval is empty.
 
 ## Binding to #205 research execution provenance
 
@@ -63,7 +67,7 @@ analysis/studies/<protocolIdentity>/
 with:
 
 - `protocol.json`: the normalized exact protocol;
-- `analysis-window-manifest.json`: the protocol identity, source research/definition identity, source revision, declared windows, and a resolved window for every planned run.
+- `analysis-window-manifest.json`: the protocol identity, source research/definition identity, source revision, planned execution bounds, realized bounds for completed runs, stop reason, declared windows, and a resolved window for every run to which the protocol can validly apply.
 
 Changing the analysis start, end, rule, rationale, study ID, or sensitivity-window declaration changes the protocol identity. It does not change the source simulation's run identity or state digest.
 
@@ -73,6 +77,7 @@ Current core `metrics.json` snapshots contain a mixture of state quantities and 
 
 For every completed run, the analysis-window manifest records:
 
+- the realized terminal snapshot day and verifies it equals the run manifest's realized `endTime`;
 - the metric cadence;
 - whether an exact metric snapshot exists at `analysisStartDay`;
 - the preceding snapshot day when one exists;
@@ -131,6 +136,6 @@ Two studies may analyse different preserved intervals from the exact same determ
 
 ## TRACE boundary
 
-This contract closes one research-methods gap: a preserved study analysis can identify exactly which simulated interval was eligible and why the start boundary was chosen. It also provides a provenance-visible place to predeclare alternative burn-in windows.
+This contract closes one research-methods gap: a preserved study analysis can identify exactly which realized simulated interval was eligible and why the start boundary was chosen. It also provides a provenance-visible place to predeclare alternative burn-in windows and prevents early termination from being mistaken for unobserved planned duration.
 
 It does not by itself prove that a selected burn-in is scientifically adequate, that a convergence diagnostic is valid, that the model has reached equilibrium, or that the result is empirically corroborated. Those remain study-specific TRACE obligations. Frozen confirmatory-study hypotheses, decision criteria, evidence roles and amendment history are addressed by the broader study-protocol work in #230.
