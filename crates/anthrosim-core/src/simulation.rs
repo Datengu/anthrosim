@@ -12,6 +12,7 @@ use crate::{
     },
     events::EventLog,
     evidence::EvidenceError,
+    focal_region::FocalRegionSource,
     founder_initialization::FounderGenealogyStatus,
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
     metrics::{
@@ -719,6 +720,12 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
     if let Some(temporary_mobility) = &config.temporary_mobility {
+        if matches!(
+            &temporary_mobility.region.source,
+            FocalRegionSource::LandscapeMask { .. }
+        ) {
+            return Err(SimulationError::LandscapeMaskRegionRequiresSpatialLandscape);
+        }
         temporary_mobility.validate_evidence_context(config.evidence.as_ref())?;
     }
     if let Some(evidence) = &config.evidence {
@@ -900,6 +907,10 @@ pub enum SimulationError {
     Population(#[from] PopulationError),
     #[error("both ExperimentConfig and an explicit constructor supplied temporary mobility")]
     AmbiguousTemporaryMobilityConfiguration,
+    #[error(
+        "landscape-mask focal regions require SpatialLandscapeSimulation with the exact bound landscape"
+    )]
+    LandscapeMaskRegionRequiresSpatialLandscape,
     #[error(
         "configured temporary-mobility program mismatch: expected {expected}, found {actual:?}"
     )]

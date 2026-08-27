@@ -142,15 +142,12 @@ fn landscape_mask_definition(input_id: &str) -> TemporaryMobilityConfig {
 
 #[test]
 fn landscape_mask_region_requires_an_evidence_catalog() {
-    let configured = ExperimentConfig::new(96_106, 0)
-        .with_world(WorldConfig::new(4, 1))
-        .with_temporary_mobility(landscape_mask_definition("aggregation-mask-input"));
+    let definition = landscape_mask_definition("aggregation-mask-input");
 
     assert!(matches!(
-        Simulation::new(configured),
-        Err(SimulationError::TemporaryMobilityConfig(
-            TemporaryMobilityConfigError::MissingEvidenceCatalog { input_id }
-        )) if input_id == "aggregation-mask-input"
+        definition.validate_evidence_context(None),
+        Err(TemporaryMobilityConfigError::MissingEvidenceCatalog { input_id })
+            if input_id == "aggregation-mask-input"
     ));
 }
 
@@ -164,15 +161,11 @@ fn landscape_mask_region_rejects_unknown_evidence_external_input() {
             spatial_reference: None,
             content_digest: None,
         }]);
-    let configured = ExperimentConfig::new(96_107, 0)
-        .with_world(WorldConfig::new(4, 1))
-        .with_temporary_mobility(landscape_mask_definition("aggregation-mask-input"))
-        .with_evidence(catalog);
+    let definition = landscape_mask_definition("aggregation-mask-input");
 
     assert!(matches!(
-        Simulation::new(configured),
-        Err(SimulationError::TemporaryMobilityConfig(
-            TemporaryMobilityConfigError::UnknownEvidenceInput { input_id }
-        )) if input_id == "aggregation-mask-input"
+        definition.validate_evidence_context(Some(&catalog)),
+        Err(TemporaryMobilityConfigError::UnknownEvidenceInput { input_id })
+            if input_id == "aggregation-mask-input"
     ));
 }

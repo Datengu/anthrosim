@@ -64,6 +64,20 @@ fn landscape(values: Vec<Option<i32>>) -> LandscapeBundle {
     )
 }
 
+fn bound_mask_fixture() -> (LandscapeBundle, EvidenceCatalog, World, FocalRegion) {
+    let mut values = vec![Some(0); 16];
+    values[1] = Some(1);
+    values[5] = Some(1);
+    values[14] = Some(1);
+    let landscape = landscape(values);
+    let evidence = evidence_catalog();
+    let world = world();
+    let region =
+        FocalRegion::from_landscape_mask("region", &landscape, "region-mask", &evidence, &world)
+            .unwrap();
+    (landscape, evidence, world, region)
+}
+
 #[test]
 fn synthetic_region_is_canonical_and_duplicate_fail_closed() {
     let region = FocalRegion::new(
@@ -110,18 +124,7 @@ fn identity_is_order_independent_and_serialization_stable() {
 
 #[test]
 fn evidence_bound_binary_mask_derives_region_and_provenance() {
-    let mut values = vec![Some(0); 16];
-    values[1] = Some(1);
-    values[5] = Some(1);
-    values[14] = Some(1);
-    let region = FocalRegion::from_landscape_mask(
-        "region",
-        &landscape(values),
-        "region-mask",
-        &evidence_catalog(),
-        &world(),
-    )
-    .unwrap();
+    let (landscape, evidence, world, region) = bound_mask_fixture();
     assert_eq!(
         region.member_cells(),
         &[CellId::new(2), CellId::new(6), CellId::new(15)]
@@ -132,6 +135,57 @@ fn evidence_bound_binary_mask_derives_region_and_provenance() {
             layer_id: "region-mask".to_owned(),
             evidence_input_id: "region-mask-input".to_owned(),
         }
+    );
+    region
+        .validate_landscape_binding(&landscape, &evidence, &world)
+        .unwrap();
+}
+
+#[test]
+fn serialized_landscape_region_round_trip_revalidates_against_mask() {
+    let (landscape, evidence, world, region) = bound_mask_fixture();
+    let restored: FocalRegion =
+        serde_json::from_str(&serde_json::to_string(&region).unwrap()).unwrap();
+    restored
+        .validate_landscape_binding(&landscape, &evidence, &world)
+        .unwrap();
+    assert_eq!(restored, region);
+}
+
+#[test]
+fn changed_member_cells_cannot_retain_landscape_mask_provenance() {
+    let (landscape, evidence, world, region) = bound_mask_fixture();
+    let tampered = FocalRegion::new(
+        region.region_id,
+        region.source,
+        vec![CellId::new(2), CellId::new(6), CellId::new(16)],
+    )
+    .unwrap();
+    assert!(matches!(
+        tampered.validate_landscape_binding(&landscape, &evidence, &world),
+        Err(FocalRegionBindingError::MaskMembershipMismatch { .. })
+    ));
+}
+
+#[test]
+fn changed_evidence_input_cannot_retain_landscape_mask_provenance() {
+    let (landscape, evidence, world, region) = bound_mask_fixture();
+    let tampered = FocalRegion::new(
+        region.region_id.clone(),
+        FocalRegionSource::LandscapeMask {
+            layer_id: "region-mask".to_owned(),
+            evidence_input_id: "different-input".to_owned(),
+        },
+        region.member_cells().to_vec(),
+    )
+    .unwrap();
+    assert_eq!(
+        tampered.validate_landscape_binding(&landscape, &evidence, &world),
+        Err(FocalRegionBindingError::MaskEvidenceInputMismatch {
+            layer_id: "region-mask".to_owned(),
+            declared: "different-input".to_owned(),
+            bound: "region-mask-input".to_owned(),
+        })
     );
 }
 
