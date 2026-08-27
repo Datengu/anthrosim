@@ -100,6 +100,7 @@ function renderTimeline() {
 
   if (snapshot && bundle.manifest && selectedDay === runInfo.endTime) {
     values.push(
+      ["Realized migration condition loss", bundle.manifest.migration.travelConditionCostTotal],
       ["Mean move origin resource", bundle.manifest.migration.meanOriginResourceScorePermille],
       ["Mean move destination resource", bundle.manifest.migration.meanDestinationResourceScorePermille],
       ["Mean move origin water security", bundle.manifest.migration.meanOriginWaterSecurityScorePermille],
@@ -345,7 +346,15 @@ function eventSummary(record) {
   if (event.type === "death") return `death · person ${event.person} · ${event.cause} · residence cell ${event.cell}`;
   if (event.type === "householdMigration") {
     const peopleMoved = event.people_moved ?? event.peopleMoved;
-    return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${peopleMoved} people`;
+    const nominalCost = event.nominal_travel_condition_cost_per_person
+      ?? event.nominalTravelConditionCostPerPerson
+      ?? event.travel_condition_cost_per_person
+      ?? event.travelConditionCostPerPerson;
+    const realizedLoss = event.realized_travel_condition_loss_total ?? event.realizedTravelConditionLossTotal;
+    const conditionEffect = nominalCost === undefined || realizedLoss === undefined
+      ? ""
+      : ` · nominal condition cost ${nominalCost}/person · realized loss ${realizedLoss}`;
+    return `migration · household ${event.household} · ${event.origin} → ${event.destination} · ${peopleMoved} people${conditionEffect}`;
   }
   if (event.type === "temporaryJourneyNotStarted") {
     return `temporary journey not started · household ${event.household} · ${event.reason}`;

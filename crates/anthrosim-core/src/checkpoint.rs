@@ -63,7 +63,8 @@ impl SimulationCheckpoint {
     pub const PRE_DURATION_AWARE_RESOURCE_SCHEMA_VERSION: u32 = 8;
     pub const PRE_CONDITION_MORTALITY_SCHEMA_VERSION: u32 = 9;
     pub const PRE_CONTINUATION_IDENTITY_SCHEMA_VERSION: u32 = 10;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 11;
+    pub const PRE_TRAVEL_CONDITION_OBSERVABILITY_SCHEMA_VERSION: u32 = 11;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 12;
 
     /// Seal a newly constructed checkpoint with its complete continuation identity.
     #[must_use]

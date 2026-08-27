@@ -121,7 +121,7 @@ This preserves a useful distinction between current co-residence and persistent 
 
 ## Travel cost and relocation risk
 
-A completed move deducts condition from each living mover according to distance and the configured per-cell travel-condition cost, bounded by the condition scale. The manifest reports total realized travel-condition loss.
+A completed move requests a nominal per-person condition decrement according to distance and the configured per-cell travel-condition cost. Each mover's actual decrement is bounded by their available condition, so the realized loss can be smaller when condition saturates at zero. Authoritative migration events and retained traces therefore preserve separate nominal-per-person and realized-per-move quantities: event JSON follows the established snake_case event-field convention (`nominal_travel_condition_cost_per_person`, `realized_travel_condition_loss_total`), while retained trace JSON uses camelCase (`nominalTravelConditionCostPerPerson`, `realizedTravelConditionLossTotal`). The manifest reports the all-move realized `travelConditionCostTotal`.
 
 Relocation risk is currently a **candidate-action decision penalty** rather than an additional movement-injury or movement-mortality draw. The base term is paid once for taking the relocation action; the per-cell term increases that anticipated penalty with distance. Neither applies to staying.
 
@@ -146,7 +146,8 @@ To keep normal manifests bounded, M4 records only the first configured number of
 - factor-by-factor selected-destination relocation utility;
 - best visible candidate and its utility;
 - selected and total stochastic-choice weights plus the choice draw;
-- travel condition cost per person.
+- nominal travel-condition cost per person;
+- exact realized bounded travel-condition loss for that completed household move.
 
 Aggregate migration totals continue to include all moves even after the detailed-trace cap is reached.
 
