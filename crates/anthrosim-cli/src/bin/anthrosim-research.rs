@@ -7,9 +7,9 @@ use std::{
 
 use anthrosim_core::{
     Population, ResearchCoordinate, ResearchExperimentDefinition, ResearchPoint, ResearchRunConfig,
-    Simulation, SimulationCheckpoint, SourceRevisionIdentity, SpatialLandscapeCheckpoint,
-    SpatialLandscapeRunManifest, SpatialLandscapeSimulation, World, research_run_identity,
-    validate_resolved_research_run,
+    RunManifest, Simulation, SimulationCheckpoint, SourceRevisionIdentity,
+    SpatialLandscapeCheckpoint, SpatialLandscapeRunManifest, SpatialLandscapeSimulation, World,
+    research_run_identity, validate_resolved_research_run,
 };
 use clap::Parser;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -23,6 +23,7 @@ mod run_directory;
 use run_directory::{RunDirectoryTransaction, recover_interrupted_replacement};
 
 const RESEARCH_MANIFEST: &str = "research-manifest.json";
+const RESEARCH_PLAN: &str = "research-plan.json";
 const RESEARCH_STATE: &str = "research-state.json";
 
 #[derive(Debug, Parser)]
@@ -68,7 +69,7 @@ fn execute(cli: &Cli) -> Result<(), Box<dyn Error>> {
             recover_interrupted_replacement(&run_dir)?;
 
             if run_dir.exists() {
-                let digest = validate_completed_run(&run_dir, planned)?;
+                let digest = validate_completed_run(&run_dir, planned, &manifest.source)?;
                 state.reconcile_completed(planned, digest);
                 write_state(&state_path, &state)?;
                 continue;
@@ -76,7 +77,7 @@ fn execute(cli: &Cli) -> Result<(), Box<dyn Error>> {
 
             let attempt = state.begin_attempt(planned)?;
             write_state(&state_path, &state)?;
-            match execute_planned_run(&run_dir, planned) {
+            match execute_planned_run(&run_dir, planned, &manifest.source) {
                 Ok(completion) => {
                     state.finish_completed(planned, attempt, completion)?;
                     write_state(&state_path, &state)?;
@@ -201,6 +202,51 @@ fn execution_identity(definition_identity: &str, source: &SourceRevisionIdentity
     format!("research-execution-v1-{:016x}", fnv1a64(&bytes))
 }
 
+#[derive(Debug)]
+enum ImmutableMetadataRecord {
+    Missing,
+    Valid(Box<ResearchExecutionManifest>),
+    Malformed(String),
+}
+
+fn inspect_immutable_metadata(
+    path: &Path,
+    role: &str,
+) -> Result<ImmutableMetadataRecord, Box<dyn Error>> {
+    if !bundle::artifact_fs::regular_file_exists(path, role)? {
+        return Ok(ImmutableMetadataRecord::Missing);
+    }
+    let content = bundle::artifact_fs::read_to_string(path, role)?;
+    Ok(
+        match serde_json::from_str::<ResearchExecutionManifest>(&content) {
+            Ok(manifest) => ImmutableMetadataRecord::Valid(Box::new(manifest)),
+            Err(error) => ImmutableMetadataRecord::Malformed(error.to_string()),
+        },
+    )
+}
+
+fn metadata_matches_expected(
+    record: &ImmutableMetadataRecord,
+    expected: &ResearchExecutionManifest,
+    role: &str,
+) -> Result<bool, Box<dyn Error>> {
+    match record {
+        ImmutableMetadataRecord::Valid(actual) if actual.as_ref() == expected => Ok(true),
+        ImmutableMetadataRecord::Valid(_) => {
+            Err(format!("--retry definition/source does not exactly match immutable {role}").into())
+        }
+        ImmutableMetadataRecord::Missing | ImmutableMetadataRecord::Malformed(_) => Ok(false),
+    }
+}
+
+fn metadata_problem(record: &ImmutableMetadataRecord, role: &str) -> String {
+    match record {
+        ImmutableMetadataRecord::Missing => format!("{role} is missing"),
+        ImmutableMetadataRecord::Malformed(error) => format!("{role} is malformed: {error}"),
+        ImmutableMetadataRecord::Valid(_) => format!("{role} is valid"),
+    }
+}
+
 fn prepare_root(
     root: &Path,
     expected: &ResearchExecutionManifest,
@@ -208,20 +254,49 @@ fn prepare_root(
 ) -> Result<(), Box<dyn Error>> {
     reject_symlink(root, "research root")?;
     let manifest_path = root.join(RESEARCH_MANIFEST);
+    let plan_path = root.join(RESEARCH_PLAN);
     if retry {
-        if !root.is_dir() {
+        if !root.exists() {
             return Err(format!(
                 "research root does not exist for --retry: {}",
                 root.display()
             )
             .into());
         }
-        let recorded: ResearchExecutionManifest = read_json(&manifest_path)?;
-        if &recorded != expected {
-            return Err(
-                "--retry definition/source does not exactly match immutable research-manifest.json"
-                    .into(),
-            );
+        if !root.is_dir() {
+            return Err(format!(
+                "research root exists and is not a directory: {}",
+                root.display()
+            )
+            .into());
+        }
+        if fs::read_dir(root)?.next().transpose()?.is_none() {
+            // A crash after creating the root but before publishing immutable metadata is safe to
+            // restart because no scientific child could have been published yet.
+            write_json_atomic(&plan_path, expected, "immutable research plan")?;
+            write_json_atomic(&manifest_path, expected, "immutable research manifest")?;
+            return Ok(());
+        }
+
+        let manifest_record =
+            inspect_immutable_metadata(&manifest_path, "immutable research manifest")?;
+        let plan_record = inspect_immutable_metadata(&plan_path, "immutable research plan")?;
+        let manifest_matches =
+            metadata_matches_expected(&manifest_record, expected, RESEARCH_MANIFEST)?;
+        let plan_matches = metadata_matches_expected(&plan_record, expected, RESEARCH_PLAN)?;
+        if !manifest_matches && !plan_matches {
+            return Err(format!(
+                "cannot recover immutable research metadata without one exact corroborating copy: {}; {}",
+                metadata_problem(&manifest_record, RESEARCH_MANIFEST),
+                metadata_problem(&plan_record, RESEARCH_PLAN),
+            )
+            .into());
+        }
+        if !plan_matches {
+            write_json_atomic(&plan_path, expected, "immutable research plan")?;
+        }
+        if !manifest_matches {
+            write_json_atomic(&manifest_path, expected, "immutable research manifest")?;
         }
         return Ok(());
     }
@@ -240,6 +315,9 @@ fn prepare_root(
     } else {
         fs::create_dir_all(root)?;
     }
+    // Publish the redundant immutable plan first. If the process dies between these two atomic
+    // writes, --retry reconstructs the manifest from the exact plan before any run is attempted.
+    write_json_atomic(&plan_path, expected, "immutable research plan")?;
     write_json_atomic(&manifest_path, expected, "immutable research manifest")?;
     Ok(())
 }
@@ -412,14 +490,28 @@ fn load_or_initialize_state(
     manifest: &ResearchExecutionManifest,
     retry: bool,
 ) -> Result<ResearchExecutionState, Box<dyn Error>> {
-    if path.exists() {
-        let state: ResearchExecutionState = read_json(path)?;
-        state.validate_plan(manifest)?;
-        return Ok(state);
+    if bundle::artifact_fs::regular_file_exists(path, "research execution state")? {
+        let content = bundle::artifact_fs::read_to_string(path, "research execution state")?;
+        match serde_json::from_str::<ResearchExecutionState>(&content) {
+            Ok(state) => {
+                state.validate_plan(manifest)?;
+                return Ok(state);
+            }
+            Err(_) if retry => {
+                // Mutable state is reconstructible from the immutable plan plus child-bundle
+                // reconciliation. Never guess immutable identity fields from a damaged state file.
+                let state = ResearchExecutionState::new(manifest);
+                write_state(path, &state)?;
+                return Ok(state);
+            }
+            Err(error) => {
+                return Err(format!("research execution state is malformed: {error}").into());
+            }
+        }
     }
     if retry {
-        // A crash after publishing the immutable manifest but before the first mutable state write
-        // is recoverable because the complete run plan lives in the manifest.
+        // A crash after publishing immutable metadata but before the first mutable state write is
+        // recoverable because the complete run plan lives in the manifest/plan pair.
         let state = ResearchExecutionState::new(manifest);
         write_state(path, &state)?;
         return Ok(state);
@@ -441,6 +533,7 @@ struct RunCompletion {
 fn execute_planned_run(
     run_dir: &Path,
     planned: &PlannedRun,
+    source: &SourceRevisionIdentity,
 ) -> Result<RunCompletion, Box<dyn Error>> {
     let transaction = RunDirectoryTransaction::fresh(run_dir)?;
     let staging = transaction.staging_dir();
@@ -450,7 +543,7 @@ fn execute_planned_run(
     };
     bundle::validated_bundle_files(staging)?;
     transaction.commit()?;
-    validate_completed_run(run_dir, planned)?;
+    validate_completed_run(run_dir, planned, source)?;
     Ok(completion)
 }
 
@@ -540,12 +633,27 @@ struct CompletionMarker<'a> {
     manifest: &'a str,
 }
 
-fn validate_completed_run(run_dir: &Path, planned: &PlannedRun) -> Result<u64, Box<dyn Error>> {
+fn validate_completed_run(
+    run_dir: &Path,
+    planned: &PlannedRun,
+    source: &SourceRevisionIdentity,
+) -> Result<u64, Box<dyn Error>> {
     bundle::validated_bundle_files(run_dir)?;
+    let run_manifest: RunManifest = read_json(&run_dir.join("manifest.json"))?;
     let checkpoint: SimulationCheckpoint = read_json(&run_dir.join("checkpoint.json"))?;
-    if checkpoint.experiment != planned.run_config.experiment {
+    let source_mismatch = run_manifest.model_version != source.model_version
+        || run_manifest.model_semantics_id != source.model_semantics_id
+        || run_manifest.git_commit != source.git_commit
+        || checkpoint.model_version != source.model_version
+        || checkpoint.model_semantics_id != source.model_semantics_id
+        || checkpoint.git_commit != source.git_commit;
+    if source_mismatch
+        || run_manifest.experiment != planned.run_config.experiment
+        || checkpoint.experiment != planned.run_config.experiment
+        || checkpoint.state_digest64 != run_manifest.state_digest64
+    {
         return Err(format!(
-            "completed bundle {} has an ExperimentConfig different from immutable research plan",
+            "completed bundle {} differs from immutable research run configuration/source",
             run_dir.display()
         )
         .into());
@@ -562,8 +670,10 @@ fn validate_completed_run(run_dir: &Path, planned: &PlannedRun) -> Result<u64, B
                 read_json(&run_dir.join("landscape-checkpoint.json"))?;
             if landscape != expected.landscape
                 || mechanisms != expected.mechanisms
-                || wrapper_manifest.core_manifest.experiment != planned.run_config.experiment
-                || wrapper_checkpoint.core_checkpoint.experiment != planned.run_config.experiment
+                || wrapper_manifest.core_manifest != run_manifest
+                || wrapper_checkpoint.core_checkpoint != checkpoint
+                || wrapper_checkpoint.spatial.spatial_model_semantics_id
+                    != expected.spatial_model_semantics_id
             {
                 return Err("completed spatial bundle differs from immutable research plan".into());
             }
@@ -808,6 +918,19 @@ mod tests {
                 .all(|run| run.state == RunStateKind::Completed)
         );
         assert!(after.runs.values().all(|run| run.attempt == 1));
+        assert!(after.runs.values().all(|run| run.state_digest64.is_some()));
+        assert_eq!(
+            before
+                .runs
+                .values()
+                .map(|run| run.state_digest64)
+                .collect::<Vec<_>>(),
+            after
+                .runs
+                .values()
+                .map(|run| run.state_digest64)
+                .collect::<Vec<_>>()
+        );
 
         let runs: serde_json::Value = read_json(&root.join("analysis/runs.json")).unwrap();
         let rows = runs["runs"].as_array().unwrap();
@@ -815,6 +938,109 @@ mod tests {
         assert_eq!(rows[0]["coordinates"][0]["id"], "m3_periods_per_year");
         assert!(rows[0]["resultingConfiguration"]["experiment"]["demography"].is_object());
         assert!(rows[0]["resultingConfiguration"]["experiment"]["migration"].is_object());
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(definition_path).unwrap();
+    }
+
+    #[test]
+    fn missing_run_is_recreated_with_same_identity_configuration_and_digest() {
+        let root = temp_root("recreate-missing");
+        let definition_path = root.with_extension("json");
+        fs::write(
+            &definition_path,
+            serde_json::to_vec_pretty(&tiny_definition()).unwrap(),
+        )
+        .unwrap();
+        execute(&Cli {
+            definition: definition_path.clone(),
+            run_dir: root.clone(),
+            retry: false,
+        })
+        .unwrap();
+
+        let manifest_before: ResearchExecutionManifest =
+            read_json(&root.join(RESEARCH_MANIFEST)).unwrap();
+        let state_before: ResearchExecutionState = read_json(&root.join(RESEARCH_STATE)).unwrap();
+        let planned = &manifest_before.points[0].runs[0];
+        let run_id = planned.run_id.clone();
+        let run_config = planned.run_config.clone();
+        let relative_dir = planned.relative_dir.clone();
+        let digest_before = state_before.runs[&run_id].state_digest64.unwrap();
+        fs::remove_dir_all(root.join(&relative_dir)).unwrap();
+
+        execute(&Cli {
+            definition: definition_path.clone(),
+            run_dir: root.clone(),
+            retry: true,
+        })
+        .unwrap();
+
+        let manifest_after: ResearchExecutionManifest =
+            read_json(&root.join(RESEARCH_MANIFEST)).unwrap();
+        assert_eq!(manifest_after, manifest_before);
+        let state_after: ResearchExecutionState = read_json(&root.join(RESEARCH_STATE)).unwrap();
+        let recreated = &state_after.runs[&run_id];
+        assert_eq!(recreated.attempt, 2);
+        assert_eq!(recreated.state_digest64, Some(digest_before));
+        let checkpoint: SimulationCheckpoint =
+            read_json(&root.join(relative_dir).join("checkpoint.json")).unwrap();
+        assert_eq!(checkpoint.experiment, run_config.experiment);
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(definition_path).unwrap();
+    }
+
+    #[test]
+    fn retry_recovers_redundant_root_metadata_and_malformed_mutable_state() {
+        let root = temp_root("root-recovery");
+        let definition_path = root.with_extension("json");
+        fs::write(
+            &definition_path,
+            serde_json::to_vec_pretty(&tiny_definition()).unwrap(),
+        )
+        .unwrap();
+        execute(&Cli {
+            definition: definition_path.clone(),
+            run_dir: root.clone(),
+            retry: false,
+        })
+        .unwrap();
+        let expected: ResearchExecutionManifest = read_json(&root.join(RESEARCH_MANIFEST)).unwrap();
+
+        fs::remove_file(root.join(RESEARCH_MANIFEST)).unwrap();
+        fs::write(root.join(RESEARCH_STATE), b"{malformed").unwrap();
+        execute(&Cli {
+            definition: definition_path.clone(),
+            run_dir: root.clone(),
+            retry: true,
+        })
+        .unwrap();
+        let recovered_manifest: ResearchExecutionManifest =
+            read_json(&root.join(RESEARCH_MANIFEST)).unwrap();
+        let recovered_plan: ResearchExecutionManifest =
+            read_json(&root.join(RESEARCH_PLAN)).unwrap();
+        assert_eq!(recovered_manifest, expected);
+        assert_eq!(recovered_plan, expected);
+        let recovered_state: ResearchExecutionState =
+            read_json(&root.join(RESEARCH_STATE)).unwrap();
+        assert!(
+            recovered_state
+                .runs
+                .values()
+                .all(|run| run.state == RunStateKind::Completed && run.attempt == 1)
+        );
+
+        fs::write(root.join(RESEARCH_PLAN), b"{malformed-again").unwrap();
+        execute(&Cli {
+            definition: definition_path.clone(),
+            run_dir: root.clone(),
+            retry: true,
+        })
+        .unwrap();
+        let recovered_plan_again: ResearchExecutionManifest =
+            read_json(&root.join(RESEARCH_PLAN)).unwrap();
+        assert_eq!(recovered_plan_again, expected);
 
         fs::remove_dir_all(&root).unwrap();
         fs::remove_file(definition_path).unwrap();

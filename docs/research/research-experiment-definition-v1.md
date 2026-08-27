@@ -13,7 +13,7 @@ The v1 research definition therefore contains:
 - `schemaVersion`: research-definition schema version, currently `1`;
 - `seeds`: an ordered, duplicate-free list of run seeds;
 - `base.experiment`: one complete authoritative `ExperimentConfig`;
-- optional `base.spatial`: an exact `LandscapeBundle` plus `SpatialMechanismConfig`;
+- optional `base.spatial`: the exact `SPATIAL_MODEL_SEMANTICS_ID`, `LandscapeBundle`, and `SpatialMechanismConfig`;
 - `dimensions`: an ordered list of varied scientific coordinates.
 
 No synthetic model defaults are reconstructed by the research runner. The complete serialized `ExperimentConfig` in the definition is the base scientific state.
@@ -24,7 +24,7 @@ Each dimension has a stable study-facing `id`, a `kind`, an RFC 6901 JSON-pointe
 
 Paths are limited to the exact typed research configuration rooted at `/experiment` or `/spatial`. A path must already exist in the exact base configuration. Unknown paths fail before execution; there is no create-if-missing behavior and no ignored override behavior.
 
-`/experiment/seed` is reserved because seeds are controlled by the ordered top-level `seeds` list. Any `schemaVersion` path is also reserved. Changing either through a scientific dimension would mix provenance/schema identity with scientific coordinates and is rejected.
+`/experiment/seed` is reserved because seeds are controlled by the ordered top-level `seeds` list. Any `schemaVersion` path is also reserved. `/spatial/spatialModelSemanticsId` is likewise reserved: it identifies executable build semantics and cannot be pretended into existence by a within-build dimension. Changing any of these through a scientific dimension would mix provenance/schema identity with scientific coordinates and is rejected.
 
 The v1 path vocabulary is part of the versioned research-definition contract. Examples include:
 
@@ -46,7 +46,7 @@ This classification is preserved in point/run analysis rows. Downstream analysis
 
 ## Deterministic expansion
 
-Dimensions are expanded as a Cartesian product in declaration order. Values retain their listed order. Under schema v1 the final declared dimension varies fastest. A definition with no dimensions still produces one scientific point: the exact base configuration.
+Dimensions are expanded as a Cartesian product in declaration order. Values retain their listed order. Under schema v1 the final declared dimension varies fastest. A definition with no dimensions still produces one scientific point: the exact base configuration. Expansion fails closed above 100,000 scientific points rather than allocating an unbounded orchestration plan.
 
 Each point preserves:
 
@@ -59,7 +59,7 @@ The ordered seed list is then paired with every point. Seed substitution changes
 
 ## Immutable identities and provenance
 
-The research runner writes one immutable `research-manifest.json` before scientific execution. It contains the original definition, source-revision identity, all expanded points, all per-seed runs, and every exact resulting configuration.
+The research runner writes a redundant immutable `research-plan.json` / `research-manifest.json` pair before scientific execution. Each contains the original definition, source-revision identity, all expanded points, all per-seed runs, and every exact resulting configuration. The plan is published first so a crash between the two atomic metadata writes can reconstruct the manifest before any scientific child run is attempted.
 
 Identity layers are deliberately separate:
 
@@ -76,7 +76,7 @@ These identities are orchestration/provenance identities. They do not change Ant
 
 Each run is written through the existing transactional run-directory machinery and validated as a normal AnthroSim bundle before publication. Mutable execution state is stored separately from the immutable research manifest.
 
-`--retry` is fail-closed: the supplied definition and current source revision must reconstruct exactly the immutable recorded manifest. Existing completed bundles are revalidated against their exact planned `ExperimentConfig` and, for spatial runs, their exact landscape/mechanism configuration. Valid completed runs are retained; missing or failed runs are retried under the same immutable run identity. A retry may not silently substitute a new configuration.
+`--retry` is fail-closed: the supplied definition and current source revision must reconstruct exactly at least one valid immutable root copy, and any valid immutable copy that disagrees causes failure. A missing or malformed counterpart is deterministically reconstructed. Mutable `research-state.json` may also be reconstructed from the immutable plan and child bundles if a crash leaves it missing or malformed. Existing completed bundles are revalidated against their exact planned `ExperimentConfig`, exact source revision and, for spatial runs, their exact spatial semantics/landscape/mechanism configuration. Valid completed runs are retained; missing or failed runs are retried under the same immutable run identity and must reproduce the same deterministic result. A retry may not silently substitute a new configuration.
 
 This preserves the crash-recovery principle introduced for M7 orchestration by #172 while keeping the scientific plan immutable.
 

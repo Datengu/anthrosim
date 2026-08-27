@@ -5,9 +5,11 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::{
-    ExperimentConfig, LandscapeBundle, Simulation, SourceRevisionIdentity,
-    SpatialLandscapeSimulation, SpatialMechanismConfig,
+    ExperimentConfig, LandscapeBundle, SPATIAL_MODEL_SEMANTICS_ID, Simulation,
+    SourceRevisionIdentity, SpatialLandscapeSimulation, SpatialMechanismConfig,
 };
+
+const MAX_RESEARCH_POINTS: usize = 100_000;
 
 /// Versioned research-facing sensitivity/uncertainty definition.
 ///
@@ -55,11 +57,20 @@ impl ResearchExperimentDefinition {
                 first_seed: self.seeds[0],
             });
         }
+        if let Some(spatial) = &self.base.spatial
+            && spatial.spatial_model_semantics_id != SPATIAL_MODEL_SEMANTICS_ID
+        {
+            return Err(ResearchExperimentError::SpatialModelSemanticsMismatch {
+                found: spatial.spatial_model_semantics_id.clone(),
+                expected: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
+            });
+        }
 
         let base = serde_json::to_value(&self.base)
             .map_err(|error| ResearchExperimentError::Serialization(error.to_string()))?;
         let mut ids = BTreeSet::new();
         let mut paths = BTreeSet::new();
+        let mut point_count = 1_usize;
         for dimension in &self.dimensions {
             dimension.validate_against(&base)?;
             if !ids.insert(dimension.id.clone()) {
@@ -71,6 +82,12 @@ impl ResearchExperimentDefinition {
                 return Err(ResearchExperimentError::DuplicateDimensionPath(
                     dimension.path.clone(),
                 ));
+            }
+            point_count = point_count
+                .checked_mul(dimension.values.len())
+                .ok_or(ResearchExperimentError::TooManyPoints)?;
+            if point_count > MAX_RESEARCH_POINTS {
+                return Err(ResearchExperimentError::TooManyPoints);
             }
         }
         Ok(())
@@ -150,6 +167,7 @@ impl ResearchRunConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ResearchSpatialConfig {
+    pub spatial_model_semantics_id: String,
     pub landscape: LandscapeBundle,
     pub mechanisms: SpatialMechanismConfig,
 }
@@ -287,13 +305,23 @@ pub fn validate_resolved_research_run(
     run_config: &ResearchRunConfig,
 ) -> Result<(), ResearchExperimentError> {
     match &run_config.spatial {
-        Some(spatial) => SpatialLandscapeSimulation::new(
-            run_config.experiment.clone(),
-            spatial.landscape.clone(),
-            spatial.mechanisms.clone(),
-        )
-        .map(|_| ())
-        .map_err(|error| ResearchExperimentError::InvalidResolvedConfiguration(error.to_string())),
+        Some(spatial) => {
+            if spatial.spatial_model_semantics_id != SPATIAL_MODEL_SEMANTICS_ID {
+                return Err(ResearchExperimentError::SpatialModelSemanticsMismatch {
+                    found: spatial.spatial_model_semantics_id.clone(),
+                    expected: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
+                });
+            }
+            SpatialLandscapeSimulation::new(
+                run_config.experiment.clone(),
+                spatial.landscape.clone(),
+                spatial.mechanisms.clone(),
+            )
+            .map(|_| ())
+            .map_err(|error| {
+                ResearchExperimentError::InvalidResolvedConfiguration(error.to_string())
+            })
+        }
         None => Simulation::new(run_config.experiment.clone())
             .map(|_| ())
             .map_err(|error| {
@@ -345,6 +373,11 @@ fn validate_pointer_contract(path: &str) -> Result<(), ResearchExperimentError> 
     }
     if segments.as_slice() == ["experiment", "seed"] {
         return Err(ResearchExperimentError::SeedIsNotDimension);
+    }
+    if segments.as_slice() == ["spatial", "spatialModelSemanticsId"] {
+        return Err(ResearchExperimentError::ReservedDimensionPath(
+            path.to_owned(),
+        ));
     }
     Ok(())
 }
@@ -452,6 +485,10 @@ pub enum ResearchExperimentError {
         "base ExperimentConfig seed {base_seed} must equal the first declared seed {first_seed}"
     )]
     BaseSeedMismatch { base_seed: u64, first_seed: u64 },
+    #[error(
+        "research spatial model semantics {found} do not match this build's executable semantics {expected}"
+    )]
+    SpatialModelSemanticsMismatch { found: String, expected: String },
     #[error("research dimension id may not be empty")]
     EmptyDimensionId,
     #[error("duplicate research dimension id {0}")]
@@ -739,6 +776,7 @@ mod tests {
             )],
         );
         definition.base.spatial = Some(ResearchSpatialConfig {
+            spatial_model_semantics_id: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
             landscape,
             mechanisms,
         });
@@ -758,21 +796,55 @@ mod tests {
             ResearchDimensionKind::Structural
         );
         assert_ne!(points[0].point_id, points[1].point_id);
+
+        let mut incompatible = definition.clone();
+        incompatible
+            .base
+            .spatial
+            .as_mut()
+            .unwrap()
+            .spatial_model_semantics_id = "anthrosim-spatial-model-semantics-impossible".to_owned();
+        assert!(matches!(
+            incompatible.expand(),
+            Err(ResearchExperimentError::SpatialModelSemanticsMismatch { .. })
+        ));
     }
 
     #[test]
-    fn invalid_model_variant_is_rejected_by_normal_execution_validation() {
+    fn invalid_enum_variant_fails_during_typed_expansion() {
         let mut definition = base_definition();
         definition.dimensions.push(ResearchDimension {
-            id: "migration_model".to_owned(),
+            id: "population_initialization".to_owned(),
             kind: ResearchDimensionKind::Structural,
-            path: "/experiment/migration/modelId".to_owned(),
-            values: vec![Value::String("not-a-real-model".to_owned())],
+            path: "/experiment/population/initialization".to_owned(),
+            values: vec![Value::String("not_a_population_initialization".to_owned())],
         });
-        let point = definition.expand().unwrap().remove(0);
         assert!(matches!(
-            validate_resolved_research_run(&point.run_config),
-            Err(ResearchExperimentError::InvalidResolvedConfiguration(_))
+            definition.expand(),
+            Err(ResearchExperimentError::InvalidDimensionApplication { .. })
         ));
+    }
+
+    #[test]
+    fn cartesian_expansion_fails_closed_above_point_limit() {
+        let first = (0_u64..317).collect::<Vec<_>>();
+        let second = (0_u64..316).collect::<Vec<_>>();
+        let mut definition = base_definition();
+        definition.dimensions = vec![
+            numeric(
+                "annual_need",
+                "/experiment/resources/annualNeedUnitsPerPerson",
+                &first,
+            ),
+            numeric(
+                "minimum_utility",
+                "/experiment/migration/minimumUtilityImprovement",
+                &second,
+            ),
+        ];
+        assert_eq!(
+            definition.expand(),
+            Err(ResearchExperimentError::TooManyPoints)
+        );
     }
 }
