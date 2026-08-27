@@ -200,10 +200,10 @@ migration_doc.write_text(dtext.replace(old_trace_bullet, new_trace_bullet, 1))
 
 scientific = Path("docs/scientific-model.md")
 stext = scientific.read_text()
-old_science = '''A candidate must strictly exceed the configured minimum improvement over staying. Under v14, each eligible alternative's stochastic weight is exactly its positive integer utility improvement above that required threshold, with no `+1` pseudocount; common positive scaling therefore preserves relative choice probabilities. One destination is selected through the named deterministic `migration/choice` random stream.'''
+old_science = '''A candidate must exceed the configured minimum improvement over staying. Eligible alternatives receive weights proportional to utility improvement, and one is selected through the named deterministic `migration/choice` random stream.'''
 new_science = '''A candidate must strictly exceed the configured minimum improvement over staying. Under v14, each eligible alternative's stochastic weight is exactly its positive integer utility improvement above that required threshold, with no `+1` pseudocount; common positive scaling therefore preserves relative choice probabilities. One destination is selected through the named deterministic `migration/choice` random stream. Retained M4 decision traces preserve every eligible candidate's cell, utility and exact weight so the full categorical choice distribution can be reconstructed for recorded moves.'''
 if stext.count(old_science) != 1:
-    raise SystemExit("expected scientific M4 v14 paragraph exactly once")
+    raise SystemExit("expected scientific M4 pre-v14 weighting sentence exactly once")
 scientific.write_text(stext.replace(old_science, new_science, 1))
 
 trace = Path("docs/research/trace-m4-proportional-choice-repair-2026-08-27.md")
