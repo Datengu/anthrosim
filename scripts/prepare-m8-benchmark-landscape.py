@@ -28,6 +28,12 @@ SOURCE_VOID = -32768
 TERRAIN_DOMAIN_MAX = 2500
 INPUT_ID = "mapzen_skadi_n46e007"
 EVIDENCE_ID = "mapzen_skadi_n46e007_elevation"
+GRID_CONVENTION = {
+    "originAnchor": "upper_left_outer_corner",
+    "columnDirection": "increasing_x",
+    "rowDirection": "decreasing_y",
+    "cellInterpretation": "area",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -155,8 +161,9 @@ def main() -> None:
     output = args.output_dir
     output.mkdir(parents=True, exist_ok=True)
 
-    # HGT rows run north-to-south. Coordinates are integer arcseconds so the M8.1 geometry remains
-    # integer-valued; the spatial-reference text records the row orientation explicitly.
+    # HGT rows run north-to-south. The v2 bundle records that orientation explicitly as the
+    # normalized upper-left/increasing-X/decreasing-Y pixel-as-area convention. Coordinates remain
+    # integer arcseconds so no floating-point conversion enters the authoritative geometry.
     origin_x = 7 * 3600 + COL_START
     origin_y = 47 * 3600 - ROW_START
     geometry = {
@@ -168,9 +175,10 @@ def main() -> None:
         "spatialReference": "EPSG:4326; integer arcseconds; rows ordered north-to-south",
     }
     landscape = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "width": WIDTH,
         "height": HEIGHT,
+        "gridConvention": GRID_CONVENTION,
         "geometry": geometry,
         "layers": [
             {
@@ -243,7 +251,7 @@ def main() -> None:
             {
                 "inputId": INPUT_ID,
                 "evidenceId": EVIDENCE_ID,
-                "format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v1",
+                "format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v2",
                 "spatialReference": "EPSG:4326",
                 "contentDigest": f"sha256:{sha256}",
             }
@@ -256,6 +264,7 @@ def main() -> None:
         "sourceSha256": sha256,
         "sourceBytes": len(compressed),
         "hgtSideSamples": side,
+        "gridConvention": GRID_CONVENTION,
         "patch": {
             "width": WIDTH,
             "height": HEIGHT,
