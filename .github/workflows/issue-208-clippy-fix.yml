@@ -1,0 +1,40 @@
+name: Issue 208 clippy cleanup
+
+on:
+  push:
+    branches:
+      - fix/208-competing-mortality-risks
+    paths:
+      - scripts/fix-issue-208-clippy.py
+      - .github/workflows/issue-208-clippy-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[issue208-clippy-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/208-competing-mortality-risks
+          fetch-depth: 0
+      - name: Apply exact cleanup
+        run: python3 scripts/fix-issue-208-clippy.py
+      - name: Format
+        run: cargo fmt --all
+      - name: Verify focused Clippy
+        run: cargo clippy --locked -p anthrosim-core --all-targets --all-features -- -D warnings
+      - name: Run focused mortality tests
+        run: |
+          cargo test --locked -p anthrosim-core mortality -- --nocapture
+          cargo test --locked -p anthrosim-core competing_mortality -- --nocapture
+          cargo test --locked -p anthrosim-core condition_mortality -- --nocapture
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src
+          git commit -m "[issue208-clippy-applied] fix: clean competing mortality integration"
+          git push origin HEAD:fix/208-competing-mortality-risks
