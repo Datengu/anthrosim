@@ -670,7 +670,10 @@ fn build_run_rows(
                     .into());
                 }
                 if (run_manifest.population.living_population == 0)
-                    != run_manifest.population.mean_living_condition_permille.is_none()
+                    != run_manifest
+                        .population
+                        .mean_living_condition_permille
+                        .is_none()
                 {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -683,9 +686,15 @@ fn build_run_rows(
                 }
                 let migration_means = [
                     run_manifest.migration.mean_origin_resource_score_permille,
-                    run_manifest.migration.mean_destination_resource_score_permille,
-                    run_manifest.migration.mean_origin_water_security_score_permille,
-                    run_manifest.migration.mean_destination_water_security_score_permille,
+                    run_manifest
+                        .migration
+                        .mean_destination_resource_score_permille,
+                    run_manifest
+                        .migration
+                        .mean_origin_water_security_score_permille,
+                    run_manifest
+                        .migration
+                        .mean_destination_water_security_score_permille,
                 ];
                 if run_manifest.migration.moves_completed == 0 {
                     if migration_means.iter().any(Option::is_some) {
@@ -734,12 +743,15 @@ fn build_run_rows(
                     Some(run_manifest.migration.total_distance_cells);
                 row.migration_mean_origin_resource_score_permille =
                     run_manifest.migration.mean_origin_resource_score_permille;
-                row.migration_mean_destination_resource_score_permille =
-                    run_manifest.migration.mean_destination_resource_score_permille;
-                row.migration_mean_origin_water_security_score_permille =
-                    run_manifest.migration.mean_origin_water_security_score_permille;
-                row.migration_mean_destination_water_security_score_permille =
-                    run_manifest.migration.mean_destination_water_security_score_permille;
+                row.migration_mean_destination_resource_score_permille = run_manifest
+                    .migration
+                    .mean_destination_resource_score_permille;
+                row.migration_mean_origin_water_security_score_permille = run_manifest
+                    .migration
+                    .mean_origin_water_security_score_permille;
+                row.migration_mean_destination_water_security_score_permille = run_manifest
+                    .migration
+                    .mean_destination_water_security_score_permille;
             }
             rows.push(row);
         }
@@ -1784,21 +1796,19 @@ mod tests {
         }));
         assert!(runs.iter().all(|row| row.simulated_days == Some(0)));
         assert!(runs.iter().all(|row| row.end_day == Some(0)));
-        assert!(
-            runs.iter().all(|row| {
-                row.migration_moves_completed == Some(0)
-                    && row.migration_mean_origin_resource_score_permille.is_none()
-                    && row
-                        .migration_mean_destination_resource_score_permille
-                        .is_none()
-                    && row
-                        .migration_mean_origin_water_security_score_permille
-                        .is_none()
-                    && row
-                        .migration_mean_destination_water_security_score_permille
-                        .is_none()
-            })
-        );
+        assert!(runs.iter().all(|row| {
+            row.migration_moves_completed == Some(0)
+                && row.migration_mean_origin_resource_score_permille.is_none()
+                && row
+                    .migration_mean_destination_resource_score_permille
+                    .is_none()
+                && row
+                    .migration_mean_origin_water_security_score_permille
+                    .is_none()
+                && row
+                    .migration_mean_destination_water_security_score_permille
+                    .is_none()
+        }));
         assert_eq!(points.len(), 2);
         assert!(
             points
@@ -1823,11 +1833,9 @@ mod tests {
                 .iter()
                 .all(|row| row.migration_move_observed_runs_scientifically_eligible_only == 0)
         );
-        assert!(
-            points.iter().all(|row| {
-                row.migration_move_occurrence_fraction_scientifically_eligible_only == Some(0.0)
-            })
-        );
+        assert!(points.iter().all(|row| {
+            row.migration_move_occurrence_fraction_scientifically_eligible_only == Some(0.0)
+        }));
         assert!(
             points
                 .iter()
@@ -1858,8 +1866,7 @@ mod tests {
                 && row.get("endDay").is_some()
         }));
         assert!(runs_json.as_array().unwrap().iter().all(|row| {
-            row.get("migrationMeanOriginResourceScorePermille")
-                == Some(&serde_json::Value::Null)
+            row.get("migrationMeanOriginResourceScorePermille") == Some(&serde_json::Value::Null)
                 && row.get("migrationMeanDestinationResourceScorePermille")
                     == Some(&serde_json::Value::Null)
         }));
@@ -1890,8 +1897,12 @@ mod tests {
         assert!(points_csv.contains("household_size"));
         assert!(points_csv.contains("annual_food_need"));
         assert!(points_csv.contains("living_condition_defined_runs_scientifically_eligible_only"));
-        assert!(points_csv.contains("migration_move_occurrence_fraction_scientifically_eligible_only"));
-        assert!(points_csv.contains("mean_migration_origin_resource_score_permille_move_observed_only"));
+        assert!(
+            points_csv.contains("migration_move_occurrence_fraction_scientifically_eligible_only")
+        );
+        assert!(
+            points_csv.contains("mean_migration_origin_resource_score_permille_move_observed_only")
+        );
         assert!(
             points_csv.contains("mean_condition_mortality_deaths_scientifically_eligible_only")
         );
