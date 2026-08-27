@@ -44,6 +44,8 @@ mod condition_mortality_acceptance_tests;
 #[cfg(test)]
 mod demography_observability_tests;
 #[cfg(test)]
+mod focal_region_spatial_binding_tests;
+#[cfg(test)]
 mod founder_initialization_acceptance_tests;
 #[cfg(test)]
 mod m2_demographic_acceptance_tests;
