@@ -36,6 +36,13 @@ The M9 travel model requires support for its two scientifically substantive scal
 travel capacity per day and the maximum traversable movement cost. An explicitly synthetic travel
 model remains a null-model assumption and makes no empirical claim.
 
+M9 v1's trigger schedule is deliberately outside that empirical claim set. The frozen M9 v1
+contract defines temporary mobility as synthetic/null-model semantics and the trigger schedule as
+an exogenous experimental condition rather than a historical timing claim. If a later M9 schema
+allows empirical/evidence-informed schedule provenance, that schedule must gain a stable
+content-bound evidence identity and be added to the closure policy rather than inheriting `closed`
+status from the v1 null-model contract.
+
 A landscape-mask M9 focal region is itself an external-input evidence claim. Consequently a run
 with otherwise synthetic core mechanisms can no longer be labelled `not_applicable_synthetic` when
 its M9 region claims an evidence-bound landscape source.
