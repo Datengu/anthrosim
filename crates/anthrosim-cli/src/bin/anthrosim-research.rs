@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[path = "../bundle.rs"]
 mod bundle;
+#[allow(dead_code)]
 #[path = "../run_directory.rs"]
 mod run_directory;
 
@@ -67,8 +68,8 @@ fn execute(cli: &Cli) -> Result<(), Box<dyn Error>> {
             recover_interrupted_replacement(&run_dir)?;
 
             if run_dir.exists() {
-                validate_completed_run(&run_dir, planned)?;
-                state.reconcile_completed(planned);
+                let digest = validate_completed_run(&run_dir, planned)?;
+                state.reconcile_completed(planned, digest);
                 write_state(&state_path, &state)?;
                 continue;
             }
@@ -394,25 +395,16 @@ impl ResearchExecutionState {
         Ok(())
     }
 
-    fn reconcile_completed(&mut self, planned: &PlannedRun) {
+    fn reconcile_completed(&mut self, planned: &PlannedRun, digest: u64) {
         if let Some(run) = self.runs.get_mut(&planned.run_id) {
-            let digest = read_completed_digest(&planned.relative_dir);
             run.state = RunStateKind::Completed;
             if run.attempt == 0 {
                 run.attempt = 1;
             }
-            if let Some(digest) = digest {
-                run.state_digest64 = Some(digest);
-            }
+            run.state_digest64 = Some(digest);
             run.error = None;
         }
     }
-}
-
-// Reconciliation obtains the authoritative digest separately in `validate_completed_run`; this
-// helper intentionally returns None because state paths are experiment-root relative.
-fn read_completed_digest(_relative_dir: &Path) -> Option<u64> {
-    None
 }
 
 fn load_or_initialize_state(
