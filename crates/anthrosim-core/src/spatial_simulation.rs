@@ -215,6 +215,7 @@ impl SpatialLandscapeSimulation {
         mechanisms.validate()?;
         let landscape_binding = LandscapeBinding::from_bundle(&landscape)?;
         validate_grid_match(&config, &landscape_binding)?;
+        validate_movement_grid_geometry(&config, &landscape)?;
         if let Some(evidence) = &config.evidence {
             evidence.validate()?;
             landscape.validate_evidence_links(evidence)?;
@@ -300,6 +301,7 @@ impl SpatialLandscapeSimulation {
             &checkpoint.core_checkpoint.experiment,
             &checkpoint.landscape,
         )?;
+        validate_movement_grid_geometry(&checkpoint.core_checkpoint.experiment, &landscape)?;
         if let Some(evidence) = &checkpoint.core_checkpoint.experiment.evidence {
             evidence.validate()?;
             landscape.validate_evidence_links(evidence)?;
@@ -824,6 +826,7 @@ pub fn validate_spatial_landscape_recorded_run(
     run.manifest.landscape.validate_bundle(landscape)?;
     validate_core_checkpoint_header(&run.checkpoint.core_checkpoint)?;
     validate_experiment(&run.checkpoint.core_checkpoint.experiment)?;
+    validate_movement_grid_geometry(&run.checkpoint.core_checkpoint.experiment, landscape)?;
 
     let world = reconstruct_world(
         &run.checkpoint.core_checkpoint.experiment,
@@ -925,6 +928,22 @@ fn validate_grid_match(
         });
     }
     Ok(())
+}
+
+fn validate_movement_grid_geometry(
+    config: &ExperimentConfig,
+    landscape: &LandscapeBundle,
+) -> Result<(), SpatialLandscapeError> {
+    if landscape.geometry.has_square_cells()
+        || (!config.migration.enabled && config.temporary_mobility.is_none())
+    {
+        return Ok(());
+    }
+    Err(SpatialLandscapeError::RectangularMovementGrid {
+        cell_size_x: landscape.geometry.cell_size_x,
+        cell_size_y: landscape.geometry.cell_size_y,
+        coordinate_unit: landscape.geometry.coordinate_unit.clone(),
+    })
 }
 
 fn fixed_schedule_boundary_day(year_start_day: u64, index: u16, periods: u16) -> Option<u64> {
@@ -1199,6 +1218,14 @@ pub enum SpatialLandscapeError {
         "declared founder genealogy is unspecified while the active migration model gives kin non-zero weight"
     )]
     FounderKinStateUnspecified,
+    #[error(
+        "grid-step M4/M9 movement requires square landscape cells; found {cell_size_x} by {cell_size_y} {coordinate_unit} cells"
+    )]
+    RectangularMovementGrid {
+        cell_size_x: u64,
+        cell_size_y: u64,
+        coordinate_unit: String,
+    },
     #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSpatialBindingSchema { found: u32, supported: u32 },
     #[error(

@@ -681,7 +681,10 @@ mod tests {
         );
         landscape.validate().expect("valid v2 landscape");
 
-        assert_eq!(landscape.grid_convention, GridConvention::north_up_area_v1());
+        assert_eq!(
+            landscape.grid_convention,
+            GridConvention::north_up_area_v1()
+        );
         assert_eq!(landscape.grid_coordinates(CellId::new(1)), Some((0, 0)));
         assert_eq!(landscape.grid_coordinates(CellId::new(4)), Some((0, 1)));
         assert_eq!(landscape.grid_coordinates(CellId::new(6)), Some((2, 1)));
@@ -718,7 +721,10 @@ mod tests {
         landscape.schema_version = 1;
         assert!(matches!(
             landscape.validate(),
-            Err(LandscapeError::UnsupportedSchema { found: 1, supported: 2 })
+            Err(LandscapeError::UnsupportedSchema {
+                found: 1,
+                supported: 2
+            })
         ));
     }
 }

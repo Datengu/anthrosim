@@ -1,7 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "width": 16,
   "height": 16,
+  "gridConvention": {
+    "originAnchor": "upper_left_outer_corner",
+    "columnDirection": "increasing_x",
+    "rowDirection": "decreasing_y",
+    "cellInterpretation": "area"
+  },
   "geometry": {
     "originX": 26500,
     "originY": 167900,
