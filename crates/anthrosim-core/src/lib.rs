@@ -26,6 +26,7 @@ pub mod simulation;
 mod spatial_invariants;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
+pub mod spatial_realization;
 mod spatial_simulation;
 pub mod temporary_history;
 // M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
@@ -121,8 +122,8 @@ pub use simulation::{RecordedRun, Simulation, SimulationError};
 pub use spatial_invariants::{SpatialInvariantError, validate_spatial_landscape_recorded_run};
 pub use spatial_mechanisms::{
     NoDataPolicy, SPATIAL_MODEL_SEMANTICS_ID, SpatialFieldTransform, SpatialMechanismConfig,
-    SpatialMechanismError, SpatialMechanismOverlay, SpatialTargetField, TransformDirection,
-    transform_landscape,
+    SpatialMechanismError, SpatialMechanismOverlay, SpatialRunRealization, SpatialTargetField,
+    TransformDirection, transform_landscape,
 };
 pub use spatial_observability::{
     SpatialCellObservability, SpatialDerivedCell, SpatialLayerDescriptor,
@@ -130,6 +131,10 @@ pub use spatial_observability::{
     SpatialModelFacingCell, SpatialObservabilityError, SpatialObservabilityReport,
     SpatialObservabilitySemantics, SpatialObservabilitySource, SpatialObservabilitySummary,
     derive_spatial_observability,
+};
+pub use spatial_realization::{
+    SpatialEnvironmentProvenance, SpatialRealizationMode, SpatialResidualSyntheticWorldField,
+    SpatialResolvedRealization,
 };
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
