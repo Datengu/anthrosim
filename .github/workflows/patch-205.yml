@@ -1,0 +1,78 @@
+name: Temporary issue 205 patch
+
+on:
+  push:
+    branches:
+      - feat/205-exact-sensitivity-definition
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: feat/205-exact-sensitivity-definition
+          fetch-depth: 0
+      - name: Apply narrow fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          core = Path('crates/anthrosim-core/src/research_experiment.rs')
+          text = core.read_text()
+          text = text.replace(
+              'DemographyConfig, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,\n        MigrationConfig, PopulationConfig, ResourceConfig, WorldConfig,',
+              'DemographyConfig, GridGeometry, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,\n        MigrationConfig, PopulationConfig, ResourceConfig, WorldConfig,'
+          )
+          text = text.replace(
+              '/experiment/resources/maxScarcityMortalityProbabilityPerMillion',
+              '/experiment/resources/maxConditionMortalityProbabilityPerMillion'
+          )
+          old = '''        let landscape = LandscapeBundle::new(\n            4,\n            4,\n            "EPSG:27700",\n            vec![LandscapeLayer::new(\n                "terrain",\n                LandscapeLayerRole::TerrainTraversal,\n                "cost",\n                LandscapeValueDomain::new(0, 100),\n                vec![50; 16],\n            )],\n        )\n        .unwrap();'''
+          new = '''        let landscape = LandscapeBundle::new(\n            4,\n            4,\n            GridGeometry {\n                origin_x: 0,\n                origin_y: 400,\n                cell_size_x: 100,\n                cell_size_y: 100,\n                coordinate_unit: "metre".to_owned(),\n                spatial_reference: "EPSG:27700".to_owned(),\n            },\n            vec![LandscapeLayer {\n                layer_id: "terrain".to_owned(),\n                role: LandscapeLayerRole::TerrainTraversal,\n                unit: "cost".to_owned(),\n                value_domain: Some(LandscapeValueDomain { min: 0, max: 100 }),\n                evidence_input_id: None,\n                values: vec![Some(50); 16],\n            }],\n        );'''
+          if old not in text:
+              raise SystemExit('expected landscape fixture block not found')
+          text = text.replace(old, new)
+          text = text.replace(
+              'LandscapeValueDomain::new(0, 100),\n                100,',
+              'LandscapeValueDomain { min: 0, max: 100 },\n                100,'
+          )
+          core.write_text(text)
+
+          runner = Path('crates/anthrosim-cli/src/bin/anthrosim-research.rs')
+          text = runner.read_text()
+          text = text.replace(
+              '#[path = "../run_directory.rs"]\nmod run_directory;',
+              '#[allow(dead_code)]\n#[path = "../run_directory.rs"]\nmod run_directory;'
+          )
+          text = text.replace(
+              '''            if run_dir.exists() {\n                validate_completed_run(&run_dir, planned)?;\n                state.reconcile_completed(planned);''',
+              '''            if run_dir.exists() {\n                let digest = validate_completed_run(&run_dir, planned)?;\n                state.reconcile_completed(planned, digest);'''
+          )
+          old = '''    fn reconcile_completed(&mut self, planned: &PlannedRun) {\n        if let Some(run) = self.runs.get_mut(&planned.run_id) {\n            let digest = read_completed_digest(&planned.relative_dir);\n            run.state = RunStateKind::Completed;\n            if run.attempt == 0 {\n                run.attempt = 1;\n            }\n            if let Some(digest) = digest {\n                run.state_digest64 = Some(digest);\n            }\n            run.error = None;\n        }\n    }\n}\n\n// Reconciliation obtains the authoritative digest separately in `validate_completed_run`; this\n// helper intentionally returns None because state paths are experiment-root relative.\nfn read_completed_digest(_relative_dir: &Path) -> Option<u64> {\n    None\n}\n'''
+          new = '''    fn reconcile_completed(&mut self, planned: &PlannedRun, digest: u64) {\n        if let Some(run) = self.runs.get_mut(&planned.run_id) {\n            run.state = RunStateKind::Completed;\n            if run.attempt == 0 {\n                run.attempt = 1;\n            }\n            run.state_digest64 = Some(digest);\n            run.error = None;\n        }\n    }\n}\n'''
+          if old not in text:
+              raise SystemExit('expected reconciliation block not found')
+          text = text.replace(old, new)
+          text = text.replace(
+              '''        assert!(after\n            .runs\n            .values()\n            .all(|run| run.state == RunStateKind::Completed));\n        assert!(after.runs.values().all(|run| run.attempt == 1));''',
+              '''        assert!(after\n            .runs\n            .values()\n            .all(|run| run.state == RunStateKind::Completed));\n        assert!(after.runs.values().all(|run| run.attempt == 1));\n        assert!(after.runs.values().all(|run| run.state_digest64.is_some()));\n        assert_eq!(\n            before\n                .runs\n                .values()\n                .map(|run| run.state_digest64)\n                .collect::<Vec<_>>(),\n            after\n                .runs\n                .values()\n                .map(|run| run.state_digest64)\n                .collect::<Vec<_>>()\n        );'''
+          )
+          runner.write_text(text)
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Format and commit
+        run: |
+          cargo fmt --all
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add crates/anthrosim-core/src/research_experiment.rs crates/anthrosim-cli/src/bin/anthrosim-research.rs
+          git commit -m "fix: validate issue 205 research fixtures and retry digest"
+          git push origin HEAD:feat/205-exact-sensitivity-definition
