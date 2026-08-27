@@ -171,7 +171,7 @@ fn changed_member_cells_cannot_retain_landscape_mask_provenance() {
 fn changed_evidence_input_cannot_retain_landscape_mask_provenance() {
     let (landscape, evidence, world, region) = bound_mask_fixture();
     let tampered = FocalRegion::new(
-        region.region_id,
+        region.region_id.clone(),
         FocalRegionSource::LandscapeMask {
             layer_id: "region-mask".to_owned(),
             evidence_input_id: "different-input".to_owned(),
