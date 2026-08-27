@@ -35,6 +35,7 @@ use crate::{
         SPATIAL_MODEL_SEMANTICS_ID, SpatialMechanismConfig, SpatialMechanismError,
         transform_landscape,
     },
+    spatial_realization::SpatialEnvironmentProvenance,
     temporary_mobility::{
         TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
         TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
@@ -50,24 +51,37 @@ pub struct SpatialMechanismBinding {
     pub spatial_model_semantics_id: String,
     pub config_identity: String,
     pub config: SpatialMechanismConfig,
+    /// Exact resolved seed roles plus the residual synthetic fields still present after M8
+    /// transformation. This is deliberately separate from `config_identity`.
+    pub environment: SpatialEnvironmentProvenance,
     pub transformed_world_digest64: u64,
 }
 
 impl SpatialMechanismBinding {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
-    fn new(config: SpatialMechanismConfig, world: &World) -> Result<Self, SpatialLandscapeError> {
+    fn new(
+        config: SpatialMechanismConfig,
+        world: &World,
+        experiment: &ExperimentConfig,
+    ) -> Result<Self, SpatialLandscapeError> {
         config.validate()?;
+        let environment = SpatialEnvironmentProvenance::resolve(experiment, &config);
         Ok(Self {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             spatial_model_semantics_id: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),
             config_identity: config.identity(),
             config,
+            environment,
             transformed_world_digest64: world.digest64(),
         })
     }
 
-    fn validate(&self, world: &World) -> Result<(), SpatialLandscapeError> {
+    fn validate(
+        &self,
+        world: &World,
+        experiment: &ExperimentConfig,
+    ) -> Result<(), SpatialLandscapeError> {
         if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
             return Err(SpatialLandscapeError::UnsupportedSpatialBindingSchema {
                 found: self.schema_version,
@@ -87,6 +101,10 @@ impl SpatialMechanismBinding {
                 expected: self.config_identity.clone(),
                 actual: actual_identity,
             });
+        }
+        let expected_environment = SpatialEnvironmentProvenance::resolve(experiment, &self.config);
+        if self.environment != expected_environment {
+            return Err(SpatialLandscapeError::SpatialEnvironmentProvenanceMismatch);
         }
         if self.transformed_world_digest64 != world.digest64() {
             return Err(SpatialLandscapeError::TransformedWorldDigestMismatch {
@@ -193,6 +211,7 @@ impl SpatialLandscapeSimulation {
         mechanisms: SpatialMechanismConfig,
     ) -> Result<Self, SpatialLandscapeError> {
         validate_experiment(&config)?;
+        mechanisms.validate()?;
         let landscape_binding = LandscapeBinding::from_bundle(&landscape)?;
         validate_grid_match(&config, &landscape_binding)?;
         if let Some(evidence) = &config.evidence {
@@ -200,11 +219,19 @@ impl SpatialLandscapeSimulation {
             landscape.validate_evidence_links(evidence)?;
         }
 
-        let world = reconstruct_world(&config, &landscape, &mechanisms)?;
+        let environment = SpatialEnvironmentProvenance::resolve(&config, &mechanisms);
+        let world = reconstruct_world(
+            &config,
+            &landscape,
+            &mechanisms,
+            environment.realization.environment_seed,
+        )?;
         validate_spatial_temporary_mobility_definition(&config, &landscape, &world)?;
-        let spatial_binding = SpatialMechanismBinding::new(mechanisms, &world)?;
-        let rng_factory = RngFactory::new(config.seed);
-        let population = Population::initialize(config.population, &world, rng_factory)?;
+        let spatial_binding = SpatialMechanismBinding::new(mechanisms, &world, &config)?;
+        let population_rng_factory =
+            RngFactory::new(spatial_binding.environment.realization.population_seed);
+        let process_rng_factory = RngFactory::new(spatial_binding.environment.realization.process_seed);
+        let population = Population::initialize(config.population, &world, population_rng_factory)?;
         let configured_program = config
             .temporary_mobility
             .as_ref()
@@ -231,9 +258,9 @@ impl SpatialLandscapeSimulation {
             temporary_mobility,
             resources,
             migration,
-            demography_rngs: DemographyRngs::new(rng_factory),
-            resource_rngs: ResourceRngs::new(rng_factory),
-            migration_rngs: MigrationRngs::new(rng_factory),
+            demography_rngs: DemographyRngs::new(process_rng_factory),
+            resource_rngs: ResourceRngs::new(process_rng_factory),
+            migration_rngs: MigrationRngs::new(process_rng_factory),
             events: EventLog::new(),
             metrics: MetricSeries::annual(),
         })
@@ -265,8 +292,11 @@ impl SpatialLandscapeSimulation {
             &checkpoint.core_checkpoint.experiment,
             &landscape,
             &checkpoint.spatial.config,
+            checkpoint.spatial.environment.realization.environment_seed,
         )?;
-        checkpoint.spatial.validate(&world)?;
+        checkpoint
+            .spatial
+            .validate(&world, &checkpoint.core_checkpoint.experiment)?;
         if checkpoint.core_checkpoint.world_digest64 != world.digest64() {
             return Err(SpatialLandscapeError::CoreWorldDigestMismatch {
                 expected: checkpoint.core_checkpoint.world_digest64,
@@ -292,7 +322,7 @@ impl SpatialLandscapeSimulation {
             checkpoint.core_checkpoint.migration.clone(),
         )?;
 
-        let rng_factory = RngFactory::new(checkpoint.core_checkpoint.experiment.seed);
+        let rng_factory = RngFactory::new(checkpoint.spatial.environment.realization.process_seed);
         let mut demography_rngs = DemographyRngs::new(rng_factory);
         demography_rngs.restore_positions([
             checkpoint.core_checkpoint.rng.demography_mortality,
@@ -781,8 +811,11 @@ pub fn validate_spatial_landscape_recorded_run(
         &run.checkpoint.core_checkpoint.experiment,
         landscape,
         &run.checkpoint.spatial.config,
+        run.checkpoint.spatial.environment.realization.environment_seed,
     )?;
-    run.checkpoint.spatial.validate(&world)?;
+    run.checkpoint
+        .spatial
+        .validate(&world, &run.checkpoint.core_checkpoint.experiment)?;
     if run.checkpoint.core_checkpoint.world_digest64 != world.digest64() {
         return Err(SpatialLandscapeError::CoreWorldDigestMismatch {
             expected: run.checkpoint.core_checkpoint.world_digest64,
@@ -842,11 +875,12 @@ fn reconstruct_world(
     config: &ExperimentConfig,
     landscape: &LandscapeBundle,
     mechanisms: &SpatialMechanismConfig,
+    environment_seed: u64,
 ) -> Result<World, SpatialLandscapeError> {
     landscape.validate_evidence_context(config.evidence.as_ref())?;
     mechanisms.validate_evidence_links(config.evidence.as_ref())?;
     let overlay = transform_landscape(landscape, mechanisms)?;
-    let world = World::generate(config.world, RngFactory::new(config.seed))?
+    let world = World::generate(config.world, RngFactory::new(environment_seed))?
         .with_model_field_overlay(
             overlay.movement_cost.as_deref(),
             overlay.water_access.as_deref(),
@@ -1106,6 +1140,8 @@ pub enum SpatialLandscapeError {
     SpatialSemanticsMismatch { found: String, expected: String },
     #[error("spatial config identity mismatch: stored {expected}, reconstructed {actual}")]
     SpatialConfigIdentityMismatch { expected: String, actual: String },
+    #[error("spatial environment-realization provenance does not match the bound experiment/config")]
+    SpatialEnvironmentProvenanceMismatch,
     #[error("transformed world digest mismatch: stored {expected}, reconstructed {actual}")]
     TransformedWorldDigestMismatch { expected: u64, actual: u64 },
     #[error("core checkpoint world digest mismatch: stored {expected}, reconstructed {actual}")]
