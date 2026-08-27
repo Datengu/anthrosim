@@ -1,0 +1,46 @@
+name: Temporary #211 deduplicate
+
+on:
+  push:
+    branches: [feat/211-spatial-boundary-contract]
+
+permissions:
+  contents: write
+
+jobs:
+  clean-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: feat/211-spatial-boundary-contract
+          fetch-depth: 0
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
+          rustup default 1.97.1
+
+      - name: Remove duplicate convergence bindings
+        run: |
+          python3 -c 'from pathlib import Path; p=Path("crates/anthrosim-core/src/spatial_boundary.rs"); s=p.read_text(); u="    let latest_extension_within_tolerance = latest.all_metrics_within_tolerance;\n    let latest_extension_eligible_for_stability_sequence = latest.eligible_for_stability_sequence;\n    let material_boundary_dependence_at_latest_extension = !latest_extension_within_tolerance;\n"; assert u*4 in s; p.write_text(s.replace(u*4,u,1))'
+          cargo fmt --all
+          cargo fmt --all -- --check
+
+      - name: Validate final production tree
+        run: |
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+          cargo test --locked --workspace --all-features
+          cargo build --locked --workspace --release
+
+      - name: Publish cleanup and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/tmp-211-deduplicate.yml
+          git add crates/anthrosim-core/src/spatial_boundary.rs
+          git commit -m "chore: deduplicate spatial convergence bindings"
+          git push origin HEAD:feat/211-spatial-boundary-contract
