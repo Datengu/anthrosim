@@ -5,7 +5,7 @@ on:
       - fix/195-m4-proportional-weights
     paths:
       - .github/workflows/issue-195-implementation.yml
-      - .github/issue-195-apply.py
+      - .github/issue-195-trace-apply.py
 permissions:
   contents: write
 jobs:
@@ -17,10 +17,10 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.89.0
+          toolchain: 1.97.1
           components: rustfmt, clippy
-      - name: Apply repair
-        run: python .github/issue-195-apply.py
+      - name: Apply complete trace repair
+        run: python .github/issue-195-trace-apply.py
       - name: Format
         run: cargo fmt --all
       - name: Core migration tests
@@ -33,6 +33,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/anthrosim-core/src/migration.rs crates/anthrosim-core/src/provenance.rs docs/research/migration-v0.1.md docs/research/trace-m4-proportional-choice-repair-2026-08-27.md
-          git commit -m "fix: make M4 destination weights proportional to utility improvement (#195)"
+          git add crates/anthrosim-core/src/migration.rs crates/anthrosim-core/src/lib.rs crates/anthrosim-core/src/checkpoint.rs crates/anthrosim-core/src/manifest.rs crates/anthrosim-core/tests/migration_behavior.rs docs/research/migration-v0.1.md docs/scientific-model.md docs/research/trace-m4-proportional-choice-repair-2026-08-27.md
+          git commit -m "test: preserve complete M4 choice weights for issue #195"
           git push
