@@ -1,10 +1,12 @@
 # Temporary mobility observability v1
 
-Status: M9.6 implementation contract.
+Status: M9.6 implementation contract. The current serialized report schema is **2**.
 
 This document defines the first downstream, machine-readable observability contract for M9 temporary mobility. It is generic and does not assign archaeological meanings such as refuge, market, ritual centre or seasonal fair.
 
 The report is **derived** from preserved authoritative AnthroSim artifacts. It does not participate in simulation execution, random-number streams, checkpoint state or state digests, and it must be exactly regenerable from those artifacts.
+
+Report schema 2 separates **planned** travel burden from burden that was actually **observed or realized inside the preserved observation interval**. Schema 1 travel-duration/cost/distance aggregate names represented the complete planned round trip as soon as a journey departed; those ambiguous names must not be interpreted as realized burden.
 
 ## 1. Separation from permanent residence and migration
 
@@ -78,7 +80,7 @@ The report preserves temporary mobility as a distinct event family and exposes a
 - journeys terminated because the household lost all living members;
 - not-started counts by `TemporaryJourneyIneligibility`, including explicit unreachable and other non-participation reasons.
 
-A journey row records its authoritative household, trigger, residence, destination, timing, travel-model identity and cost metadata where available. The row also records derived visitor/transit person-days accumulated while that journey was active.
+A journey row records its authoritative household, trigger, residence, destination, timing, travel-model identity and planned route metadata where available. The row also records derived visitor/transit person-days accumulated while that journey was active, elapsed outbound/return transit days, completed route-leg count and the split between planned, realized and still-unrealized travel burden.
 
 ## 5. Visitor presence
 
@@ -94,22 +96,60 @@ The report exposes:
 
 Peak and mean counts use living persons, not nominal founder household size. Births and deaths while away therefore affect subsequent presence intervals.
 
-## 6. Travel burden and derived route distance
+## 6. Planned versus observed/realized travel burden
 
-Authoritative M9.4 travel metadata supplies:
+Authoritative M9.4 travel metadata supplies a **plan** when a journey starts:
 
 - chosen focal-region destination;
-- accumulated minimum travel cost where the M9.4 model is present;
-- outbound and return travel duration;
+- accumulated minimum one-way travel cost where the M9.4 model is present;
+- planned outbound and return travel duration;
 - travel-model identity.
 
-It does not persist a path or route-edge count. The observability report must therefore never substitute Manhattan or straight-line displacement and label it route distance.
+A departure does **not** make the future return leg realized. Report schema 2 therefore uses explicit planned names for the complete route plan and separate observed/realized quantities for what has occurred by the report boundary.
+
+### 6.1 Duration
+
+Duration can be observed while a leg is still in progress because the lifecycle preserves household transit state over time. Journey rows therefore expose:
+
+- `plannedOutboundTravelDays`;
+- `plannedReturnTravelDays`;
+- `plannedRoundTripTravelDays`;
+- `observedOutboundTransitDays`;
+- `observedReturnTransitDays`;
+- `observedTransitDays`;
+- `unrealizedPlannedTransitDays`.
+
+Top-level summary and origin-catchment rows expose the same planned/observed distinction. At each aggregation level:
+
+`plannedRoundTripTravelDays == observedTransitDays + unrealizedPlannedTransitDays`
+
+An active outbound journey can therefore have some observed outbound transit days while its entire return duration remains unrealized. An active visit has realized its full outbound duration but none of its planned return duration. An active return can have a partially observed return duration. A journey terminated by household extinction preserves elapsed transit duration and leaves the remainder of the plan in `unrealizedPlannedTransitDays`.
+
+Transit **days** are journey-duration quantities. Transit **person-days** remain the separately reported population exposure quantity and can differ when household membership changes.
+
+### 6.2 Route cost and route distance
+
+M9 v1 does not persist a path, per-edge progress or an authoritative daily en-route cell. The observability report must therefore never invent fractional route progress or substitute Manhattan/straight-line displacement and call it realized route distance.
 
 For an M9.4 program, downstream observability may deterministically recompute a **minimum edge-count among the authoritative minimum-cost routes to the authoritative destination**. Cost and destination remain the primary frozen routing criteria; edge count is used only as a downstream tie-break among routes that have the same authoritative cost and destination. The recomputed cost and destination must match the authoritative travel table or report derivation fails closed.
 
 This edge count is labelled `route_distance_edges`. It is derived, not authoritative simulation state.
 
-Legacy/lower-level temporary programs without M9.4 cost metadata may report route distance and accumulated cost as unavailable rather than inventing them.
+Because within-leg progress is unavailable, route cost and distance become realized only at authoritative leg endpoints:
+
+- departure: `realizedRouteLegs = 0`;
+- arrival at the focal destination: outbound leg becomes realized, `realizedRouteLegs = 1`;
+- return completion at residence: return leg also becomes realized, `realizedRouteLegs = 2`.
+
+Thus an active outbound journey has zero realized route cost/distance even if some transit days have elapsed. An active visit or active return has one complete realized route leg. A journey terminated by household extinction keeps any already completed leg realized, but an interrupted in-progress leg is not fractionally fabricated.
+
+Journey rows expose planned round-trip, realized and unrealized-planned cost/distance quantities. Summary and origin-catchment rows expose corresponding totals. For journeys whose route metadata is available:
+
+`plannedRoundTripTravelCostUnits == realizedTravelCostUnits + unrealizedPlannedTravelCostUnits`
+
+`plannedRoundTripRouteDistanceEdges == realizedRouteDistanceEdges + unrealizedPlannedRouteDistanceEdges`
+
+`plannedTravelCostUnavailableJourneys` and `plannedRouteDistanceUnavailableJourneys` identify starts for which those planned route quantities are unavailable. Legacy/lower-level temporary programs may therefore report route cost/distance as unavailable rather than inventing them.
 
 ## 7. Origin catchment
 
@@ -121,7 +161,9 @@ Origin-catchment rows are grouped by the household's persistent residence at tri
 - people departing;
 - visitor person-days;
 - transit person-days;
-- travel duration, route-distance and accumulated-cost burden where available.
+- planned outbound, return and round-trip travel duration;
+- observed outbound/return transit duration and still-unrealized planned duration;
+- planned, realized and still-unrealized route cost/distance where available.
 
 This is a model-derived catchment, not a claim that historical people actually travelled from those cells.
 
@@ -144,6 +186,6 @@ Bundle validation regenerates the report from preserved authoritative artifacts 
 
 ## 9. Interpretation limits
 
-M9 temporary-mobility observability measures consequences of the declared model and experiment assumptions. It does not by itself establish why people travelled, whether aggregation was ritual/economic/defensive, whether a focal region corresponds to an archaeological site, or whether such activity would be archaeologically visible after preservation and detection processes.
+M9 temporary-mobility observability measures consequences of the declared model and experiment assumptions. Planned burden describes the route/timing commitment encoded when a journey starts; realized/observed burden describes only the portion supported by preserved lifecycle history through the report boundary. Neither quantity by itself establishes why people travelled, whether aggregation was ritual/economic/defensive, whether a focal region corresponds to an archaeological site, or whether such activity would be archaeologically visible after preservation and detection processes.
 
 Those questions require evidence-grounded experiment design and, where necessary, later archaeological observation models.
