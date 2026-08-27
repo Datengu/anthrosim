@@ -488,12 +488,10 @@ pub fn derive_temporary_mobility_observability(
             total_round_trip_travel_cost_units: row.total_round_trip_travel_cost_units,
             realized_travel_cost_units: row.realized_travel_cost_units,
             unrealized_planned_travel_cost_units: row.unrealized_planned_travel_cost_units,
-            planned_travel_cost_unavailable_journeys: row
-                .planned_travel_cost_unavailable_journeys,
+            planned_travel_cost_unavailable_journeys: row.planned_travel_cost_unavailable_journeys,
             total_round_trip_route_distance_edges: row.total_round_trip_route_distance_edges,
             realized_route_distance_edges: row.realized_route_distance_edges,
-            unrealized_planned_route_distance_edges: row
-                .unrealized_planned_route_distance_edges,
+            unrealized_planned_route_distance_edges: row.unrealized_planned_route_distance_edges,
             route_distance_unavailable_journeys: row.route_distance_unavailable_journeys,
         })
         .collect::<Vec<_>>();
@@ -784,10 +782,8 @@ fn replay_events(
                         mul(*cost, 2)?,
                     )?;
                 } else {
-                    replay.summary.planned_travel_cost_unavailable_journeys = add(
-                        replay.summary.planned_travel_cost_unavailable_journeys,
-                        1,
-                    )?;
+                    replay.summary.planned_travel_cost_unavailable_journeys =
+                        add(replay.summary.planned_travel_cost_unavailable_journeys, 1)?;
                 }
                 if let Some(distance) = route_distance {
                     replay.summary.total_round_trip_route_distance_edges = add(
@@ -811,7 +807,8 @@ fn replay_events(
                     origin.planned_return_travel_days,
                     u64::from(*return_travel_days),
                 )?;
-                origin.total_travel_days = add(origin.total_travel_days, planned_round_trip_travel_days)?;
+                origin.total_travel_days =
+                    add(origin.total_travel_days, planned_round_trip_travel_days)?;
                 if let Some(cost) = accumulated_travel_cost_units {
                     origin.total_round_trip_travel_cost_units =
                         add(origin.total_round_trip_travel_cost_units, mul(*cost, 2)?)?;
@@ -855,7 +852,9 @@ fn replay_events(
                     ));
                 }
                 if replay.journeys[row_index].realized_route_legs != 0 {
-                    return Err(invalid("temporary arrival would realize the outbound route twice"));
+                    return Err(invalid(
+                        "temporary arrival would realize the outbound route twice",
+                    ));
                 }
                 replay.journeys[row_index].realized_route_legs = 1;
                 replay.journeys[row_index].status = TemporaryJourneyObservedStatus::ActiveVisiting;
@@ -1139,7 +1138,8 @@ fn remove_current_visitors(
     destination: CellId,
     count: u64,
 ) -> Result<(), TemporaryMobilityObservabilityError> {
-    replay.current_visitors = add(replay.current_visitors, 0)?
+    replay.current_visitors = replay
+        .current_visitors
         .checked_sub(count)
         .ok_or_else(|| invalid("global visitor count became negative"))?;
     let index = cell_index(destination, replay.cells.len())?;
@@ -1292,8 +1292,10 @@ fn finalize_summary(replay: &mut Replay<'_>) -> Result<(), TemporaryMobilityObse
         ));
     }
     for row in replay.origins.values() {
-        if add(row.observed_transit_days, row.unrealized_planned_transit_days)?
-            != row.total_travel_days
+        if add(
+            row.observed_transit_days,
+            row.unrealized_planned_transit_days,
+        )? != row.total_travel_days
         {
             return Err(invalid(
                 "origin planned travel days do not reconcile with observed plus unrealized travel days",
@@ -1422,20 +1424,16 @@ fn finalize_travel_burden(
             origin.realized_travel_cost_units = add(origin.realized_travel_cost_units, realized)?;
         }
         if let Some(unrealized) = journey.unrealized_planned_travel_cost_units {
-            origin.unrealized_planned_travel_cost_units = add(
-                origin.unrealized_planned_travel_cost_units,
-                unrealized,
-            )?;
+            origin.unrealized_planned_travel_cost_units =
+                add(origin.unrealized_planned_travel_cost_units, unrealized)?;
         }
         if let Some(realized) = journey.realized_route_distance_edges {
             origin.realized_route_distance_edges =
                 add(origin.realized_route_distance_edges, realized)?;
         }
         if let Some(unrealized) = journey.unrealized_planned_route_distance_edges {
-            origin.unrealized_planned_route_distance_edges = add(
-                origin.unrealized_planned_route_distance_edges,
-                unrealized,
-            )?;
+            origin.unrealized_planned_route_distance_edges =
+                add(origin.unrealized_planned_route_distance_edges, unrealized)?;
         }
     }
     Ok(())
@@ -1444,14 +1442,19 @@ fn finalize_travel_burden(
 fn finalize_journey_travel_burden(
     journey: &mut TemporaryJourneyObservability,
 ) -> Result<(), TemporaryMobilityObservabilityError> {
-    let planned_days = u64::from(journey.outbound_travel_days) + u64::from(journey.return_travel_days);
+    let planned_days =
+        u64::from(journey.outbound_travel_days) + u64::from(journey.return_travel_days);
     if journey.planned_round_trip_travel_days != planned_days {
-        return Err(invalid("journey planned round-trip duration is inconsistent"));
+        return Err(invalid(
+            "journey planned round-trip duration is inconsistent",
+        ));
     }
     if journey.observed_outbound_transit_days > u64::from(journey.outbound_travel_days)
         || journey.observed_return_transit_days > u64::from(journey.return_travel_days)
     {
-        return Err(invalid("journey observed transit duration exceeds its plan"));
+        return Err(invalid(
+            "journey observed transit duration exceeds its plan",
+        ));
     }
     journey.observed_transit_days = add(
         journey.observed_outbound_transit_days,
@@ -1522,7 +1525,11 @@ fn finalize_journey_travel_burden(
                 .ok_or_else(|| invalid("realized route distance exceeds planned distance"))?,
         ),
         (None, None) => None,
-        _ => return Err(invalid("journey route-distance availability is inconsistent")),
+        _ => {
+            return Err(invalid(
+                "journey route-distance availability is inconsistent",
+            ));
+        }
     };
     Ok(())
 }
@@ -1952,7 +1959,10 @@ mod tests {
             journey.unrealized_planned_travel_cost_units,
             Some(unrealized_cost)
         );
-        assert_eq!(journey.realized_route_distance_edges, Some(realized_distance));
+        assert_eq!(
+            journey.realized_route_distance_edges,
+            Some(realized_distance)
+        );
         assert_eq!(
             journey.unrealized_planned_route_distance_edges,
             Some(unrealized_distance)
@@ -1975,7 +1985,12 @@ mod tests {
     #[test]
     fn active_outbound_journey_does_not_realize_future_route_legs() {
         assert_burden(
-            burden_fixture(TemporaryJourneyObservedStatus::ActiveOutboundTransit, 1, 0, 0),
+            burden_fixture(
+                TemporaryJourneyObservedStatus::ActiveOutboundTransit,
+                1,
+                0,
+                0,
+            ),
             1,
             4,
             0,
