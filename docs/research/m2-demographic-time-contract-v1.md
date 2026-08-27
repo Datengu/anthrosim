@@ -105,6 +105,10 @@ A newborn inherits the female parent's condition at the birth boundary. This is 
 
 This rule does **not** make fertility itself condition-dependent. It only defines the newborn's initial downstream M3/M4 condition state.
 
+Cross-system acceptance tests verify the rule at female-parent conditions 900, 500 and 100 permille. They also follow a very-low-condition birth into a deterministic fully unsupplied M3 period: the female parent and newborn begin with the same condition, receive the same condition loss, and undergo the same forced condition-mediated mortality outcome rather than the newborn retaining a hidden perfect-condition survival advantage. A separate test verifies that maternal inheritance contributes to the authoritative household mean condition used by M4 and therefore preserves the corresponding condition-pressure signal rather than suppressing it through a synthetic 1000-permille reset.
+
+These tests verify causal consistency of the declared null rule. They do not establish that maternal condition inheritance is an empirically accurate neonatal physiology model.
+
 A future empirically grounded neonatal-condition model may replace this proxy only with explicit evidence, parameters, uncertainty and a new compatible scientific contract.
 
 ## 8. Founder initialization
@@ -151,18 +155,18 @@ The repair suite includes model-contract tests for:
 - high-mortality/high-fertility cases proving the declared conditional-survival equation;
 - same-day M4 relocation with origin-only and destination-only eligible males;
 - the corresponding non-annual move after elapsed destination residence;
-- newborn maternal-condition inheritance;
+- exact newborn maternal-condition inheritance at high, medium and very-low condition;
+- severe-scarcity M2→M3 regression proving no hidden newborn survival advantage;
+- newborn contribution to household mean condition and the resulting M4 condition pressure;
 - deterministic demographic-observability replay and final-state reconciliation; and
 - end-to-end CLI derivation/checking from a normal run bundle.
 
-The additional severe-scarcity/household-mean/M4-pressure tests for newborn condition deliberately remain with the later M2→M3/M4 resource/condition cluster rather than duplicating resource semantics here.
-
-Synthetic tests verify that software implements this declared model. They do not empirically validate the model for any archaeological population.
+Synthetic tests verify that software implements this declared model and that the repaired M2 condition state propagates coherently into M3 and M4. They do not empirically validate the model for any archaeological population.
 
 ## 11. Compatibility and interpretation
 
-The transition-semantics repair changed authoritative demographic meaning relative to the v0.3.0 baseline and therefore advanced `MODEL_SEMANTICS_ID` to v6; the later M4 stay-comparator repair advanced the current repository model semantics to v7.
+The transition-semantics repair changed authoritative demographic meaning relative to the v0.3.0 baseline and therefore advanced `MODEL_SEMANTICS_ID` when it was introduced. Subsequent authoritative repairs have advanced the repository identity further.
 
-The observability/report work described here is downstream analysis only. It must **not** change authoritative simulation trajectories and therefore does not itself require another model-semantics bump. Any canonical M7/M8/M9 output change caused by this analysis PR would be treated as a regression requiring investigation rather than rebaselining.
+The newborn-condition acceptance work described here adds verification coverage and documentation only. It does **not** change authoritative simulation trajectories and therefore does not require a new model-semantics identity. Any canonical M7/M8/M9 output change caused by this acceptance-test work must be treated as a regression requiring investigation rather than rebaselining.
 
 The repair programme is specifically intended to improve **verification** and interpretability. Empirical **validation** remains study-specific and future work. Exact Git provenance continues to identify the implementation used for every run.
