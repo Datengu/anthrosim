@@ -69,10 +69,7 @@ def load_json(path: Path, role: str) -> dict[str, Any]:
 
 def canonical_bytes(value: Any) -> bytes:
     return json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
 
 
@@ -119,13 +116,16 @@ def validate_primary_window(value: Any) -> dict[str, Any]:
         "analysisWindow",
     )
     start = require_uint(value["analysisStartDay"], "analysisWindow.analysisStartDay")
-    end = value.get("analysisEndDayInclusive")
-    if end is not None:
-        end = require_uint(end, "analysisWindow.analysisEndDayInclusive")
+    if "analysisEndDayInclusive" in value:
+        end = require_uint(
+            value["analysisEndDayInclusive"], "analysisWindow.analysisEndDayInclusive"
+        )
         if end < start:
             raise AnalysisWindowError(
                 "analysisWindow.analysisEndDayInclusive must be >= analysisStartDay"
             )
+    else:
+        end = None
     rule = require_nonempty_string(value["selectionRule"], "analysisWindow.selectionRule")
     if rule not in ALLOWED_SELECTION_RULES:
         allowed = ", ".join(sorted(ALLOWED_SELECTION_RULES))
@@ -155,13 +155,16 @@ def validate_sensitivity_window(value: Any, index: int) -> dict[str, Any]:
     )
     window_id = require_nonempty_string(value["id"], f"{role}.id")
     start = require_uint(value["analysisStartDay"], f"{role}.analysisStartDay")
-    end = value.get("analysisEndDayInclusive")
-    if end is not None:
-        end = require_uint(end, f"{role}.analysisEndDayInclusive")
+    if "analysisEndDayInclusive" in value:
+        end = require_uint(
+            value["analysisEndDayInclusive"], f"{role}.analysisEndDayInclusive"
+        )
         if end < start:
             raise AnalysisWindowError(
                 f"{role}.analysisEndDayInclusive must be >= analysisStartDay"
             )
+    else:
+        end = None
     rationale = require_nonempty_string(value["rationale"], f"{role}.rationale")
     result = {"id": window_id, "analysisStartDay": start, "rationale": rationale}
     if end is not None:
@@ -317,65 +320,6 @@ def planned_runs(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     return runs
 
 
-def resolve_window(
-    window: dict[str, Any], terminal_day: int, role: str
-) -> dict[str, Any]:
-    start = window["analysisStartDay"]
-    end = window.get("analysisEndDayInclusive", terminal_day)
-    if start > terminal_day:
-        raise AnalysisWindowError(
-            f"{role} starts on day {start}, beyond run terminal day {terminal_day}"
-        )
-    if end > terminal_day:
-        raise AnalysisWindowError(
-            f"{role} ends on day {end}, beyond run terminal day {terminal_day}"
-        )
-    if end < start:
-        raise AnalysisWindowError(f"{role} ends before it starts")
-    return {
-        "executionInterval": {"startDay": 0, "endDayInclusive": terminal_day},
-        "burnInInterval": {"startDay": 0, "endDayExclusive": start},
-        "analysisInterval": {"startDay": start, "endDayInclusive": end},
-    }
-
-
-def metric_snapshot_selection(
-    root: Path, relative_dir: str, start: int, end: int, run_id: str
-) -> dict[str, Any]:
-    run_path = root / Path(relative_dir)
-    metrics = load_json(run_path / "metrics.json", f"metrics for completed run {run_id}")
-    snapshots = metrics.get("snapshots")
-    cadence = metrics.get("cadence")
-    if not isinstance(cadence, str) or not isinstance(snapshots, list):
-        raise AnalysisWindowError(f"metrics for completed run {run_id} are malformed")
-    days: list[int] = []
-    for index, snapshot in enumerate(snapshots):
-        if not isinstance(snapshot, dict):
-            raise AnalysisWindowError(
-                f"metrics for completed run {run_id} snapshot {index} is not an object"
-            )
-        days.append(
-            require_uint(snapshot.get("day"), f"metrics {run_id} snapshot {index}.day")
-        )
-    if days != sorted(days):
-        raise AnalysisWindowError(f"metrics for completed run {run_id} are not day-ordered")
-    included = [day for day in days if start <= day <= end]
-    preceding = max((day for day in days if day < start), default=None)
-    return {
-        "source": f"{relative_dir}/metrics.json",
-        "cadence": cadence,
-        "analysisStartBoundarySnapshotAvailable": start in days,
-        "precedingSnapshotDay": preceding,
-        "includedSnapshotDays": included,
-        "includedSnapshotCount": len(included),
-        "cumulativeCounterRule": (
-            "metrics.json cumulative counters retain since-start semantics; interval totals must "
-            "be derived against an exact boundary snapshot or from raw events, never reported "
-            "directly as analysis-window totals"
-        ),
-    }
-
-
 def state_for_run(state: dict[str, Any], planned: dict[str, Any]) -> dict[str, Any]:
     raw = state["runs"].get(planned["runId"])
     if not isinstance(raw, dict):
@@ -396,6 +340,101 @@ def state_for_run(state: dict[str, Any], planned: dict[str, Any]) -> dict[str, A
     return raw
 
 
+def completed_run_terminal_day(
+    root: Path, planned: dict[str, Any], run_state: dict[str, Any], planned_terminal_day: int
+) -> tuple[int, str]:
+    run_id = planned["runId"]
+    relative_dir = planned["relativeDir"]
+    manifest = load_json(
+        root / Path(relative_dir) / "manifest.json", f"run manifest for completed run {run_id}"
+    )
+    terminal_day = require_uint(manifest.get("endTime"), f"run manifest {run_id}.endTime")
+    if terminal_day > planned_terminal_day:
+        raise AnalysisWindowError(
+            f"completed run {run_id} ends on day {terminal_day}, beyond planned terminal day "
+            f"{planned_terminal_day}"
+        )
+    expected_digest = run_state.get("stateDigest64")
+    actual_digest = manifest.get("stateDigest64")
+    if expected_digest is not None and actual_digest != expected_digest:
+        raise AnalysisWindowError(
+            f"run manifest state digest differs from research state for completed run {run_id}"
+        )
+    stop_reason = require_nonempty_string(
+        manifest.get("stopReason"), f"run manifest {run_id}.stopReason"
+    )
+    return terminal_day, stop_reason
+
+
+def resolve_window(
+    window: dict[str, Any], terminal_day: int, role: str, terminal_basis: str
+) -> dict[str, Any]:
+    start = window["analysisStartDay"]
+    end = window.get("analysisEndDayInclusive", terminal_day)
+    if start > terminal_day:
+        raise AnalysisWindowError(
+            f"{role} starts on day {start}, beyond {terminal_basis} terminal day {terminal_day}"
+        )
+    if end > terminal_day:
+        raise AnalysisWindowError(
+            f"{role} ends on day {end}, beyond {terminal_basis} terminal day {terminal_day}"
+        )
+    if end < start:
+        raise AnalysisWindowError(f"{role} ends before it starts")
+    return {
+        "executionInterval": {"startDay": 0, "endDayInclusive": terminal_day},
+        "burnInInterval": {"startDay": 0, "endDayExclusive": start},
+        "analysisInterval": {"startDay": start, "endDayInclusive": end},
+    }
+
+
+def metric_snapshot_selection(
+    root: Path,
+    relative_dir: str,
+    start: int,
+    end: int,
+    terminal_day: int,
+    run_id: str,
+) -> dict[str, Any]:
+    run_path = root / Path(relative_dir)
+    metrics = load_json(run_path / "metrics.json", f"metrics for completed run {run_id}")
+    snapshots = metrics.get("snapshots")
+    cadence = metrics.get("cadence")
+    if not isinstance(cadence, str) or not isinstance(snapshots, list):
+        raise AnalysisWindowError(f"metrics for completed run {run_id} are malformed")
+    days: list[int] = []
+    for index, snapshot in enumerate(snapshots):
+        if not isinstance(snapshot, dict):
+            raise AnalysisWindowError(
+                f"metrics for completed run {run_id} snapshot {index} is not an object"
+            )
+        days.append(
+            require_uint(snapshot.get("day"), f"metrics {run_id} snapshot {index}.day")
+        )
+    if days != sorted(days):
+        raise AnalysisWindowError(f"metrics for completed run {run_id} are not day-ordered")
+    if not days or days[-1] != terminal_day:
+        raise AnalysisWindowError(
+            f"metrics for completed run {run_id} do not end at realized terminal day {terminal_day}"
+        )
+    included = [day for day in days if start <= day <= end]
+    preceding = max((day for day in days if day < start), default=None)
+    return {
+        "source": f"{relative_dir}/metrics.json",
+        "cadence": cadence,
+        "realizedTerminalSnapshotDay": terminal_day,
+        "analysisStartBoundarySnapshotAvailable": start in days,
+        "precedingSnapshotDay": preceding,
+        "includedSnapshotDays": included,
+        "includedSnapshotCount": len(included),
+        "cumulativeCounterRule": (
+            "metrics.json cumulative counters retain since-start semantics; interval totals must "
+            "be derived against an exact boundary snapshot or from raw events, never reported "
+            "directly as analysis-window totals"
+        ),
+    }
+
+
 def build_output(
     root: Path,
     manifest: dict[str, Any],
@@ -408,9 +447,22 @@ def build_output(
     completed = 0
     for planned in planned_runs(manifest):
         run_state = state_for_run(state, planned)
-        terminal_day = planned["durationYears"] * DAYS_PER_YEAR
+        planned_terminal_day = planned["durationYears"] * DAYS_PER_YEAR
+        terminal_day = planned_terminal_day
+        terminal_basis = "planned"
+        stop_reason = None
+        if run_state["state"] == "completed":
+            completed += 1
+            terminal_day, stop_reason = completed_run_terminal_day(
+                root, planned, run_state, planned_terminal_day
+            )
+            terminal_basis = "realized run"
+
         primary = resolve_window(
-            protocol["analysisWindow"], terminal_day, f"primary window for {planned['runId']}"
+            protocol["analysisWindow"],
+            terminal_day,
+            f"primary window for {planned['runId']}",
+            terminal_basis,
         )
         sensitivity = []
         for variant in protocol["sensitivityWindows"]:
@@ -418,14 +470,12 @@ def build_output(
                 variant,
                 terminal_day,
                 f"sensitivity window {variant['id']} for {planned['runId']}",
+                terminal_basis,
             )
             sensitivity.append(
-                {
-                    "id": variant["id"],
-                    "rationale": variant["rationale"],
-                    **resolved,
-                }
+                {"id": variant["id"], "rationale": variant["rationale"], **resolved}
             )
+
         row: dict[str, Any] = {
             "pointId": planned["pointId"],
             "runId": planned["runId"],
@@ -433,6 +483,13 @@ def build_output(
             "relativeDir": planned["relativeDir"],
             "coordinates": planned["coordinates"],
             "executionStatus": run_state["state"],
+            "plannedExecutionInterval": {
+                "startDay": 0,
+                "endDayInclusive": planned_terminal_day,
+            },
+            "executionIntervalBasis": (
+                "realized_run_manifest" if run_state["state"] == "completed" else "planned_maximum"
+            ),
             "primaryWindow": {
                 "selectionRule": protocol["analysisWindow"]["selectionRule"],
                 "rationale": protocol["analysisWindow"]["rationale"],
@@ -440,14 +497,16 @@ def build_output(
             },
             "sensitivityWindows": sensitivity,
         }
+        if stop_reason is not None:
+            row["stopReason"] = stop_reason
         if run_state["state"] == "completed":
-            completed += 1
             interval = primary["analysisInterval"]
             row["metricSnapshotSelection"] = metric_snapshot_selection(
                 root,
                 planned["relativeDir"],
                 interval["startDay"],
                 interval["endDayInclusive"],
+                terminal_day,
                 planned["runId"],
             )
         output_runs.append(row)
@@ -468,8 +527,14 @@ def build_output(
         "runs": output_runs,
         "interpretation": {
             "windowSemantics": (
-                "execution is [0, terminalDay], burn-in is [0, analysisStartDay), and the "
-                "analysis interval is [analysisStartDay, analysisEndDayInclusive]"
+                "for completed runs execution is bounded by the authoritative realized run-manifest "
+                "endTime; burn-in is [0, analysisStartDay), and analysis is "
+                "[analysisStartDay, analysisEndDayInclusive]"
+            ),
+            "earlyTerminationRule": (
+                "a declared window is never silently clipped to an early realized termination; "
+                "if the declared start or explicit end does not exist in a completed run, "
+                "analysis-window derivation fails closed"
             ),
             "initializationSensitivityRule": (
                 "predeclared sensitivity windows are preserved as alternative analysis windows; "
