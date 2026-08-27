@@ -133,6 +133,58 @@ impl FocalRegion {
         Ok(region)
     }
 
+    /// Revalidate an evidence-bound region against the exact landscape mask it claims to encode.
+    ///
+    /// `member_cells` is authoritative M9 behaviour, so a serialized region must not be allowed to
+    /// retain `LandscapeMask` provenance while its executable cell set diverges from the bound
+    /// layer. Synthetic regions have no landscape claim and therefore require only ordinary world
+    /// validation.
+    pub fn validate_landscape_binding(
+        &self,
+        landscape: &LandscapeBundle,
+        evidence: &EvidenceCatalog,
+        world: &World,
+    ) -> Result<(), FocalRegionBindingError> {
+        self.validate(world)?;
+        let FocalRegionSource::LandscapeMask {
+            layer_id,
+            evidence_input_id,
+        } = &self.source
+        else {
+            return Ok(());
+        };
+
+        let expected = Self::from_landscape_mask(
+            self.region_id.clone(),
+            landscape,
+            layer_id,
+            evidence,
+            world,
+        )?;
+        let FocalRegionSource::LandscapeMask {
+            evidence_input_id: bound_evidence_input_id,
+            ..
+        } = &expected.source
+        else {
+            unreachable!("from_landscape_mask always returns a landscape-mask source");
+        };
+        if bound_evidence_input_id != evidence_input_id {
+            return Err(FocalRegionBindingError::MaskEvidenceInputMismatch {
+                layer_id: layer_id.clone(),
+                declared: evidence_input_id.clone(),
+                bound: bound_evidence_input_id.clone(),
+            });
+        }
+        if expected.member_cells != self.member_cells {
+            return Err(FocalRegionBindingError::MaskMembershipMismatch {
+                layer_id: layer_id.clone(),
+                expected: expected.member_cells,
+                actual: self.member_cells.clone(),
+            });
+        }
+        Ok(())
+    }
+
     #[must_use]
     pub fn member_cells(&self) -> &[CellId] {
         &self.member_cells
@@ -302,6 +354,14 @@ pub enum FocalRegionBindingError {
     },
     #[error("focal-region mask layer {layer_id} has no evidenceInputId")]
     MissingEvidenceInput { layer_id: String },
+    #[error(
+        "focal-region mask layer {layer_id} is bound to evidence input {bound}, but the region declares {declared}"
+    )]
+    MaskEvidenceInputMismatch {
+        layer_id: String,
+        declared: String,
+        bound: String,
+    },
     #[error("focal-region mask layer {layer_id} has nodata at cell index {cell_index}")]
     MaskContainsNoData { layer_id: String, cell_index: u64 },
     #[error(
@@ -311,6 +371,14 @@ pub enum FocalRegionBindingError {
         layer_id: String,
         cell_index: u64,
         value: i32,
+    },
+    #[error(
+        "focal-region member cells do not match landscape mask {layer_id}: expected {expected:?}, found {actual:?}"
+    )]
+    MaskMembershipMismatch {
+        layer_id: String,
+        expected: Vec<CellId>,
+        actual: Vec<CellId>,
     },
 }
 
