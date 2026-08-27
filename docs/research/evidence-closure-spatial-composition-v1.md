@@ -51,7 +51,8 @@ its M9 region claims an evidence-bound landscape source.
 
 Closure assesses external inputs that are actually referenced by the run. Merely storing an
 unrelated catalogue entry does not make that external input a causal assumption of the run and does
-not block closure.
+not block closure. The authoritative boundary is therefore the causal input set of the executed run,
+not the full inventory of everything stored in its catalogue or landscape bundle.
 
 Every referenced external input must have:
 
