@@ -235,11 +235,32 @@ export function validateBundle(bundle) {
   };
 }
 
+function validateTravelBurden(row, label) {
+  const plannedDays = asBigInt(row.plannedRoundTripTravelDays, `${label} planned round-trip travel days`);
+  const observedDays = asBigInt(row.observedTransitDays, `${label} observed transit days`);
+  const unrealizedDays = asBigInt(row.unrealizedPlannedTransitDays, `${label} unrealized planned transit days`);
+  assert(observedDays + unrealizedDays === plannedDays,
+    `${label} planned travel days do not reconcile with observed plus unrealized days`);
+
+  const plannedCost = asBigInt(row.plannedRoundTripTravelCostUnits, `${label} planned round-trip travel cost`);
+  const realizedCost = asBigInt(row.realizedTravelCostUnits, `${label} realized travel cost`);
+  const unrealizedCost = asBigInt(row.unrealizedPlannedTravelCostUnits, `${label} unrealized planned travel cost`);
+  assert(realizedCost + unrealizedCost === plannedCost,
+    `${label} planned travel cost does not reconcile with realized plus unrealized cost`);
+
+  const plannedDistance = asBigInt(row.plannedRoundTripRouteDistanceEdges, `${label} planned round-trip route distance`);
+  const realizedDistance = asBigInt(row.realizedRouteDistanceEdges, `${label} realized route distance`);
+  const unrealizedDistance = asBigInt(row.unrealizedPlannedRouteDistanceEdges,
+    `${label} unrealized planned route distance`);
+  assert(realizedDistance + unrealizedDistance === plannedDistance,
+    `${label} planned route distance does not reconcile with realized plus unrealized distance`);
+}
+
 export function validateTemporaryObservability(bundle, endTime = runEndTime(bundle)) {
   const report = bundle.temporaryObservability;
   assert(report, "missing temporary observability report");
   const { checkpoint } = bundle;
-  assert(report.schemaVersion === 1, `unsupported temporary observability schema ${report.schemaVersion}`);
+  assert(report.schemaVersion === 2, `unsupported temporary observability schema ${report.schemaVersion}`);
   assert(report.provenance === "derived", "temporary observability report is not marked derived");
   assert(report.source?.modelVersion === checkpoint.modelVersion,
     "temporary observability model version disagrees with checkpoint");
@@ -276,6 +297,37 @@ export function validateTemporaryObservability(bundle, endTime = runEndTime(bund
     "temporary observability transit partition does not reconcile");
   assert(atResidence + visitors + transit === total,
     "temporary observability physical person-day partition does not reconcile");
+
+  validateTravelBurden(report.summary, "temporary observability summary");
+  for (const [index, origin] of (report.originCatchment ?? []).entries()) {
+    validateTravelBurden(origin, `temporary origin catchment row ${index}`);
+  }
+  for (const [index, journey] of (report.journeys ?? []).entries()) {
+    const plannedDays = asBigInt(journey.plannedRoundTripTravelDays, `temporary journey ${index} planned travel days`);
+    const observedDays = asBigInt(journey.observedTransitDays, `temporary journey ${index} observed transit days`);
+    const unrealizedDays = asBigInt(journey.unrealizedPlannedTransitDays,
+      `temporary journey ${index} unrealized planned transit days`);
+    assert(observedDays + unrealizedDays === plannedDays,
+      `temporary journey ${index} planned travel days do not reconcile`);
+    if (journey.plannedRoundTripTravelCostUnits !== null) {
+      const plannedCost = asBigInt(journey.plannedRoundTripTravelCostUnits, `temporary journey ${index} planned cost`);
+      const realizedCost = asBigInt(journey.realizedTravelCostUnits, `temporary journey ${index} realized cost`);
+      const unrealizedCost = asBigInt(journey.unrealizedPlannedTravelCostUnits,
+        `temporary journey ${index} unrealized cost`);
+      assert(realizedCost + unrealizedCost === plannedCost,
+        `temporary journey ${index} planned travel cost does not reconcile`);
+    }
+    if (journey.plannedRoundTripRouteDistanceEdges !== null) {
+      const plannedDistance = asBigInt(journey.plannedRoundTripRouteDistanceEdges,
+        `temporary journey ${index} planned route distance`);
+      const realizedDistance = asBigInt(journey.realizedRouteDistanceEdges,
+        `temporary journey ${index} realized route distance`);
+      const unrealizedDistance = asBigInt(journey.unrealizedPlannedRouteDistanceEdges,
+        `temporary journey ${index} unrealized route distance`);
+      assert(realizedDistance + unrealizedDistance === plannedDistance,
+        `temporary journey ${index} planned route distance does not reconcile`);
+    }
+  }
   return report;
 }
 

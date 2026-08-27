@@ -31,7 +31,7 @@ pub struct TemporaryMobilityObservabilityReport {
 }
 
 impl TemporaryMobilityObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,11 +82,26 @@ pub struct TemporaryMobilityObservabilitySummary {
     pub peak_visitors: u64,
     pub mean_visitors_millipersons: Option<u64>,
     pub people_at_departure: u64,
+    #[serde(rename = "plannedOutboundTravelDays")]
     pub total_outbound_travel_days: u64,
+    #[serde(rename = "plannedReturnTravelDays")]
     pub total_return_travel_days: u64,
+    #[serde(rename = "plannedRoundTripTravelDays")]
     pub total_travel_days: u64,
+    pub observed_outbound_transit_days: u64,
+    pub observed_return_transit_days: u64,
+    pub observed_transit_days: u64,
+    pub unrealized_planned_transit_days: u64,
+    #[serde(rename = "plannedRoundTripTravelCostUnits")]
     pub total_round_trip_travel_cost_units: u64,
+    pub realized_travel_cost_units: u64,
+    pub unrealized_planned_travel_cost_units: u64,
+    pub planned_travel_cost_unavailable_journeys: u64,
+    #[serde(rename = "plannedRoundTripRouteDistanceEdges")]
     pub total_round_trip_route_distance_edges: u64,
+    pub realized_route_distance_edges: u64,
+    pub unrealized_planned_route_distance_edges: u64,
+    #[serde(rename = "plannedRouteDistanceUnavailableJourneys")]
     pub route_distance_unavailable_journeys: u64,
 }
 
@@ -124,8 +139,17 @@ impl Default for TemporaryMobilityObservabilitySummary {
             total_outbound_travel_days: 0,
             total_return_travel_days: 0,
             total_travel_days: 0,
+            observed_outbound_transit_days: 0,
+            observed_return_transit_days: 0,
+            observed_transit_days: 0,
+            unrealized_planned_transit_days: 0,
             total_round_trip_travel_cost_units: 0,
+            realized_travel_cost_units: 0,
+            unrealized_planned_travel_cost_units: 0,
+            planned_travel_cost_unavailable_journeys: 0,
             total_round_trip_route_distance_edges: 0,
+            realized_route_distance_edges: 0,
+            unrealized_planned_route_distance_edges: 0,
             route_distance_unavailable_journeys: 0,
         }
     }
@@ -168,16 +192,32 @@ pub struct TemporaryJourneyObservability {
     pub region_id: String,
     pub region_identity: String,
     pub travel_model_identity: Option<String>,
+    #[serde(rename = "plannedOneWayAccumulatedTravelCostUnits")]
     pub one_way_accumulated_travel_cost_units: Option<u64>,
+    #[serde(rename = "plannedOneWayRouteDistanceEdges")]
     pub one_way_route_distance_edges: Option<u32>,
     pub people_at_departure: u32,
     pub departure_day: u64,
     pub arrival_day: u64,
     pub return_departure_day: u64,
     pub completion_day: u64,
+    #[serde(rename = "plannedOutboundTravelDays")]
     pub outbound_travel_days: u32,
     pub planned_visit_duration_days: u32,
+    #[serde(rename = "plannedReturnTravelDays")]
     pub return_travel_days: u32,
+    pub planned_round_trip_travel_days: u64,
+    pub observed_outbound_transit_days: u64,
+    pub observed_return_transit_days: u64,
+    pub observed_transit_days: u64,
+    pub unrealized_planned_transit_days: u64,
+    pub realized_route_legs: u8,
+    pub planned_round_trip_travel_cost_units: Option<u64>,
+    pub realized_travel_cost_units: Option<u64>,
+    pub unrealized_planned_travel_cost_units: Option<u64>,
+    pub planned_round_trip_route_distance_edges: Option<u64>,
+    pub realized_route_distance_edges: Option<u64>,
+    pub unrealized_planned_route_distance_edges: Option<u64>,
     pub observed_outbound_transit_person_days: u64,
     pub observed_visitor_person_days: u64,
     pub observed_visitor_household_days: u64,
@@ -201,9 +241,24 @@ pub struct TemporaryOriginCatchment {
     pub people_at_departure: u64,
     pub visitor_person_days: u64,
     pub transit_person_days: u64,
+    pub planned_outbound_travel_days: u64,
+    pub planned_return_travel_days: u64,
+    #[serde(rename = "plannedRoundTripTravelDays")]
     pub total_travel_days: u64,
+    pub observed_outbound_transit_days: u64,
+    pub observed_return_transit_days: u64,
+    pub observed_transit_days: u64,
+    pub unrealized_planned_transit_days: u64,
+    #[serde(rename = "plannedRoundTripTravelCostUnits")]
     pub total_round_trip_travel_cost_units: u64,
+    pub realized_travel_cost_units: u64,
+    pub unrealized_planned_travel_cost_units: u64,
+    pub planned_travel_cost_unavailable_journeys: u64,
+    #[serde(rename = "plannedRoundTripRouteDistanceEdges")]
     pub total_round_trip_route_distance_edges: u64,
+    pub realized_route_distance_edges: u64,
+    pub unrealized_planned_route_distance_edges: u64,
+    #[serde(rename = "plannedRouteDistanceUnavailableJourneys")]
     pub route_distance_unavailable_journeys: u64,
 }
 
@@ -259,9 +314,20 @@ struct OriginAccumulator {
     people_at_departure: u64,
     visitor_person_days: u64,
     transit_person_days: u64,
+    planned_outbound_travel_days: u64,
+    planned_return_travel_days: u64,
     total_travel_days: u64,
+    observed_outbound_transit_days: u64,
+    observed_return_transit_days: u64,
+    observed_transit_days: u64,
+    unrealized_planned_transit_days: u64,
     total_round_trip_travel_cost_units: u64,
+    realized_travel_cost_units: u64,
+    unrealized_planned_travel_cost_units: u64,
+    planned_travel_cost_unavailable_journeys: u64,
     total_round_trip_route_distance_edges: u64,
+    realized_route_distance_edges: u64,
+    unrealized_planned_route_distance_edges: u64,
     route_distance_unavailable_journeys: u64,
 }
 
@@ -412,9 +478,20 @@ pub fn derive_temporary_mobility_observability(
             people_at_departure: row.people_at_departure,
             visitor_person_days: row.visitor_person_days,
             transit_person_days: row.transit_person_days,
+            planned_outbound_travel_days: row.planned_outbound_travel_days,
+            planned_return_travel_days: row.planned_return_travel_days,
             total_travel_days: row.total_travel_days,
+            observed_outbound_transit_days: row.observed_outbound_transit_days,
+            observed_return_transit_days: row.observed_return_transit_days,
+            observed_transit_days: row.observed_transit_days,
+            unrealized_planned_transit_days: row.unrealized_planned_transit_days,
             total_round_trip_travel_cost_units: row.total_round_trip_travel_cost_units,
+            realized_travel_cost_units: row.realized_travel_cost_units,
+            unrealized_planned_travel_cost_units: row.unrealized_planned_travel_cost_units,
+            planned_travel_cost_unavailable_journeys: row.planned_travel_cost_unavailable_journeys,
             total_round_trip_route_distance_edges: row.total_round_trip_route_distance_edges,
+            realized_route_distance_edges: row.realized_route_distance_edges,
+            unrealized_planned_route_distance_edges: row.unrealized_planned_route_distance_edges,
             route_distance_unavailable_journeys: row.route_distance_unavailable_journeys,
         })
         .collect::<Vec<_>>();
@@ -448,6 +525,8 @@ pub fn derive_temporary_mobility_observability(
         visit_duration_distribution,
         unavailable_observables: vec![
             "M9 v1 transit has no authoritative per-day world cell; transit person-days are intentionally non-spatial"
+                .to_owned(),
+            "M9 v1 does not preserve within-leg route progress; realized route cost and distance are credited only when a complete outbound or return leg reaches its authoritative endpoint"
                 .to_owned(),
             "temporary travel purpose or social motive is not represented by the M9 v1 lifecycle"
                 .to_owned(),
@@ -629,6 +708,14 @@ fn replay_events(
                         journey.0
                     )));
                 }
+                let planned_round_trip_travel_days =
+                    u64::from(*outbound_travel_days) + u64::from(*return_travel_days);
+                let planned_round_trip_travel_cost_units = accumulated_travel_cost_units
+                    .map(|cost| mul(cost, 2))
+                    .transpose()?;
+                let planned_round_trip_route_distance_edges = route_distance
+                    .map(|distance| mul(u64::from(distance), 2))
+                    .transpose()?;
                 let row_index = replay.journeys.len();
                 replay.journeys.push(TemporaryJourneyObservability {
                     provenance: MetricProvenance::Derived,
@@ -651,6 +738,19 @@ fn replay_events(
                     outbound_travel_days: *outbound_travel_days,
                     planned_visit_duration_days: planned_visit,
                     return_travel_days: *return_travel_days,
+                    planned_round_trip_travel_days,
+                    observed_outbound_transit_days: 0,
+                    observed_return_transit_days: 0,
+                    observed_transit_days: 0,
+                    unrealized_planned_transit_days: planned_round_trip_travel_days,
+                    realized_route_legs: 0,
+                    planned_round_trip_travel_cost_units,
+                    realized_travel_cost_units: accumulated_travel_cost_units.map(|_| 0),
+                    unrealized_planned_travel_cost_units: planned_round_trip_travel_cost_units,
+                    planned_round_trip_route_distance_edges,
+                    realized_route_distance_edges: route_distance.map(|_| 0),
+                    unrealized_planned_route_distance_edges:
+                        planned_round_trip_route_distance_edges,
                     observed_outbound_transit_person_days: 0,
                     observed_visitor_person_days: 0,
                     observed_visitor_household_days: 0,
@@ -681,6 +781,9 @@ fn replay_events(
                         replay.summary.total_round_trip_travel_cost_units,
                         mul(*cost, 2)?,
                     )?;
+                } else {
+                    replay.summary.planned_travel_cost_unavailable_journeys =
+                        add(replay.summary.planned_travel_cost_unavailable_journeys, 1)?;
                 }
                 if let Some(distance) = route_distance {
                     replay.summary.total_round_trip_route_distance_edges = add(
@@ -696,13 +799,22 @@ fn replay_events(
                 origin.journeys_started = add(origin.journeys_started, 1)?;
                 origin.people_at_departure =
                     add(origin.people_at_departure, u64::from(*people_affected))?;
-                origin.total_travel_days = add(
-                    origin.total_travel_days,
-                    u64::from(*outbound_travel_days) + u64::from(*return_travel_days),
+                origin.planned_outbound_travel_days = add(
+                    origin.planned_outbound_travel_days,
+                    u64::from(*outbound_travel_days),
                 )?;
+                origin.planned_return_travel_days = add(
+                    origin.planned_return_travel_days,
+                    u64::from(*return_travel_days),
+                )?;
+                origin.total_travel_days =
+                    add(origin.total_travel_days, planned_round_trip_travel_days)?;
                 if let Some(cost) = accumulated_travel_cost_units {
                     origin.total_round_trip_travel_cost_units =
                         add(origin.total_round_trip_travel_cost_units, mul(*cost, 2)?)?;
+                } else {
+                    origin.planned_travel_cost_unavailable_journeys =
+                        add(origin.planned_travel_cost_unavailable_journeys, 1)?;
                 }
                 if let Some(distance) = route_distance {
                     origin.total_round_trip_route_distance_edges = add(
@@ -739,6 +851,12 @@ fn replay_events(
                         "temporary arrival destination does not match departure row",
                     ));
                 }
+                if replay.journeys[row_index].realized_route_legs != 0 {
+                    return Err(invalid(
+                        "temporary arrival would realize the outbound route twice",
+                    ));
+                }
+                replay.journeys[row_index].realized_route_legs = 1;
                 replay.journeys[row_index].status = TemporaryJourneyObservedStatus::ActiveVisiting;
                 replay.summary.arrivals = add(replay.summary.arrivals, 1)?;
                 let cell_index = cell_index(*destination, replay.cells.len())?;
@@ -770,6 +888,11 @@ fn replay_events(
                     destination: *destination,
                 };
                 let row_index = journey_row_index(replay, *journey)?;
+                if replay.journeys[row_index].realized_route_legs != 1 {
+                    return Err(invalid(
+                        "temporary return departure occurred before outbound route realization",
+                    ));
+                }
                 replay.journeys[row_index].status =
                     TemporaryJourneyObservedStatus::ActiveReturnTransit;
                 replay.summary.return_departures = add(replay.summary.return_departures, 1)?;
@@ -798,6 +921,12 @@ fn replay_events(
                 replay.households[index].presence = HouseholdPresence::AtResidence;
                 replay.households[index].active_journey = None;
                 let row_index = journey_row_index(replay, *journey)?;
+                if replay.journeys[row_index].realized_route_legs != 1 {
+                    return Err(invalid(
+                        "temporary completion occurred without exactly one realized outbound route leg",
+                    ));
+                }
+                replay.journeys[row_index].realized_route_legs = 2;
                 replay.journeys[row_index].status = TemporaryJourneyObservedStatus::Completed;
                 replay.summary.journeys_completed = add(replay.summary.journeys_completed, 1)?;
                 let origin = replay.origins.entry(residence.0).or_default();
@@ -899,6 +1028,10 @@ fn accrue_household(
             replay.summary.outbound_transit_person_days =
                 add(replay.summary.outbound_transit_person_days, person_days)?;
             let row_index = journey_row_index(replay, journey)?;
+            replay.journeys[row_index].observed_outbound_transit_days = add(
+                replay.journeys[row_index].observed_outbound_transit_days,
+                duration,
+            )?;
             replay.journeys[row_index].observed_outbound_transit_person_days = add(
                 replay.journeys[row_index].observed_outbound_transit_person_days,
                 person_days,
@@ -946,6 +1079,10 @@ fn accrue_household(
             replay.summary.return_transit_person_days =
                 add(replay.summary.return_transit_person_days, person_days)?;
             let row_index = journey_row_index(replay, journey)?;
+            replay.journeys[row_index].observed_return_transit_days = add(
+                replay.journeys[row_index].observed_return_transit_days,
+                duration,
+            )?;
             replay.journeys[row_index].observed_return_transit_person_days = add(
                 replay.journeys[row_index].observed_return_transit_person_days,
                 person_days,
@@ -1094,6 +1231,7 @@ fn finalize_summary(replay: &mut Replay<'_>) -> Result<(), TemporaryMobilityObse
         replay.summary.total_outbound_travel_days,
         replay.summary.total_return_travel_days,
     )?;
+    finalize_travel_burden(replay)?;
     replay.summary.journeys_active_at_end = replay
         .journeys
         .iter()
@@ -1125,6 +1263,62 @@ fn finalize_summary(replay: &mut Replay<'_>) -> Result<(), TemporaryMobilityObse
         return Err(invalid(
             "persistent-residence person-days do not equal total living person-days",
         ));
+    }
+    if add(
+        replay.summary.observed_transit_days,
+        replay.summary.unrealized_planned_transit_days,
+    )? != replay.summary.total_travel_days
+    {
+        return Err(invalid(
+            "planned travel days do not reconcile with observed plus unrealized travel days",
+        ));
+    }
+    if add(
+        replay.summary.realized_travel_cost_units,
+        replay.summary.unrealized_planned_travel_cost_units,
+    )? != replay.summary.total_round_trip_travel_cost_units
+    {
+        return Err(invalid(
+            "planned travel cost does not reconcile with realized plus unrealized cost",
+        ));
+    }
+    if add(
+        replay.summary.realized_route_distance_edges,
+        replay.summary.unrealized_planned_route_distance_edges,
+    )? != replay.summary.total_round_trip_route_distance_edges
+    {
+        return Err(invalid(
+            "planned route distance does not reconcile with realized plus unrealized distance",
+        ));
+    }
+    for row in replay.origins.values() {
+        if add(
+            row.observed_transit_days,
+            row.unrealized_planned_transit_days,
+        )? != row.total_travel_days
+        {
+            return Err(invalid(
+                "origin planned travel days do not reconcile with observed plus unrealized travel days",
+            ));
+        }
+        if add(
+            row.realized_travel_cost_units,
+            row.unrealized_planned_travel_cost_units,
+        )? != row.total_round_trip_travel_cost_units
+        {
+            return Err(invalid(
+                "origin planned travel cost does not reconcile with realized plus unrealized cost",
+            ));
+        }
+        if add(
+            row.realized_route_distance_edges,
+            row.unrealized_planned_route_distance_edges,
+        )? != row.total_round_trip_route_distance_edges
+        {
+            return Err(invalid(
+                "origin planned route distance does not reconcile with realized plus unrealized distance",
+            ));
+        }
     }
     let not_started_by_reason = [
         replay.summary.not_started_no_living_members,
@@ -1164,6 +1358,179 @@ fn finalize_summary(replay: &mut Replay<'_>) -> Result<(), TemporaryMobilityObse
     }
     replay.summary.mean_visitors_millipersons = mul(replay.summary.visitor_person_days, 1_000)?
         .checked_div(replay.summary.observation_duration_days);
+    Ok(())
+}
+
+fn finalize_travel_burden(
+    replay: &mut Replay<'_>,
+) -> Result<(), TemporaryMobilityObservabilityError> {
+    for row_index in 0..replay.journeys.len() {
+        finalize_journey_travel_burden(&mut replay.journeys[row_index])?;
+        let journey = replay.journeys[row_index].clone();
+
+        replay.summary.observed_outbound_transit_days = add(
+            replay.summary.observed_outbound_transit_days,
+            journey.observed_outbound_transit_days,
+        )?;
+        replay.summary.observed_return_transit_days = add(
+            replay.summary.observed_return_transit_days,
+            journey.observed_return_transit_days,
+        )?;
+        replay.summary.observed_transit_days = add(
+            replay.summary.observed_transit_days,
+            journey.observed_transit_days,
+        )?;
+        replay.summary.unrealized_planned_transit_days = add(
+            replay.summary.unrealized_planned_transit_days,
+            journey.unrealized_planned_transit_days,
+        )?;
+        if let Some(realized) = journey.realized_travel_cost_units {
+            replay.summary.realized_travel_cost_units =
+                add(replay.summary.realized_travel_cost_units, realized)?;
+        }
+        if let Some(unrealized) = journey.unrealized_planned_travel_cost_units {
+            replay.summary.unrealized_planned_travel_cost_units = add(
+                replay.summary.unrealized_planned_travel_cost_units,
+                unrealized,
+            )?;
+        }
+        if let Some(realized) = journey.realized_route_distance_edges {
+            replay.summary.realized_route_distance_edges =
+                add(replay.summary.realized_route_distance_edges, realized)?;
+        }
+        if let Some(unrealized) = journey.unrealized_planned_route_distance_edges {
+            replay.summary.unrealized_planned_route_distance_edges = add(
+                replay.summary.unrealized_planned_route_distance_edges,
+                unrealized,
+            )?;
+        }
+
+        let origin = replay.origins.entry(journey.residence.0).or_default();
+        origin.observed_outbound_transit_days = add(
+            origin.observed_outbound_transit_days,
+            journey.observed_outbound_transit_days,
+        )?;
+        origin.observed_return_transit_days = add(
+            origin.observed_return_transit_days,
+            journey.observed_return_transit_days,
+        )?;
+        origin.observed_transit_days =
+            add(origin.observed_transit_days, journey.observed_transit_days)?;
+        origin.unrealized_planned_transit_days = add(
+            origin.unrealized_planned_transit_days,
+            journey.unrealized_planned_transit_days,
+        )?;
+        if let Some(realized) = journey.realized_travel_cost_units {
+            origin.realized_travel_cost_units = add(origin.realized_travel_cost_units, realized)?;
+        }
+        if let Some(unrealized) = journey.unrealized_planned_travel_cost_units {
+            origin.unrealized_planned_travel_cost_units =
+                add(origin.unrealized_planned_travel_cost_units, unrealized)?;
+        }
+        if let Some(realized) = journey.realized_route_distance_edges {
+            origin.realized_route_distance_edges =
+                add(origin.realized_route_distance_edges, realized)?;
+        }
+        if let Some(unrealized) = journey.unrealized_planned_route_distance_edges {
+            origin.unrealized_planned_route_distance_edges =
+                add(origin.unrealized_planned_route_distance_edges, unrealized)?;
+        }
+    }
+    Ok(())
+}
+
+fn finalize_journey_travel_burden(
+    journey: &mut TemporaryJourneyObservability,
+) -> Result<(), TemporaryMobilityObservabilityError> {
+    let planned_days =
+        u64::from(journey.outbound_travel_days) + u64::from(journey.return_travel_days);
+    if journey.planned_round_trip_travel_days != planned_days {
+        return Err(invalid(
+            "journey planned round-trip duration is inconsistent",
+        ));
+    }
+    if journey.observed_outbound_transit_days > u64::from(journey.outbound_travel_days)
+        || journey.observed_return_transit_days > u64::from(journey.return_travel_days)
+    {
+        return Err(invalid(
+            "journey observed transit duration exceeds its plan",
+        ));
+    }
+    journey.observed_transit_days = add(
+        journey.observed_outbound_transit_days,
+        journey.observed_return_transit_days,
+    )?;
+    journey.unrealized_planned_transit_days = planned_days
+        .checked_sub(journey.observed_transit_days)
+        .ok_or_else(|| invalid("journey observed transit duration exceeds planned duration"))?;
+
+    let expected_legs = match journey.status {
+        TemporaryJourneyObservedStatus::Completed => Some(2),
+        TemporaryJourneyObservedStatus::ActiveOutboundTransit => Some(0),
+        TemporaryJourneyObservedStatus::ActiveVisiting
+        | TemporaryJourneyObservedStatus::ActiveReturnTransit => Some(1),
+        TemporaryJourneyObservedStatus::TerminatedNoLivingMembers => None,
+    };
+    if journey.realized_route_legs > 2
+        || expected_legs.is_some_and(|expected| journey.realized_route_legs != expected)
+    {
+        return Err(invalid(
+            "journey realized route-leg count is inconsistent with lifecycle status",
+        ));
+    }
+
+    let realized_legs = u64::from(journey.realized_route_legs);
+    let planned_cost = journey
+        .one_way_accumulated_travel_cost_units
+        .map(|cost| mul(cost, 2))
+        .transpose()?;
+    if journey.planned_round_trip_travel_cost_units != planned_cost {
+        return Err(invalid("journey planned travel cost is inconsistent"));
+    }
+    journey.realized_travel_cost_units = journey
+        .one_way_accumulated_travel_cost_units
+        .map(|cost| mul(cost, realized_legs))
+        .transpose()?;
+    journey.unrealized_planned_travel_cost_units = match (
+        journey.planned_round_trip_travel_cost_units,
+        journey.realized_travel_cost_units,
+    ) {
+        (Some(planned), Some(realized)) => Some(
+            planned
+                .checked_sub(realized)
+                .ok_or_else(|| invalid("realized travel cost exceeds planned cost"))?,
+        ),
+        (None, None) => None,
+        _ => return Err(invalid("journey travel-cost availability is inconsistent")),
+    };
+
+    let planned_distance = journey
+        .one_way_route_distance_edges
+        .map(|distance| mul(u64::from(distance), 2))
+        .transpose()?;
+    if journey.planned_round_trip_route_distance_edges != planned_distance {
+        return Err(invalid("journey planned route distance is inconsistent"));
+    }
+    journey.realized_route_distance_edges = journey
+        .one_way_route_distance_edges
+        .map(|distance| mul(u64::from(distance), realized_legs))
+        .transpose()?;
+    journey.unrealized_planned_route_distance_edges = match (
+        journey.planned_round_trip_route_distance_edges,
+        journey.realized_route_distance_edges,
+    ) {
+        (Some(planned), Some(realized)) => Some(
+            planned
+                .checked_sub(realized)
+                .ok_or_else(|| invalid("realized route distance exceeds planned distance"))?,
+        ),
+        (None, None) => None,
+        _ => {
+            return Err(invalid(
+                "journey route-distance availability is inconsistent",
+            ));
+        }
+    };
     Ok(())
 }
 
@@ -1528,6 +1895,155 @@ mod tests {
         (config, simulation.population().clone())
     }
 
+    fn burden_fixture(
+        status: TemporaryJourneyObservedStatus,
+        observed_outbound_transit_days: u64,
+        observed_return_transit_days: u64,
+        realized_route_legs: u8,
+    ) -> TemporaryJourneyObservability {
+        TemporaryJourneyObservability {
+            provenance: MetricProvenance::Derived,
+            journey: TemporaryJourneyId::new(1),
+            household: HouseholdId::new(1),
+            trigger_index: 0,
+            trigger_day: 10,
+            residence: CellId::new(1),
+            destination: CellId::new(4),
+            region_id: "test".to_owned(),
+            region_identity: "test-region".to_owned(),
+            travel_model_identity: Some("test-travel".to_owned()),
+            one_way_accumulated_travel_cost_units: Some(10),
+            one_way_route_distance_edges: Some(4),
+            people_at_departure: 2,
+            departure_day: 10,
+            arrival_day: 13,
+            return_departure_day: 18,
+            completion_day: 20,
+            outbound_travel_days: 3,
+            planned_visit_duration_days: 5,
+            return_travel_days: 2,
+            planned_round_trip_travel_days: 5,
+            observed_outbound_transit_days,
+            observed_return_transit_days,
+            observed_transit_days: 0,
+            unrealized_planned_transit_days: 5,
+            realized_route_legs,
+            planned_round_trip_travel_cost_units: Some(20),
+            realized_travel_cost_units: Some(0),
+            unrealized_planned_travel_cost_units: Some(20),
+            planned_round_trip_route_distance_edges: Some(8),
+            realized_route_distance_edges: Some(0),
+            unrealized_planned_route_distance_edges: Some(8),
+            observed_outbound_transit_person_days: 0,
+            observed_visitor_person_days: 0,
+            observed_visitor_household_days: 0,
+            observed_return_transit_person_days: 0,
+            status,
+        }
+    }
+
+    fn assert_burden(
+        mut journey: TemporaryJourneyObservability,
+        observed_days: u64,
+        unrealized_days: u64,
+        realized_cost: u64,
+        unrealized_cost: u64,
+        realized_distance: u64,
+        unrealized_distance: u64,
+    ) {
+        finalize_journey_travel_burden(&mut journey).expect("finalize burden");
+        assert_eq!(journey.observed_transit_days, observed_days);
+        assert_eq!(journey.unrealized_planned_transit_days, unrealized_days);
+        assert_eq!(journey.realized_travel_cost_units, Some(realized_cost));
+        assert_eq!(
+            journey.unrealized_planned_travel_cost_units,
+            Some(unrealized_cost)
+        );
+        assert_eq!(
+            journey.realized_route_distance_edges,
+            Some(realized_distance)
+        );
+        assert_eq!(
+            journey.unrealized_planned_route_distance_edges,
+            Some(unrealized_distance)
+        );
+    }
+
+    #[test]
+    fn completed_journey_realizes_the_whole_planned_route_burden() {
+        assert_burden(
+            burden_fixture(TemporaryJourneyObservedStatus::Completed, 3, 2, 2),
+            5,
+            0,
+            20,
+            0,
+            8,
+            0,
+        );
+    }
+
+    #[test]
+    fn active_outbound_journey_does_not_realize_future_route_legs() {
+        assert_burden(
+            burden_fixture(
+                TemporaryJourneyObservedStatus::ActiveOutboundTransit,
+                1,
+                0,
+                0,
+            ),
+            1,
+            4,
+            0,
+            20,
+            0,
+            8,
+        );
+    }
+
+    #[test]
+    fn active_visit_realizes_outbound_but_not_future_return_route_burden() {
+        assert_burden(
+            burden_fixture(TemporaryJourneyObservedStatus::ActiveVisiting, 3, 0, 1),
+            3,
+            2,
+            10,
+            10,
+            4,
+            4,
+        );
+    }
+
+    #[test]
+    fn active_return_counts_elapsed_return_time_but_not_unfinished_return_route_burden() {
+        assert_burden(
+            burden_fixture(TemporaryJourneyObservedStatus::ActiveReturnTransit, 3, 1, 1),
+            4,
+            1,
+            10,
+            10,
+            4,
+            4,
+        );
+    }
+
+    #[test]
+    fn extinct_household_keeps_completed_leg_realized_and_future_burden_unrealized() {
+        assert_burden(
+            burden_fixture(
+                TemporaryJourneyObservedStatus::TerminatedNoLivingMembers,
+                3,
+                1,
+                1,
+            ),
+            4,
+            1,
+            10,
+            10,
+            4,
+            4,
+        );
+    }
+
     #[test]
     fn replay_partitions_person_days_and_is_deterministic() {
         let (config, initial_population) = configured_run(1, 10, 5);
@@ -1541,6 +2057,7 @@ mod tests {
             derive_temporary_mobility_observability(&world, &initial_population, &checkpoint)
                 .expect("report");
         assert_eq!(first, second);
+        assert_eq!(first.schema_version, 2);
         assert!(first.summary.journeys_started > 0);
         assert_eq!(
             first.summary.journeys_started,
@@ -1557,6 +2074,21 @@ mod tests {
                 + first.summary.transit_person_days,
             first.summary.total_living_person_days
         );
+        assert_eq!(
+            first.summary.total_travel_days,
+            first.summary.observed_transit_days
+        );
+        assert_eq!(first.summary.unrealized_planned_transit_days, 0);
+        assert_eq!(
+            first.summary.total_round_trip_travel_cost_units,
+            first.summary.realized_travel_cost_units
+        );
+        assert_eq!(first.summary.unrealized_planned_travel_cost_units, 0);
+        assert_eq!(
+            first.summary.total_round_trip_route_distance_edges,
+            first.summary.realized_route_distance_edges
+        );
+        assert_eq!(first.summary.unrealized_planned_route_distance_edges, 0);
         let spatial_physical: u64 = first
             .cells
             .iter()
