@@ -51,7 +51,10 @@ pub struct MigrationDecisionTrace {
     pub selected_weight: u64,
     pub total_move_weight: u64,
     pub choice_draw: u64,
-    pub travel_condition_cost_per_person: u16,
+    /// Nominal per-person decrement requested by M4 before the zero-condition bound is applied.
+    pub nominal_travel_condition_cost_per_person: u16,
+    /// Exact summed condition loss actually realized by living movers after saturation at zero.
+    pub realized_travel_condition_loss_total: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,8 +87,9 @@ pub struct MigrationSummary {
 }
 
 impl MigrationSummary {
-    /// v2 represents move-conditional means as null when the move observation set is empty.
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    /// v2 represented move-conditional means as null when the move observation set was empty.
+    /// v3 distinguishes the nominal requested decrement from exact realized condition loss in traces.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,7 +117,8 @@ pub struct MigrationCheckpointState {
 }
 
 impl MigrationCheckpointState {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    /// v2 carries the explicit nominal/realized travel-condition fields in retained decision traces.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -204,6 +209,9 @@ pub struct MigrationSystem {
     recorded_decision_traces: Vec<MigrationDecisionTrace>,
     living_members: Vec<u32>,
     condition_sums: Vec<u64>,
+    /// Living pre-move conditions grouped by household for exact bounded-loss observability.
+    /// Capacity is reused between boundaries; this does not become persisted simulation state.
+    living_conditions: Vec<Vec<u16>>,
     /// Living population by persistent residence, used only for permanent-occupancy accounting.
     cell_living: Vec<u32>,
     /// Living population provisioned from each cell at the current M4 decision boundary.
@@ -223,12 +231,14 @@ pub struct MigrationSystem {
     kin_locations: Vec<Vec<CellId>>,
     planned_destinations: Vec<CellId>,
     planned_condition_costs: Vec<u16>,
+    planned_realized_condition_losses: Vec<u64>,
     candidates: Vec<CellId>,
     evaluations: Vec<CandidateEvaluation>,
 }
 
 impl MigrationSystem {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    /// v2 records nominal and realized travel-condition effects separately in migration artifacts.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     pub fn initialize(
         population: &Population,
@@ -262,12 +272,14 @@ impl MigrationSystem {
             ),
             living_members: vec![0; households],
             condition_sums: vec![0; households],
+            living_conditions: vec![Vec::new(); households],
             cell_living: vec![0; cells],
             boundary_demand_living: vec![0; cells],
             post_move_cell_living: vec![0; cells],
             kin_locations: vec![Vec::new(); households],
             planned_destinations: vec![CellId::INVALID; households],
             planned_condition_costs: vec![0; households],
+            planned_realized_condition_losses: vec![0; households],
             candidates: Vec::with_capacity(candidate_capacity),
             evaluations: Vec::with_capacity(candidate_capacity),
         })
@@ -491,14 +503,15 @@ impl MigrationSystem {
                     .min(u32::from(PERMILLE_MAX)),
             )
             .unwrap_or(PERMILLE_MAX);
+            let realized_condition_loss =
+                self.realized_condition_loss_for_household(household_index, condition_cost)?;
             self.planned_destinations[household_index] = selected.cell;
             self.planned_condition_costs[household_index] = condition_cost;
+            self.planned_realized_condition_losses[household_index] = realized_condition_loss;
             self.record_selected_move(
-                population,
                 world,
                 config,
                 day,
-                household_index,
                 household,
                 members,
                 origin,
@@ -510,6 +523,7 @@ impl MigrationSystem {
                 total_weight,
                 choice_draw,
                 condition_cost,
+                realized_condition_loss,
                 events,
             )?;
         }
@@ -525,7 +539,12 @@ impl MigrationSystem {
         temporary_mobility: Option<&TemporaryMobilityState>,
     ) -> Result<(), MigrationError> {
         if self.living_members.len() != population.household_count()
+            || self.condition_sums.len() != population.household_count()
+            || self.living_conditions.len() != population.household_count()
             || self.kin_locations.len() != population.household_count()
+            || self.planned_destinations.len() != population.household_count()
+            || self.planned_condition_costs.len() != population.household_count()
+            || self.planned_realized_condition_losses.len() != population.household_count()
             || self.cell_living.len() != world.cell_count()
             || self.boundary_demand_living.len() != world.cell_count()
         {
@@ -536,11 +555,15 @@ impl MigrationSystem {
         self.cell_living.fill(0);
         self.boundary_demand_living.fill(0);
         self.post_move_cell_living.fill(0);
+        for conditions in &mut self.living_conditions {
+            conditions.clear();
+        }
         for locations in &mut self.kin_locations {
             locations.clear();
         }
         self.planned_destinations.fill(CellId::INVALID);
         self.planned_condition_costs.fill(0);
+        self.planned_realized_condition_losses.fill(0);
 
         for person_index in 0..population.person_count() {
             if !population.is_alive_index(person_index) {
@@ -578,6 +601,7 @@ impl MigrationSystem {
             self.condition_sums[household_index] = self.condition_sums[household_index]
                 .checked_add(u64::from(condition))
                 .ok_or(MigrationError::AccountingOverflow)?;
+            self.living_conditions[household_index].push(condition);
             self.cell_living[residence_cell_index] = self.cell_living[residence_cell_index]
                 .checked_add(1)
                 .ok_or(MigrationError::AccountingOverflow)?;
@@ -757,14 +781,28 @@ impl MigrationSystem {
         })
     }
 
+    fn realized_condition_loss_for_household(
+        &self,
+        household_index: usize,
+        nominal_cost_per_person: u16,
+    ) -> Result<u64, MigrationError> {
+        let conditions = self
+            .living_conditions
+            .get(household_index)
+            .ok_or(MigrationError::StateShapeMismatch)?;
+        conditions.iter().try_fold(0_u64, |total, &condition| {
+            total
+                .checked_add(u64::from(condition.min(nominal_cost_per_person)))
+                .ok_or(MigrationError::AccountingOverflow)
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn record_selected_move(
         &mut self,
-        population: &Population,
         world: &World,
         config: &MigrationConfig,
         day: u64,
-        household_index: usize,
         household: HouseholdId,
         members: u32,
         origin: CellId,
@@ -775,7 +813,8 @@ impl MigrationSystem {
         best_candidate_utility: i32,
         total_weight: u64,
         choice_draw: u64,
-        condition_cost: u16,
+        nominal_condition_cost_per_person: u16,
+        realized_condition_loss_total: u64,
         events: &mut EventLog,
     ) -> Result<(), MigrationError> {
         self.moves_completed = self
@@ -855,7 +894,8 @@ impl MigrationSystem {
                 selected_weight: selected.weight,
                 total_move_weight: total_weight,
                 choice_draw,
-                travel_condition_cost_per_person: condition_cost,
+                nominal_travel_condition_cost_per_person: nominal_condition_cost_per_person,
+                realized_travel_condition_loss_total: realized_condition_loss_total,
             });
         }
         events.push_authoritative(
@@ -874,11 +914,10 @@ impl MigrationSystem {
                 selected_weight: selected.weight,
                 total_move_weight: total_weight,
                 choice_draw,
-                travel_condition_cost_per_person: condition_cost,
+                nominal_travel_condition_cost_per_person: nominal_condition_cost_per_person,
+                realized_travel_condition_loss_total: realized_condition_loss_total,
             },
         );
-        let _ = household_index;
-        let _ = population;
         Ok(())
     }
 
@@ -922,11 +961,24 @@ impl MigrationSystem {
             .checked_add(after - before)
             .ok_or(MigrationError::AccountingOverflow)?;
 
+        let projected_condition_loss =
+            self.planned_realized_condition_losses
+                .iter()
+                .try_fold(0_u64, |total, &loss| {
+                    total
+                        .checked_add(loss)
+                        .ok_or(MigrationError::AccountingOverflow)
+                })?;
         let relocation = population.apply_household_relocations(
             &self.planned_destinations,
             &self.planned_condition_costs,
             world,
         )?;
+        if relocation.condition_loss_total != projected_condition_loss {
+            return Err(MigrationError::InternalInvariant(
+                "projected and realized travel condition loss did not reconcile",
+            ));
+        }
         self.travel_condition_cost_total = self
             .travel_condition_cost_total
             .checked_add(relocation.condition_loss_total)
@@ -1936,6 +1988,157 @@ mod tests {
             250
         );
         assert_eq!(parent_to_child.total_utility, 250);
+    }
+
+    #[test]
+    fn realized_travel_condition_loss_handles_no_partial_and_full_saturation() {
+        let factory = RngFactory::new(225_001);
+        let world = World::generate(WorldConfig::new(2, 1), factory).unwrap();
+        let mut population = Population::initialize(
+            PopulationConfig::new(3).with_target_household_size(3),
+            &world,
+            factory,
+        )
+        .unwrap();
+        assert_eq!(population.household_count(), 1);
+        for (index, condition) in [1_000_u16, 500, 50].into_iter().enumerate() {
+            assert!(population.set_condition_at_index(index, condition));
+        }
+        let config = MigrationConfig::synthetic_validation_v1();
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
+
+        assert_eq!(
+            migration
+                .realized_condition_loss_for_household(0, 40)
+                .unwrap(),
+            120
+        );
+        assert_eq!(
+            migration
+                .realized_condition_loss_for_household(0, 100)
+                .unwrap(),
+            250
+        );
+        assert_eq!(
+            migration
+                .realized_condition_loss_for_household(0, PERMILLE_MAX)
+                .unwrap(),
+            1_550
+        );
+
+        let household = HouseholdId::new(1);
+        let origin = population.household_location(household).unwrap();
+        let destination = if origin == world.cell_id(0, 0).unwrap() {
+            world.cell_id(1, 0).unwrap()
+        } else {
+            world.cell_id(0, 0).unwrap()
+        };
+        let utility = MigrationUtilityBreakdown {
+            resource_score_permille: 0,
+            water_security_score_permille: 0,
+            kin_score_permille: 0,
+            travel_penalty_permille: 0,
+            uncertainty_penalty_permille: 0,
+            relocation_risk_penalty_permille: 0,
+            total_utility: 0,
+        };
+        let selected = CandidateEvaluation {
+            cell: destination,
+            distance: 1,
+            utility,
+            weight: 1,
+        };
+        migration.planned_destinations[0] = destination;
+        migration.planned_condition_costs[0] = 100;
+        migration.planned_realized_condition_losses[0] = 250;
+        let mut events = EventLog::new();
+        migration
+            .record_selected_move(
+                &world,
+                &config,
+                91,
+                household,
+                3,
+                origin,
+                1,
+                utility,
+                selected,
+                destination,
+                0,
+                1,
+                0,
+                100,
+                250,
+                &mut events,
+            )
+            .unwrap();
+        migration
+            .apply_planned_moves(&mut population, &world)
+            .unwrap();
+
+        let summary = migration.summary();
+        assert_eq!(summary.travel_condition_cost_total, 250);
+        assert_eq!(summary.recorded_decision_traces.len(), 1);
+        let trace = &summary.recorded_decision_traces[0];
+        assert_eq!(trace.nominal_travel_condition_cost_per_person, 100);
+        assert_eq!(trace.realized_travel_condition_loss_total, 250);
+        let trace_json = serde_json::to_value(trace).unwrap();
+        assert_eq!(trace_json["nominalTravelConditionCostPerPerson"], 100);
+        assert_eq!(trace_json["realizedTravelConditionLossTotal"], 250);
+        assert!(trace_json.get("travelConditionCostPerPerson").is_none());
+
+        assert_eq!(events.len(), 1);
+        let event_json = serde_json::to_value(&events.events[0].event).unwrap();
+        assert_eq!(event_json["nominal_travel_condition_cost_per_person"], 100);
+        assert_eq!(event_json["realized_travel_condition_loss_total"], 250);
+        assert!(event_json.get("travel_condition_cost_per_person").is_none());
+        assert_eq!(population.condition_at_index(0), Some(900));
+        assert_eq!(population.condition_at_index(1), Some(400));
+        assert_eq!(population.condition_at_index(2), Some(0));
+    }
+
+    #[test]
+    fn realized_travel_condition_loss_all_movers_can_saturate_at_zero() {
+        let factory = RngFactory::new(225_002);
+        let world = World::generate(WorldConfig::new(2, 1), factory).unwrap();
+        let mut population = Population::initialize(
+            PopulationConfig::new(3).with_target_household_size(3),
+            &world,
+            factory,
+        )
+        .unwrap();
+        assert_eq!(population.household_count(), 1);
+        for (index, condition) in [100_u16, 50, 1].into_iter().enumerate() {
+            assert!(population.set_condition_at_index(index, condition));
+        }
+
+        let config = MigrationConfig::synthetic_validation_v1();
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
+
+        let household = HouseholdId::new(1);
+        let origin = population.household_location(household).unwrap();
+        let destination = if origin == world.cell_id(0, 0).unwrap() {
+            world.cell_id(1, 0).unwrap()
+        } else {
+            world.cell_id(0, 0).unwrap()
+        };
+        migration.planned_destinations[0] = destination;
+        migration.planned_condition_costs[0] = PERMILLE_MAX;
+        migration.planned_realized_condition_losses[0] = 151;
+        migration
+            .apply_planned_moves(&mut population, &world)
+            .unwrap();
+
+        assert_eq!(migration.summary().travel_condition_cost_total, 151);
+        assert_eq!(population.condition_at_index(0), Some(0));
+        assert_eq!(population.condition_at_index(1), Some(0));
+        assert_eq!(population.condition_at_index(2), Some(0));
     }
 
     #[test]

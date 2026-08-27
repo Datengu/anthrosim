@@ -349,7 +349,8 @@ fn move_female_household(
             selected_weight: 1,
             total_move_weight: 1,
             choice_draw: 0,
-            travel_condition_cost_per_person: 0,
+            nominal_travel_condition_cost_per_person: 0,
+            realized_travel_condition_loss_total: 0,
         },
     );
 }

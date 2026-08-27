@@ -471,9 +471,12 @@ fn validate_migration_trace(
     if distance == 0 || distance != trace.distance_cells || distance > radius {
         return violation("migration trace violates bounded local movement");
     }
+    let maximum_realized_loss =
+        u128::from(trace.people_moved) * u128::from(trace.nominal_travel_condition_cost_per_person);
     if trace.decision_day != trace.completed_day
         || trace.pressure_permille > PERMILLE_MAX
-        || trace.travel_condition_cost_per_person > PERMILLE_MAX
+        || trace.nominal_travel_condition_cost_per_person > PERMILLE_MAX
+        || u128::from(trace.realized_travel_condition_loss_total) > maximum_realized_loss
         || trace.selected_weight == 0
         || trace.selected_weight > trace.total_move_weight
         || trace.choice_draw >= trace.total_move_weight
@@ -491,6 +494,7 @@ struct EventCounts {
     migrations: u64,
     people_moved: u64,
     migration_distance: u64,
+    migration_condition_loss: u64,
 }
 
 fn validate_events(
@@ -583,7 +587,8 @@ fn validate_events(
                 selected_weight,
                 total_move_weight,
                 choice_draw,
-                travel_condition_cost_per_person,
+                nominal_travel_condition_cost_per_person,
+                realized_travel_condition_loss_total,
                 ..
             } => {
                 counts.migrations = counts.migrations.saturating_add(1);
@@ -591,16 +596,22 @@ fn validate_events(
                 counts.migration_distance = counts
                     .migration_distance
                     .saturating_add(u64::from(*distance_cells));
+                counts.migration_condition_loss = counts
+                    .migration_condition_loss
+                    .saturating_add(*realized_travel_condition_loss_total);
                 let distance =
                     manhattan_distance(world, *origin, *destination).ok_or_else(|| {
                         InvariantError::Violation("migration event references invalid cells".into())
                     })?;
+                let maximum_realized_loss = u128::from(*people_moved)
+                    * u128::from(*nominal_travel_condition_cost_per_person);
                 if household.0 == 0
                     || household.0 > population.household_count
                     || distance == 0
                     || distance != *distance_cells
                     || *pressure_permille > PERMILLE_MAX
-                    || *travel_condition_cost_per_person > PERMILLE_MAX
+                    || *nominal_travel_condition_cost_per_person > PERMILLE_MAX
+                    || u128::from(*realized_travel_condition_loss_total) > maximum_realized_loss
                     || *selected_weight == 0
                     || *selected_weight > *total_move_weight
                     || *choice_draw >= *total_move_weight
@@ -742,6 +753,7 @@ fn validate_events(
         || counts.migrations != migration.moves_completed
         || counts.people_moved != migration.people_moved
         || counts.migration_distance != migration.total_distance_cells
+        || counts.migration_condition_loss != migration.travel_condition_cost_total
     {
         return violation("authoritative event totals do not reconcile with subsystem summaries");
     }
