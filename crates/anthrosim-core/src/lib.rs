@@ -132,7 +132,9 @@ pub use spatial_boundary::{
     SpatialAnalysisDomain, SpatialAnalysisExtent, SpatialBoundaryAssessment,
     SpatialBoundaryCellAssessment, SpatialBoundaryDeclaration, SpatialBoundaryError,
     SpatialBoundaryInterpretation, SpatialBoundarySemantics, SpatialExtentAdequacyCriterion,
-    SpatialExtentMetricTolerance, assess_spatial_boundary,
+    SpatialExtentConvergenceAssessment, SpatialExtentExtensionComparison,
+    SpatialExtentMetricComparison, SpatialExtentMetricObservation, SpatialExtentMetricTolerance,
+    SpatialExtentObservation, assess_spatial_boundary, assess_spatial_extent_convergence,
 };
 pub use spatial_invariants::{SpatialInvariantError, validate_spatial_landscape_recorded_run};
 pub use spatial_mechanisms::{
