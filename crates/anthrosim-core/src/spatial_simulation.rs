@@ -12,6 +12,7 @@ use crate::{
         process_demographic_year_recorded, validate_demography_config,
     },
     events::EventLog,
+    focal_region::{FocalRegionBindingError, FocalRegionSource},
     landscape::LandscapeBundle,
     landscape_binding::{LandscapeBinding, LandscapeBindingError},
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
@@ -200,6 +201,7 @@ impl SpatialLandscapeSimulation {
         }
 
         let world = reconstruct_world(&config, &landscape, &mechanisms)?;
+        validate_spatial_temporary_mobility_definition(&config, &landscape, &world)?;
         let spatial_binding = SpatialMechanismBinding::new(mechanisms, &world)?;
         let rng_factory = RngFactory::new(config.seed);
         let population = Population::initialize(config.population, &world, rng_factory)?;
@@ -277,7 +279,7 @@ impl SpatialLandscapeSimulation {
             .population
             .validate(&world)
             .map_err(PopulationError::from)?;
-        validate_spatial_temporary_mobility(&checkpoint.core_checkpoint, &world)?;
+        validate_spatial_temporary_mobility(&checkpoint.core_checkpoint, &landscape, &world)?;
         checkpoint
             .core_checkpoint
             .resources
@@ -808,7 +810,7 @@ pub fn validate_spatial_landscape_recorded_run(
         .population
         .validate(&world)
         .map_err(PopulationError::from)?;
-    validate_spatial_temporary_mobility(&run.checkpoint.core_checkpoint, &world)?;
+    validate_spatial_temporary_mobility(&run.checkpoint.core_checkpoint, landscape, &world)?;
     run.checkpoint
         .core_checkpoint
         .resources
@@ -903,6 +905,31 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
     Ok(())
 }
 
+fn validate_spatial_temporary_mobility_definition(
+    config: &ExperimentConfig,
+    landscape: &LandscapeBundle,
+    world: &World,
+) -> Result<(), SpatialLandscapeError> {
+    let Some(definition) = &config.temporary_mobility else {
+        return Ok(());
+    };
+    let FocalRegionSource::LandscapeMask {
+        evidence_input_id, ..
+    } = &definition.region.source
+    else {
+        return Ok(());
+    };
+    let evidence = config.evidence.as_ref().ok_or_else(|| {
+        TemporaryMobilityConfigError::MissingEvidenceCatalog {
+            input_id: evidence_input_id.clone(),
+        }
+    })?;
+    definition
+        .region
+        .validate_landscape_binding(landscape, evidence, world)?;
+    Ok(())
+}
+
 fn validate_core_checkpoint_header(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<(), SpatialLandscapeError> {
@@ -972,8 +999,10 @@ fn validate_core_checkpoint_header(
 
 fn validate_spatial_temporary_mobility(
     checkpoint: &SimulationCheckpoint,
+    landscape: &LandscapeBundle,
     world: &World,
 ) -> Result<(), SpatialLandscapeError> {
+    validate_spatial_temporary_mobility_definition(&checkpoint.experiment, landscape, world)?;
     checkpoint
         .temporary_mobility
         .validate_at_day(checkpoint.time.days(), &checkpoint.population, world)
@@ -1034,6 +1063,8 @@ pub enum SpatialLandscapeError {
     Landscape(#[from] crate::LandscapeError),
     #[error(transparent)]
     Evidence(#[from] crate::EvidenceError),
+    #[error(transparent)]
+    FocalRegionBinding(#[from] FocalRegionBindingError),
     #[error(transparent)]
     SpatialMechanism(#[from] SpatialMechanismError),
     #[error(transparent)]
