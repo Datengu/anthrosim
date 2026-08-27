@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "temporaryObservabilitySchemaVersion": 2,
+  "description": "Preserved M9.6 travel-burden reference after issue #223. Planned round-trip burden is partitioned into observed/realized and unrealized components at the observation boundary.",
+  "intermittentBySeed": {
+    "9701": {
+      "plannedRoundTripTravelDays": 4194,
+      "observedTransitDays": 4194,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 9331200,
+      "realizedTravelCostUnits": 9331200,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4680,
+      "realizedRouteDistanceEdges": 4680,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    },
+    "9702": {
+      "plannedRoundTripTravelDays": 3384,
+      "observedTransitDays": 3384,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 6971148,
+      "realizedTravelCostUnits": 6971148,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4068,
+      "realizedRouteDistanceEdges": 4068,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    },
+    "9703": {
+      "plannedRoundTripTravelDays": 3434,
+      "observedTransitDays": 3432,
+      "unrealizedPlannedTransitDays": 2,
+      "plannedRoundTripTravelCostUnits": 7641770,
+      "realizedTravelCostUnits": 7638204,
+      "unrealizedPlannedTravelCostUnits": 3566,
+      "plannedRoundTripRouteDistanceEdges": 4082,
+      "realizedRouteDistanceEdges": 4080,
+      "unrealizedPlannedRouteDistanceEdges": 2
+    },
+    "9704": {
+      "plannedRoundTripTravelDays": 4608,
+      "observedTransitDays": 4608,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 10517274,
+      "realizedTravelCostUnits": 10517274,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4608,
+      "realizedRouteDistanceEdges": 4608,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    },
+    "9705": {
+      "plannedRoundTripTravelDays": 3780,
+      "observedTransitDays": 3780,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 8110116,
+      "realizedTravelCostUnits": 8110116,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4428,
+      "realizedRouteDistanceEdges": 4428,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    },
+    "9706": {
+      "plannedRoundTripTravelDays": 4554,
+      "observedTransitDays": 4554,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 11779416,
+      "realizedTravelCostUnits": 11779416,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4554,
+      "realizedRouteDistanceEdges": 4554,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    },
+    "9707": {
+      "plannedRoundTripTravelDays": 3996,
+      "observedTransitDays": 3996,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 8353728,
+      "realizedTravelCostUnits": 8353728,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4068,
+      "realizedRouteDistanceEdges": 4068,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    },
+    "9708": {
+      "plannedRoundTripTravelDays": 4050,
+      "observedTransitDays": 4050,
+      "unrealizedPlannedTransitDays": 0,
+      "plannedRoundTripTravelCostUnits": 8665254,
+      "realizedTravelCostUnits": 8665254,
+      "unrealizedPlannedTravelCostUnits": 0,
+      "plannedRoundTripRouteDistanceEdges": 4050,
+      "realizedRouteDistanceEdges": 4050,
+      "unrealizedPlannedRouteDistanceEdges": 0
+    }
+  }
+}
