@@ -94,6 +94,142 @@ struct ProbabilityFraction {
     denominator: u128,
 }
 
+fn apportion_resource_claims(
+    claims: &[ResourceDemandClaim],
+    cell_need: &[u64],
+    cell_target: &[u64],
+    period_sequence: u64,
+) -> Result<(Vec<u64>, Vec<u64>), ResourceError> {
+    if cell_need.len() != cell_target.len() {
+        return Err(ResourceError::InternalInvariant(
+            "resource apportionment cell arrays differ in length",
+        ));
+    }
+
+    let mut claim_harvest = vec![0_u64; claims.len()];
+    let mut claim_remainder = vec![0_u64; claims.len()];
+    let mut cell_allocated = vec![0_u64; cell_target.len()];
+
+    for (claim_index, claim) in claims.iter().enumerate() {
+        let demand = *cell_need
+            .get(claim.cell_index)
+            .ok_or(ResourceError::InternalInvariant(
+                "resource claim references an invalid cell",
+            ))?;
+        let target = cell_target[claim.cell_index];
+        if demand == 0 || claim.need == 0 || claim.need > demand || target > demand {
+            return Err(ResourceError::InternalInvariant(
+                "resource claim apportionment inputs are inconsistent",
+            ));
+        }
+
+        let numerator = u128::from(target)
+            .checked_mul(u128::from(claim.need))
+            .ok_or(ResourceError::AccountingOverflow)?;
+        let denominator = u128::from(demand);
+        let allocation = u64::try_from(numerator / denominator)
+            .map_err(|_| ResourceError::AccountingOverflow)?;
+        let remainder = u64::try_from(numerator % denominator)
+            .map_err(|_| ResourceError::AccountingOverflow)?;
+
+        claim_harvest[claim_index] = allocation;
+        claim_remainder[claim_index] = remainder;
+        cell_allocated[claim.cell_index] = cell_allocated[claim.cell_index]
+            .checked_add(allocation)
+            .ok_or(ResourceError::AccountingOverflow)?;
+    }
+
+    let mut remainder_order = (0..claims.len())
+        .filter(|&claim_index| claim_remainder[claim_index] > 0)
+        .collect::<Vec<_>>();
+    remainder_order.sort_unstable_by(|&left_index, &right_index| {
+        let left_claim = claims[left_index];
+        let right_claim = claims[right_index];
+        left_claim
+            .cell_index
+            .cmp(&right_claim.cell_index)
+            .then_with(|| claim_remainder[right_index].cmp(&claim_remainder[left_index]))
+            .then_with(|| left_index.cmp(&right_index))
+    });
+
+    let mut cell_group_start = 0_usize;
+    while cell_group_start < remainder_order.len() {
+        let cell_index = claims[remainder_order[cell_group_start]].cell_index;
+        let mut cell_group_end = cell_group_start + 1;
+        while cell_group_end < remainder_order.len()
+            && claims[remainder_order[cell_group_end]].cell_index == cell_index
+        {
+            cell_group_end += 1;
+        }
+
+        let mut remainder_group_start = cell_group_start;
+        while remainder_group_start < cell_group_end
+            && cell_allocated[cell_index] < cell_target[cell_index]
+        {
+            let remainder = claim_remainder[remainder_order[remainder_group_start]];
+            let mut remainder_group_end = remainder_group_start + 1;
+            while remainder_group_end < cell_group_end
+                && claim_remainder[remainder_order[remainder_group_end]] == remainder
+            {
+                remainder_group_end += 1;
+            }
+
+            let group_len = remainder_group_end - remainder_group_start;
+            let group_len_u64 =
+                u64::try_from(group_len).map_err(|_| ResourceError::AccountingOverflow)?;
+            let remaining = cell_target[cell_index]
+                .checked_sub(cell_allocated[cell_index])
+                .ok_or(ResourceError::AccountingOverflow)?;
+            let awards = usize::try_from(remaining.min(group_len_u64))
+                .map_err(|_| ResourceError::AccountingOverflow)?;
+
+            if awards > 0 {
+                let cell_phase =
+                    u64::try_from(cell_index).map_err(|_| ResourceError::AccountingOverflow)?;
+                let rotation = usize::try_from(
+                    period_sequence
+                        .checked_add(cell_phase)
+                        .ok_or(ResourceError::AccountingOverflow)?
+                        % group_len_u64,
+                )
+                .map_err(|_| ResourceError::AccountingOverflow)?;
+
+                for step in 0..awards {
+                    let group_offset = (rotation + step) % group_len;
+                    let claim_index = remainder_order[remainder_group_start + group_offset];
+                    claim_harvest[claim_index] = claim_harvest[claim_index]
+                        .checked_add(1)
+                        .ok_or(ResourceError::AccountingOverflow)?;
+                    cell_allocated[cell_index] = cell_allocated[cell_index]
+                        .checked_add(1)
+                        .ok_or(ResourceError::AccountingOverflow)?;
+                }
+            }
+
+            remainder_group_start = remainder_group_end;
+        }
+
+        cell_group_start = cell_group_end;
+    }
+
+    for (cell_index, (&allocated, &target)) in
+        cell_allocated.iter().zip(cell_target.iter()).enumerate()
+    {
+        if allocated != target {
+            return Err(ResourceError::InternalInvariant(
+                "largest-remainder cell allocation did not reconcile",
+            ));
+        }
+        if target > cell_need[cell_index] {
+            return Err(ResourceError::InternalInvariant(
+                "resource cell target exceeds demand",
+            ));
+        }
+    }
+
+    Ok((claim_harvest, cell_allocated))
+}
+
 impl ResourceSystem {
     pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
@@ -380,45 +516,20 @@ impl ResourceSystem {
             cell_target[index] = self.cell_food_stock[index].min(cell_need[index]);
         }
 
+        let (claim_harvest, cell_allocated) =
+            apportion_resource_claims(&claims, &cell_need, &cell_target, self.periods_processed)?;
         let mut household_harvest = vec![0_u64; household_count];
-        let mut claim_harvest = vec![0_u64; claims.len()];
-        let mut cell_allocated = vec![0_u64; world.cell_count()];
-        for (claim_index, claim) in claims.iter().enumerate() {
-            let demand = cell_need[claim.cell_index];
-            let target = cell_target[claim.cell_index];
-            let allocation = if demand == 0 {
-                0
-            } else {
-                u64::try_from(u128::from(target) * u128::from(claim.need) / u128::from(demand))
-                    .map_err(|_| ResourceError::AccountingOverflow)?
-            };
-            claim_harvest[claim_index] = allocation;
+        for (claim, allocation) in claims.iter().zip(claim_harvest.iter().copied()) {
             household_harvest[claim.household_index] = household_harvest[claim.household_index]
                 .checked_add(allocation)
                 .ok_or(ResourceError::AccountingOverflow)?;
-            cell_allocated[claim.cell_index] = cell_allocated[claim.cell_index]
-                .checked_add(allocation)
-                .ok_or(ResourceError::AccountingOverflow)?;
-        }
-
-        for (claim_index, claim) in claims.iter().enumerate() {
-            if claim_harvest[claim_index] >= claim.need {
-                continue;
-            }
-            if cell_allocated[claim.cell_index] < cell_target[claim.cell_index] {
-                claim_harvest[claim_index] += 1;
-                household_harvest[claim.household_index] = household_harvest[claim.household_index]
-                    .checked_add(1)
-                    .ok_or(ResourceError::AccountingOverflow)?;
-                cell_allocated[claim.cell_index] += 1;
-            }
         }
 
         let mut harvested = 0_u64;
         for cell_index in 0..world.cell_count() {
             if cell_allocated[cell_index] != cell_target[cell_index] {
                 return Err(ResourceError::InternalInvariant(
-                    "proportional cell allocation did not reconcile",
+                    "largest-remainder cell allocation did not reconcile",
                 ));
             }
             self.cell_food_stock[cell_index] = self.cell_food_stock[cell_index]
@@ -1318,6 +1429,96 @@ mod tests {
     }
 
     #[test]
+    fn scarce_allocation_prefers_larger_fractional_remainder() {
+        let claims = [
+            ResourceDemandClaim {
+                household_index: 0,
+                cell_index: 0,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                cell_index: 0,
+                need: 2,
+            },
+        ];
+
+        for period_sequence in 0..4 {
+            let (harvest, cell_allocated) =
+                apportion_resource_claims(&claims, &[3], &[1], period_sequence).unwrap();
+            assert_eq!(harvest, vec![0, 1]);
+            assert_eq!(cell_allocated, vec![1]);
+        }
+    }
+
+    #[test]
+    fn equal_scarcity_remainder_rotates_without_permanent_first_claim_advantage() {
+        let claims = [
+            ResourceDemandClaim {
+                household_index: 0,
+                cell_index: 0,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                cell_index: 0,
+                need: 1,
+            },
+        ];
+        let mut totals = [0_u64; 2];
+
+        for period_sequence in 0..8 {
+            let (harvest, cell_allocated) =
+                apportion_resource_claims(&claims, &[2], &[1], period_sequence).unwrap();
+            totals[0] += harvest[0];
+            totals[1] += harvest[1];
+            assert_eq!(cell_allocated, vec![1]);
+            if period_sequence.is_multiple_of(2) {
+                assert_eq!(harvest, vec![1, 0]);
+            } else {
+                assert_eq!(harvest, vec![0, 1]);
+            }
+        }
+
+        assert_eq!(totals, [4, 4]);
+    }
+
+    #[test]
+    fn relabeling_equal_claims_does_not_create_long_run_resource_advantage() {
+        let original = [
+            ResourceDemandClaim {
+                household_index: 0,
+                cell_index: 0,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                cell_index: 0,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 2,
+                cell_index: 0,
+                need: 1,
+            },
+        ];
+        let permuted = [original[2], original[0], original[1]];
+
+        for claims in [&original[..], &permuted[..]] {
+            let mut household_totals = [0_u64; 3];
+            for period_sequence in 0..12 {
+                let (harvest, cell_allocated) =
+                    apportion_resource_claims(claims, &[3], &[1], period_sequence).unwrap();
+                for (claim, allocation) in claims.iter().zip(harvest) {
+                    household_totals[claim.household_index] += allocation;
+                }
+                assert_eq!(cell_allocated, vec![1]);
+            }
+            assert_eq!(household_totals, [4, 4, 4]);
+        }
+    }
+
+    #[test]
     fn elapsed_day_fixed_allocation_conserves_annual_quantities() {
         assert_eq!(resource_period_day_bounds(0, 4), Some((0, 91)));
         assert_eq!(resource_period_day_bounds(1, 4), Some((91, 182)));
@@ -1723,6 +1924,8 @@ mod tests {
             visitor_destination: Some(crate::ids::CellId::new(2)),
             ..TemporaryResourcePresenceDays::default()
         };
+        // #182 changes competition among claims after cell demand is known. The separate M9
+        // home/visitor split keeps its existing exact-tie rule; #194 tracks that semantic.
         assert_eq!(duration_weighted_needs(1, &tie).unwrap(), (1, 0));
     }
 

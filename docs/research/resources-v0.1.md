@@ -44,7 +44,7 @@ Passing those tests does not establish that the parameter values describe any re
 
 ## Executable time/accounting contract
 
-The normative annual resource-allocation definition is [M3 resource-time contract v1](m3-resource-time-contract-v1.md). The independent response/opportunity timing semantics introduced by v9 are normative in [M3/M4 response-time contract v1](m3-response-time-contract-v1.md). The v10 cause semantics for the shared-condition hazard are normative in [M3 condition-mediated mortality contract v1](m3-condition-mortality-contract-v1.md).
+The normative annual resource-allocation definition is [M3 resource-time contract v1](m3-resource-time-contract-v1.md). The independent response/opportunity timing semantics introduced by v9 are normative in [M3/M4 response-time contract v1](m3-response-time-contract-v1.md). The v10 cause semantics for the shared-condition hazard are normative in [M3 condition-mediated mortality contract v1](m3-condition-mortality-contract-v1.md). The v11 indivisible-unit competition rule is defined in the local-density section below.
 
 For `P = periodsPerYear`, M3 resource period `i` is the half-open interval:
 
@@ -80,7 +80,17 @@ The functional form and magnitudes are not currently evidence-grounded ecologica
 
 Living people create resource need through their household. Household demand is summed within the provisioning cells associated with the household during the current M3 period. If available stock cannot meet total cell demand, competing claims receive proportional shares according to need.
 
-M9 temporary presence can split one household's period demand between residence and visitor destination according to the existing duration-weighted provisioning contract. That separate rounding contract remains subject to its own open audit findings where applicable.
+Because food stock is represented by indivisible integer units, v11 makes the rounding rule part of the explicit model semantics. For each cell, every claim first receives
+
+`floor(cell_target × claim_need / cell_demand)`.
+
+Any remaining cell units are then assigned by the **largest-remainder method**: claims with larger fractional remainders receive an indivisible unit before claims with smaller remainders. This preserves the proportional target as closely as the integer representation permits and reconciles exactly to the cell's available allocation target.
+
+Exact fractional ties do not use stable household or claim order as a permanent priority. Tied claims form a deterministic ring whose starting position rotates with the persisted M3 resource-period sequence and cell index. No additional RNG stream is consumed. For an unchanged repeated `n`-way exact tie, the priority therefore cycles across the tied claims rather than granting the same low-ID claim the rounding unit every period. Stable claim order supplies only the reproducible ring ordering; it does not provide a persistent first-claim advantage.
+
+This rotating tie rule is a **numerical apportionment null rule**, not a claim about social priority, status, territorial access, sharing norms or historical food-distribution institutions. If such mechanisms are scientifically required, they need their own explicit model and evidence rather than being inferred from bookkeeping identity.
+
+M9 temporary presence can split one household's period demand between residence and visitor destination according to the existing duration-weighted provisioning contract. That home-versus-visitor split is upstream of cell competition and is deliberately unchanged by v11; its separate exact-tie semantics remain tracked independently by #194.
 
 This asserts a transparent finite-resource competition mechanism without modelling specific foraging technology, search time, patch choice, territorial exclusion, prey depletion, plant phenology, cooperative hunting, exchange or conflict.
 
@@ -98,7 +108,7 @@ A **zero-demand** interval is explicitly condition-neutral. It does not interpre
 
 Condition is a shared causal mediator. M3 resource balance can change it, but it is not resource-specific: M4 permanent-travel cost also changes the same state, and initialization/newborn rules supply condition values. The numerical state is synthetic and not currently mapped to measured human physiology.
 
-Under v9+, the historical `conditionRecoveryPerPeriod` and `maxConditionLossPerPeriod` serialized fields are **reference-quarter response quantities**. The model has four canonical response quarters `[0,91)`, `[91,182)`, `[182,273)` and `[273,365)`. For each actual M3 interval, the executable response budget is the deterministic cumulative share attributable to the elapsed overlap with those reference quarters. Holding supply status otherwise fixed, a full model year therefore receives the same configured response budget under tested M3 partitions of 1, 4, 12 and 365 rather than multiplying the response by the number of M3 boundaries.
+Under v9+, the historical `conditionRecoveryPerPeriod` and `maxConditionLossPerPeriod` serialized fields are **reference-quarter response quantities**. The model has four canonical response quarters `[0,91)`, `[91,182)`, `[182,273)`, `[273,365)`. For each actual M3 interval, the executable response budget is the deterministic cumulative share attributable to the elapsed overlap with those reference quarters. Holding supply status otherwise fixed, a full model year therefore receives the same configured response budget under tested M3 partitions of 1, 4, 12 and 365 rather than multiplying the response by the number of M3 boundaries.
 
 This repair removes the former numerical opportunity-count artifact. It does not require complete trajectory invariance when resource settlement is changed: stock timing, capacity clipping, changing supply fractions, M9 presence, condition state and extinction can legitimately evolve differently when state is observed/settled at different times.
 
@@ -156,6 +166,7 @@ Once the relevant CI and acceptance tests pass, it is legitimate to say that the
 - zero-amplitude seasonal allocation reduces to the fixed elapsed-day allocation;
 - unconstrained seasonal annual potential is invariant to phase and tested period resolutions while within-year timing can differ;
 - M3 and M4 use the same cumulative elapsed-time rule for annual demand on their respective clocks;
+- scarce cell allocation follows largest fractional remainders and repeated exact ties rotate rather than permanently favoring the first stable claim;
 - positive-demand period demand reconciles to consumption plus unmet need;
 - zero-demand intervals do not create condition recovery;
 - controlled full-supply and full-deficit condition-response budgets do not multiply when M3 is partitioned into 1, 4, 12 or 365 intervals;
