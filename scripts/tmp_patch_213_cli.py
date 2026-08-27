@@ -65,6 +65,19 @@ ensemble = replace_once(
 )
 ensemble = replace_once(
     ensemble,
+    '''            mechanisms,
+            evidence: None,
+            runtime_landscape_path: Some(landscape_path),
+''',
+    '''            mechanisms,
+            evidence: None,
+            founder_population: None,
+            runtime_landscape_path: Some(landscape_path),
+''',
+    "ensemble spatial fixture",
+)
+ensemble = replace_once(
+    ensemble,
     '''    if let Some(temporary_mobility) = &settings.temporary_mobility {
         config = config.with_temporary_mobility(temporary_mobility.clone());
     }
@@ -83,6 +96,23 @@ ensemble = replace_once(
     "experiment founder binding",
 )
 ensemble_path.write_text(ensemble)
+
+bundle_test_path = Path("crates/anthrosim-cli/src/ensemble_bundle_validation_tests.rs")
+bundle_test = bundle_test_path.read_text()
+bundle_test = replace_once(
+    bundle_test,
+    '''        mechanisms,
+        evidence: None,
+        runtime_landscape_path: Some(landscape_path),
+''',
+    '''        mechanisms,
+        evidence: None,
+        founder_population: None,
+        runtime_landscape_path: Some(landscape_path),
+''',
+    "bundle spatial fixture",
+)
+bundle_test_path.write_text(bundle_test)
 
 main_path = Path("crates/anthrosim-cli/src/main.rs")
 main = main_path.read_text()
