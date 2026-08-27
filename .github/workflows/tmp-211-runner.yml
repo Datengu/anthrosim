@@ -1,8 +1,8 @@
 name: Temporary #211 runner
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: [feat/211-spatial-boundary-contract]
 
 permissions:
   contents: write
