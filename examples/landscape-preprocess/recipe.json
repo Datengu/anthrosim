@@ -1,5 +1,17 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "gridConvention": {
+    "originAnchor": "upper_left_outer_corner",
+    "columnDirection": "increasing_x",
+    "rowDirection": "decreasing_y",
+    "cellInterpretation": "area"
+  },
+  "alignedInputGridConvention": {
+    "originAnchor": "upper_left_outer_corner",
+    "columnDirection": "increasing_x",
+    "rowDirection": "decreasing_y",
+    "cellInterpretation": "area"
+  },
   "geometry": {
     "width": 2,
     "height": 2,
@@ -18,12 +30,12 @@
   ],
   "steps": [
     {
-      "description": "Reproject and align source raster to the declared analysis grid",
+      "description": "Reproject and align source raster to the declared analysis grid and north-up row/column convention",
       "command": "gdalwarp -t_srs <target-crs> -te <extent> -tr <cell-size> <source> <aligned-output>"
     },
     {
-      "description": "Derive integer model-facing traversal values and export the aligned grid as CSV",
-      "command": "documented project-specific QGIS/GDAL expression followed by CSV export"
+      "description": "Derive integer model-facing traversal values and export rows from upper to lower CRS Y and columns from lower to higher CRS X",
+      "command": "documented project-specific QGIS/GDAL expression followed by orientation-preserving CSV export"
     }
   ],
   "sources": [
@@ -36,7 +48,7 @@
     }
   ],
   "nodataPolicy": "Source nodata remains explicit as NA in aligned CSV exports and becomes JSON null. No implicit fill is applied.",
-  "notes": "Generic synthetic fixture demonstrating the preprocessing contract only.",
+  "notes": "Generic synthetic fixture demonstrating the preprocessing and explicit grid-orientation contract only.",
   "layers": [
     {
       "layerId": "terrain_traversal",

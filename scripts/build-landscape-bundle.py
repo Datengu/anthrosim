@@ -15,8 +15,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-RECIPE_SCHEMA_VERSION = 1
-LANDSCAPE_SCHEMA_VERSION = 1
+RECIPE_SCHEMA_VERSION = 2
+LANDSCAPE_SCHEMA_VERSION = 2
+GRID_CONVENTION = {
+    "originAnchor": "upper_left_outer_corner",
+    "columnDirection": "increasing_x",
+    "rowDirection": "decreasing_y",
+    "cellInterpretation": "area",
+}
 ALLOWED_ROLES = {
     "terrain_traversal",
     "water_accessibility",
@@ -51,6 +57,16 @@ def require_positive_int(value: Any, field: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
         raise RecipeError(f"{field} must be a positive integer")
     return value
+
+
+def require_grid_convention(value: Any, field: str) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise RecipeError(f"{field} must be an object")
+    if value != GRID_CONVENTION:
+        raise RecipeError(
+            f"{field} must exactly match the supported normalized grid convention: {GRID_CONVENTION}"
+        )
+    return dict(GRID_CONVENTION)
 
 
 def resolve_input(recipe_dir: Path, raw_path: Any, field: str) -> tuple[Path, str]:
@@ -102,6 +118,17 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     if recipe.get("schemaVersion") != RECIPE_SCHEMA_VERSION:
         raise RecipeError(
             f"recipe schemaVersion must be {RECIPE_SCHEMA_VERSION}; found {recipe.get('schemaVersion')!r}"
+        )
+
+    normalized_grid_convention = require_grid_convention(
+        recipe.get("gridConvention"), "gridConvention"
+    )
+    aligned_input_grid_convention = require_grid_convention(
+        recipe.get("alignedInputGridConvention"), "alignedInputGridConvention"
+    )
+    if aligned_input_grid_convention != normalized_grid_convention:
+        raise RecipeError(
+            "alignedInputGridConvention must match gridConvention; this builder does not silently flip or transpose aligned CSV inputs"
         )
 
     recipe_dir = recipe_path.parent.resolve()
@@ -239,6 +266,7 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                 "path": grid_locator,
                 "sha256": sha256(grid_path),
                 "nodataToken": nodata_token,
+                "gridConvention": aligned_input_grid_convention,
             }
         )
 
@@ -246,6 +274,7 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         "schemaVersion": LANDSCAPE_SCHEMA_VERSION,
         "width": width,
         "height": height,
+        "gridConvention": normalized_grid_convention,
         "geometry": {
             "originX": origin_x,
             "originY": origin_y,
@@ -262,6 +291,8 @@ def build(recipe_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         "schemaVersion": RECIPE_SCHEMA_VERSION,
         "recipeSha256": hashlib.sha256(recipe_bytes).hexdigest(),
         "landscapeSha256": hashlib.sha256(output_bytes).hexdigest(),
+        "normalizedGridConvention": normalized_grid_convention,
+        "alignedInputGridConvention": aligned_input_grid_convention,
         "toolchain": normalized_tools,
         "steps": normalized_steps,
         "sources": source_records,
