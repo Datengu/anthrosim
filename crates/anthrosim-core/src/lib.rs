@@ -6,6 +6,7 @@
 pub mod checkpoint;
 pub mod config;
 pub mod demography;
+mod demography_identity;
 pub mod demography_observability;
 pub mod events;
 pub mod evidence;
