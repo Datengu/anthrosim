@@ -55,7 +55,8 @@ function addDefinition(list, term, value) {
 }
 
 function formatNumber(value) {
-  const number = Number(value ?? 0);
+  if (value === null || value === undefined) return "—";
+  const number = Number(value);
   return Number.isSafeInteger(number) ? number.toLocaleString() : String(value);
 }
 
@@ -81,6 +82,7 @@ function renderTimeline() {
   cards.replaceChildren();
   const values = snapshot ? [
     ["Living population", snapshot.population.livingPopulation],
+    ["Mean living condition", snapshot.population.meanLivingConditionPermille],
     ["Births", snapshot.population.birthsSinceStart],
     ["Deaths", snapshot.population.deathsSinceStart],
     ["Residence-occupied cells", snapshot.population.livingOccupiedCellCount],
@@ -88,12 +90,22 @@ function renderTimeline() {
     ["Unmet need", snapshot.resources.unmetNeed],
   ] : [
     ["Living population", bundle.initialPopulation.initialPopulation],
+    ["Mean living condition", null],
     ["Births", 0],
     ["Deaths", 0],
     ["Residence-occupied cells", reconstructed.cellResidents.size],
     ["Migration moves", 0],
     ["Unmet need", 0],
   ];
+
+  if (snapshot && bundle.manifest && selectedDay === runInfo.endTime) {
+    values.push(
+      ["Mean move origin resource", bundle.manifest.migration.meanOriginResourceScorePermille],
+      ["Mean move destination resource", bundle.manifest.migration.meanDestinationResourceScorePermille],
+      ["Mean move origin water security", bundle.manifest.migration.meanOriginWaterSecurityScorePermille],
+      ["Mean move destination water security", bundle.manifest.migration.meanDestinationWaterSecurityScorePermille],
+    );
+  }
 
   for (const [label, value] of values) {
     const card = create("div", null, "summary-card");
