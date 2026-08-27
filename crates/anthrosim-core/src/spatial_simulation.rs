@@ -230,7 +230,8 @@ impl SpatialLandscapeSimulation {
         let spatial_binding = SpatialMechanismBinding::new(mechanisms, &world, &config)?;
         let population_rng_factory =
             RngFactory::new(spatial_binding.environment.realization.population_seed);
-        let process_rng_factory = RngFactory::new(spatial_binding.environment.realization.process_seed);
+        let process_rng_factory =
+            RngFactory::new(spatial_binding.environment.realization.process_seed);
         let population = Population::initialize(config.population, &world, population_rng_factory)?;
         let configured_program = config
             .temporary_mobility
@@ -811,7 +812,11 @@ pub fn validate_spatial_landscape_recorded_run(
         &run.checkpoint.core_checkpoint.experiment,
         landscape,
         &run.checkpoint.spatial.config,
-        run.checkpoint.spatial.environment.realization.environment_seed,
+        run.checkpoint
+            .spatial
+            .environment
+            .realization
+            .environment_seed,
     )?;
     run.checkpoint
         .spatial
@@ -1140,7 +1145,9 @@ pub enum SpatialLandscapeError {
     SpatialSemanticsMismatch { found: String, expected: String },
     #[error("spatial config identity mismatch: stored {expected}, reconstructed {actual}")]
     SpatialConfigIdentityMismatch { expected: String, actual: String },
-    #[error("spatial environment-realization provenance does not match the bound experiment/config")]
+    #[error(
+        "spatial environment-realization provenance does not match the bound experiment/config"
+    )]
     SpatialEnvironmentProvenanceMismatch,
     #[error("transformed world digest mismatch: stored {expected}, reconstructed {actual}")]
     TransformedWorldDigestMismatch { expected: u64, actual: u64 },
