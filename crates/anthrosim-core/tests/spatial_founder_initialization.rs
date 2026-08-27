@@ -4,8 +4,7 @@ use anthrosim_core::{
     LandscapeLayerRole, LandscapeValueDomain, MigrationConfig, NoDataPolicy, ParameterProvenance,
     PersonId, PopulationConfig, ReproductiveSex, ResourceConfig, SpatialFieldTransform,
     SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialRunRealization, SpatialTargetField,
-    TransformDirection, WorldConfig, derive_spatial_observability,
-    ids::CellId,
+    TransformDirection, WorldConfig, derive_spatial_observability, ids::CellId,
 };
 
 fn landscape() -> LandscapeBundle {
@@ -197,10 +196,21 @@ fn declared_residences_are_exact_and_population_seed_is_noncausal() {
     .expect("second declared-founder spatial simulation");
 
     assert_eq!(first.world().digest64(), second.world().digest64());
-    assert_eq!(first.population().digest64(), second.population().digest64());
+    assert_eq!(
+        first.population().digest64(),
+        second.population().digest64()
+    );
     assert_ne!(
-        first.spatial_binding().environment.realization.population_seed,
-        second.spatial_binding().environment.realization.population_seed,
+        first
+            .spatial_binding()
+            .environment
+            .realization
+            .population_seed,
+        second
+            .spatial_binding()
+            .environment
+            .realization
+            .population_seed,
         "the recorded stochastic population seed may vary, but declared founder state must not consume it",
     );
 
@@ -244,10 +254,7 @@ fn controlled_initial_layouts_do_not_converge_without_a_relaxation_mechanism() {
     let mechanisms = mechanisms(7_100, 8_100);
 
     let concentrated = SpatialLandscapeSimulation::new(
-        experiment(
-            9_100,
-            founder_definition("concentrated-founders-v1", 1, 1),
-        ),
+        experiment(9_100, founder_definition("concentrated-founders-v1", 1, 1)),
         landscape.clone(),
         mechanisms.clone(),
     )
@@ -286,7 +293,9 @@ fn controlled_initial_layouts_do_not_converge_without_a_relaxation_mechanism() {
     .expect("split observability");
 
     assert_eq!(
-        concentrated_report.cells[0].derived.terminal_living_population,
+        concentrated_report.cells[0]
+            .derived
+            .terminal_living_population,
         4,
     );
     assert_eq!(split_report.cells[0].derived.terminal_living_population, 2);
@@ -302,8 +311,12 @@ fn controlled_initial_layouts_do_not_converge_without_a_relaxation_mechanism() {
         Some(500),
     );
     assert_ne!(
-        concentrated_report.summary.terminal_population_herfindahl_per_million,
-        split_report.summary.terminal_population_herfindahl_per_million,
+        concentrated_report
+            .summary
+            .terminal_population_herfindahl_per_million,
+        split_report
+            .summary
+            .terminal_population_herfindahl_per_million,
         "with migration, births, deaths and resource pressure disabled, different founder layouts remain different after the nominal two-year pre-analysis interval; AnthroSim must not assume generic burn-in convergence",
     );
 }
