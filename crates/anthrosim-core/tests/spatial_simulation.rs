@@ -1,9 +1,9 @@
 use anthrosim_core::{
-    ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole,
-    LandscapeValueDomain, MigrationConfig, NoDataPolicy, PopulationConfig, ResourceConfig,
-    ResumeLineage, SpatialFieldTransform, SpatialLandscapeError, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, SpatialTargetField, TransformDirection, WorldConfig, ids::CellId,
-    validate_spatial_landscape_recorded_run,
+    EvidenceClosureStatus, ExperimentConfig, GridGeometry, LandscapeBundle, LandscapeLayer,
+    LandscapeLayerRole, LandscapeValueDomain, MigrationConfig, NoDataPolicy, PopulationConfig,
+    ResourceConfig, ResumeLineage, SpatialFieldTransform, SpatialLandscapeError,
+    SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialTargetField, TransformDirection,
+    WorldConfig, ids::CellId, validate_spatial_landscape_recorded_run,
 };
 
 fn layer(id: &str, role: LandscapeLayerRole, values: Vec<Option<i32>>) -> LandscapeLayer {
@@ -437,4 +437,21 @@ fn transform_parameters_are_part_of_spatial_run_identity() {
 
     assert_ne!(first_identity, second.spatial_binding().config_identity);
     assert_ne!(first_world, second.world().digest64());
+}
+
+#[test]
+fn composed_spatial_evidence_closure_tampering_is_rejected() {
+    let landscape = fixture();
+    let run = SpatialLandscapeSimulation::new(config(42), landscape.clone(), mechanisms())
+        .expect("valid spatial simulation")
+        .run_recorded()
+        .expect("recorded run");
+    assert_eq!(
+        run.manifest.evidence_closure.status,
+        EvidenceClosureStatus::NotApplicableSynthetic
+    );
+
+    let mut tampered = run.clone();
+    tampered.manifest.evidence_closure.status = EvidenceClosureStatus::Closed;
+    assert!(validate_spatial_landscape_recorded_run(&tampered, &landscape).is_err());
 }
