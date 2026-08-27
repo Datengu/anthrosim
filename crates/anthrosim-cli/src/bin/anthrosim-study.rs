@@ -12,6 +12,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
+#[allow(dead_code)]
 #[path = "../bundle.rs"]
 mod bundle;
 
@@ -116,7 +117,9 @@ impl StudyExecutionPlan {
             return Err("study plan definition identity does not match embedded definition".into());
         }
         if self.research_relative_dir != Path::new(RESEARCH_DIR) {
-            return Err("study plan researchRelativeDir is not the schema-v1 fixed research root".into());
+            return Err(
+                "study plan researchRelativeDir is not the schema-v1 fixed research root".into(),
+            );
         }
         if !self.bound_before_execution {
             return Err("study plan must record protocol binding before execution".into());
@@ -132,7 +135,9 @@ impl StudyExecutionPlan {
             &self.source,
         )?;
         if self.study_execution_id != expected_execution_id {
-            return Err("study execution identity does not match frozen protocol/definition/source".into());
+            return Err(
+                "study execution identity does not match frozen protocol/definition/source".into(),
+            );
         }
         Ok(())
     }
@@ -155,7 +160,7 @@ struct StudyResultBinding {
     source: SourceRevisionIdentity,
     research_relative_dir: PathBuf,
     run_counts: StudyRunCounts,
-    result_artifacts: Vec<PathBuf>,
+    result_artifacts: Vec<StudyResultArtifact>,
 }
 
 impl StudyResultBinding {
@@ -167,6 +172,13 @@ impl StudyResultBinding {
 struct StudyRunCounts {
     completed: u64,
     failed: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StudyResultArtifact {
+    path: PathBuf,
+    digest64: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -191,6 +203,13 @@ struct ResearchStateView {
 #[serde(rename_all = "camelCase")]
 struct ResearchRunStateView {
     state: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AnalysisIdentityView {
+    schema_version: u32,
+    research_id: String,
 }
 
 fn prepare(
@@ -249,11 +268,7 @@ fn prepare(
         &plan.protocol,
         "frozen study protocol",
     )?;
-    write_json_atomic(
-        &study_dir.join(STUDY_PLAN),
-        &plan,
-        "immutable study plan",
-    )?;
+    write_json_atomic(&study_dir.join(STUDY_PLAN), &plan, "immutable study plan")?;
     write_json_atomic(
         &study_dir.join(STUDY_MANIFEST),
         &plan,
@@ -274,8 +289,10 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
         .into());
     }
 
-    let research_manifest_value: Value =
-        read_json_regular(&research_root.join("research-manifest.json"), "research manifest")?;
+    let research_manifest_value: Value = read_json_regular(
+        &research_root.join("research-manifest.json"),
+        "research manifest",
+    )?;
     let research_plan_value: Value =
         read_json_regular(&research_root.join("research-plan.json"), "research plan")?;
     if research_manifest_value != research_plan_value {
@@ -291,6 +308,11 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
     {
         return Err("research execution does not match the frozen study definition/source".into());
     }
+    let expected_research_id =
+        research_execution_identity(&plan.definition_identity, &plan.source)?;
+    if research.research_id != expected_research_id {
+        return Err("research execution identity does not match frozen definition/source".into());
+    }
 
     let state: ResearchStateView =
         read_json_regular(&research_root.join("research-state.json"), "research state")?;
@@ -299,15 +321,32 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
     }
     let run_counts = completed_run_counts(&state)?;
 
-    let result_artifacts = vec![
+    let result_paths = [
         PathBuf::from(RESEARCH_DIR).join("analysis/points.json"),
         PathBuf::from(RESEARCH_DIR).join("analysis/runs.json"),
     ];
-    for relative in &result_artifacts {
-        let path = study_dir.join(relative);
+    let mut result_artifacts = Vec::with_capacity(result_paths.len());
+    for relative in result_paths {
+        let path = study_dir.join(&relative);
         if !regular_file_exists(&path)? {
-            return Err(format!("required research result artifact is missing: {}", path.display()).into());
+            return Err(format!(
+                "required research result artifact is missing: {}",
+                path.display()
+            )
+            .into());
         }
+        let identity: AnalysisIdentityView = read_json_regular(&path, "research analysis artifact")?;
+        if identity.schema_version != 1 || identity.research_id != research.research_id {
+            return Err(format!(
+                "research analysis artifact does not belong to bound research execution: {}",
+                path.display()
+            )
+            .into());
+        }
+        result_artifacts.push(StudyResultArtifact {
+            path: relative,
+            digest64: fnv1a64(&fs::read(path)?),
+        });
     }
 
     let mut binding = StudyResultBinding {
@@ -350,7 +389,9 @@ fn load_frozen_plan(study_dir: &Path) -> Result<StudyExecutionPlan, Box<dyn Erro
     let manifest: StudyExecutionPlan =
         read_json_regular(&study_dir.join(STUDY_MANIFEST), "study manifest")?;
     if plan != manifest {
-        return Err("study-plan.json and study-manifest.json do not contain the same immutable plan".into());
+        return Err(
+            "study-plan.json and study-manifest.json do not contain the same immutable plan".into(),
+        );
     }
     plan.validate()?;
 
@@ -361,12 +402,16 @@ fn load_frozen_plan(study_dir: &Path) -> Result<StudyExecutionPlan, Box<dyn Erro
         "frozen research definition",
     )?;
     if protocol != plan.protocol || definition != plan.definition {
-        return Err("frozen study protocol/definition copies differ from immutable study plan".into());
+        return Err(
+            "frozen study protocol/definition copies differ from immutable study plan".into(),
+        );
     }
     if protocol.identity()? != plan.protocol_identity
         || definition.identity()? != plan.definition_identity
     {
-        return Err("frozen study protocol/definition identity does not match immutable study plan".into());
+        return Err(
+            "frozen study protocol/definition identity does not match immutable study plan".into(),
+        );
     }
     Ok(plan)
 }
@@ -376,7 +421,11 @@ fn completed_run_counts(state: &ResearchStateView) -> Result<StudyRunCounts, Box
     let mut failed = 0_u64;
     for (run_id, run) in &state.runs {
         match run.state.as_str() {
-            "completed" => completed = completed.checked_add(1).ok_or("completed run count overflow")?,
+            "completed" => {
+                completed = completed
+                    .checked_add(1)
+                    .ok_or("completed run count overflow")?
+            }
             "failed" => failed = failed.checked_add(1).ok_or("failed run count overflow")?,
             "planned" | "running" => {
                 return Err(format!(
@@ -385,7 +434,9 @@ fn completed_run_counts(state: &ResearchStateView) -> Result<StudyRunCounts, Box
                 )
                 .into());
             }
-            other => return Err(format!("research state contains unknown run state {other}").into()),
+            other => {
+                return Err(format!("research state contains unknown run state {other}").into());
+            }
         }
     }
     Ok(StudyRunCounts { completed, failed })
@@ -415,6 +466,27 @@ fn study_execution_identity(
     )
 }
 
+fn research_execution_identity(
+    definition_identity: &str,
+    source: &SourceRevisionIdentity,
+) -> Result<String, Box<dyn Error>> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Identity<'a> {
+        schema_version: u32,
+        definition_identity: &'a str,
+        source: &'a SourceRevisionIdentity,
+    }
+    stable_identity(
+        "research-execution-v1",
+        &Identity {
+            schema_version: 1,
+            definition_identity,
+            source,
+        },
+    )
+}
+
 fn result_binding_identity(binding: &StudyResultBinding) -> Result<String, Box<dyn Error>> {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -432,7 +504,7 @@ fn result_binding_identity(binding: &StudyResultBinding) -> Result<String, Box<d
         source: &'a SourceRevisionIdentity,
         research_relative_dir: &'a Path,
         run_counts: StudyRunCounts,
-        result_artifacts: &'a [PathBuf],
+        result_artifacts: &'a [StudyResultArtifact],
     }
     stable_identity(
         "study-result-v1",
@@ -491,7 +563,11 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 
 fn read_json_regular<T: DeserializeOwned>(path: &Path, role: &str) -> Result<T, Box<dyn Error>> {
     if !regular_file_exists(path)? {
-        return Err(format!("{role} is missing or is not a regular file: {}", path.display()).into());
+        return Err(format!(
+            "{role} is missing or is not a regular file: {}",
+            path.display()
+        )
+        .into());
     }
     let content = fs::read_to_string(path)?;
     Ok(serde_json::from_str(&content)?)
@@ -534,8 +610,8 @@ fn reject_symlink(path: &Path, role: &str) -> Result<(), Box<dyn Error>> {
 mod tests {
     use super::*;
     use anthrosim_core::{
-        DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
-        ResearchRunConfig, StudyAnalysisWindow, StudyAnalysisWindowSelectionRule, StudyComparison,
+        DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResearchRunConfig,
+        ResourceConfig, StudyAnalysisWindow, StudyAnalysisWindowSelectionRule, StudyComparison,
         StudyEnsemblePolicy, StudyHypothesis, StudyHypothesisKind, StudyManipulationCheck,
         StudyObservable, StudyObservableRole, StudyRunHandling, StudyUncertaintyPlan, WorldConfig,
     };
@@ -653,6 +729,46 @@ mod tests {
         fs::write(path, serde_json::to_vec_pretty(value).unwrap()).unwrap();
     }
 
+    fn fake_research_root(root: &Path, plan: &StudyExecutionPlan, run_state: &str) {
+        let research = root.join(RESEARCH_DIR);
+        fs::create_dir_all(research.join("analysis")).unwrap();
+        let research_id = research_execution_identity(&plan.definition_identity, &plan.source).unwrap();
+        let research_manifest = serde_json::json!({
+            "schemaVersion": 1,
+            "researchId": research_id,
+            "definitionIdentity": plan.definition_identity,
+            "source": plan.source,
+            "definition": plan.definition,
+            "points": []
+        });
+        write_json(&research.join("research-manifest.json"), &research_manifest);
+        write_json(&research.join("research-plan.json"), &research_manifest);
+        write_json(
+            &research.join("research-state.json"),
+            &serde_json::json!({
+                "schemaVersion": 1,
+                "researchId": research_id,
+                "runs": {"run-a": {"state": run_state}}
+            }),
+        );
+        write_json(
+            &research.join("analysis/points.json"),
+            &serde_json::json!({
+                "schemaVersion": 1,
+                "researchId": research_id,
+                "points": []
+            }),
+        );
+        write_json(
+            &research.join("analysis/runs.json"),
+            &serde_json::json!({
+                "schemaVersion": 1,
+                "researchId": research_id,
+                "runs": []
+            }),
+        );
+    }
+
     #[test]
     fn prepare_freezes_exact_protocol_definition_and_identity() {
         let root = temp_root("prepare");
@@ -694,7 +810,9 @@ mod tests {
         let definition_b = root_b.with_extension("definition.json");
         let first = tiny_protocol();
         let mut second = first.clone();
-        second.comparisons[0].decision_criterion.push_str(" Require robustness.");
+        second.comparisons[0]
+            .decision_criterion
+            .push_str(" Require robustness.");
         let definition = tiny_definition();
         write_json(&protocol_a, &first);
         write_json(&protocol_b, &second);
@@ -717,49 +835,27 @@ mod tests {
     }
 
     #[test]
-    fn finalize_binds_exact_research_identity_and_is_idempotent() {
+    fn finalize_binds_exact_research_identity_artifacts_and_is_idempotent() {
         let root = temp_root("finalize");
         let protocol_path = root.with_extension("protocol.json");
         let definition_path = root.with_extension("definition.json");
         write_json(&protocol_path, &tiny_protocol());
         write_json(&definition_path, &tiny_definition());
         let plan = prepare(&root, &protocol_path, &definition_path).unwrap();
+        fake_research_root(&root, &plan, "completed");
 
-        let research = root.join(RESEARCH_DIR);
-        fs::create_dir_all(research.join("analysis")).unwrap();
-        let research_id = "research-execution-v1-test";
-        let research_manifest = serde_json::json!({
-            "schemaVersion": 1,
-            "researchId": research_id,
-            "definitionIdentity": plan.definition_identity,
-            "source": plan.source,
-            "definition": plan.definition,
-            "points": []
-        });
-        write_json(&research.join("research-manifest.json"), &research_manifest);
-        write_json(&research.join("research-plan.json"), &research_manifest);
-        write_json(
-            &research.join("research-state.json"),
-            &serde_json::json!({
-                "schemaVersion": 1,
-                "researchId": research_id,
-                "runs": {
-                    "run-a": {"state": "completed"},
-                    "run-b": {"state": "failed"}
-                }
-            }),
-        );
-        write_json(&research.join("analysis/points.json"), &serde_json::json!({}));
-        write_json(&research.join("analysis/runs.json"), &serde_json::json!({}));
-
+        let expected_research_id =
+            research_execution_identity(&plan.definition_identity, &plan.source).unwrap();
         let first = finalize(&root).unwrap();
         let second = finalize(&root).unwrap();
         assert_eq!(first, second);
         assert_eq!(first.protocol_identity, plan.protocol_identity);
         assert_eq!(first.definition_identity, plan.definition_identity);
-        assert_eq!(first.research_id, research_id);
+        assert_eq!(first.research_id, expected_research_id);
         assert_eq!(first.run_counts.completed, 1);
-        assert_eq!(first.run_counts.failed, 1);
+        assert_eq!(first.run_counts.failed, 0);
+        assert_eq!(first.result_artifacts.len(), 2);
+        assert!(first.result_artifacts.iter().all(|artifact| artifact.digest64 != 0));
         assert!(first.result_identity.starts_with("study-result-v1-"));
         assert!(first.confirmatory_pre_result_claim_eligible);
 
@@ -769,7 +865,7 @@ mod tests {
     }
 
     #[test]
-    fn finalize_rejects_modified_protocol_and_unfinished_research() {
+    fn finalize_rejects_modified_protocol_unfinished_research_and_result_tampering() {
         let root = temp_root("reject");
         let protocol_path = root.with_extension("protocol.json");
         let definition_path = root.with_extension("definition.json");
@@ -783,30 +879,19 @@ mod tests {
         assert!(load_frozen_plan(&root).is_err());
         write_json(&root.join(STUDY_PROTOCOL), &plan.protocol);
 
-        let research = root.join(RESEARCH_DIR);
-        fs::create_dir_all(research.join("analysis")).unwrap();
-        let research_id = "research-execution-v1-test";
-        let research_manifest = serde_json::json!({
-            "schemaVersion": 1,
-            "researchId": research_id,
-            "definitionIdentity": plan.definition_identity,
-            "source": plan.source,
-            "definition": plan.definition,
-            "points": []
-        });
-        write_json(&research.join("research-manifest.json"), &research_manifest);
-        write_json(&research.join("research-plan.json"), &research_manifest);
-        write_json(
-            &research.join("research-state.json"),
-            &serde_json::json!({
-                "schemaVersion": 1,
-                "researchId": research_id,
-                "runs": {"run-a": {"state": "running"}}
-            }),
-        );
-        write_json(&research.join("analysis/points.json"), &serde_json::json!({}));
-        write_json(&research.join("analysis/runs.json"), &serde_json::json!({}));
+        fake_research_root(&root, &plan, "running");
         assert!(finalize(&root).is_err());
+
+        fake_research_root(&root, &plan, "completed");
+        let binding = finalize(&root).unwrap();
+        let runs_path = root.join(RESEARCH_DIR).join("analysis/runs.json");
+        let mut runs: Value = read_json_regular(&runs_path, "runs").unwrap();
+        runs["tampered"] = Value::Bool(true);
+        write_json(&runs_path, &runs);
+        assert!(finalize(&root).is_err());
+        let preserved: StudyResultBinding =
+            read_json_regular(&root.join(RESULT_BINDING), "binding").unwrap();
+        assert_eq!(preserved, binding);
 
         fs::remove_dir_all(&root).unwrap();
         fs::remove_file(protocol_path).unwrap();
