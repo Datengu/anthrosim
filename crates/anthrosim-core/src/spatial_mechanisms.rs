@@ -482,7 +482,9 @@ pub enum SpatialMechanismError {
     Evidence(#[from] crate::EvidenceError),
     #[error("spatial mechanism schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
-    #[error("spatial run-realization schema {found} is unsupported; supported schema is {supported}")]
+    #[error(
+        "spatial run-realization schema {found} is unsupported; supported schema is {supported}"
+    )]
     UnsupportedRunRealizationSchema { found: u32, supported: u32 },
     #[error("spatial mechanism model identifier is empty")]
     EmptyModelId,

@@ -128,28 +128,52 @@ fn fixed_environment_and_founders_are_invariant_to_process_seed() {
     let landscape = landscape();
     let mechanisms = mechanisms(7_001, 8_001);
 
-    let first = SpatialLandscapeSimulation::new(experiment(9_001), landscape.clone(), mechanisms.clone())
-        .expect("first spatial simulation");
+    let first =
+        SpatialLandscapeSimulation::new(experiment(9_001), landscape.clone(), mechanisms.clone())
+            .expect("first spatial simulation");
     let second = SpatialLandscapeSimulation::new(experiment(9_002), landscape, mechanisms)
         .expect("second spatial simulation");
 
     assert_eq!(first.world().digest64(), second.world().digest64());
-    assert_eq!(first.population().digest64(), second.population().digest64());
+    assert_eq!(
+        first.population().digest64(),
+        second.population().digest64()
+    );
     assert_eq!(
         first.spatial_binding().environment.realization.mode,
         SpatialRealizationMode::ExplicitSplit
     );
     assert_eq!(
-        first.spatial_binding().environment.realization.environment_seed,
-        second.spatial_binding().environment.realization.environment_seed
+        first
+            .spatial_binding()
+            .environment
+            .realization
+            .environment_seed,
+        second
+            .spatial_binding()
+            .environment
+            .realization
+            .environment_seed
     );
     assert_eq!(
-        first.spatial_binding().environment.realization.population_seed,
-        second.spatial_binding().environment.realization.population_seed
+        first
+            .spatial_binding()
+            .environment
+            .realization
+            .population_seed,
+        second
+            .spatial_binding()
+            .environment
+            .realization
+            .population_seed
     );
     assert_ne!(
         first.spatial_binding().environment.realization.process_seed,
-        second.spatial_binding().environment.realization.process_seed
+        second
+            .spatial_binding()
+            .environment
+            .realization
+            .process_seed
     );
 
     let first_run = first.run_recorded().expect("first recorded run");
@@ -179,7 +203,10 @@ fn environment_seed_can_vary_without_changing_process_or_founder_seed() {
     .expect("second environment realization");
 
     assert_ne!(first.world().digest64(), second.world().digest64());
-    assert_eq!(first.population().digest64(), second.population().digest64());
+    assert_eq!(
+        first.population().digest64(),
+        second.population().digest64()
+    );
     assert_eq!(
         first.spatial_binding().config_identity,
         second.spatial_binding().config_identity,
@@ -187,10 +214,22 @@ fn environment_seed_can_vary_without_changing_process_or_founder_seed() {
     );
     assert_eq!(
         first.spatial_binding().environment.realization.process_seed,
-        second.spatial_binding().environment.realization.process_seed
+        second
+            .spatial_binding()
+            .environment
+            .realization
+            .process_seed
     );
     assert_eq!(
-        first.spatial_binding().environment.realization.population_seed,
-        second.spatial_binding().environment.realization.population_seed
+        first
+            .spatial_binding()
+            .environment
+            .realization
+            .population_seed,
+        second
+            .spatial_binding()
+            .environment
+            .realization
+            .population_seed
     );
 }

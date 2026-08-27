@@ -135,15 +135,25 @@ mod tests {
         spatial_mechanisms::{NoDataPolicy, SpatialFieldTransform, TransformDirection},
     };
 
-    fn full_overlay(realization: Option<crate::spatial_mechanisms::SpatialRunRealization>) -> SpatialMechanismConfig {
+    fn full_overlay(
+        realization: Option<crate::spatial_mechanisms::SpatialRunRealization>,
+    ) -> SpatialMechanismConfig {
         let transform = |target, role: &str| {
             SpatialFieldTransform::new(
                 target,
                 role,
                 "normalized",
                 LandscapeValueDomain { min: 0, max: 1_000 },
-                if target == SpatialTargetField::MovementCost { 1_000 } else { 0 },
-                if target == SpatialTargetField::MovementCost { 2_000 } else { 1_000 },
+                if target == SpatialTargetField::MovementCost {
+                    1_000
+                } else {
+                    0
+                },
+                if target == SpatialTargetField::MovementCost {
+                    2_000
+                } else {
+                    1_000
+                },
                 TransformDirection::Direct,
                 NoDataPolicy::Reject,
             )
@@ -165,7 +175,10 @@ mod tests {
         let experiment = ExperimentConfig::new(42, 1);
         let mechanisms = full_overlay(None);
         let provenance = SpatialEnvironmentProvenance::resolve(&experiment, &mechanisms);
-        assert_eq!(provenance.realization.mode, SpatialRealizationMode::JointProcessSeed);
+        assert_eq!(
+            provenance.realization.mode,
+            SpatialRealizationMode::JointProcessSeed
+        );
         assert_eq!(provenance.realization.environment_seed, 42);
         assert_eq!(provenance.realization.population_seed, 42);
         assert_eq!(provenance.realization.process_seed, 42);
@@ -174,11 +187,14 @@ mod tests {
     #[test]
     fn explicit_mode_separates_all_three_seed_roles() {
         let experiment = ExperimentConfig::new(300, 1);
-        let mechanisms = full_overlay(Some(
-            crate::spatial_mechanisms::SpatialRunRealization::new(100, 200),
-        ));
+        let mechanisms = full_overlay(Some(crate::spatial_mechanisms::SpatialRunRealization::new(
+            100, 200,
+        )));
         let provenance = SpatialEnvironmentProvenance::resolve(&experiment, &mechanisms);
-        assert_eq!(provenance.realization.mode, SpatialRealizationMode::ExplicitSplit);
+        assert_eq!(
+            provenance.realization.mode,
+            SpatialRealizationMode::ExplicitSplit
+        );
         assert_eq!(provenance.realization.environment_seed, 100);
         assert_eq!(provenance.realization.population_seed, 200);
         assert_eq!(provenance.realization.process_seed, 300);
