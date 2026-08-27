@@ -6,13 +6,14 @@ use crate::{
         RngCheckpoint, SimulationCheckpoint, continuation_digest64,
         state_digest64_with_temporary_mobility,
     },
-    config::ExperimentConfig,
+    config::{ExperimentConfig, PopulationInitialization},
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
         process_demographic_year_recorded, validate_demography_config,
     },
     events::EventLog,
     focal_region::{FocalRegionBindingError, FocalRegionSource},
+    founder_initialization::FounderGenealogyStatus,
     landscape::LandscapeBundle,
     landscape_binding::{LandscapeBinding, LandscapeBindingError},
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
@@ -232,7 +233,22 @@ impl SpatialLandscapeSimulation {
             RngFactory::new(spatial_binding.environment.realization.population_seed);
         let process_rng_factory =
             RngFactory::new(spatial_binding.environment.realization.process_seed);
-        let population = Population::initialize(config.population, &world, population_rng_factory)?;
+        let population = match config.population.initialization {
+            PopulationInitialization::SyntheticValidationV1 => {
+                Population::initialize(config.population, &world, population_rng_factory)?
+            }
+            PopulationInitialization::DeclaredFounderStateV1 => {
+                let definition = config
+                    .founder_population
+                    .as_ref()
+                    .ok_or(SpatialLandscapeError::MissingFounderPopulationDefinition)?;
+                Population::initialize_declared_founder_state_v1(
+                    config.population,
+                    definition,
+                    &world,
+                )?
+            }
+        };
         let configured_program = config
             .temporary_mobility
             .as_ref()
@@ -295,6 +311,7 @@ impl SpatialLandscapeSimulation {
             &checkpoint.spatial.config,
             checkpoint.spatial.environment.realization.environment_seed,
         )?;
+        validate_founder_population_against_world(&checkpoint.core_checkpoint.experiment, &world)?;
         checkpoint
             .spatial
             .validate(&world, &checkpoint.core_checkpoint.experiment)?;
@@ -818,6 +835,7 @@ pub fn validate_spatial_landscape_recorded_run(
             .realization
             .environment_seed,
     )?;
+    validate_founder_population_against_world(&run.checkpoint.core_checkpoint.experiment, &world)?;
     run.checkpoint
         .spatial
         .validate(&world, &run.checkpoint.core_checkpoint.experiment)?;
@@ -932,6 +950,7 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
             maximum_years: MAX_SUPPORTED_DURATION_YEARS,
         });
     }
+    validate_founder_population_binding(config)?;
     validate_demography_config(&config.demography)?;
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
@@ -940,6 +959,49 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
     }
     if let Some(evidence) = &config.evidence {
         evidence.validate_against_experiment(config)?;
+    }
+    Ok(())
+}
+
+fn validate_founder_population_binding(
+    config: &ExperimentConfig,
+) -> Result<(), SpatialLandscapeError> {
+    match (
+        config.population.initialization,
+        config.founder_population.as_ref(),
+    ) {
+        (PopulationInitialization::SyntheticValidationV1, None) => Ok(()),
+        (PopulationInitialization::SyntheticValidationV1, Some(_)) => {
+            Err(SpatialLandscapeError::UnexpectedFounderPopulationDefinition)
+        }
+        (PopulationInitialization::DeclaredFounderStateV1, None) => {
+            Err(SpatialLandscapeError::MissingFounderPopulationDefinition)
+        }
+        (PopulationInitialization::DeclaredFounderStateV1, Some(definition)) => {
+            if config.migration.enabled
+                && config.migration.kin_weight > 0
+                && definition.genealogy_status
+                    != FounderGenealogyStatus::CompleteLivingDirectParents
+            {
+                return Err(SpatialLandscapeError::FounderKinStateUnspecified);
+            }
+            Ok(())
+        }
+    }
+}
+
+fn validate_founder_population_against_world(
+    config: &ExperimentConfig,
+    world: &World,
+) -> Result<(), SpatialLandscapeError> {
+    if let Some(definition) = &config.founder_population {
+        definition
+            .validate(
+                config.population.initial_population,
+                config.population.max_person_records,
+                world,
+            )
+            .map_err(PopulationError::from)?;
     }
     Ok(())
 }
@@ -1129,6 +1191,14 @@ pub enum SpatialLandscapeError {
         duration_years: u64,
         maximum_years: u64,
     },
+    #[error("declared founder initialization requires founderPopulation in experiment config")]
+    MissingFounderPopulationDefinition,
+    #[error("synthetic founder initialization cannot carry a founderPopulation definition")]
+    UnexpectedFounderPopulationDefinition,
+    #[error(
+        "declared founder genealogy is unspecified while the active migration model gives kin non-zero weight"
+    )]
+    FounderKinStateUnspecified,
     #[error("spatial binding schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSpatialBindingSchema { found: u32, supported: u32 },
     #[error(
