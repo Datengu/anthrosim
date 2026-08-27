@@ -30,7 +30,10 @@ impl DemographyConfig {
     /// Canonical whole-schedule identifier accepted by the research evidence-closure gate.
     #[must_use]
     pub fn content_bound_schedule_id(&self) -> String {
-        format!("{SCHEDULE_ID_PREFIX}{:016x}", self.schedule_content_digest64())
+        format!(
+            "{SCHEDULE_ID_PREFIX}{:016x}",
+            self.schedule_content_digest64()
+        )
     }
 
     /// Bind `schedule_id` to the current executable schedule contents.
