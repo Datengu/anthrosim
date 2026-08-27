@@ -1324,10 +1324,22 @@ mod tests {
         assert_eq!(summary.mean_origin_water_security_score_permille, None);
         assert_eq!(summary.mean_destination_water_security_score_permille, None);
         let json = serde_json::to_value(summary).unwrap();
-        assert_eq!(json["meanOriginResourceScorePermille"], serde_json::Value::Null);
-        assert_eq!(json["meanDestinationResourceScorePermille"], serde_json::Value::Null);
-        assert_eq!(json["meanOriginWaterSecurityScorePermille"], serde_json::Value::Null);
-        assert_eq!(json["meanDestinationWaterSecurityScorePermille"], serde_json::Value::Null);
+        assert_eq!(
+            json["meanOriginResourceScorePermille"],
+            serde_json::Value::Null
+        );
+        assert_eq!(
+            json["meanDestinationResourceScorePermille"],
+            serde_json::Value::Null
+        );
+        assert_eq!(
+            json["meanOriginWaterSecurityScorePermille"],
+            serde_json::Value::Null
+        );
+        assert_eq!(
+            json["meanDestinationWaterSecurityScorePermille"],
+            serde_json::Value::Null
+        );
     }
 
     #[test]
