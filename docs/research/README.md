@@ -11,6 +11,7 @@ Start here:
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence provenance and transformation contract.
+- [`spatial-boundary-dependence-v1.md`](spatial-boundary-dependence-v1.md) — normative finite-domain contract for distinguishing arbitrary GIS crops from declared barriers, separating simulation and analysis domains, exposing M4/M9 edge dependence, and demonstrating study-specific extent convergence.
 - [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — authoritative annual M2 demographic-time semantics introduced by the post-M9 scientific-hardening repair programme; defines interval age, competing mortality/fertility, executable birth spacing, same-day M4 parentage locality, newborn condition and founder-history semantics.
 - [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) — explicit synthetic-versus-declared founder-state contract, including signed pre-run reproductive timing and living direct-parent links.
 - [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md) — versioned derived M2 validation/diagnostic surface for mortality exposures, fertility opportunity denominators, requested-versus-executable spacing, interbirth intervals and explicitly censored completed fertility.
