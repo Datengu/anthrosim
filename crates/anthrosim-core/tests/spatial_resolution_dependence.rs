@@ -1,4 +1,6 @@
+use anthrosim_core::ids::CellId;
 use anthrosim_core::rng::RngFactory;
+use anthrosim_core::spatial_scale::SpatialM2InteractionBasis;
 use anthrosim_core::{
     FocalRegion, FocalRegionSource, GridGeometry, LandscapeBinding, LandscapeBindingError,
     LandscapeBundle, MigrationConfig, ResourceConfig, ResourceSystem, SpatialM4DistanceBasis,
@@ -35,6 +37,17 @@ fn constant_world(width: u32, height: u32, productivity: u16) -> World {
         .unwrap()
 }
 
+fn first_row_cell_containing_x(landscape: &LandscapeBundle, x: i64) -> CellId {
+    for column in 0..landscape.width {
+        let cell = CellId::new(u64::from(column) + 1);
+        let extent = landscape.cell_extent(cell).unwrap();
+        if x >= extent.min_x && x < extent.max_x {
+            return cell;
+        }
+    }
+    panic!("x coordinate {x} is outside the first landscape row");
+}
+
 #[test]
 fn landscape_binding_declares_resolution_dependence_and_rejects_scale_tampering() {
     let coarse = landscape(2, 2, 100);
@@ -56,6 +69,10 @@ fn landscape_binding_declares_resolution_dependence_and_rejects_scale_tampering(
     assert_eq!(binding.scale.cell_size_y, 100);
     assert_eq!(binding.scale.coordinate_unit, "metre");
     assert_eq!(
+        binding.scale.m2_interaction_basis,
+        SpatialM2InteractionBasis::ExactPersistentResidenceCell
+    );
+    assert_eq!(
         binding.scale.resource_quantity_basis,
         SpatialResourceQuantityBasis::PerCellTotal
     );
@@ -75,6 +92,41 @@ fn landscape_binding_declares_resolution_dependence_and_rejects_scale_tampering(
         forged.validate_bundle(&coarse),
         Err(LandscapeBindingError::BindingMismatch { .. })
     ));
+}
+
+#[test]
+fn same_physical_m2_neighbourhood_can_split_across_finer_cells() {
+    // The two hypothetical residents remain 50 m apart in the same 200 m physical strip. Under
+    // M2's exact-persistent-residence-cell contact rule they share one 100 m cell but occupy
+    // different 50 m cells. Raster partitioning can therefore change reproductive opportunity even
+    // before any fertility probability or demographic RNG draw is considered.
+    let coarse = landscape(2, 1, 100);
+    let fine = landscape(4, 1, 50);
+    let female_x = 25;
+    let male_x = 75;
+
+    let coarse_female_cell = first_row_cell_containing_x(&coarse, female_x);
+    let coarse_male_cell = first_row_cell_containing_x(&coarse, male_x);
+    let fine_female_cell = first_row_cell_containing_x(&fine, female_x);
+    let fine_male_cell = first_row_cell_containing_x(&fine, male_x);
+
+    assert_eq!(female_x.abs_diff(male_x), 50);
+    assert_eq!(coarse_female_cell, coarse_male_cell);
+    assert_ne!(fine_female_cell, fine_male_cell);
+    assert_eq!(
+        LandscapeBinding::from_bundle(&coarse)
+            .unwrap()
+            .scale
+            .m2_interaction_basis,
+        SpatialM2InteractionBasis::ExactPersistentResidenceCell
+    );
+    assert_eq!(
+        LandscapeBinding::from_bundle(&fine)
+            .unwrap()
+            .scale
+            .m2_interaction_basis,
+        SpatialM2InteractionBasis::ExactPersistentResidenceCell
+    );
 }
 
 #[test]
@@ -124,7 +176,7 @@ fn same_m4_candidate_radius_has_half_the_physical_horizon_at_fifty_metres() {
     let coarse_candidates = bounded_candidate_cells(&coarse_world, coarse_origin, radius);
     let fine_candidates = bounded_candidate_cells(&fine_world, fine_origin, radius);
 
-    let max_grid_steps = |world: &World, origin, candidates: &[anthrosim_core::ids::CellId]| {
+    let max_grid_steps = |world: &World, origin, candidates: &[CellId]| {
         let (origin_x, origin_y) = world.coordinates(origin).unwrap();
         candidates
             .iter()
