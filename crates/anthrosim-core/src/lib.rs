@@ -25,6 +25,7 @@ pub mod research_readiness;
 pub mod resources;
 pub mod rng;
 pub mod simulation;
+pub mod spatial_boundary;
 mod spatial_invariants;
 pub mod spatial_mechanisms;
 pub mod spatial_observability;
@@ -129,6 +130,14 @@ pub use resources::{
 };
 pub use rng::RngStreamPosition;
 pub use simulation::{RecordedRun, Simulation, SimulationError};
+pub use spatial_boundary::{
+    SpatialAnalysisDomain, SpatialAnalysisExtent, SpatialBoundaryAssessment,
+    SpatialBoundaryCellAssessment, SpatialBoundaryDeclaration, SpatialBoundaryError,
+    SpatialBoundaryInterpretation, SpatialBoundarySemantics, SpatialExtentAdequacyCriterion,
+    SpatialExtentConvergenceAssessment, SpatialExtentExtensionComparison,
+    SpatialExtentMetricComparison, SpatialExtentMetricObservation, SpatialExtentMetricTolerance,
+    SpatialExtentObservation, assess_spatial_boundary, assess_spatial_extent_convergence,
+};
 pub use spatial_invariants::{SpatialInvariantError, validate_spatial_landscape_recorded_run};
 pub use spatial_mechanisms::{
     NoDataPolicy, SPATIAL_MODEL_SEMANTICS_ID, SpatialFieldTransform, SpatialMechanismConfig,
