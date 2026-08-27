@@ -72,14 +72,9 @@ fn bound_mask_fixture() -> (LandscapeBundle, EvidenceCatalog, World, FocalRegion
     let landscape = landscape(values);
     let evidence = evidence_catalog();
     let world = world();
-    let region = FocalRegion::from_landscape_mask(
-        "region",
-        &landscape,
-        "region-mask",
-        &evidence,
-        &world,
-    )
-    .unwrap();
+    let region =
+        FocalRegion::from_landscape_mask("region", &landscape, "region-mask", &evidence, &world)
+            .unwrap();
     (landscape, evidence, world, region)
 }
 
