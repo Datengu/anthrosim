@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use crate::{
     InvariantError, InvariantReport, LandscapeBundle, LandscapeError, Population, RecordedRun,
-    RunManifest, Simulation, SimulationCheckpoint, SimulationError, World,
+    RunManifest, Simulation, SimulationCheckpoint, SimulationError, SpatialScaleAssessment, World,
     validate_recorded_run_invariants,
 };
 
@@ -17,10 +17,15 @@ pub struct LandscapeBinding {
     pub height: u32,
     pub spatial_reference: String,
     pub coordinate_unit: String,
+    /// Exact raster resolution plus the executable scale interpretation. This prevents landscape
+    /// dimensions from being preserved merely as GIS metadata while cell/edge scale remains a
+    /// hidden scientific assumption.
+    pub scale: SpatialScaleAssessment,
 }
 
 impl LandscapeBinding {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    /// v2 preserves the explicit #203 raster-resolution dependence assessment.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     pub fn from_bundle(bundle: &LandscapeBundle) -> Result<Self, LandscapeBindingError> {
         bundle.validate()?;
@@ -32,10 +37,17 @@ impl LandscapeBinding {
             height: bundle.height,
             spatial_reference: bundle.geometry.spatial_reference.clone(),
             coordinate_unit: bundle.geometry.coordinate_unit.clone(),
+            scale: SpatialScaleAssessment::resolve(bundle),
         })
     }
 
     pub fn validate_bundle(&self, bundle: &LandscapeBundle) -> Result<(), LandscapeBindingError> {
+        if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
+            return Err(LandscapeBindingError::UnsupportedLandscapeBindingSchema {
+                found: self.schema_version,
+                supported: Self::CURRENT_SCHEMA_VERSION,
+            });
+        }
         let actual = Self::from_bundle(bundle)?;
         if actual != *self {
             return Err(LandscapeBindingError::BindingMismatch {
@@ -265,6 +277,8 @@ pub enum LandscapeBindingError {
         landscape_width: u32,
         landscape_height: u32,
     },
+    #[error("landscape binding schema {found} is unsupported; supported schema is {supported}")]
+    UnsupportedLandscapeBindingSchema { found: u32, supported: u32 },
     #[error(
         "landscape binding mismatch: checkpoint expects {expected}, supplied bundle is {actual}"
     )]
