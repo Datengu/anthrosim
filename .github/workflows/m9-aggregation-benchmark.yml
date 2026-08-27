@@ -210,6 +210,25 @@ jobs:
           fi
           grep -q "scientific regression mismatch" /tmp/m9-tamper.log
 
+          cp m9-benchmark-output/benchmark-summary.json /tmp/m9-travel-tampered.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("/tmp/m9-travel-tampered.json")
+          value = json.loads(path.read_text(encoding="utf-8"))
+          pair = next(row for row in value["pairs"] if row["seed"] == 9703)
+          pair["intermittent"]["realizedTravelCostUnits"] += 1
+          path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+          PY
+          if python3 scripts/verify-m9-aggregation-benchmark-reference.py \
+            --actual /tmp/m9-travel-tampered.json \
+            --reference examples/m9-controlled-aggregation-benchmark/reference-result.json >/tmp/m9-travel-tamper.log 2>&1; then
+            cat /tmp/m9-travel-tamper.log
+            echo "M9.7 verifier unexpectedly accepted tampered realized travel burden" >&2
+            exit 1
+          fi
+          grep -q "scientific regression mismatch" /tmp/m9-travel-tamper.log
+
       - name: Upload benchmark result and run archive
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
