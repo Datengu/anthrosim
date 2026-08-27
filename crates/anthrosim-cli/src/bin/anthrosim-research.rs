@@ -209,18 +209,29 @@ fn prepare_root(
     let manifest_path = root.join(RESEARCH_MANIFEST);
     if retry {
         if !root.is_dir() {
-            return Err(format!("research root does not exist for --retry: {}", root.display()).into());
+            return Err(format!(
+                "research root does not exist for --retry: {}",
+                root.display()
+            )
+            .into());
         }
         let recorded: ResearchExecutionManifest = read_json(&manifest_path)?;
         if &recorded != expected {
-            return Err("--retry definition/source does not exactly match immutable research-manifest.json".into());
+            return Err(
+                "--retry definition/source does not exactly match immutable research-manifest.json"
+                    .into(),
+            );
         }
         return Ok(());
     }
 
     if root.exists() {
         if !root.is_dir() {
-            return Err(format!("research root exists and is not a directory: {}", root.display()).into());
+            return Err(format!(
+                "research root exists and is not a directory: {}",
+                root.display()
+            )
+            .into());
         }
         if fs::read_dir(root)?.next().transpose()?.is_some() {
             return Err(format!("research root is not empty: {}", root.display()).into());
@@ -306,7 +317,9 @@ impl ResearchExecutionState {
             .into());
         }
         if self.research_id != manifest.research_id {
-            return Err("research-state.json belongs to a different immutable research identity".into());
+            return Err(
+                "research-state.json belongs to a different immutable research identity".into(),
+            );
         }
         let expected = Self::new(manifest);
         if self.runs.len() != expected.runs.len() {
@@ -322,7 +335,10 @@ impl ResearchExecutionState {
                 || actual.seed != expected_run.seed
                 || actual.relative_dir != expected_run.relative_dir
             {
-                return Err("research-state.json immutable run identity fields do not match manifest".into());
+                return Err(
+                    "research-state.json immutable run identity fields do not match manifest"
+                        .into(),
+                );
             }
         }
         Ok(())
@@ -336,7 +352,10 @@ impl ResearchExecutionState {
 
     fn begin_attempt(&mut self, planned: &PlannedRun) -> Result<u32, Box<dyn Error>> {
         let run = self.run_mut(planned)?;
-        run.attempt = run.attempt.checked_add(1).ok_or("research run attempt counter overflow")?;
+        run.attempt = run
+            .attempt
+            .checked_add(1)
+            .ok_or("research run attempt counter overflow")?;
         run.state = RunStateKind::Running;
         run.error = None;
         run.state_digest64 = None;
@@ -427,7 +446,10 @@ struct RunCompletion {
     state_digest64: u64,
 }
 
-fn execute_planned_run(run_dir: &Path, planned: &PlannedRun) -> Result<RunCompletion, Box<dyn Error>> {
+fn execute_planned_run(
+    run_dir: &Path,
+    planned: &PlannedRun,
+) -> Result<RunCompletion, Box<dyn Error>> {
     let transaction = RunDirectoryTransaction::fresh(run_dir)?;
     let staging = transaction.staging_dir();
     let completion = match &planned.run_config.spatial {
@@ -445,7 +467,13 @@ fn execute_core_run(staging: &Path, planned: &PlannedRun) -> Result<RunCompletio
     let world = simulation.world().clone();
     let initial_population = simulation.population().clone();
     let recorded = simulation.run_recorded()?;
-    write_core_bundle(staging, &world, &initial_population, &recorded.checkpoint, &recorded.manifest)?;
+    write_core_bundle(
+        staging,
+        &world,
+        &initial_population,
+        &recorded.checkpoint,
+        &recorded.manifest,
+    )?;
     Ok(RunCompletion {
         state_digest64: recorded.checkpoint.state_digest64,
     })
@@ -474,7 +502,10 @@ fn execute_spatial_run(
     write_json(staging.join("landscape.json"), &spatial.landscape)?;
     write_json(staging.join("spatial-mechanisms.json"), &spatial.mechanisms)?;
     write_json(staging.join("landscape-manifest.json"), &recorded.manifest)?;
-    write_json(staging.join("landscape-checkpoint.json"), &recorded.checkpoint)?;
+    write_json(
+        staging.join("landscape-checkpoint.json"),
+        &recorded.checkpoint,
+    )?;
     Ok(RunCompletion {
         state_digest64: recorded.checkpoint.core_checkpoint.state_digest64,
     })
@@ -529,7 +560,8 @@ fn validate_completed_run(run_dir: &Path, planned: &PlannedRun) -> Result<u64, B
     }
     match &planned.run_config.spatial {
         Some(expected) => {
-            let landscape: anthrosim_core::LandscapeBundle = read_json(&run_dir.join("landscape.json"))?;
+            let landscape: anthrosim_core::LandscapeBundle =
+                read_json(&run_dir.join("landscape.json"))?;
             let mechanisms: anthrosim_core::SpatialMechanismConfig =
                 read_json(&run_dir.join("spatial-mechanisms.json"))?;
             let wrapper_manifest: SpatialLandscapeRunManifest =
@@ -546,7 +578,9 @@ fn validate_completed_run(run_dir: &Path, planned: &PlannedRun) -> Result<u64, B
         }
         None => {
             if run_dir.join("landscape.json").exists() {
-                return Err("non-spatial planned run unexpectedly contains spatial artifacts".into());
+                return Err(
+                    "non-spatial planned run unexpectedly contains spatial artifacts".into(),
+                );
             }
         }
     }
@@ -717,7 +751,9 @@ mod tests {
             .with_demography(DemographyConfig::synthetic_validation_v1())
             .with_resources(ResourceConfig::synthetic_validation_v1())
             .with_migration(MigrationConfig::synthetic_validation_v1());
-        experiment.resources.max_scarcity_mortality_probability_per_million = 0;
+        experiment
+            .resources
+            .max_scarcity_mortality_probability_per_million = 0;
         ResearchExperimentDefinition {
             schema_version: 1,
             seeds: vec![101],
@@ -758,7 +794,12 @@ mod tests {
         })
         .unwrap();
         let before: ResearchExecutionState = read_json(&root.join(RESEARCH_STATE)).unwrap();
-        assert!(before.runs.values().all(|run| run.state == RunStateKind::Completed));
+        assert!(
+            before
+                .runs
+                .values()
+                .all(|run| run.state == RunStateKind::Completed)
+        );
         assert!(before.runs.values().all(|run| run.attempt == 1));
 
         execute(&Cli {
@@ -768,7 +809,12 @@ mod tests {
         })
         .unwrap();
         let after: ResearchExecutionState = read_json(&root.join(RESEARCH_STATE)).unwrap();
-        assert!(after.runs.values().all(|run| run.state == RunStateKind::Completed));
+        assert!(
+            after
+                .runs
+                .values()
+                .all(|run| run.state == RunStateKind::Completed)
+        );
         assert!(after.runs.values().all(|run| run.attempt == 1));
 
         let runs: serde_json::Value = read_json(&root.join("analysis/runs.json")).unwrap();
