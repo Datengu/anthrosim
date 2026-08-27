@@ -171,12 +171,7 @@ fn spatial_construction_rejects_edited_member_cells_with_mask_provenance() {
 #[test]
 fn spatial_construction_rejects_changed_declared_layer_id() {
     let mut config = valid_config();
-    let region = config
-        .temporary_mobility
-        .as_ref()
-        .unwrap()
-        .region
-        .clone();
+    let region = config.temporary_mobility.as_ref().unwrap().region.clone();
     config.temporary_mobility.as_mut().unwrap().region = FocalRegion::new(
         region.region_id,
         FocalRegionSource::LandscapeMask {
