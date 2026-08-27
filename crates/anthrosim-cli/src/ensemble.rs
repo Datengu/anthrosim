@@ -12,9 +12,12 @@ use anthrosim_core::{
     SpatialMechanismConfig, TemporaryMobilityConfig, World, WorldConfig,
     validate_spatial_landscape_recorded_run,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use crate::{bundle::validated_bundle_files, read_json, write_completed_bundle, write_json};
+use crate::{
+    bundle::{artifact_fs, validated_bundle_files},
+    read_json, write_completed_bundle, write_json,
+};
 
 const ENSEMBLE_PLAN_SCHEMA_VERSION: u32 = 1;
 const ENSEMBLE_COMPLETION_SCHEMA_VERSION: u32 = 1;
@@ -68,7 +71,7 @@ pub(crate) struct EnsembleRunSettings {
     pub(crate) spatial: Option<SpatialRunSettings>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EnsemblePlan {
     schema_version: u32,
@@ -76,14 +79,14 @@ struct EnsemblePlan {
     runs: Vec<PlannedRun>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EnsembleDefinition {
     seeds: Vec<u64>,
     settings: EnsembleRunSettings,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PlannedRun {
     seed: u64,
@@ -441,7 +444,12 @@ pub(crate) fn execute_ensemble(
     let expected_manifest = build_experiment_manifest(&settings, &seeds)?;
 
     let manifest = if retry {
-        load_matching_manifest(directory, &expected_manifest)?
+        load_matching_manifest(
+            directory,
+            &plan,
+            &expected_manifest,
+            runtime_landscape.as_ref(),
+        )?
     } else {
         initialize_experiment(
             directory,
@@ -601,21 +609,58 @@ fn initialize_experiment(
 
 fn load_matching_manifest(
     directory: &Path,
+    plan: &EnsemblePlan,
     expected: &ExperimentManifest,
+    runtime_landscape: Option<&LandscapeBundle>,
 ) -> Result<ExperimentManifest, Box<dyn std::error::Error>> {
     let path = directory.join("experiment-manifest.json");
-    if !path.is_file() {
+    if artifact_fs::regular_file_exists(&path, "experiment manifest")? {
+        let content = artifact_fs::read_to_string(&path, "experiment manifest")?;
+        match serde_json::from_str::<ExperimentManifest>(&content) {
+            Ok(actual) => {
+                validate_manifest_identity(&actual, expected)?;
+                reconcile_ensemble_root_metadata(directory, plan, expected, runtime_landscape)?;
+                return Ok(actual);
+            }
+            Err(parse_error) => {
+                recover_experiment_manifest(
+                    directory,
+                    plan,
+                    expected,
+                    Some(parse_error.to_string()),
+                )?;
+                reconcile_ensemble_root_metadata(directory, plan, expected, runtime_landscape)?;
+                return Ok(expected.clone());
+            }
+        }
+    }
+
+    if !directory.exists()
+        || (directory.is_dir() && fs::read_dir(directory)?.next().transpose()?.is_none())
+    {
+        initialize_experiment(directory, plan, expected, runtime_landscape)?;
+        return Ok(expected.clone());
+    }
+    if !directory.is_dir() {
         return Err(io::Error::new(
-            io::ErrorKind::NotFound,
+            io::ErrorKind::InvalidData,
             format!(
-                "cannot retry {}: experiment-manifest.json is missing",
+                "cannot retry {}: experiment root exists and is not a directory",
                 directory.display()
             ),
         )
         .into());
     }
 
-    let actual: ExperimentManifest = read_json(&path)?;
+    recover_experiment_manifest(directory, plan, expected, None)?;
+    reconcile_ensemble_root_metadata(directory, plan, expected, runtime_landscape)?;
+    Ok(expected.clone())
+}
+
+fn validate_manifest_identity(
+    actual: &ExperimentManifest,
+    expected: &ExperimentManifest,
+) -> Result<(), io::Error> {
     if actual.schema_version != expected.schema_version {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -623,20 +668,160 @@ fn load_matching_manifest(
                 "experiment manifest schema {} does not match expected schema {}",
                 actual.schema_version, expected.schema_version
             ),
-        )
-        .into());
+        ));
     }
-    if actual != *expected {
+    if actual != expected {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!(
                 "retry definition does not match immutable experiment {}",
                 actual.experiment_id
             ),
+        ));
+    }
+    Ok(())
+}
+
+fn recover_experiment_manifest(
+    directory: &Path,
+    plan: &EnsemblePlan,
+    expected: &ExperimentManifest,
+    parse_error: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let plan_path = directory.join("ensemble-plan.json");
+    let mut corroborated = false;
+    if artifact_fs::regular_file_exists(&plan_path, "ensemble plan")? {
+        let content = artifact_fs::read_to_string(&plan_path, "ensemble plan")?;
+        if let Ok(actual_plan) = serde_json::from_str::<EnsemblePlan>(&content) {
+            if actual_plan != *plan {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "cannot recover experiment manifest: existing ensemble-plan.json has a different immutable experiment definition",
+                )
+                .into());
+            }
+            corroborated = true;
+        }
+    }
+
+    for spec in &expected.runs {
+        let run_directory = directory.join(&spec.relative_run_dir);
+        if !run_directory.exists() {
+            continue;
+        }
+        match inspect_completed_bundle(directory, expected, spec) {
+            Ok(BundleInspection::Valid(_)) => corroborated = true,
+            Ok(BundleInspection::AbsentOrIncomplete) => {}
+            Err(error) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "cannot recover experiment manifest because existing child {} contradicts the requested immutable experiment: {error}",
+                        spec.run_id
+                    ),
+                )
+                .into());
+            }
+        }
+    }
+
+    if !corroborated {
+        let detail = parse_error
+            .map(|error| format!("; malformed manifest parse error: {error}"))
+            .unwrap_or_default();
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "cannot recover missing or malformed experiment-manifest.json without a matching ensemble-plan.json or provenance-valid completed child bundle{detail}"
+            ),
         )
         .into());
     }
-    Ok(actual)
+
+    write_json(&directory.join("experiment-manifest.json"), expected)?;
+    Ok(())
+}
+
+fn reconcile_ensemble_root_metadata(
+    directory: &Path,
+    plan: &EnsemblePlan,
+    manifest: &ExperimentManifest,
+    runtime_landscape: Option<&LandscapeBundle>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    reconcile_redundant_json(&directory.join("ensemble-plan.json"), plan, "ensemble plan")?;
+
+    if let Some(spatial) = plan.definition.settings.spatial.as_ref() {
+        let landscape = runtime_landscape.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "spatial experiment root recovery requires the provenance-bound landscape",
+            )
+        })?;
+        spatial.landscape_binding.validate_bundle(landscape)?;
+        reconcile_redundant_json(
+            &directory.join("landscape.json"),
+            landscape,
+            "experiment-root landscape",
+        )?;
+        reconcile_redundant_json(
+            &directory.join("spatial-mechanisms.json"),
+            &spatial.mechanisms,
+            "experiment-root spatial mechanisms",
+        )?;
+        let evidence_path = directory.join("evidence.json");
+        if let Some(evidence) = spatial.evidence.as_ref() {
+            reconcile_redundant_json(
+                &evidence_path,
+                evidence,
+                "experiment-root evidence catalogue",
+            )?;
+        } else if artifact_fs::regular_file_exists(
+            &evidence_path,
+            "experiment-root evidence catalogue",
+        )? {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "experiment root contains evidence.json but the immutable experiment has no evidence catalogue",
+            )
+            .into());
+        }
+    }
+
+    if manifest != &build_experiment_manifest(&plan.definition.settings, &plan.definition.seeds)? {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "ensemble plan does not reconstruct the verified immutable experiment manifest",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn reconcile_redundant_json<T>(
+    path: &Path,
+    expected: &T,
+    role: &str,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    T: Serialize + DeserializeOwned + PartialEq,
+{
+    if !artifact_fs::regular_file_exists(path, role)? {
+        write_json(path, expected)?;
+        return Ok(());
+    }
+    let content = artifact_fs::read_to_string(path, role)?;
+    match serde_json::from_str::<T>(&content) {
+        Ok(actual) if actual == *expected => Ok(()),
+        Ok(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{role} does not match the verified immutable experiment"),
+        )
+        .into()),
+        Err(_) => {
+            write_json(path, expected)?;
+            Ok(())
+        }
+    }
 }
 
 fn reconcile_status(
@@ -645,10 +830,25 @@ fn reconcile_status(
     spec: &ExperimentRunSpec,
 ) -> Result<RunStatus, Box<dyn std::error::Error>> {
     let status_path = directory.join(status_relative_path(&spec.run_id));
-    let mut status = if status_path.is_file() {
-        let loaded: RunStatus = read_json(&status_path)?;
-        validate_status_identity(manifest, spec, &loaded)?;
-        loaded
+    let status_exists = artifact_fs::regular_file_exists(&status_path, "ensemble run status")?;
+    let mut status_needs_rewrite = !status_exists;
+    let mut status = if status_exists {
+        let content = artifact_fs::read_to_string(&status_path, "ensemble run status")?;
+        match serde_json::from_str::<RunStatus>(&content) {
+            Ok(loaded) => {
+                validate_status_identity(manifest, spec, &loaded)?;
+                loaded
+            }
+            Err(error) => {
+                status_needs_rewrite = true;
+                let mut damaged = initial_status(manifest, spec);
+                damaged.state = RunLifecycle::Incomplete;
+                damaged.message = Some(format!(
+                    "status record was malformed during reconciliation and was reconstructed from immutable experiment identity and child-bundle inspection: {error}"
+                ));
+                damaged
+            }
+        }
     } else {
         let mut missing = initial_status(manifest, spec);
         missing.state = RunLifecycle::Incomplete;
@@ -686,7 +886,7 @@ fn reconcile_status(
                 );
                 status.result = None;
                 write_status(directory, &status)?;
-            } else if !status_path.is_file() {
+            } else if status_needs_rewrite {
                 write_status(directory, &status)?;
             }
             Ok(status)
@@ -1440,6 +1640,85 @@ mod tests {
         let retried = read_status(&root, 51);
         assert_eq!(retried.state, RunLifecycle::Failed);
         assert_eq!(retried.attempt, 2);
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn malformed_status_is_rebuilt_from_valid_child_bundle() {
+        let root = temp_path("retry-malformed-status-valid-child");
+        execute_ensemble(&root, small_settings(), vec![53], false).expect("fresh experiment");
+        let status_path = root.join(status_relative_path(&run_id(53)));
+        fs::write(&status_path, "{\"schemaVersion\":").expect("truncate status");
+
+        execute_ensemble(&root, small_settings(), vec![53], true).expect("retry experiment");
+
+        let repaired = read_status(&root, 53);
+        assert_eq!(repaired.state, RunLifecycle::Completed);
+        assert_eq!(repaired.attempt, 1);
+        assert!(repaired.result.is_some());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn malformed_status_without_child_bundle_is_rebuilt_and_retried() {
+        let root = temp_path("retry-malformed-status-no-child");
+        execute_ensemble(&root, small_settings(), vec![54], false).expect("fresh experiment");
+        let status_path = root.join(status_relative_path(&run_id(54)));
+        fs::write(&status_path, "not-json").expect("damage status");
+        fs::remove_dir_all(root.join(run_relative_dir(54))).expect("remove child bundle");
+
+        execute_ensemble(&root, small_settings(), vec![54], true).expect("retry experiment");
+
+        let repaired = read_status(&root, 54);
+        assert_eq!(repaired.state, RunLifecycle::Completed);
+        assert_eq!(repaired.attempt, 1);
+        assert!(repaired.result.is_some());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn malformed_experiment_manifest_is_recovered_from_matching_plan_and_child() {
+        let root = temp_path("retry-malformed-root-manifest");
+        execute_ensemble(&root, small_settings(), vec![55], false).expect("fresh experiment");
+        fs::write(root.join("experiment-manifest.json"), "{truncated").expect("damage manifest");
+
+        execute_ensemble(&root, small_settings(), vec![55], true).expect("retry experiment");
+
+        let expected = build_experiment_manifest(&small_settings(), &[55]).expect("expected");
+        let repaired: ExperimentManifest =
+            read_json(&root.join("experiment-manifest.json")).expect("manifest");
+        assert_eq!(repaired, expected);
+        assert_eq!(read_status(&root, 55).attempt, 1);
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn missing_redundant_plan_is_rebuilt_after_manifest_verification() {
+        let root = temp_path("retry-missing-plan");
+        execute_ensemble(&root, small_settings(), vec![56], false).expect("fresh experiment");
+        fs::remove_file(root.join("ensemble-plan.json")).expect("remove plan");
+
+        execute_ensemble(&root, small_settings(), vec![56], true).expect("retry experiment");
+
+        let restored: EnsemblePlan =
+            read_json(&root.join("ensemble-plan.json")).expect("restored plan");
+        assert_eq!(
+            restored,
+            plan_ensemble(small_settings(), vec![56]).expect("plan")
+        );
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn retry_initializes_an_empty_interrupted_root() {
+        let root = temp_path("retry-empty-root");
+        fs::create_dir_all(&root).expect("empty interrupted root");
+
+        execute_ensemble(&root, small_settings(), vec![57], true).expect("retry experiment");
+
+        assert!(root.join("experiment-manifest.json").is_file());
+        assert!(root.join("ensemble-plan.json").is_file());
+        assert_eq!(read_status(&root, 57).state, RunLifecycle::Completed);
         fs::remove_dir_all(root).expect("cleanup");
     }
 

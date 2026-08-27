@@ -4,6 +4,7 @@ use anthrosim_core::{RunManifest, StopReason};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    bundle::artifact_fs,
     ensemble::{EnsembleRunSettings, execute_ensemble, validate_temporary_mobility_settings},
     read_json, write_json,
 };
@@ -244,7 +245,7 @@ pub(crate) fn execute_sweep(
     for point in &manifest.points {
         let point_directory = directory.join(&point.relative_experiment_dir);
         let point_has_manifest = point_directory.join("experiment-manifest.json").is_file();
-        let point_retry = retry && point_has_manifest;
+        let point_retry = retry && (point_has_manifest || point_directory.exists());
         if let Err(error) = execute_ensemble(
             &point_directory,
             point.settings.clone(),
@@ -460,17 +461,33 @@ fn load_matching_sweep_manifest(
     expected: &SweepManifest,
 ) -> Result<SweepManifest, Box<dyn std::error::Error>> {
     let path = directory.join("sweep-manifest.json");
-    if !path.is_file() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
+    if !artifact_fs::regular_file_exists(&path, "sweep manifest")? {
+        match require_empty_directory(directory) {
+            Ok(()) => {
+                initialize_sweep(directory, expected)?;
+                return Ok(expected.clone());
+            }
+            Err(error) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!(
+                        "cannot retry {}: sweep-manifest.json is missing and the existing root is not recoverably empty: {error}",
+                        directory.display()
+                    ),
+                )
+                .into());
+            }
+        }
+    }
+    let content = artifact_fs::read_to_string(&path, "sweep manifest")?;
+    let actual: SweepManifest = serde_json::from_str(&content).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
             format!(
-                "cannot retry {}: sweep-manifest.json is missing",
-                directory.display()
+                "immutable sweep-manifest.json is malformed; current atomic publication prevents treating a malformed immutable identity as recoverable derived status: {error}"
             ),
         )
-        .into());
-    }
-    let actual: SweepManifest = read_json(&path)?;
+    })?;
     if actual.schema_version != SWEEP_MANIFEST_SCHEMA_VERSION {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -1030,7 +1047,7 @@ fn write_runs_csv(path: &Path, rows: &[DerivedRunRow]) -> Result<(), io::Error> 
             optional_to_string(row.migration_mean_destination_water_security_score_permille),
         ]));
     }
-    fs::write(path, csv)
+    artifact_fs::atomic_write(path, csv.as_bytes(), "sweep run analysis CSV")
 }
 
 fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Error> {
@@ -1112,7 +1129,7 @@ fn write_points_csv(path: &Path, rows: &[DerivedPointRow]) -> Result<(), io::Err
             row.source_operationally_censored_run_ids.join("|"),
         ]));
     }
-    fs::write(path, csv)
+    artifact_fs::atomic_write(path, csv.as_bytes(), "sweep point analysis CSV")
 }
 
 fn csv_line(fields: &[String]) -> String {
@@ -1910,6 +1927,57 @@ mod tests {
 
         assert!(root.join("analysis/runs.csv").is_file());
         assert!(root.join("analysis/points.csv").is_file());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn retry_initializes_an_empty_interrupted_sweep_root() {
+        let root = temp_path("sweep-retry-empty-root");
+        fs::create_dir_all(&root).expect("empty interrupted root");
+        let dimensions = SweepDimensions {
+            population: vec![12],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+
+        execute_sweep(&root, small_settings(), vec![19], dimensions, true).expect("retry sweep");
+
+        assert!(root.join("sweep-manifest.json").is_file());
+        assert!(root.join("analysis/runs.csv").is_file());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn sweep_retry_recovers_point_with_missing_experiment_manifest() {
+        let root = temp_path("sweep-retry-missing-point-manifest");
+        let dimensions = SweepDimensions {
+            population: vec![12],
+            household_size: vec![],
+            resource_productivity_scale_permille: vec![],
+            resource_seasonality_scale_permille: vec![],
+            annual_food_need: vec![],
+            disable_migration: vec![],
+            migration_radius: vec![],
+        };
+        execute_sweep(&root, small_settings(), vec![20], dimensions.clone(), false)
+            .expect("fresh sweep");
+        let sweep_manifest_before =
+            fs::read(root.join("sweep-manifest.json")).expect("sweep manifest");
+        let point_root = root.join("experiments/point-000000");
+        fs::remove_file(point_root.join("experiment-manifest.json"))
+            .expect("remove point manifest");
+
+        execute_sweep(&root, small_settings(), vec![20], dimensions, true).expect("retry sweep");
+
+        assert!(point_root.join("experiment-manifest.json").is_file());
+        assert_eq!(
+            sweep_manifest_before,
+            fs::read(root.join("sweep-manifest.json")).expect("sweep manifest")
+        );
         fs::remove_dir_all(root).expect("cleanup");
     }
 
