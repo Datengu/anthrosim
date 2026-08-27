@@ -180,6 +180,7 @@ fn spatial_settings() -> (EnsembleRunSettings, PathBuf) {
         landscape_binding: LandscapeBinding::from_bundle(&landscape).expect("binding"),
         mechanisms,
         evidence: None,
+        founder_population: None,
         runtime_landscape_path: Some(landscape_path),
     });
     (settings, source_root)

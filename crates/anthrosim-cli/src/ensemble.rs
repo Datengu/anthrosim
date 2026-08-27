@@ -5,11 +5,12 @@ use std::{
 };
 
 use anthrosim_core::{
-    EvidenceCatalog, ExperimentConfig, LandscapeBinding, LandscapeBundle, MigrationConfig,
-    Population, PopulationConfig, ResourceConfig, RunManifest, SPATIAL_MODEL_SEMANTICS_ID,
-    Simulation, SimulationCheckpoint, SpatialLandscapeCheckpoint, SpatialLandscapeRecordedRun,
-    SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismConfig,
-    TemporaryMobilityConfig, World, WorldConfig, validate_spatial_landscape_recorded_run,
+    EvidenceCatalog, ExperimentConfig, FounderPopulationDefinition, LandscapeBinding,
+    LandscapeBundle, MigrationConfig, Population, PopulationConfig, ResourceConfig, RunManifest,
+    SPATIAL_MODEL_SEMANTICS_ID, Simulation, SimulationCheckpoint, SpatialLandscapeCheckpoint,
+    SpatialLandscapeRecordedRun, SpatialLandscapeRunManifest, SpatialLandscapeSimulation,
+    SpatialMechanismConfig, TemporaryMobilityConfig, World, WorldConfig,
+    validate_spatial_landscape_recorded_run,
 };
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +30,8 @@ pub(crate) struct SpatialRunSettings {
     pub(crate) mechanisms: SpatialMechanismConfig,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) evidence: Option<EvidenceCatalog>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) founder_population: Option<FounderPopulationDefinition>,
     #[serde(skip)]
     pub(crate) runtime_landscape_path: Option<PathBuf>,
 }
@@ -39,6 +42,7 @@ impl PartialEq for SpatialRunSettings {
             && self.landscape_binding == other.landscape_binding
             && self.mechanisms == other.mechanisms
             && self.evidence == other.evidence
+            && self.founder_population == other.founder_population
     }
 }
 
@@ -197,6 +201,7 @@ pub(crate) fn load_spatial_run_settings(
         landscape_binding,
         mechanisms,
         evidence,
+        founder_population: None,
         runtime_landscape_path: Some(landscape_path.to_path_buf()),
     })
 }
@@ -242,6 +247,13 @@ pub(crate) fn experiment_config(seed: u64, settings: &EnsembleRunSettings) -> Ex
         )
         .with_resources(resources)
         .with_migration(migration);
+    if let Some(founder_population) = settings
+        .spatial
+        .as_ref()
+        .and_then(|spatial| spatial.founder_population.as_ref())
+    {
+        config = config.with_founder_population(founder_population.clone());
+    }
     if let Some(temporary_mobility) = &settings.temporary_mobility {
         config = config.with_temporary_mobility(temporary_mobility.clone());
     }
@@ -1158,6 +1170,7 @@ mod tests {
             landscape_binding: LandscapeBinding::from_bundle(&landscape).expect("binding"),
             mechanisms,
             evidence: None,
+            founder_population: None,
             runtime_landscape_path: Some(landscape_path),
         });
         (settings, source_root)
