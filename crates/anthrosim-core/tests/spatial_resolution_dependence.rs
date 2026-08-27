@@ -1,3 +1,4 @@
+use anthrosim_core::rng::RngFactory;
 use anthrosim_core::{
     FocalRegion, FocalRegionSource, GridGeometry, LandscapeBinding, LandscapeBindingError,
     LandscapeBundle, MigrationConfig, ResourceConfig, ResourceSystem, SpatialM4DistanceBasis,
@@ -5,7 +6,6 @@ use anthrosim_core::{
     SpatialScaleStatus, TemporaryTravelModel, TemporaryTravelResolution, World, WorldConfig,
     bounded_candidate_cells,
 };
-use anthrosim_core::rng::RngFactory;
 
 fn landscape(width: u32, height: u32, cell_size: u64) -> LandscapeBundle {
     LandscapeBundle::new(
@@ -40,12 +40,18 @@ fn landscape_binding_declares_resolution_dependence_and_rejects_scale_tampering(
     let coarse = landscape(2, 2, 100);
     let binding = LandscapeBinding::from_bundle(&coarse).unwrap();
 
-    assert_eq!(binding.schema_version, LandscapeBinding::CURRENT_SCHEMA_VERSION);
+    assert_eq!(
+        binding.schema_version,
+        LandscapeBinding::CURRENT_SCHEMA_VERSION
+    );
     assert_eq!(
         binding.scale.semantics,
         SpatialScaleSemantics::CellSpaceResolutionDependentV1
     );
-    assert_eq!(binding.scale.status, SpatialScaleStatus::ResolutionDependent);
+    assert_eq!(
+        binding.scale.status,
+        SpatialScaleStatus::ResolutionDependent
+    );
     assert_eq!(binding.scale.cell_size_x, 100);
     assert_eq!(binding.scale.cell_size_y, 100);
     assert_eq!(binding.scale.coordinate_unit, "metre");
@@ -79,13 +85,11 @@ fn equal_physical_area_gains_four_times_resource_stock_when_resolution_is_double
     let coarse_landscape = landscape(2, 2, 100);
     let fine_landscape = landscape(4, 4, 50);
     assert_eq!(
-        u64::from(coarse_landscape.width)
-            * coarse_landscape.geometry.cell_size_x,
+        u64::from(coarse_landscape.width) * coarse_landscape.geometry.cell_size_x,
         u64::from(fine_landscape.width) * fine_landscape.geometry.cell_size_x
     );
     assert_eq!(
-        u64::from(coarse_landscape.height)
-            * coarse_landscape.geometry.cell_size_y,
+        u64::from(coarse_landscape.height) * coarse_landscape.geometry.cell_size_y,
         u64::from(fine_landscape.height) * fine_landscape.geometry.cell_size_y
     );
 
@@ -131,8 +135,14 @@ fn same_m4_candidate_radius_has_half_the_physical_horizon_at_fifty_metres() {
             .max()
             .unwrap()
     };
-    assert_eq!(max_grid_steps(&coarse_world, coarse_origin, &coarse_candidates), 3);
-    assert_eq!(max_grid_steps(&fine_world, fine_origin, &fine_candidates), 3);
+    assert_eq!(
+        max_grid_steps(&coarse_world, coarse_origin, &coarse_candidates),
+        3
+    );
+    assert_eq!(
+        max_grid_steps(&fine_world, fine_origin, &fine_candidates),
+        3
+    );
 
     let coarse_horizon = u64::from(radius) * coarse_landscape.geometry.cell_size_x;
     let fine_horizon = u64::from(radius) * fine_landscape.geometry.cell_size_x;
@@ -155,9 +165,7 @@ fn equal_physical_m9_route_accumulates_more_cost_at_finer_resolution() {
     let fine_destination = fine_world.cell_id(4, 0).unwrap();
 
     let coarse_extent = coarse_landscape.cell_centre_2x(coarse_origin).unwrap();
-    let coarse_destination_extent = coarse_landscape
-        .cell_centre_2x(coarse_destination)
-        .unwrap();
+    let coarse_destination_extent = coarse_landscape.cell_centre_2x(coarse_destination).unwrap();
     let fine_extent = fine_landscape.cell_centre_2x(fine_origin).unwrap();
     let fine_destination_extent = fine_landscape.cell_centre_2x(fine_destination).unwrap();
     assert_eq!(
@@ -185,7 +193,10 @@ fn equal_physical_m9_route_accumulates_more_cost_at_finer_resolution() {
     let coarse_table = model.derive_table(&coarse_region, &coarse_world).unwrap();
     let fine_table = model.derive_table(&fine_region, &fine_world).unwrap();
 
-    assert_eq!(coarse_table.accumulated_cost_units(coarse_origin), Some(2_000));
+    assert_eq!(
+        coarse_table.accumulated_cost_units(coarse_origin),
+        Some(2_000)
+    );
     assert_eq!(fine_table.accumulated_cost_units(fine_origin), Some(4_000));
     assert_eq!(
         coarse_table.resolution(coarse_origin),
