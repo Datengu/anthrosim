@@ -175,7 +175,7 @@ fn spatial_construction_rejects_changed_declared_layer_id() {
     let mut config = valid_config();
     let region = config.temporary_mobility.as_ref().unwrap().region.clone();
     config.temporary_mobility.as_mut().unwrap().region = FocalRegion::new(
-        region.region_id,
+        region.region_id.clone(),
         FocalRegionSource::LandscapeMask {
             layer_id: "other-mask".to_owned(),
             evidence_input_id: "mask-input".to_owned(),
