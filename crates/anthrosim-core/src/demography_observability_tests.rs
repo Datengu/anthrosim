@@ -31,6 +31,8 @@ fn synthetic_run_replays_exact_opportunity_funnel_and_spacing_semantics() {
 
     assert_eq!(report.requested_birth_spacing_days, 1_278);
     assert_eq!(report.effective_birth_spacing_days, 1_460);
+    assert_eq!(report.mortality_risk_intervals_per_year, 4);
+    assert!(report.mortality_is_order_invariant_competing_risk);
     assert!(report.fertility_probability_is_conditional_on_m2_survival);
     assert!(report.parentage_uses_pre_same_day_m4_residence);
     assert_eq!(
@@ -87,7 +89,7 @@ fn partial_year_resource_extinction_replays_without_inventing_m2_exposure() {
         .expect("partial-year terminal events should replay exactly");
     assert_eq!(report.simulated_days, recorded.checkpoint.time.days());
     assert_eq!(report.annual_boundaries_observed, 0);
-    assert_eq!(report.summary.mortality_exposures, 0);
+    assert_eq!(report.summary.mortality_exposures, 4);
     assert_eq!(report.summary.demographic_deaths, 0);
     assert_eq!(report.summary.fertility_draws_attempted, 0);
     assert_eq!(report.summary.final_living_population, 0);
@@ -140,6 +142,7 @@ fn total_mortality_removes_fertility_stage_exposure_under_declared_contract() {
     };
     let mut resources = ResourceConfig::synthetic_validation_v1();
     resources.max_scarcity_mortality_probability_per_million = 0;
+    resources.periods_per_year = 1;
     let config = ExperimentConfig::new(7, 1)
         .with_world(WorldConfig::new(1, 1))
         .with_population(PopulationConfig::new(2).with_max_person_records(100))
