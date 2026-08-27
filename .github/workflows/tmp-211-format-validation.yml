@@ -24,23 +24,74 @@ jobs:
           rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
-      - name: Format and validate
+      - name: Apply API corrections and formatting
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('crates/anthrosim-core/tests/spatial_boundary_dependence.rs')
+          text = path.read_text()
+          old = '''        let table = model.derive_table(&region, &world).unwrap();
+        table.resolution(origin).cloned().unwrap()
+    };
+
+    assert_eq!(resolution(&tight), TemporaryTravelResolution::Unreachable);
+    let buffered_resolution = resolution(&buffered);
+    let larger_resolution = resolution(&larger);
+    assert_eq!(buffered_resolution, larger_resolution);
+    assert!(matches!(
+        buffered_resolution,
+        TemporaryTravelResolution::Reachable {
+            outbound_travel_days: 3,
+            return_travel_days: 3,
+            accumulated_cost_units: 8_000,
+        }
+    ));
+'''
+          new = '''        let table = model.derive_table(&region, &world).unwrap();
+        (table.resolution(origin).unwrap(), table.accumulated_cost_units(origin))
+    };
+
+    let tight_resolution = resolution(&tight);
+    assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);
+    assert_eq!(tight_resolution.1, None);
+    let buffered_resolution = resolution(&buffered);
+    let larger_resolution = resolution(&larger);
+    assert_eq!(buffered_resolution, larger_resolution);
+    assert!(matches!(
+        buffered_resolution.0,
+        TemporaryTravelResolution::Reachable {
+            outbound_travel_days: 3,
+            return_travel_days: 3,
+            ..
+        }
+    ));
+    assert_eq!(buffered_resolution.1, Some(8_000));
+'''
+          if old not in text:
+              raise SystemExit('expected M9 assertion block not found')
+          path.write_text(text.replace(old, new))
+          PY
           cargo fmt --all
           cargo fmt --all -- --check
-          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
-          cargo test --locked --workspace --all-features
-          cargo build --locked --workspace --release
-
-      - name: Commit formatting and remove temporary workflow
-        if: success()
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add crates/anthrosim-core/src/spatial_boundary.rs crates/anthrosim-core/src/lib.rs crates/anthrosim-core/tests/spatial_boundary_dependence.rs
           if ! git diff --cached --quiet; then
-            git commit -m "style: apply rustfmt to spatial boundary contract"
+            git commit -m "test: align boundary fixtures with M9 travel API"
+            git push origin HEAD:feat/211-spatial-boundary-contract
           fi
+
+      - name: Validate
+        run: |
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+          cargo test --locked --workspace --all-features
+          cargo build --locked --workspace --release
+
+      - name: Remove temporary workflow
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/tmp-211-format-validation.yml
           git commit -m "chore: remove temporary #211 validation workflow"
           git push origin HEAD:feat/211-spatial-boundary-contract
