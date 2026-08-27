@@ -26,51 +26,7 @@ jobs:
 
       - name: Fix convergence result ownership
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('crates/anthrosim-core/src/spatial_boundary.rs')
-          text = path.read_text()
-          old = """    let latest = comparisons
-        .last()
-        .expect(\"two observations must produce one comparison\");
-    let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;
-
-    Ok(SpatialExtentConvergenceAssessment {
-        schema_version: SpatialExtentConvergenceAssessment::CURRENT_SCHEMA_VERSION,
-        criterion,
-        observations,
-        comparisons,
-        trailing_stable_extensions,
-        latest_extension_within_tolerance: latest.all_metrics_within_tolerance,
-        latest_extension_eligible_for_stability_sequence: latest.eligible_for_stability_sequence,
-        material_boundary_dependence_at_latest_extension: !latest.all_metrics_within_tolerance,
-        adequate,
-    })
-"""
-          new = """    let latest = comparisons
-        .last()
-        .expect(\"two observations must produce one comparison\");
-    let latest_extension_within_tolerance = latest.all_metrics_within_tolerance;
-    let latest_extension_eligible_for_stability_sequence = latest.eligible_for_stability_sequence;
-    let material_boundary_dependence_at_latest_extension = !latest_extension_within_tolerance;
-    let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;
-
-    Ok(SpatialExtentConvergenceAssessment {
-        schema_version: SpatialExtentConvergenceAssessment::CURRENT_SCHEMA_VERSION,
-        criterion,
-        observations,
-        comparisons,
-        trailing_stable_extensions,
-        latest_extension_within_tolerance,
-        latest_extension_eligible_for_stability_sequence,
-        material_boundary_dependence_at_latest_extension,
-        adequate,
-    })
-"""
-          if old not in text:
-              raise SystemExit('expected convergence return block not found')
-          path.write_text(text.replace(old, new, 1))
-          PY
+          python3 -c 'from pathlib import Path; p=Path("crates/anthrosim-core/src/spatial_boundary.rs"); s=p.read_text(); anchor="    let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;"; insert="    let latest_extension_within_tolerance = latest.all_metrics_within_tolerance;\n    let latest_extension_eligible_for_stability_sequence = latest.eligible_for_stability_sequence;\n    let material_boundary_dependence_at_latest_extension = !latest_extension_within_tolerance;\n"; assert anchor in s; s=s.replace(anchor, insert+anchor, 1); s=s.replace("        latest_extension_within_tolerance: latest.all_metrics_within_tolerance,", "        latest_extension_within_tolerance,", 1); s=s.replace("        latest_extension_eligible_for_stability_sequence: latest.eligible_for_stability_sequence,", "        latest_extension_eligible_for_stability_sequence,", 1); s=s.replace("        material_boundary_dependence_at_latest_extension: !latest.all_metrics_within_tolerance,", "        material_boundary_dependence_at_latest_extension,", 1); p.write_text(s)'
           cargo fmt --all
           cargo fmt --all -- --check
           git config user.name "github-actions[bot]"
