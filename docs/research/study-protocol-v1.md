@@ -1,0 +1,205 @@
+# Frozen study protocol v1
+
+**Status:** normative research-governance contract for GitHub issue #230.  
+**Scope:** study-level interpretation/provenance only; this does not change AnthroSim model dynamics.
+
+AnthroSim can reproduce an exact simulation and still permit post-hoc scientific flexibility. A researcher could keep the same runs while changing which outcome is called primary, which interval is analysed, which runs count, what threshold supports a hypothesis, or which evidence is described as independent corroboration. Reproducible execution alone therefore does not make an analysis confirmatory.
+
+Study protocol v1 adds a frozen research-governance layer above the exact experiment definition introduced by #205 and the analysis-window semantics introduced by #219.
+
+## Two identities, deliberately separate
+
+A study has two different kinds of identity:
+
+1. **simulation/research-definition identity** — what AnthroSim actually simulates;
+2. **study-protocol identity** — what scientific question, hypotheses, observables, analysis rules and evidence-use declarations the researcher intends to apply.
+
+Changing a decision threshold, primary observable or evidence role changes the study-protocol identity. It does **not** alter the underlying `ResearchExperimentDefinition`, per-run configuration or deterministic simulation state.
+
+This separation permits honest reuse of the same deterministic simulation outputs for a new exploratory analysis while preventing that new interpretation from masquerading as the original predeclared confirmatory analysis.
+
+## Protocol fields
+
+`StudyProtocol` schema v1 preserves:
+
+- `studyId` and `protocolRevision`;
+- scientific `status`: `exploratory` or `confirmatory`;
+- research question and applicability domain;
+- competing hypotheses/null models;
+- named analysis windows with explicit selection rules and rationales;
+- primary and secondary observables, each linked to a declared analysis window;
+- predeclared comparisons, predictions and decision criteria;
+- study-specific evidence-role assignments;
+- parameter and structural uncertainty plans;
+- seed, pairing and replication policy;
+- stopping, exclusion and censoring rules;
+- sensitivity and equifinality plans;
+- manipulation/treatment-realization checks;
+- analysis method and multiplicity policy;
+- held-out corroboration targets;
+- permitted and prohibited interpretations;
+- explicit amendment provenance for revisions after v1.
+
+The exact TRACE evidence-role vocabulary represented here is:
+
+- `model_construction`;
+- `parameterisation`;
+- `calibration`;
+- `model_output_verification`;
+- `independent_corroboration`.
+
+This issue records those assignments so the frozen protocol can carry them. The stronger cross-role leakage/circular-validation checks remain the dedicated scope of #206.
+
+## Confirmatory validation
+
+A protocol labelled `confirmatory` must contain at least:
+
+- two competing hypotheses/models;
+- one primary observable;
+- one predeclared comparison;
+- at least two hypotheses and one observable in every confirmatory comparison;
+- every hypothesis represented in a comparison;
+- every primary observable represented in a comparison.
+
+IDs and references are validated strictly. Unknown analysis-window, hypothesis or observable references fail closed.
+
+The schema does not pretend that a syntactically complete protocol is scientifically good. It makes omissions, changes and declared decisions auditable.
+
+## Analysis windows
+
+Each observable references a named analysis window. A window records:
+
+- `analysisStartDay`;
+- optional `analysisEndDayInclusive`;
+- one explicit selection rule;
+- a rationale.
+
+The selection rules match the #219 analysis-window contract:
+
+- `predeclared_fixed_duration`;
+- `convergence_diagnostic`;
+- `externally_meaningful_historical_start`;
+- `initial_state_in_scope`;
+- `other_explicit`.
+
+This protocol freezes the intended window. The #219 analysis-window tooling remains responsible for resolving a declared interval against realized run duration and for preventing cumulative since-start metrics from being silently relabelled as post-burn-in totals.
+
+## Immutable preparation workflow
+
+For confirmatory work, create a fresh study directory **before executing the research experiment**:
+
+```text
+anthrosim-study prepare \
+  --protocol protocol.json \
+  --definition research-definition.json \
+  --study-dir study/example
+```
+
+Preparation validates both machine-readable objects and writes:
+
+```text
+study/example/
+  study-plan.json
+  study-manifest.json
+  study-protocol.json
+  research-definition.json
+```
+
+`study-plan.json` and `study-manifest.json` are redundant exact copies of the immutable pre-execution plan. The plan binds:
+
+- the complete exact protocol;
+- `protocolIdentity`;
+- the exact research definition and `definitionIdentity`;
+- the executable `SourceRevisionIdentity`;
+- `studyExecutionId` derived from protocol + definition + source;
+- the fixed child research directory `research/`;
+- whether this protocol is eligible to be described as a pre-result confirmatory declaration.
+
+The study directory must be empty when prepared. Protocol changes do not overwrite it; they require a new study root/revision.
+
+Run the frozen definition, not an independently edited copy:
+
+```text
+anthrosim-research \
+  --definition study/example/research-definition.json \
+  --run-dir study/example/research
+```
+
+Existing exploratory/engineering uses of `anthrosim-research` remain valid and do not require this wrapper. An unbound research execution simply cannot claim that #230's frozen confirmatory-protocol gate was satisfied.
+
+## Result binding
+
+After the research execution has reached only terminal run states (`completed` or `failed`), finalize the study:
+
+```text
+anthrosim-study finalize --study-dir study/example
+```
+
+Finalization verifies:
+
+1. `study-plan.json` and `study-manifest.json` are identical;
+2. the standalone frozen protocol and research-definition files exactly match the embedded plan;
+3. both content identities recompute exactly;
+4. the child `research-manifest.json` and `research-plan.json` agree;
+5. the executed `definitionIdentity`, exact definition and source revision equal the pre-execution study plan;
+6. `research-state.json` belongs to the same research execution and contains no still-planned/running runs;
+7. the standard research analysis artifacts exist.
+
+It then writes immutable `study-result-binding.json`, containing:
+
+- stable `resultIdentity`;
+- `studyExecutionId`;
+- protocol identity, revision, study ID and scientific status;
+- pre-result-binding eligibility;
+- definition identity;
+- executed research ID;
+- exact source revision;
+- completed/failed run counts;
+- bound result-artifact paths.
+
+Running `finalize` again is idempotent. If an existing result binding differs from what the frozen plan and executed research now imply, finalization fails rather than rewriting provenance.
+
+## Amendments
+
+Protocol revision 1 must not declare an amendment. Any later `protocolRevision` must declare:
+
+- `previousProtocolIdentity`;
+- amendment `timing`:
+  - `before_result_inspection`, or
+  - `after_result_inspection`;
+- rationale.
+
+Because the complete amendment record is part of protocol content, every amendment necessarily receives a new protocol identity.
+
+A confirmatory protocol explicitly amended **after result inspection** remains reproducible, but `confirmatoryPreResultClaimEligible` becomes `false`. It cannot silently retain a preregistered/predeclared label merely because the revised protocol is now frozen.
+
+This mechanism records the scientific timing declaration; it is not a trusted external timestamp service. For stronger public preregistration evidence, archive or commit the prepared protocol/plan before result generation.
+
+## Relationship to remaining research-readiness issues
+
+This contract deliberately provides stable attachment points rather than absorbing all downstream methods work:
+
+- **#206**: validate evidence-role independence and detect calibration/corroboration leakage;
+- **#217**: execute and diagnose identifiability/equifinality analyses;
+- **#226**: derive exposure-aware rates and cumulative-outcome semantics;
+- **#231**: deepen manipulation-check realization diagnostics;
+- **#229**: formalize analysis/statistical semantics where needed.
+
+The frozen protocol can declare those plans now. Their dedicated issues implement the corresponding analysis logic.
+
+## Model-semantics boundary
+
+Study protocols do not alter:
+
+- `ExperimentConfig`;
+- initialization;
+- M2/M3/M4/M8/M9 transition rules;
+- random-number streams or draw order;
+- checkpoints or deterministic run identity;
+- `MODEL_SEMANTICS_ID`.
+
+A study-protocol change is a change to the scientific claim/analysis contract, not to what the simulator causally does.
+
+## Acceptance meaning
+
+After this contract is used, a confirmatory result can identify one immutable pre-execution protocol that says what was being tested, which outputs/windows count, how runs are treated and what result would support/reject the declared hypotheses. Changing those rules produces a new provenance-visible protocol identity/revision rather than silently changing the interpretation of the old result.
