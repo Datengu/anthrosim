@@ -2,24 +2,30 @@ from pathlib import Path
 
 migration = Path("crates/anthrosim-core/src/migration.rs")
 text = migration.read_text()
-old = """                let weight = u64::try_from(improvement)
+old_weight = """                let weight = u64::try_from(improvement)
                     .unwrap_or(u64::MAX)
                     .saturating_add(1);"""
-new = """                // Strict eligibility above guarantees a positive improvement, so the
+new_weight = """                // Strict eligibility above guarantees a positive improvement, so the
                 // stochastic weight is exactly proportional to declared utility improvement.
-                let weight = u64::try_from(improvement).unwrap_or(u64::MAX);"""
-if text.count(old) != 1:
+                let weight = proportional_choice_weight(improvement);"""
+if text.count(old_weight) != 1:
     raise SystemExit("expected exactly one legacy M4 +1 weighting block")
-text = text.replace(old, new)
+text = text.replace(old_weight, new_weight)
 
-marker = """    #[test]
+helper_anchor = """fn draw_bounded<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u64) -> u64 {"""
+helper = """fn proportional_choice_weight(improvement: i64) -> u64 {
+    debug_assert!(improvement > 0);
+    u64::try_from(improvement).unwrap_or(u64::MAX)
+}
+
+"""
+if text.count(helper_anchor) != 1:
+    raise SystemExit("expected draw_bounded anchor exactly once")
+text = text.replace(helper_anchor, helper + helper_anchor, 1)
+
+test_anchor = """    #[test]
     fn candidate_lookup_is_bounded_and_local() {"""
-tests = """    fn proportional_choice_weight(improvement: i64) -> u64 {
-        debug_assert!(improvement > 0);
-        u64::try_from(improvement).unwrap_or(u64::MAX)
-    }
-
-    #[test]
+tests = """    #[test]
     fn proportional_candidate_weights_match_required_ratios() {
         assert_eq!(
             [1_i64, 2].map(proportional_choice_weight),
@@ -45,9 +51,9 @@ tests = """    fn proportional_choice_weight(improvement: i64) -> u64 {
     }
 
 """
-if text.count(marker) != 1:
+if text.count(test_anchor) != 1:
     raise SystemExit("expected candidate test marker exactly once")
-text = text.replace(marker, tests + marker)
+text = text.replace(test_anchor, tests + test_anchor, 1)
 migration.write_text(text)
 
 provenance = Path("crates/anthrosim-core/src/provenance.rs")
@@ -58,20 +64,30 @@ if ptext.count(old_id) != 1:
     raise SystemExit("expected v13 model semantics ID exactly once")
 provenance.write_text(ptext.replace(old_id, new_id))
 
-doc = Path("docs/research/migration-v0.1.md")
-dtext = doc.read_text()
-anchor = "## Decision rule"
-note = """## Destination-choice weighting semantics
+migration_doc = Path("docs/research/migration-v0.1.md")
+dtext = migration_doc.read_text()
+old_choice = """Candidates that clear the minimum utility improvement receive a weight proportional to their utility improvement. One destination is then drawn from those weights using the named `migration/choice` random stream. Candidate uncertainty uses the independent `migration/uncertainty` stream.
 
-After a candidate strictly exceeds the stay utility plus `minimumUtilityImprovement`, its stochastic selection weight is exactly the positive integer utility improvement above that required threshold. Eligible improvements of `1` and `2` therefore receive weights `1:2`; `1` and `10` receive `1:10`; equal improvements receive equal weights. Multiplying every eligible improvement by the same positive factor preserves all relative selection probabilities. No `+1` pseudocount or smoothing term is applied because strict eligibility already guarantees positive weight.
+This means movement is not deterministic optimization: a household may choose among several locally acceptable alternatives. It is nevertheless exactly replayable under the declared AnthroSim determinism boundary because the candidate order, integer utilities and RNG streams are stable."""
+new_choice = """Candidates that strictly clear the minimum utility improvement receive a stochastic weight equal to their positive integer utility improvement above that required threshold. There is no `+1` pseudocount: improvements `[1, 2]` produce weights `[1, 2]`, `[1, 10]` produces `[1, 10]`, equal improvements receive equal weights, and multiplying every eligible improvement by one common positive factor preserves the relative selection probabilities. One destination is then drawn from those weights using the named `migration/choice` random stream. Candidate uncertainty uses the independent `migration/uncertainty` stream.
 
-`MigrationDecisionTrace` preserves `selectedWeight`, `totalMoveWeight`, and `choiceDraw`, allowing the realized weighted draw and selected interval to be audited. The compact trace does not retain every unselected candidate's utility/weight.
+This means movement is not deterministic optimization: a household may choose among several locally acceptable alternatives. It is nevertheless exactly replayable under the declared AnthroSim determinism boundary because the candidate order, integer utilities and RNG streams are stable. `MigrationDecisionTrace` preserves the selected weight, total eligible move weight and choice draw, so the realized weighted draw is auditable; the compact trace does not retain every unselected candidate evaluation."""
+if dtext.count(old_choice) != 1:
+    raise SystemExit("expected deterministic stochastic choice paragraph exactly once")
+migration_doc.write_text(dtext.replace(old_choice, new_choice))
 
-"""
-if note.strip() not in dtext:
-    if anchor not in dtext:
-        raise SystemExit("migration documentation decision-rule anchor missing")
-    doc.write_text(dtext.replace(anchor, note + anchor, 1))
+scientific = Path("docs/scientific-model.md")
+stext = scientific.read_text()
+old_status = "**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v13"
+new_status = "**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v14"
+if stext.count(old_status) != 1:
+    raise SystemExit("expected scientific model v13 status exactly once")
+stext = stext.replace(old_status, new_status)
+old_sentence = "A candidate must exceed the configured minimum improvement over staying. Eligible alternatives receive weights proportional to utility improvement, and one is selected through the named deterministic `migration/choice` random stream."
+new_sentence = "A candidate must strictly exceed the configured minimum improvement over staying. Under v14, each eligible alternative's stochastic weight is exactly its positive integer utility improvement above that required threshold, with no `+1` pseudocount; common positive scaling therefore preserves relative choice probabilities. One destination is selected through the named deterministic `migration/choice` random stream."
+if stext.count(old_sentence) != 1:
+    raise SystemExit("expected scientific-model M4 weighting sentence exactly once")
+scientific.write_text(stext.replace(old_sentence, new_sentence))
 
 trace = Path("docs/research/trace-m4-proportional-choice-repair-2026-08-27.md")
 trace.write_text("""# TRACE record: M4 proportional destination-choice repair (2026-08-27)
@@ -94,5 +110,5 @@ This changes authoritative M4 behavioural semantics and can alter migration dest
 
 ## Acceptance evidence
 
-Unit coverage checks exact `[1,2]`, `[1,10]`, equal-improvement, and common-scale invariance. Existing M4 migration, deterministic replay, checkpoint/resume, spatial, and protected benchmark gates remain required to detect unintended collateral effects.
+The production weighting helper is exercised directly by unit coverage for exact `[1,2]`, `[1,10]`, equal-improvement, and common-scale invariance properties. Existing M4 migration, deterministic replay, checkpoint/resume, spatial, and protected benchmark gates remain required to detect unintended collateral effects.
 """)
