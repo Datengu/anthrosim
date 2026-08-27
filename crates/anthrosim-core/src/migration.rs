@@ -463,9 +463,9 @@ impl MigrationSystem {
                     continue;
                 }
                 let improvement = i64::from(utility.total_utility) - i64::from(required);
-                let weight = u64::try_from(improvement)
-                    .unwrap_or(u64::MAX)
-                    .saturating_add(1);
+                // Strict eligibility above guarantees a positive improvement, so the
+                // stochastic weight is exactly proportional to declared utility improvement.
+                let weight = proportional_choice_weight(improvement);
                 total_weight = total_weight
                     .checked_add(weight)
                     .ok_or(MigrationError::AccountingOverflow)?;
@@ -1250,6 +1250,11 @@ fn household_index(
     Ok(index)
 }
 
+fn proportional_choice_weight(improvement: i64) -> u64 {
+    debug_assert!(improvement > 0);
+    u64::try_from(improvement).unwrap_or(u64::MAX)
+}
+
 fn draw_bounded<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u64) -> u64 {
     debug_assert!(upper_exclusive > 0);
     let acceptance_limit = u64::MAX - (u64::MAX % upper_exclusive);
@@ -1381,6 +1386,22 @@ mod tests {
             TemporaryTravelTable, TemporaryTriggerTiming,
         },
     };
+
+    #[test]
+    fn proportional_candidate_weights_match_required_ratios() {
+        assert_eq!([1_i64, 2].map(proportional_choice_weight), [1_u64, 2]);
+        assert_eq!([1_i64, 10].map(proportional_choice_weight), [1_u64, 10]);
+        assert_eq!([7_i64, 7].map(proportional_choice_weight), [7_u64, 7]);
+    }
+
+    #[test]
+    fn proportional_candidate_weights_are_scale_invariant() {
+        let base = [1_i64, 2, 10].map(proportional_choice_weight);
+        let scaled = [13_i64, 26, 130].map(proportional_choice_weight);
+        for index in 0..base.len() {
+            assert_eq!(scaled[index], base[index] * 13);
+        }
+    }
 
     #[test]
     fn candidate_lookup_is_bounded_and_local() {
