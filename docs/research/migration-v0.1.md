@@ -109,9 +109,9 @@ This is deliberately narrow. It is **not** a model of siblings, clans, descent g
 
 ## Deterministic stochastic choice
 
-Candidates that clear the minimum utility improvement receive a weight proportional to their utility improvement. One destination is then drawn from those weights using the named `migration/choice` random stream. Candidate uncertainty uses the independent `migration/uncertainty` stream.
+Candidates that strictly clear the minimum utility improvement receive a stochastic weight equal to their positive integer utility improvement above that required threshold. There is no `+1` pseudocount: improvements `[1, 2]` produce weights `[1, 2]`, `[1, 10]` produces `[1, 10]`, equal improvements receive equal weights, and multiplying every eligible improvement by one common positive factor preserves the relative selection probabilities. One destination is then drawn from those weights using the named `migration/choice` random stream. Candidate uncertainty uses the independent `migration/uncertainty` stream.
 
-This means movement is not deterministic optimization: a household may choose among several locally acceptable alternatives. It is nevertheless exactly replayable under the declared AnthroSim determinism boundary because the candidate order, integer utilities and RNG streams are stable.
+This means movement is not deterministic optimization: a household may choose among several locally acceptable alternatives. It is nevertheless exactly replayable under the declared AnthroSim determinism boundary because the candidate order, integer utilities and RNG streams are stable. `MigrationDecisionTrace` preserves the selected weight, total eligible move weight and choice draw, so the realized weighted draw is auditable; the compact trace does not retain every unselected candidate evaluation.
 
 ## Household-coordinated movement
 
