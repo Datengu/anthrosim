@@ -1,0 +1,45 @@
+name: Temporary #211 boundary validation
+
+on:
+  push:
+    branches: [feat/211-spatial-boundary-contract]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: feat/211-spatial-boundary-contract
+          fetch-depth: 0
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
+          rustup default 1.97.1
+
+      - name: Format and validate
+        run: |
+          cargo fmt --all
+          cargo fmt --all -- --check
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+          cargo test --locked --workspace --all-features
+          cargo build --locked --workspace --release
+
+      - name: Commit formatting and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/spatial_boundary.rs crates/anthrosim-core/src/lib.rs crates/anthrosim-core/tests/spatial_boundary_dependence.rs
+          if ! git diff --cached --quiet; then
+            git commit -m "style: apply rustfmt to spatial boundary contract"
+          fi
+          git rm .github/workflows/tmp-211-format-validation.yml
+          git commit -m "chore: remove temporary #211 validation workflow"
+          git push origin HEAD:feat/211-spatial-boundary-contract
