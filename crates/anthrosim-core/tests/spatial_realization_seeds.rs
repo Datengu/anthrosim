@@ -33,21 +33,21 @@ fn landscape() -> LandscapeBundle {
                 "terrain",
                 LandscapeLayerRole::TerrainTraversal,
                 (0..cell_count)
-                    .map(|index| Some((index * 17 % 1_001) as i32))
+                    .map(|index| Some(index * 17 % 1_001))
                     .collect(),
             ),
             layer(
                 "water",
                 LandscapeLayerRole::WaterAccessibility,
                 (0..cell_count)
-                    .map(|index| Some((1_000 - index * 11 % 1_001) as i32))
+                    .map(|index| Some(1_000 - index * 11 % 1_001))
                     .collect(),
             ),
             layer(
                 "resources",
                 LandscapeLayerRole::ResourceOpportunity,
                 (0..cell_count)
-                    .map(|index| Some((250 + index * 13 % 751) as i32))
+                    .map(|index| Some(250 + index * 13 % 751))
                     .collect(),
             ),
         ],
