@@ -18,9 +18,17 @@ pub enum SpatialScaleSemantics {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpatialScaleStatus {
-    /// Current M3/M4/M9 spatial quantities remain tied to cells/edges. Resolution must therefore be
-    /// treated as a scientific sensitivity dimension rather than incidental GIS metadata.
+    /// Current M2/M3/M4/M9 spatial quantities remain tied to cells/edges. Resolution must therefore
+    /// be treated as a scientific sensitivity dimension rather than incidental GIS metadata.
     ResolutionDependent,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpatialM2InteractionBasis {
+    /// Reproductive-contact eligibility is defined by exact equality of persistent-residence
+    /// `CellId`; there is no physical interaction radius or settlement-unit abstraction.
+    ExactPersistentResidenceCell,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +63,7 @@ pub struct SpatialScaleAssessment {
     pub cell_size_x: u64,
     pub cell_size_y: u64,
     pub coordinate_unit: String,
+    pub m2_interaction_basis: SpatialM2InteractionBasis,
     pub resource_quantity_basis: SpatialResourceQuantityBasis,
     pub m4_distance_basis: SpatialM4DistanceBasis,
     pub m9_travel_cost_basis: SpatialM9TravelCostBasis,
@@ -77,6 +86,7 @@ impl SpatialScaleAssessment {
             cell_size_x: landscape.geometry.cell_size_x,
             cell_size_y: landscape.geometry.cell_size_y,
             coordinate_unit: landscape.geometry.coordinate_unit.clone(),
+            m2_interaction_basis: SpatialM2InteractionBasis::ExactPersistentResidenceCell,
             resource_quantity_basis: SpatialResourceQuantityBasis::PerCellTotal,
             m4_distance_basis: SpatialM4DistanceBasis::GridSteps,
             m9_travel_cost_basis: SpatialM9TravelCostBasis::GridEdges,
@@ -114,6 +124,10 @@ mod tests {
         assert_eq!(assessment.cell_size_x, 100);
         assert_eq!(assessment.cell_size_y, 100);
         assert_eq!(assessment.coordinate_unit, "metre");
+        assert_eq!(
+            assessment.m2_interaction_basis,
+            SpatialM2InteractionBasis::ExactPersistentResidenceCell
+        );
         assert!(assessment.requires_resolution_sensitivity);
     }
 }
