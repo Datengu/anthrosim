@@ -213,12 +213,13 @@ pub struct MigrationSystem {
     /// matching the M9.5 resource-accounting rule without inventing a physical transit cell.
     boundary_demand_living: Vec<u32>,
     post_move_cell_living: Vec<u32>,
-    /// Every unique cell containing a living direct parent of a living household member.
+    /// Every unique persistent-residence cell connected to a household by a living
+    /// cross-household parent-child relation.
     ///
-    /// Co-resident parents are intentionally retained: excluding them would make the
-    /// female-parent household inheritance rule an accidental sex-specific M4 preference.
-    /// There is no record-order-dependent truncation; the set is bounded by represented
-    /// living direct-parent relationships in the authoritative population.
+    /// Each living parent-child edge that crosses households is represented reciprocally:
+    /// the child's household sees the parent's residence and the parent's household sees the
+    /// child's residence. Same-household relatives add no spatial anchor because M4 moves that
+    /// household as one unit. There is no record-order-dependent truncation.
     kin_locations: Vec<Vec<CellId>>,
     planned_destinations: Vec<CellId>,
     planned_condition_costs: Vec<u16>,
@@ -592,16 +593,24 @@ impl MigrationSystem {
             .into_iter()
             .flatten()
             {
-                self.note_kin_location(population, household_index, parent)?;
+                self.note_cross_household_kin_tie(
+                    population,
+                    household,
+                    household_index,
+                    location,
+                    parent,
+                )?;
             }
         }
         Ok(())
     }
 
-    fn note_kin_location(
+    fn note_cross_household_kin_tie(
         &mut self,
         population: &Population,
-        household_index: usize,
+        child_household: HouseholdId,
+        child_household_index: usize,
+        child_location: CellId,
         parent: PersonId,
     ) -> Result<(), MigrationError> {
         if parent == PersonId::INVALID {
@@ -610,12 +619,19 @@ impl MigrationSystem {
         let Some(parent_snapshot) = population.person(parent) else {
             return Ok(());
         };
-        if !parent_snapshot.is_alive() {
+        if !parent_snapshot.is_alive() || parent_snapshot.household == child_household {
             return Ok(());
         }
-        let locations = &mut self.kin_locations[household_index];
-        if !locations.contains(&parent_snapshot.location) {
-            locations.push(parent_snapshot.location);
+        let parent_household_index =
+            household_index(parent_snapshot.household, population.household_count())?;
+
+        let child_locations = &mut self.kin_locations[child_household_index];
+        if !child_locations.contains(&parent_snapshot.location) {
+            child_locations.push(parent_snapshot.location);
+        }
+        let parent_locations = &mut self.kin_locations[parent_household_index];
+        if !parent_locations.contains(&child_location) {
+            parent_locations.push(child_location);
         }
         Ok(())
     }
@@ -1671,7 +1687,7 @@ mod tests {
     }
 
     #[test]
-    fn co_resident_and_external_parent_roles_are_symmetric_kin_anchors() {
+    fn cross_household_parent_child_ties_are_reciprocal_and_parent_role_symmetric() {
         let factory = RngFactory::new(188_001);
         let world = World::generate(WorldConfig::new(2, 1), factory).unwrap();
         let origin = world.cell_id(0, 0).unwrap();
@@ -1685,10 +1701,10 @@ mod tests {
                 .prepare_snapshot(&population, &world, None)
                 .unwrap();
 
-            let anchors = &migration.kin_locations[0];
-            assert_eq!(anchors.len(), 2);
-            assert!(anchors.contains(&origin));
-            assert!(anchors.contains(&external));
+            assert_eq!(migration.kin_locations[0], vec![external]);
+            assert_eq!(migration.kin_locations[1], vec![origin]);
+            assert!(!migration.kin_locations[0].contains(&origin));
+            assert!(!migration.kin_locations[1].contains(&external));
         }
     }
 
@@ -1764,7 +1780,7 @@ mod tests {
     }
 
     #[test]
-    fn all_parent_locations_are_retained_independent_of_person_record_order() {
+    fn all_cross_household_kin_locations_are_retained_independent_of_person_record_order() {
         let factory = RngFactory::new(188_002);
         let world = World::generate(WorldConfig::new(11, 1), factory).unwrap();
         let config = MigrationConfig::synthetic_validation_v1();
@@ -1789,15 +1805,21 @@ mod tests {
         for x in 1..=10 {
             assert!(forward_anchors.contains(&world.cell_id(x, 0).unwrap()));
         }
+        for household_index in 1..=10 {
+            assert_eq!(
+                forward_migration.kin_locations[household_index],
+                vec![world.cell_id(0, 0).unwrap()]
+            );
+        }
     }
 
     #[test]
-    fn kin_weight_alone_rewards_a_living_direct_parent_cell() {
+    fn kin_weight_alone_rewards_reciprocal_cross_household_first_degree_kin() {
         let factory = RngFactory::new(188_003);
         let world = World::generate(WorldConfig::new(3, 1), factory).unwrap();
-        let origin = world.cell_id(0, 0).unwrap();
-        let kin_destination = world.cell_id(1, 0).unwrap();
-        let non_kin_destination = world.cell_id(2, 0).unwrap();
+        let child_home = world.cell_id(0, 0).unwrap();
+        let parent_home = world.cell_id(1, 0).unwrap();
+        let unrelated = world.cell_id(2, 0).unwrap();
         let definition = FounderPopulationDefinition::new(
             "m4-kin-only-utility",
             ParameterProvenance::SyntheticValidation,
@@ -1805,11 +1827,11 @@ mod tests {
             vec![
                 FounderHousehold {
                     id: HouseholdId::new(1),
-                    location: origin,
+                    location: child_home,
                 },
                 FounderHousehold {
                     id: HouseholdId::new(2),
-                    location: kin_destination,
+                    location: parent_home,
                 },
             ],
             vec![
@@ -1858,13 +1880,13 @@ mod tests {
             .unwrap();
 
         let period_need = 25;
-        let stay = migration
-            .evaluate_stay(0, origin, 1, &resources, &world, &config, period_need)
+        let child_stay = migration
+            .evaluate_stay(0, child_home, 1, &resources, &world, &config, period_need)
             .unwrap();
-        let kin = migration
+        let child_to_parent = migration
             .evaluate_relocation(
                 0,
-                kin_destination,
+                parent_home,
                 1,
                 2,
                 &resources,
@@ -1874,12 +1896,28 @@ mod tests {
                 0,
             )
             .unwrap();
-        let non_kin = migration
+        let child_to_unrelated = migration
             .evaluate_relocation(
                 0,
-                non_kin_destination,
+                unrelated,
                 2,
                 1,
+                &resources,
+                &world,
+                &config,
+                period_need,
+                0,
+            )
+            .unwrap();
+        let parent_stay = migration
+            .evaluate_stay(1, parent_home, 1, &resources, &world, &config, period_need)
+            .unwrap();
+        let parent_to_child = migration
+            .evaluate_relocation(
+                1,
+                child_home,
+                1,
+                2,
                 &resources,
                 &world,
                 &config,
@@ -1888,11 +1926,16 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(stay.kin_score_permille, 0);
-        assert_eq!(non_kin.kin_score_permille, 0);
-        assert_eq!(kin.kin_score_permille, 250);
-        assert_eq!(kin.total_utility - non_kin.total_utility, 250);
-        assert!(kin.total_utility > stay.total_utility);
+        assert_eq!(child_stay.kin_score_permille, 0);
+        assert_eq!(parent_stay.kin_score_permille, 0);
+        assert_eq!(child_to_unrelated.kin_score_permille, 0);
+        assert_eq!(child_to_parent.kin_score_permille, 250);
+        assert_eq!(parent_to_child.kin_score_permille, 250);
+        assert_eq!(
+            child_to_parent.total_utility - child_to_unrelated.total_utility,
+            250
+        );
+        assert_eq!(parent_to_child.total_utility, 250);
     }
 
     #[test]

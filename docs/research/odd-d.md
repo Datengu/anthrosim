@@ -78,7 +78,7 @@ The model intentionally separates:
 | M4 stay/candidate utility | Synthetic residence-state utility plus relocation-only action costs; not validated psychology. |
 | M4 decision frequency | Explicit independently configured opportunity clock; synthetic default four/year, not an empirical relocation rate. |
 | M4 local information horizon | Explicit bounded-information assumption; current radius synthetic unless evidence-grounded. |
-| M4 kin contribution | Symmetric living-direct-parent-location proxy: co-resident and external parents contribute by location regardless of reproductive-sex role, with no first-record truncation; not a theory of kinship, alliance or social obligation. |
+| M4 kin contribution | Reciprocal cross-household living parent-child location proxy: each first-degree edge links both households symmetrically regardless of reproductive-sex role, same-household ties add no spatial preference, and there is no first-record truncation; not a theory of kinship, alliance or social obligation. |
 | M4 uncertainty | Stochastic candidate-action proxy; not calibrated perception or risk cognition. |
 | M4 travel condition effect | Synthetic relocation consequence that changes the shared condition mediator; under v10 any later condition-mediated death remains causal-neutral rather than being attributed uniquely to travel or resources. |
 | M9 temporary participation | Generic configured mechanism; motive/decision theory intentionally absent. |
@@ -108,7 +108,7 @@ Residence-state utility at both the current residence and candidate residences c
 
 - resource support;
 - water/security proxy;
-- narrow symmetric living-direct-parent-location proxy, including co-resident and external parents.
+- narrow reciprocal cross-household living parent-child location proxy.
 
 Only relocation candidates additionally pay:
 
@@ -185,7 +185,7 @@ Decision-relevant interaction occurs indirectly through:
 - shared household condition/resources;
 - same-cell competition for resources;
 - local crowding consequences;
-- co-resident and external living direct-parent locations used symmetrically by the narrow kin proxy;
+- reciprocal cross-household living parent-child locations used by the narrow kin proxy;
 - simultaneous relocation outcomes that affect later periods.
 
 There is no negotiation, signalling, exchange, coalition formation, imitation, conflict or strategic game among households.

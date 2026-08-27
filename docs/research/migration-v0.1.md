@@ -74,7 +74,7 @@ The following describe the state of residing at a cell and therefore apply both 
 |---|---|---|
 | Resource score | Dynamic M3 food stock relative to the M4 decision interval's allocated annual demand after adding the moving household where applicable | Synthetic validation proxy |
 | Water/security score | Weighted water accessibility plus inverse environmental stress | Synthetic validation proxy |
-| Kin score | Presence of any unique cell containing a known living direct parent of a living household member, including co-resident parents | Minimal genealogical proxy |
+| Kin score | Presence of a reciprocal cross-household living parent-child tie to a household persistently resident at the evaluated cell | Minimal first-degree genealogical proxy |
 
 ### Relocation-only action costs
 
@@ -99,13 +99,13 @@ The exact functional form and all default weights are placeholders. They must no
 
 ## Kin scope
 
-M4 uses only genealogical information already present in the model. For a household, the v13 kin contract collects **every unique cell containing a living direct parent of a living household member**. A living parent counts regardless of reproductive-sex role and regardless of whether that parent shares the moving household. Co-resident parents therefore contribute a kin anchor at the current residence, while parents living elsewhere can contribute anchors at candidate residences.
+M4 uses only genealogical information already present in the model. Under the v13 contract, each living parent-child relation that crosses household boundaries creates a **reciprocal** spatial tie: the child's household receives the parent household's persistent residence as a kin anchor, and the parent's household receives the child household's persistent residence. Female- and male-parent links use the same rule. A parent-child relation inside one household creates no spatial anchor because M4 moves that household as a unit and the relationship therefore does not distinguish staying from relocating.
 
-The score is deliberately a binary per-cell presence proxy: a residence receives `250` kin-score permille when at least one represented living direct parent is at that cell and `0` otherwise. Multiple direct parents at the same cell do not stack. All unique represented parent cells are retained; there is no fixed first-N cap, so packed person-record/birth order cannot decide which kin locations exist in M4 utility.
+The score is deliberately a binary per-cell presence proxy: a residence receives `250` kin-score permille when at least one reciprocal cross-household living parent-child tie points to that cell and `0` otherwise. Multiple first-degree relatives at the same cell do not stack. All unique resulting cells are retained; there is no fixed first-N cap, so packed person-record/birth order cannot decide which kin locations exist in M4 utility.
 
-This symmetric rule is important because newborns normally join the female parent's household. The earlier external-parent-only rule silently removed the co-resident female-parent side in ordinary model-generated families and therefore made an apparently neutral kin term behave predominantly like an external male-parent/father-location signal. v13 removes that accidental interaction rather than adding a sex-specific social rule. Reproductive sex still has its limited M2 biological meaning and is **not** a model of social gender, patrilocality or descent.
+This reciprocal rule is important because newborns normally join the female parent's household. The earlier parent-only external rule therefore made an apparently neutral kin term behave predominantly like attraction toward external male-parent/father locations. v13 represents the cross-household genealogical edge in both directions instead of turning maternal household inheritance into a one-way social preference. It also avoids treating a co-resident parent's old cell as a reason to stay when that parent would move with the household. Reproductive sex retains only its limited M2 biological meaning and is **not** a model of social gender, patrilocality or descent.
 
-This is deliberately narrow. It is **not** a model of clans, descent groups, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial communities or culturally defined kin obligations. Those would require additional social state and evidence. The normative symmetry and ordering contract is [`m4-kin-proxy-v1.md`](m4-kin-proxy-v1.md).
+This is deliberately narrow. It is **not** a model of siblings, clans, descent groups, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial communities or culturally defined kin obligations. Those would require additional social state and evidence. The normative symmetry and ordering contract is [`m4-kin-proxy-v1.md`](m4-kin-proxy-v1.md).
 
 ## Deterministic stochastic choice
 
@@ -196,7 +196,7 @@ Once the milestone acceptance tests and CI pass, it is legitimate to say that th
 - identical configuration/seed yields identical migration decisions and traces;
 - worsened local resource/condition state directionally increases relocation pressure under otherwise equal inputs;
 - changing only M3 resource-period count does not multiply the configured M4 decision-opportunity count;
-- co-resident and external living direct-parent locations are treated symmetrically by M4 regardless of female/male parent role;
+- cross-household living parent-child ties are reciprocal and independent of female/male parent role, while same-household ties add no spatial preference;
 - permuting otherwise-equivalent person/birth record order cannot remove or substitute represented kin-location anchors;
 - changing `migration.decisionPeriodsPerYear` changes M4 opportunity frequency independently of M3 settlement resolution;
 - living household members relocate together and packed population/occupancy invariants continue to reconcile;

@@ -172,7 +172,7 @@ No general behavioural learning, cultural adaptation or evolving strategy is pre
 
 ### 4.4 Objectives
 
-M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a symmetric living-direct-parent location proxy are treated as residence-state terms. The kin proxy includes co-resident and external living direct parents without a fixed record-order-dependent cap; reproductive-sex role does not decide whether a represented parent location contributes. The resource-support term compares available dynamic stock against annual per-person resource need allocated over the current **M4 decision interval**. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
+M4 uses an explicit synthetic bounded utility comparison. Resource support, water/security and a reciprocal cross-household living parent-child location proxy are treated as residence-state terms. Each living parent-child edge that crosses households connects both households to one another's persistent residence regardless of reproductive-sex role; same-household relations add no spatial preference, and there is no fixed record-order-dependent cap. The resource-support term compares available dynamic stock against annual per-person resource need allocated over the current **M4 decision interval**. Staying evaluates those terms at the current residence with zero travel, candidate uncertainty and relocation-risk costs. Candidate relocations evaluate the same residence-state terms for the destination and additionally pay travel/terrain, uncertainty and relocation-risk costs. Candidates must improve sufficiently over the explicit stay utility before participating in weighted choice.
 
 The M4 opportunity clock itself is a model assumption: `migration.decisionPeriodsPerYear` is independently configurable and defaults to four/year in the synthetic validation baseline. Neither the utility equation nor that opportunity frequency is claimed to reproduce real human decision cognition/rates.
 
@@ -201,7 +201,7 @@ Major interactions include:
 - within-household resource sharing;
 - same-cell competition for renewable resources;
 - reproduction through pre-same-boundary-M4 persistent-residence parent eligibility;
-- a narrow symmetric living-direct-parent-location contribution to M4 utility, including co-resident and external declared parent state available from day 0 when supplied;
+- a narrow reciprocal cross-household living parent-child-location contribution to M4 utility, including declared founder parent state available from day 0 when supplied;
 - crowding/resource consequences after multiple households relocate or visit.
 
 M4 decisions at one boundary use a common pre-move snapshot so household iteration order does not become a hidden information advantage. Households do not anticipate one another's simultaneous moves.
