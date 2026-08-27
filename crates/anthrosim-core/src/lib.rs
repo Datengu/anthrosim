@@ -119,7 +119,7 @@ pub use provenance::{
 };
 pub use research_readiness::{
     EvidenceClosureAssessment, EvidenceClosureFailure, EvidenceClosureFailureClass,
-    EvidenceClosureStatus, assess_evidence_closure,
+    EvidenceClosureStatus, assess_evidence_closure, assess_spatial_evidence_closure,
 };
 pub use resources::{
     ResourceConfigError, ResourceError, ResourceSummary, ResourceSystem, validate_resource_config,

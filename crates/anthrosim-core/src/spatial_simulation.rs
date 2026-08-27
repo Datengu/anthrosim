@@ -27,7 +27,8 @@ use crate::{
     },
     population::{Population, PopulationError},
     provenance::{MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, SourceRevisionIdentity},
-    research_readiness::assess_evidence_closure,
+    research_readiness::EvidenceClosureAssessment,
+    research_readiness::{assess_evidence_closure, assess_spatial_evidence_closure},
     resources::{
         ResourceConfigError, ResourceError, ResourcePeriodContext, ResourceRngs,
         ResourceStepOutcome, ResourceSystem, validate_resource_config,
@@ -124,11 +125,15 @@ pub struct SpatialLandscapeRunManifest {
     pub schema_version: u32,
     pub landscape: LandscapeBinding,
     pub spatial: SpatialMechanismBinding,
+    /// Closure assessment composed from the exact core experiment plus the causally used
+    /// landscape-layer and spatial-transform evidence claims.
+    pub evidence_closure: EvidenceClosureAssessment,
     pub core_manifest: RunManifest,
 }
 
 impl SpatialLandscapeRunManifest {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const PRE_COMPOSED_EVIDENCE_CLOSURE_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -447,6 +452,11 @@ impl SpatialLandscapeSimulation {
         self.ensure_terminal_metric_snapshot();
         self.validate_state()?;
         let core_manifest = self.build_manifest(stop_reason);
+        let evidence_closure = assess_spatial_evidence_closure(
+            &self.config,
+            &self.landscape,
+            &self.spatial_binding.config,
+        );
         let source_landscape = self.landscape.clone();
         let landscape = self.landscape_binding.clone();
         let spatial = self.spatial_binding.clone();
@@ -456,6 +466,7 @@ impl SpatialLandscapeSimulation {
                 schema_version: SpatialLandscapeRunManifest::CURRENT_SCHEMA_VERSION,
                 landscape: landscape.clone(),
                 spatial: spatial.clone(),
+                evidence_closure,
                 core_manifest,
             },
             checkpoint: SpatialLandscapeCheckpoint {
@@ -849,6 +860,19 @@ pub fn validate_spatial_landscape_recorded_run(
             expected: run.checkpoint.core_checkpoint.world_digest64,
             actual: world.digest64(),
         });
+    }
+    let expected_core_evidence_closure =
+        assess_evidence_closure(&run.checkpoint.core_checkpoint.experiment);
+    if run.manifest.core_manifest.evidence_closure != expected_core_evidence_closure {
+        return Err(SpatialLandscapeError::CoreEvidenceClosureMismatch);
+    }
+    let expected_spatial_evidence_closure = assess_spatial_evidence_closure(
+        &run.checkpoint.core_checkpoint.experiment,
+        landscape,
+        &run.checkpoint.spatial.config,
+    );
+    if run.manifest.evidence_closure != expected_spatial_evidence_closure {
+        return Err(SpatialLandscapeError::SpatialEvidenceClosureMismatch);
     }
     if run.manifest.core_manifest.experiment != run.checkpoint.core_checkpoint.experiment
         || run.manifest.core_manifest.resume_lineage
@@ -1321,6 +1345,10 @@ pub enum SpatialLandscapeError {
     CrossArtifactLandscapeMismatch,
     #[error("spatial landscape manifest/checkpoint mechanism bindings disagree")]
     CrossArtifactSpatialMismatch,
+    #[error("spatial landscape core manifest evidence-closure provenance is inconsistent")]
+    CoreEvidenceClosureMismatch,
+    #[error("spatial landscape composed evidence-closure provenance is inconsistent")]
+    SpatialEvidenceClosureMismatch,
     #[error("spatial landscape core manifest/checkpoint do not describe the same run")]
     CrossArtifactCoreMismatch,
 }
