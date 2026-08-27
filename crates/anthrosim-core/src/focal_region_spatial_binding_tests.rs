@@ -41,13 +41,22 @@ fn evidence_catalog() -> EvidenceCatalog {
         applicability: "M9 focal-region binding test".to_owned(),
         competing_estimates: Vec::new(),
     }])
-    .with_external_inputs(vec![ExternalInputEvidence {
-        input_id: "mask-input".to_owned(),
-        evidence_id: "mask-source".to_owned(),
-        format: "normalized-json-grid".to_owned(),
-        spatial_reference: Some("EPSG:27700".to_owned()),
-        content_digest: Some("sha256:mask-fixture".to_owned()),
-    }])
+    .with_external_inputs(vec![
+        ExternalInputEvidence {
+            input_id: "mask-input".to_owned(),
+            evidence_id: "mask-source".to_owned(),
+            format: "normalized-json-grid".to_owned(),
+            spatial_reference: Some("EPSG:27700".to_owned()),
+            content_digest: Some("sha256:mask-fixture".to_owned()),
+        },
+        ExternalInputEvidence {
+            input_id: "other-mask-input".to_owned(),
+            evidence_id: "mask-source".to_owned(),
+            format: "normalized-json-grid".to_owned(),
+            spatial_reference: Some("EPSG:27700".to_owned()),
+            content_digest: Some("sha256:other-mask-fixture".to_owned()),
+        },
+    ])
 }
 
 fn landscape() -> LandscapeBundle {
@@ -155,6 +164,71 @@ fn spatial_construction_rejects_edited_member_cells_with_mask_provenance() {
         SpatialLandscapeSimulation::new(config, landscape(), mechanisms()),
         Err(SpatialLandscapeError::FocalRegionBinding(
             FocalRegionBindingError::MaskMembershipMismatch { .. }
+        ))
+    ));
+}
+
+#[test]
+fn spatial_construction_rejects_changed_declared_layer_id() {
+    let mut config = valid_config();
+    let region = config
+        .temporary_mobility
+        .as_ref()
+        .unwrap()
+        .region
+        .clone();
+    config.temporary_mobility.as_mut().unwrap().region = FocalRegion::new(
+        region.region_id,
+        FocalRegionSource::LandscapeMask {
+            layer_id: "other-mask".to_owned(),
+            evidence_input_id: "mask-input".to_owned(),
+        },
+        region.member_cells().to_vec(),
+    )
+    .unwrap();
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, landscape(), mechanisms()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::MissingLayer { .. }
+        ))
+    ));
+}
+
+#[test]
+fn spatial_construction_rejects_changed_layer_evidence_input() {
+    let config = valid_config();
+    let mut changed_landscape = landscape();
+    changed_landscape.layers[1].evidence_input_id = Some("other-mask-input".to_owned());
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, changed_landscape, mechanisms()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::MaskEvidenceInputMismatch { .. }
+        ))
+    ));
+}
+
+#[test]
+fn spatial_construction_rejects_mask_membership_changed_after_derivation() {
+    let config = valid_config();
+    let mut changed_landscape = landscape();
+    changed_landscape.layers[1].values[2] = Some(1);
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, changed_landscape, mechanisms()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::MaskMembershipMismatch { .. }
+        ))
+    ));
+}
+
+#[test]
+fn spatial_construction_rejects_mask_nodata_introduced_after_derivation() {
+    let config = valid_config();
+    let mut changed_landscape = landscape();
+    changed_landscape.layers[1].values[0] = None;
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, changed_landscape, mechanisms()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::MaskContainsNoData { .. }
         ))
     ));
 }
