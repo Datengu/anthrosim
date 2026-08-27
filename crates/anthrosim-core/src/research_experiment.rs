@@ -502,7 +502,7 @@ pub enum ResearchExperimentError {
 mod tests {
     use super::*;
     use crate::{
-        DemographyConfig, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
+        DemographyConfig, GridGeometry, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
         MigrationConfig, PopulationConfig, ResourceConfig, WorldConfig,
         spatial_mechanisms::{
             NoDataPolicy, SpatialFieldTransform, SpatialTargetField, TransformDirection,
@@ -559,7 +559,7 @@ mod tests {
             ),
             numeric(
                 "m3_condition_mortality_response",
-                "/experiment/resources/maxScarcityMortalityProbabilityPerMillion",
+                "/experiment/resources/maxConditionMortalityProbabilityPerMillion",
                 &[0, 1000],
             ),
             numeric(
@@ -708,23 +708,30 @@ mod tests {
         let landscape = LandscapeBundle::new(
             4,
             4,
-            "EPSG:27700",
-            vec![LandscapeLayer::new(
-                "terrain",
-                LandscapeLayerRole::TerrainTraversal,
-                "cost",
-                LandscapeValueDomain::new(0, 100),
-                vec![50; 16],
-            )],
-        )
-        .unwrap();
+            GridGeometry {
+                origin_x: 0,
+                origin_y: 400,
+                cell_size_x: 100,
+                cell_size_y: 100,
+                coordinate_unit: "metre".to_owned(),
+                spatial_reference: "EPSG:27700".to_owned(),
+            },
+            vec![LandscapeLayer {
+                layer_id: "terrain".to_owned(),
+                role: LandscapeLayerRole::TerrainTraversal,
+                unit: "cost".to_owned(),
+                value_domain: Some(LandscapeValueDomain { min: 0, max: 100 }),
+                evidence_input_id: None,
+                values: vec![Some(50); 16],
+            }],
+        );
         let mechanisms = SpatialMechanismConfig::new(
             "test-spatial",
             vec![SpatialFieldTransform::new(
                 SpatialTargetField::MovementCost,
                 "terrain",
                 "cost",
-                LandscapeValueDomain::new(0, 100),
+                LandscapeValueDomain { min: 0, max: 100 },
                 100,
                 1000,
                 TransformDirection::Direct,
