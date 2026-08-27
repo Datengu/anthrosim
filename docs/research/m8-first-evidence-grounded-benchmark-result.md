@@ -2,81 +2,121 @@
 
 ## Status
 
-This document records the historical M8.6 terrain null-model result and the reviewed regression rebaselines required when upstream authoritative model semantics changed. The benchmark remains case-study-neutral and **is not archaeological validation**.
+This document records the historical M8.6 terrain null-model result and the reviewed regression rebaselines required when upstream authoritative model semantics change. The benchmark remains case-study-neutral and **is not archaeological validation**.
 
 The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.
 
-## Current regression reference — model semantics v11
+## Current regression reference — model semantics v13
 
-Issue #182 repairs the M3 indivisible-unit allocation rule used when several household claims compete for insufficient stock in one resource cell. Under v11, proportional floor shares are completed with largest-remainder apportionment, while exact fractional ties rotate deterministically with the persisted M3 resource-period sequence rather than permanently favoring the first/lower-ID claim.
+Issue #188 repairs the M4 kin-residence proxy. The null model now treats a living parent-child relationship that crosses household boundaries as a reciprocal first-degree kin tie: each household can receive the other household's current residence as a kin anchor. Female-parent and male-parent links use the same rule. Parent-child links within one household create no spatial anchor because M4 moves the household as one unit, and all unique qualifying kin cells are retained rather than truncating to the first four encountered records.
 
-Because that rule can change who receives the final scarce integer unit, it can change condition and later trajectories even while aggregate cell resource accounting remains exactly conserved. The authoritative model identity therefore advances to `anthrosim-model-semantics-v11`.
+This is a symmetry-preserving null rule. It is not a claim for matrilocality, patrilocality, descent rules, household authority, or an empirically calibrated strength of kin preference.
+
+Because the repair changes authoritative residence utility and can alter permanent-migration trajectories, `MODEL_SEMANTICS_ID` advances to `anthrosim-model-semantics-v13`.
+
+### Reviewed execution
 
 The frozen M8.6 experiment was rerun unchanged and its generated artifact was reviewed **before** rebaselining.
 
-Reviewed execution:
+Reviewed v13 execution:
 
-- workflow run: `33023888296`;
-- branch head: `f0914493835bd513383bf8de7f88ba39f9d83c34`;
-- pull-request merge-ref build: `f833232a575397d7833b0a76d5eedac5df055cf2`;
-- artifact: `9627671700`;
-- artifact SHA-256: `94b2f21754a9b3bad3d2cadff0bdf32cce03c81194cec8e28b11466d7e62b935`;
-- aggregate canonical SHA-256: `b013ebbd6004165a317fd471acf201089c78fb3dd538b9b9d84a1f8e8c849ad4`.
+- workflow run: `33090696389`;
+- branch head: `e53efc592e4b13d0038b71e3252284e54a8543b6`;
+- pull-request merge-ref build: `0cd8253ef8813a75818f12ef131bc6d91696a0b2`;
+- artifact: `9654333775`;
+- artifact SHA-256: `c10a47b7e5509ac97f64320fb561a0bc6c6206db0b9f67eb7e43f13988d0b30d`;
+- aggregate canonical SHA-256: `8c1b906539a74af80c9fa4f3d6500339feefe28201e6559b71081e4fb89c9725`.
 
-The source terrain, evidence catalogue, declared seeds, experiment design and spatial-transform semantics are unchanged. All 32 runs completed the configured duration and no arm was degenerate.
+The immediate pre-#188 control is the final successful M8.6 execution from PR #272:
+
+- workflow run: `33091589938`;
+- branch head: `b24aaad2de5301c9f537d28433bf754bd2ffc72e`;
+- artifact: `9654664618`;
+- artifact SHA-256: `a08f78be7b9a7434f4d37ff767cda786235076d753309413a6ff4a251d8e4ee3`.
+
+That control and the v13 run use the same declared seeds, evidence input, `landscape-v2-6827044513b6c9fb`, and `anthrosim-spatial-transform-semantics-v3`. The relevant authoritative difference is therefore model semantics v12 versus v13.
+
+All 32 runs completed the configured duration and no arm was degenerate.
 
 The overall predeclared classification remains:
 
 > **fragile spatial structure**
 
-Current primary-metric results are:
+The current primary-metric results are:
 
-| Primary metric | v11 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+| Primary metric | v13 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
 | --- | --- | ---: | ---: |
-| total migration distance | fragile | 11.83% | 3 / 5 / 0 |
-| cell-time occupied | not distinctive | 1.39% | 3 / 5 / 0 |
-| terminal population Herfindahl | not distinctive | 9.24% | 7 / 1 / 0 |
-| terminal largest-cell share | fragile | 11.38% | 5 / 3 / 0 |
+| total migration distance | not distinctive | 6.04% | 3 / 5 / 0 |
+| cell-time occupied | not distinctive | 0.76% | 5 / 3 / 0 |
+| terminal population Herfindahl | not distinctive | 9.98% | 3 / 5 / 0 |
+| terminal largest-cell share | **robust** | **23.72%** | 2 / 6 / 0 |
 
-The v11 result therefore still contains **no robust primary metric**. Total migration distance and terminal largest-cell share are fragile; cell-time occupied and terminal population Herfindahl are not distinctive under the predeclared criteria.
+Under v13, terminal largest-cell share is the benchmark's one robust primary metric. Total migration distance, cell-time occupied, and terminal population Herfindahl are not distinctive under the predeclared criteria. No metric is classified as fragile.
 
-### Causal review of the v11 rebaseline
+### Causal review of the v13 rebaseline
 
-The v10 and v11 benchmark artifacts were compared run-by-run rather than treating a red reference check as permission to overwrite the baseline.
+The v13 artifact was compared run-by-run against the immediate v12 control rather than treating the frozen-reference failure as permission to overwrite the baseline.
 
-Of the 32 declared runs, **31 reproduce the v10 scientific trajectory exactly**. The only changed run is the `moderate` terrain arm at seed `8604`.
+All 32 terminal trajectories change. However, the **first authoritative divergence is tightly localized to the repaired M4 kin term in every run**:
 
-That run is identical through day `29,930`. The first authoritative causal divergence occurs at day `30,112`: under v10, person `2035` dies through the condition-mediated mortality mechanism at condition `995`; under v11 that death does not occur. By the next annual snapshot at day `30,295`, v11 therefore has one additional living person.
+- all 32 first differing events are `householdMigration` events;
+- the same household, day, origin cell and event sequence are reached in both versions before that decision;
+- the origin `kinScorePermille` changes from `0` under v12 to `250` under v13 in all 32 cases;
+- every other origin-utility component is identical at that first decision;
+- origin total utility therefore rises by exactly `250` in all 32 cases;
+- 28 of the 32 first affected migrations consequently select a different destination; in the other four, the selected destination remains the same even though the corrected choice weights differ.
 
-Crucially, the resource-accounting control remains intact. At that annual snapshot total resource unmet need is **36 units in both versions**. The repair has changed the *distribution* of indivisible scarce units among competing claims, not created or destroyed food. That is the exact mechanism #182 was intended to correct. The altered allocation changes condition exposure for particular households and can consequently alter a later stochastic survival event and downstream migration/demographic history.
+The first affected household/day is also invariant across the four terrain arms for each seed:
 
-The resulting benchmark-level changes are correspondingly narrow:
+| Seed | First affected day | Household | Origin cell |
+| ---: | ---: | ---: | ---: |
+| 8601 | 1368 | 10 | 37 |
+| 8602 | 1825 | 198 | 200 |
+| 8603 | 1460 | 134 | 35 |
+| 8604 | 1003 | 4 | 109 |
+| 8605 | 1368 | 75 | 19 |
+| 8606 | 1825 | 89 | 55 |
+| 8607 | 1642 | 135 | 97 |
+| 8608 | 1186 | 20 | 20 |
 
-- only the `moderate / 8604` terminal state digest changes;
-- strong-vs-flat headline results and sign counts remain unchanged;
+For a concrete example, flat / seed 8601 is identical through event sequence 135. At sequence 136 on day 1368, household 10 evaluates origin cell 37. A child in household 161 has a living male parent in household 10, and household 161 resides at cell 37. Under the old one-way representation, household 10 receives no reciprocal kin anchor there. Under v13, that cross-household parent-child relationship correctly contributes the declared `250` kin score to household 10's origin. Its origin utility changes from 3447 to 3697, while all non-kin origin terms are unchanged.
+
+This first-difference pattern is exactly what #188 is intended to change: the formerly missing reciprocal side of a cross-household first-degree kin relationship becomes visible to M4. It is not the earlier rejected implementation that rewarded a household merely for remaining with co-resident relatives.
+
+The downstream benchmark changes are scientifically meaningful and are therefore preserved rather than tuned away:
+
+- terminal largest-cell share changes from fragile to **robust**;
+- total migration distance changes from fragile to **not distinctive**;
+- cell-time occupancy remains not distinctive;
+- terminal population Herfindahl remains not distinctive;
 - the overall benchmark class remains `fragile_spatial_structure`;
-- the same two metrics remain fragile and the same two remain not distinctive;
-- no arm becomes degenerate and no previously non-robust metric becomes robust.
-
-The moderate-arm exact paired fractions change where that one trajectory contributes to the median, but no scientific classification is tuned or forced back to its earlier numerical value. The corrected v11 result is frozen because the upstream allocation semantics are now different, not because the previous reference was inconvenient.
+- all arms remain non-degenerate.
 
 ## Previous verification references
 
+### v12 — immediate pre-#188 control
+
+Model semantics v12 is the immediate control used for the v13 causal comparison. PR #272's final validation passed the preserved M8.6 scientific reference without rebaselining, while advancing evidence-closure and spatial provenance/readiness machinery independently of M4 kin behavior. Its successful artifact therefore provides the correct same-landscape, same-evidence, same-spatial-semantics comparator for #188.
+
+### v11 — scarce-resource apportionment repair
+
+The v11 #182 repair replaced stable first-claim remainder assignment with largest-remainder apportionment and deterministic rotation of exact ties. Its reviewed M8.6 reference remained `fragile_spatial_structure`, with no robust primary metric. Total migration distance and terminal largest-cell share were fragile; cell-time occupied and terminal population Herfindahl were not distinctive.
+
 ### v10 — condition-mortality causal-attribution repair
 
-The v10 #200 repair corrected the interpretation of low-condition deaths from uniquely resource-scarcity-attributed deaths to a general condition-mediated cause. The M8.6 primary numerical result was unchanged from v9; its rebaseline updated causal/schema identity rather than trajectories. The v10 exact reference is preserved in Git history and provides the direct comparator used for the v11 review above.
+The v10 #200 repair corrected the interpretation of low-condition deaths from uniquely resource-scarcity-attributed deaths to a general condition-mediated cause. The M8.6 primary numerical result was unchanged from v9; its rebaseline updated causal/schema identity rather than trajectories.
 
 ### v9 — M3 response-time and M4 opportunity-clock repair
 
-The v9 #204 repair separated M3 integration resolution from elapsed condition response and from the M4 permanent-migration opportunity clock. Its reviewed reference classified the benchmark as `fragile_spatial_structure`, with no robust primary metric. Total migration distance and terminal largest-cell share were fragile; cell-time occupied and terminal population Herfindahl were not distinctive.
+The v9 #204 repair separated M3 integration resolution from elapsed condition response and from the M4 permanent-migration opportunity clock. Its reviewed reference classified the benchmark as `fragile_spatial_structure`, with no robust primary metric.
 
 ### v8 — M3 resource-time accounting repair
 
-The v8 reference followed the M3 annual-quantity/seasonal-accounting repair. It also classified the benchmark as `fragile_spatial_structure`, with no robust primary metric and terminal largest-cell share fragile. Total migration distance was not distinctive.
+The v8 reference followed the M3 annual-quantity/seasonal-accounting repair. It also classified the benchmark as `fragile_spatial_structure`, with no robust primary metric.
 
 ### v7 — M4 stay/relocation comparator repair
 
-The v7 repair removed relocation-only costs from the stay counterfactual. Its reviewed M8.6 reference also classified the overall benchmark as `fragile_spatial_structure`, with no robust metrics and terminal largest-cell share fragile.
+The v7 repair removed relocation-only costs from the stay counterfactual. Its reviewed M8.6 reference also classified the overall benchmark as `fragile_spatial_structure`.
 
 ### v6 — M2 demographic-time repair
 
@@ -92,14 +132,13 @@ The defensible current interpretation is bounded:
 
 - real-world-derived terrain can propagate through the deterministic model and alter simulated trajectories;
 - exact spatial effects are conditional on upstream demographic, resource, condition and migration semantics;
-- under current v11 semantics this terrain-only benchmark provides no robust primary spatial effect under its predeclared criteria;
-- total migration distance and terminal largest-cell concentration are both fragile across seeds/arms;
-- indivisible resource rounding is now explicit model semantics rather than an accidental stable-ID priority;
-- condition-mediated death counts cannot by themselves identify resource scarcity as the unique upstream cause;
+- under v13, the predeclared terrain contrast produces a robust terminal largest-cell-share response in this synthetic benchmark, while the other three primary metrics are not distinctive;
+- this change arose after correcting a symmetry defect in the M4 kin representation, demonstrating that apparently small social-assumption asymmetries can propagate into ensemble-level spatial conclusions;
+- the reciprocal first-degree kin rule is a neutral modelling convention, not empirical evidence that a historical population behaved this way;
 - a visually plausible single run is inadequate evidence;
-- none of these synthetic benchmark effects validates the terrain-cost transformation as a historical human movement law.
+- none of these synthetic benchmark effects validates the terrain-cost transformation or kin-weight parameter as a historical human movement law.
 
-The v11 rebaseline is deliberately different from a cosmetic reference refresh: one corrected allocation decision can propagate into an individual survival difference and later history. Preserving that consequence is necessary if the regression suite is to test the current model rather than reproduce a known defect.
+The v13 rebaseline is deliberately different from a cosmetic reference refresh: every run's first divergence can be localized to the corrected kin score at the first affected migration decision. Preserving the resulting downstream trajectories is necessary if the regression suite is to test the current model rather than reproduce the known #188 defect.
 
 ## What this does not establish
 
@@ -108,10 +147,11 @@ This benchmark does not establish that:
 - the simulated population represents a historical population;
 - the selected terrain patch represents an ancient landscape state;
 - the terrain transformation is a calibrated human travel-cost function;
+- the M4 kin weight or reciprocal null rule is calibrated to a historical society;
 - water, vegetation, soils, land use or resource geography are historically realistic;
 - demographic, resource or migration rules are empirically valid for a real society;
 - a similar-looking simulated pattern explains an archaeological pattern;
-- terrain had no historical effect, or one universal effect, because this null model is fragile.
+- terrain or kinship had one universal historical effect because this remains a synthetic sensitivity benchmark.
 
 The benchmark is evidence-grounded environmental constraint plus reproducible ensemble sensitivity, not case-study validation.
 
@@ -130,4 +170,4 @@ The dedicated workflow preserves its generated artifact even when a frozen-refer
 
 ## M8 scientific conclusion
 
-M8 continues to demonstrate the generic evidence-grounded spatial execution path, while the v6→v7→v8→v9→v10→v11 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal or numerical semantics must be allowed to change those results, but any rebaseline must be causally reviewed rather than automatically accepted.
+M8 continues to demonstrate the generic evidence-grounded spatial execution path. The v6→v7→v8→v9→v10→v11→v12→v13 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal or numerical semantics must be allowed to change those results, but any rebaseline must be causally reviewed rather than automatically accepted.
