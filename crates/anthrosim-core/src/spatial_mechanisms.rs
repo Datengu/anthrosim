@@ -9,12 +9,50 @@ use crate::{
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX},
 };
 
-/// Compatibility identity for the M8.4 landscape-to-model transformation semantics.
+/// Compatibility identity for the M8.4 landscape-to-model transformation and spatial-run
+/// realization semantics.
 ///
-/// This remains separate from the pre-existing core `MODEL_SEMANTICS_ID`: synthetic execution
-/// continues to use the unchanged M1-M7 world-generation semantics, while landscape-transformed
-/// runs must preserve and verify this identity in their spatial provenance wrappers.
-pub const SPATIAL_MODEL_SEMANTICS_ID: &str = "anthrosim-spatial-transform-semantics-v1";
+/// v2 separates the environment and stochastic founder realizations from the core process seed.
+/// Synthetic execution outside the spatial host continues to use the independent core
+/// `MODEL_SEMANTICS_ID` contract.
+pub const SPATIAL_MODEL_SEMANTICS_ID: &str = "anthrosim-spatial-transform-semantics-v2";
+
+/// Optional explicit realization seeds for a spatial run.
+///
+/// The dynamic process seed remains `ExperimentConfig.seed`. Omitting this block preserves the
+/// historical joint-seed behavior: environment, stochastic founder initialization, and dynamic
+/// processes all resolve to that process seed. Supplying the block makes the environment and
+/// founder realization independently controllable without changing the transformation identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialRunRealization {
+    pub schema_version: u32,
+    pub environment_seed: u64,
+    pub population_seed: u64,
+}
+
+impl SpatialRunRealization {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    #[must_use]
+    pub const fn new(environment_seed: u64, population_seed: u64) -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            environment_seed,
+            population_seed,
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), SpatialMechanismError> {
+        if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
+            return Err(SpatialMechanismError::UnsupportedRunRealizationSchema {
+                found: self.schema_version,
+                supported: Self::CURRENT_SCHEMA_VERSION,
+            });
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +60,11 @@ pub struct SpatialMechanismConfig {
     pub schema_version: u32,
     pub model_id: String,
     pub transforms: Vec<SpatialFieldTransform>,
+    /// Optional spatial-run realization overrides. This is deliberately excluded from
+    /// `config_identity()`: realization choice is provenance about *which world/population draw*
+    /// ran, not a change to what the landscape transformation means.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_realization: Option<SpatialRunRealization>,
 }
 
 impl SpatialMechanismConfig {
@@ -33,7 +76,14 @@ impl SpatialMechanismConfig {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             model_id: model_id.into(),
             transforms,
+            run_realization: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_run_realization(mut self, realization: SpatialRunRealization) -> Self {
+        self.run_realization = Some(realization);
+        self
     }
 
     pub fn validate(&self) -> Result<(), SpatialMechanismError> {
@@ -48,6 +98,9 @@ impl SpatialMechanismConfig {
         }
         if self.transforms.is_empty() {
             return Err(SpatialMechanismError::NoTransforms);
+        }
+        if let Some(realization) = self.run_realization {
+            realization.validate()?;
         }
 
         let mut targets = BTreeSet::new();
@@ -96,7 +149,11 @@ impl SpatialMechanismConfig {
         Ok(())
     }
 
-    /// Stable deterministic identity for transformation configuration/provenance.
+    /// Stable deterministic identity for the scientific transformation configuration.
+    ///
+    /// `run_realization` is intentionally excluded. Two runs that use the same transformation but
+    /// different environment/founder draws retain the same mechanism identity while their resolved
+    /// spatial bindings preserve the different realization seeds and world digests.
     #[must_use]
     pub fn identity(&self) -> String {
         let mut digest = StableDigest::new();
@@ -425,6 +482,10 @@ pub enum SpatialMechanismError {
     Evidence(#[from] crate::EvidenceError),
     #[error("spatial mechanism schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
+    #[error(
+        "spatial run-realization schema {found} is unsupported; supported schema is {supported}"
+    )]
+    UnsupportedRunRealizationSchema { found: u32, supported: u32 },
     #[error("spatial mechanism model identifier is empty")]
     EmptyModelId,
     #[error("spatial mechanism configuration contains no transforms")]
