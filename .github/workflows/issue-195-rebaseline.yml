@@ -7,7 +7,7 @@ on:
       - .github/issue-195-rebaseline-apply.py
       - .github/workflows/issue-195-rebaseline.yml
 permissions:
-  contents: write
+  contents: read
 jobs:
   apply:
     runs-on: ubuntu-latest
@@ -20,10 +20,10 @@ jobs:
           git fetch origin fix/195-m4-proportional-weights
           git checkout -B fix/195-m4-proportional-weights origin/fix/195-m4-proportional-weights
           python .github/issue-195-rebaseline-apply.py
-      - name: Commit CI reference update
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/ci.yml
-          git commit -m "test: bind M7.6 reference gate to model semantics v14"
-          git push origin HEAD:fix/195-m4-proportional-weights
+      - name: Upload patched CI workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-195-patched-ci
+          path: .github/workflows/ci.yml
+          if-no-files-found: error
+          retention-days: 1
