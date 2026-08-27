@@ -1,6 +1,6 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v10
+**Status:** working specification for the AnthroSim v0.3.0 package / post-M9 scientific-hardening line / model semantics v13
 **Scientific status:** exploratory / unvalidated
 
 This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing and condition-mortality causal contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
@@ -125,7 +125,7 @@ The implemented synthetic candidate utility is conceptually:
 candidate utility
   = local dynamic-resource score × resource weight
   + water/security proxy × water weight
-  + bounded direct-parent-location score × kin weight
+  + reciprocal cross-household first-degree-kin location score × kin weight
   - distance/terrain travel penalty × travel weight
   - deterministic uncertainty penalty
   - relocation-risk penalty
@@ -162,7 +162,9 @@ Candidate uncertainty is represented by an independent deterministic stochastic 
 
 ### Kin proximity
 
-M4 uses only genealogical state that already exists in the model. For each household, it can retain a small bounded set of cells containing living direct parents of living household members when those parents reside outside the household. A candidate receives a limited kin contribution when it matches one of those cells.
+M4 uses only genealogical state that already exists in the model. Under the v13 kin contract, each living parent-child relation that crosses household boundaries creates a reciprocal spatial tie: the child household retains the parent household's persistent residence and the parent household retains the child household's persistent residence. Female- and male-parent roles use the same rule. Same-household parent-child relations add no spatial term because M4 moves the household as one unit. A cell receives the bounded kin contribution when at least one reciprocal first-degree tie points to it; multiple relatives at one cell do not stack.
+
+There is no fixed first-N kin-location cap. This makes M4 utility invariant to irrelevant packed person/birth record ordering and prevents the M2 female-parent household-inheritance rule from silently turning the kin term into one-way attraction toward external fathers. Representing each cross-household genealogical edge in both directions also avoids inventing a stay bonus for co-resident relatives who would relocate with the household. The detailed normative contract is [`research/m4-kin-proxy-v1.md`](research/m4-kin-proxy-v1.md).
 
 This is deliberately narrow. It is not a model of clans, lineages, bilateral kindreds, marriage alliances, friendship, ethnicity, territorial groups or culturally defined obligations.
 
