@@ -1,0 +1,75 @@
+name: Temporary issue 205 hardening v3
+
+on:
+  push:
+    branches:
+      - feat/205-exact-sensitivity-definition
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: feat/205-exact-sensitivity-definition
+          fetch-depth: 0
+      - name: Reapply hardening patch and lint fixes
+        shell: python
+        run: |
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/patch-205-hardening.yml').read_text()
+          block = workflow.split('      - name: Apply issue 205 hardening\n', 1)[1]
+          block = block.split('      - name: Install pinned Rust toolchain\n', 1)[0]
+          script = textwrap.dedent(block.split('        run: |\n', 1)[1])
+          exec(compile(script, 'issue-205-hardening', 'exec'), {})
+
+          core = Path('crates/anthrosim-core/src/research_experiment.rs')
+          text = core.read_text()
+          old = '''        if let Some(spatial) = &self.base.spatial {\n            if spatial.spatial_model_semantics_id != SPATIAL_MODEL_SEMANTICS_ID {\n                return Err(ResearchExperimentError::SpatialModelSemanticsMismatch {\n                    found: spatial.spatial_model_semantics_id.clone(),\n                    expected: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),\n                });\n            }\n        }\n'''
+          new = '''        if let Some(spatial) = &self.base.spatial\n            && spatial.spatial_model_semantics_id != SPATIAL_MODEL_SEMANTICS_ID\n        {\n            return Err(ResearchExperimentError::SpatialModelSemanticsMismatch {\n                found: spatial.spatial_model_semantics_id.clone(),\n                expected: SPATIAL_MODEL_SEMANTICS_ID.to_owned(),\n            });\n        }\n'''
+          if old not in text:
+              raise SystemExit('expected spatial semantics lint block not found')
+          core.write_text(text.replace(old, new, 1))
+
+          runner = Path('crates/anthrosim-cli/src/bin/anthrosim-research.rs')
+          text = runner.read_text().replace('Err(error) if retry => {', 'Err(_) if retry => {', 1)
+          text = text.replace(
+              '    Valid(ResearchExecutionManifest),',
+              '    Valid(Box<ResearchExecutionManifest>),',
+              1,
+          )
+          text = text.replace(
+              '        Ok(manifest) => ImmutableMetadataRecord::Valid(manifest),',
+              '        Ok(manifest) => ImmutableMetadataRecord::Valid(Box::new(manifest)),',
+              1,
+          )
+          text = text.replace(
+              '        ImmutableMetadataRecord::Valid(actual) if actual == expected => Ok(true),',
+              '        ImmutableMetadataRecord::Valid(actual) if actual.as_ref() == expected => Ok(true),',
+              1,
+          )
+          runner.write_text(text)
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
+          rustup default 1.97.1
+      - name: Format and targeted validation
+        run: |
+          cargo fmt --all
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+          cargo test --locked -p anthrosim-core research_experiment::tests --all-features
+          cargo test --locked -p anthrosim-cli --bin anthrosim-research --all-features
+      - name: Commit hardening pass
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add crates/anthrosim-core/src/research_experiment.rs crates/anthrosim-cli/src/bin/anthrosim-research.rs docs/research/research-experiment-definition-v1.md
+          git commit -m "fix: harden exact research experiment recovery and identity"
+          git push origin HEAD:feat/205-exact-sensitivity-definition
