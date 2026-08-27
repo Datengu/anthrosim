@@ -225,7 +225,10 @@ fn assess_parameter_paths(
             .filter(|record| record.provenance == claim)
             .collect::<Vec<_>>();
 
-        if compatible.iter().all(|record| !has_reproducible_source_identity(record)) {
+        if compatible
+            .iter()
+            .all(|record| !has_reproducible_source_identity(record))
+        {
             failures.push(EvidenceClosureFailure {
                 subject: (*path).to_owned(),
                 class: EvidenceClosureFailureClass::MissingReproducibleSourceIdentity,
@@ -244,10 +247,7 @@ fn assess_parameter_paths(
     }
 }
 
-fn assess_external_inputs(
-    catalog: &EvidenceCatalog,
-    failures: &mut Vec<EvidenceClosureFailure>,
-) {
+fn assess_external_inputs(catalog: &EvidenceCatalog, failures: &mut Vec<EvidenceClosureFailure>) {
     for input in &catalog.external_inputs {
         let has_digest = input
             .content_digest
@@ -287,9 +287,7 @@ fn has_reproducible_source_identity(record: &EvidenceRecord) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::evidence::{
-        EvidenceRecord, EvidenceSource, ParameterEvidenceLink,
-    };
+    use crate::evidence::{EvidenceRecord, EvidenceSource, ParameterEvidenceLink};
 
     fn record(provenance: ParameterProvenance) -> EvidenceRecord {
         EvidenceRecord {
