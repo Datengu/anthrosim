@@ -33,7 +33,7 @@ jobs:
           import json
           from pathlib import Path
           root = Path("examples/m9-controlled-aggregation-benchmark")
-          for name in ("benchmark-definition.json", "continuous-residence.json", "intermittent-aggregation.json", "reference-result.json"):
+          for name in ("benchmark-definition.json", "continuous-residence.json", "intermittent-aggregation.json", "reference-result.json", "travel-burden-reference.json"):
               json.loads((root / name).read_text(encoding="utf-8"))
           PY
 
