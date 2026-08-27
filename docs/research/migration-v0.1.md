@@ -109,9 +109,9 @@ This is deliberately narrow. It is **not** a model of siblings, clans, descent g
 
 ## Deterministic stochastic choice
 
-Candidates that clear the minimum utility improvement receive a weight proportional to their utility improvement. One destination is then drawn from those weights using the named `migration/choice` random stream. Candidate uncertainty uses the independent `migration/uncertainty` stream.
+Candidates that strictly clear the minimum utility improvement receive a stochastic weight equal to their positive integer utility improvement above that required threshold. There is no `+1` pseudocount: improvements `[1, 2]` produce weights `[1, 2]`, `[1, 10]` produces `[1, 10]`, equal improvements receive equal weights, and multiplying every eligible improvement by one common positive factor preserves the relative selection probabilities. One destination is then drawn from those weights using the named `migration/choice` random stream. Candidate uncertainty uses the independent `migration/uncertainty` stream.
 
-This means movement is not deterministic optimization: a household may choose among several locally acceptable alternatives. It is nevertheless exactly replayable under the declared AnthroSim determinism boundary because the candidate order, integer utilities and RNG streams are stable.
+This means movement is not deterministic optimization: a household may choose among several locally acceptable alternatives. It is nevertheless exactly replayable under the declared AnthroSim determinism boundary because the candidate order, integer utilities and RNG streams are stable. `MigrationDecisionTrace` preserves the stable candidate-order table of every eligible candidate's cell, utility and exact weight, together with the selected weight, total move weight and choice draw. The exact probability assigned to every eligible alternative is therefore reconstructible as `candidateWeight / totalMoveWeight` for every retained trace.
 
 ## Household-coordinated movement
 
@@ -145,7 +145,7 @@ To keep normal manifests bounded, M4 records only the first configured number of
 - factor-by-factor **stay** utility for the origin (with relocation-only costs explicitly zero);
 - factor-by-factor selected-destination relocation utility;
 - best visible candidate and its utility;
-- selected and total stochastic-choice weights plus the choice draw;
+- every eligible candidate's cell, utility and exact stochastic-choice weight, plus the selected weight, total move weight and choice draw;
 - nominal travel-condition cost per person;
 - exact realized bounded travel-condition loss for that completed household move.
 
