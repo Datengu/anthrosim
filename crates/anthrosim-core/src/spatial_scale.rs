@@ -1,9 +1,20 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{LandscapeBundle, SpatialScaleSemantics};
+use crate::LandscapeBundle;
 
-/// Machine-readable statement about whether one spatial run may be interpreted as independent of
-/// raster resolution.
+/// Executable spatial scale contract currently supported by AnthroSim.
+///
+/// There is deliberately no physically normalized alternative yet. Exposing only the semantics
+/// that actually exist prevents a configuration switch from implying unsupported physical
+/// invariance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpatialScaleSemantics {
+    CellSpaceResolutionDependentV1,
+}
+
+/// Machine-readable statement about whether one landscape-backed run may be interpreted as
+/// independent of raster resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpatialScaleStatus {
@@ -30,7 +41,7 @@ pub enum SpatialM9TravelCostBasis {
     GridEdges,
 }
 
-/// Preserved scale/readiness provenance derived from the exact landscape geometry and declared
+/// Preserved scale/readiness provenance derived from the exact landscape geometry and executable
 /// spatial scale semantics.
 ///
 /// This is deliberately separate from evidence closure. An input can be perfectly source-closed
@@ -54,22 +65,22 @@ pub struct SpatialScaleAssessment {
 
 impl SpatialScaleAssessment {
     pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SEMANTICS: SpatialScaleSemantics =
+        SpatialScaleSemantics::CellSpaceResolutionDependentV1;
 
     #[must_use]
-    pub fn resolve(landscape: &LandscapeBundle, semantics: SpatialScaleSemantics) -> Self {
-        match semantics {
-            SpatialScaleSemantics::CellSpaceResolutionDependentV1 => Self {
-                schema_version: Self::CURRENT_SCHEMA_VERSION,
-                semantics,
-                status: SpatialScaleStatus::ResolutionDependent,
-                cell_size_x: landscape.geometry.cell_size_x,
-                cell_size_y: landscape.geometry.cell_size_y,
-                coordinate_unit: landscape.geometry.coordinate_unit.clone(),
-                resource_quantity_basis: SpatialResourceQuantityBasis::PerCellTotal,
-                m4_distance_basis: SpatialM4DistanceBasis::GridSteps,
-                m9_travel_cost_basis: SpatialM9TravelCostBasis::GridEdges,
-                requires_resolution_sensitivity: true,
-            },
+    pub fn resolve(landscape: &LandscapeBundle) -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            semantics: Self::CURRENT_SEMANTICS,
+            status: SpatialScaleStatus::ResolutionDependent,
+            cell_size_x: landscape.geometry.cell_size_x,
+            cell_size_y: landscape.geometry.cell_size_y,
+            coordinate_unit: landscape.geometry.coordinate_unit.clone(),
+            resource_quantity_basis: SpatialResourceQuantityBasis::PerCellTotal,
+            m4_distance_basis: SpatialM4DistanceBasis::GridSteps,
+            m9_travel_cost_basis: SpatialM9TravelCostBasis::GridEdges,
+            requires_resolution_sensitivity: true,
         }
     }
 }
@@ -94,9 +105,10 @@ mod tests {
             },
             Vec::new(),
         );
-        let assessment = SpatialScaleAssessment::resolve(
-            &landscape,
-            SpatialScaleSemantics::CellSpaceResolutionDependentV1,
+        let assessment = SpatialScaleAssessment::resolve(&landscape);
+        assert_eq!(
+            assessment.semantics,
+            SpatialScaleSemantics::CellSpaceResolutionDependentV1
         );
         assert_eq!(assessment.status, SpatialScaleStatus::ResolutionDependent);
         assert_eq!(assessment.cell_size_x, 100);
