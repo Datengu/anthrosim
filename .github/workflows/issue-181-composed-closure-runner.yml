@@ -1,0 +1,40 @@
+name: Issue 181 composed evidence closure patch
+
+on:
+  push:
+    branches:
+      - feat/181-composed-evidence-closure
+    paths:
+      - .github/workflows/issue-181-composed-closure-runner.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: feat/181-composed-evidence-closure
+          fetch-depth: 0
+
+      - name: Apply exact production patch
+        run: python3 scripts/issue_181_composed_closure_patch.py
+
+      - name: Format
+        run: cargo fmt --all
+
+      - name: Test workspace
+        run: cargo test --workspace
+
+      - name: Commit production changes and remove runner
+        run: |
+          rm scripts/issue_181_composed_closure_patch.py
+          rm .github/workflows/issue-181-composed-closure-runner.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: compose evidence closure across empirical inputs"
+          git push origin HEAD:feat/181-composed-evidence-closure
