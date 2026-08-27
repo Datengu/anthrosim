@@ -5,8 +5,8 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::{
-    ExperimentConfig, LandscapeBundle, Simulation, SourceRevisionIdentity, SpatialLandscapeSimulation,
-    SpatialMechanismConfig,
+    ExperimentConfig, LandscapeBundle, Simulation, SourceRevisionIdentity,
+    SpatialLandscapeSimulation, SpatialMechanismConfig,
 };
 
 /// Versioned research-facing sensitivity/uncertainty definition.
@@ -107,7 +107,8 @@ impl ResearchExperimentDefinition {
             .into_iter()
             .enumerate()
             .map(|(index, (run_config, coordinates))| {
-                let index = u64::try_from(index).map_err(|_| ResearchExperimentError::TooManyPoints)?;
+                let index =
+                    u64::try_from(index).map_err(|_| ResearchExperimentError::TooManyPoints)?;
                 Ok(ResearchPoint {
                     schema_version: ResearchPoint::CURRENT_SCHEMA_VERSION,
                     index,
@@ -204,14 +205,18 @@ impl ResearchDimension {
         for value in &self.values {
             match self.kind {
                 ResearchDimensionKind::Numeric if !value.is_number() => {
-                    return Err(ResearchExperimentError::NumericDimensionHasNonNumericValue {
-                        id: self.id.clone(),
-                    });
+                    return Err(
+                        ResearchExperimentError::NumericDimensionHasNonNumericValue {
+                            id: self.id.clone(),
+                        },
+                    );
                 }
                 ResearchDimensionKind::Structural if value.is_number() => {
-                    return Err(ResearchExperimentError::StructuralDimensionHasNumericValue {
-                        id: self.id.clone(),
-                    });
+                    return Err(
+                        ResearchExperimentError::StructuralDimensionHasNumericValue {
+                            id: self.id.clone(),
+                        },
+                    );
                 }
                 _ => {}
             }
@@ -291,7 +296,9 @@ pub fn validate_resolved_research_run(
         .map_err(|error| ResearchExperimentError::InvalidResolvedConfiguration(error.to_string())),
         None => Simulation::new(run_config.experiment.clone())
             .map(|_| ())
-            .map_err(|error| ResearchExperimentError::InvalidResolvedConfiguration(error.to_string())),
+            .map_err(|error| {
+                ResearchExperimentError::InvalidResolvedConfiguration(error.to_string())
+            }),
     }
 }
 
@@ -318,16 +325,23 @@ fn apply_dimension(
 
 fn validate_pointer_contract(path: &str) -> Result<(), ResearchExperimentError> {
     if path.is_empty() || !path.starts_with('/') {
-        return Err(ResearchExperimentError::InvalidDimensionPath(path.to_owned()));
+        return Err(ResearchExperimentError::InvalidDimensionPath(
+            path.to_owned(),
+        ));
     }
     let segments = pointer_segments(path)?;
-    if segments.first().is_none_or(|segment| {
-        segment.as_str() != "experiment" && segment.as_str() != "spatial"
-    }) {
-        return Err(ResearchExperimentError::InvalidDimensionRoot(path.to_owned()));
+    if segments
+        .first()
+        .is_none_or(|segment| segment.as_str() != "experiment" && segment.as_str() != "spatial")
+    {
+        return Err(ResearchExperimentError::InvalidDimensionRoot(
+            path.to_owned(),
+        ));
     }
     if segments.iter().any(|segment| segment == "schemaVersion") {
-        return Err(ResearchExperimentError::ReservedDimensionPath(path.to_owned()));
+        return Err(ResearchExperimentError::ReservedDimensionPath(
+            path.to_owned(),
+        ));
     }
     if segments.as_slice() == ["experiment", "seed"] {
         return Err(ResearchExperimentError::SeedIsNotDimension);
@@ -349,7 +363,11 @@ fn pointer_segments(path: &str) -> Result<Vec<String>, ResearchExperimentError> 
                 match chars.next() {
                     Some('0') => output.push('~'),
                     Some('1') => output.push('/'),
-                    _ => return Err(ResearchExperimentError::InvalidDimensionPath(path.to_owned())),
+                    _ => {
+                        return Err(ResearchExperimentError::InvalidDimensionPath(
+                            path.to_owned(),
+                        ));
+                    }
                 }
             }
             Ok(output)
@@ -430,7 +448,9 @@ pub enum ResearchExperimentError {
     NoSeeds,
     #[error("research definition contains duplicate seed {0}")]
     DuplicateSeed(u64),
-    #[error("base ExperimentConfig seed {base_seed} must equal the first declared seed {first_seed}")]
+    #[error(
+        "base ExperimentConfig seed {base_seed} must equal the first declared seed {first_seed}"
+    )]
     BaseSeedMismatch { base_seed: u64, first_seed: u64 },
     #[error("research dimension id may not be empty")]
     EmptyDimensionId,
@@ -448,13 +468,17 @@ pub enum ResearchExperimentError {
     InvalidDimensionRoot(String),
     #[error("research dimension path targets reserved schema identity: {0}")]
     ReservedDimensionPath(String),
-    #[error("ExperimentConfig.seed is controlled by the research definition seeds list, not a dimension")]
+    #[error(
+        "ExperimentConfig.seed is controlled by the research definition seeds list, not a dimension"
+    )]
     SeedIsNotDimension,
     #[error("research dimension path does not exist in the exact base configuration: {0}")]
     UnknownDimensionPath(String),
     #[error("numeric dimension {id} targets non-numeric path {path}")]
     NumericDimensionTargetsNonNumeric { id: String, path: String },
-    #[error("structural dimension {id} targets numeric path {path}; numeric parameters must use kind=numeric")]
+    #[error(
+        "structural dimension {id} targets numeric path {path}; numeric parameters must use kind=numeric"
+    )]
     StructuralDimensionTargetsNumeric { id: String, path: String },
     #[error("numeric dimension {id} contains a non-numeric value")]
     NumericDimensionHasNonNumericValue { id: String },
@@ -478,11 +502,11 @@ pub enum ResearchExperimentError {
 mod tests {
     use super::*;
     use crate::{
-        DemographyConfig, MigrationConfig, PopulationConfig, ResourceConfig, WorldConfig,
+        DemographyConfig, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
+        MigrationConfig, PopulationConfig, ResourceConfig, WorldConfig,
         spatial_mechanisms::{
             NoDataPolicy, SpatialFieldTransform, SpatialTargetField, TransformDirection,
         },
-        LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
     };
 
     fn base_definition() -> ResearchExperimentDefinition {
@@ -496,7 +520,9 @@ mod tests {
             .with_demography(DemographyConfig::synthetic_validation_v1())
             .with_resources(ResourceConfig::synthetic_validation_v1())
             .with_migration(MigrationConfig::synthetic_validation_v1());
-        experiment.resources.max_scarcity_mortality_probability_per_million = 0;
+        experiment
+            .resources
+            .max_scarcity_mortality_probability_per_million = 0;
         ResearchExperimentDefinition {
             schema_version: ResearchExperimentDefinition::CURRENT_SCHEMA_VERSION,
             seeds: vec![11, 12],
@@ -549,8 +575,18 @@ mod tests {
         assert_eq!(points[1].coordinates[3].value, Value::from(2));
         assert_eq!(points[2].coordinates[2].value, Value::from(1000));
         assert_eq!(points[8].coordinates[0].value, Value::from(400));
-        assert_eq!(points[15].run_config.experiment.resources.periods_per_year, 12);
-        assert_eq!(points[15].run_config.experiment.migration.travel_cost_weight, 2);
+        assert_eq!(
+            points[15].run_config.experiment.resources.periods_per_year,
+            12
+        );
+        assert_eq!(
+            points[15]
+                .run_config
+                .experiment
+                .migration
+                .travel_cost_weight,
+            2
+        );
     }
 
     #[test]
@@ -618,7 +654,10 @@ mod tests {
         let mut seed = base_definition();
         seed.dimensions
             .push(numeric("seed", "/experiment/seed", &[99]));
-        assert_eq!(seed.expand(), Err(ResearchExperimentError::SeedIsNotDimension));
+        assert_eq!(
+            seed.expand(),
+            Err(ResearchExperimentError::SeedIsNotDimension)
+        );
 
         let mut schema = base_definition();
         schema.dimensions.push(numeric(
@@ -643,7 +682,10 @@ mod tests {
         });
         let points = definition.expand().unwrap();
         assert_eq!(points.len(), 2);
-        assert_eq!(points[0].coordinates[0].kind, ResearchDimensionKind::Structural);
+        assert_eq!(
+            points[0].coordinates[0].kind,
+            ResearchDimensionKind::Structural
+        );
         assert!(!points[0].run_config.experiment.migration.enabled);
         assert!(points[1].run_config.experiment.migration.enabled);
 
@@ -697,11 +739,17 @@ mod tests {
             id: "m8_transform_direction".to_owned(),
             kind: ResearchDimensionKind::Structural,
             path: "/spatial/mechanisms/transforms/0/direction".to_owned(),
-            values: vec![Value::String("direct".to_owned()), Value::String("inverse".to_owned())],
+            values: vec![
+                Value::String("direct".to_owned()),
+                Value::String("inverse".to_owned()),
+            ],
         });
         let points = definition.expand().unwrap();
         assert_eq!(points.len(), 2);
-        assert_eq!(points[0].coordinates[0].kind, ResearchDimensionKind::Structural);
+        assert_eq!(
+            points[0].coordinates[0].kind,
+            ResearchDimensionKind::Structural
+        );
         assert_ne!(points[0].point_id, points[1].point_id);
     }
 
