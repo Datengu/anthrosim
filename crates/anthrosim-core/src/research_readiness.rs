@@ -211,7 +211,10 @@ fn assess_parameter_paths(
             continue;
         }
 
-        if linked_records.iter().all(|record| record.provenance != claim) {
+        if linked_records
+            .iter()
+            .all(|record| record.provenance != claim)
+        {
             failures.push(EvidenceClosureFailure {
                 subject: (*path).to_owned(),
                 class: EvidenceClosureFailureClass::ProvenanceMismatch,
@@ -225,7 +228,10 @@ fn assess_parameter_paths(
             .filter(|record| record.provenance == claim)
             .collect::<Vec<_>>();
 
-        if compatible.iter().all(|record| !has_reproducible_source_identity(record)) {
+        if compatible
+            .iter()
+            .all(|record| !has_reproducible_source_identity(record))
+        {
             failures.push(EvidenceClosureFailure {
                 subject: (*path).to_owned(),
                 class: EvidenceClosureFailureClass::MissingReproducibleSourceIdentity,
@@ -234,7 +240,9 @@ fn assess_parameter_paths(
         }
 
         if claim == ParameterProvenance::EmpiricalDerived
-            && compatible.iter().all(|record| record.transformation.is_none())
+            && compatible
+                .iter()
+                .all(|record| record.transformation.is_none())
         {
             failures.push(EvidenceClosureFailure {
                 subject: (*path).to_owned(),
