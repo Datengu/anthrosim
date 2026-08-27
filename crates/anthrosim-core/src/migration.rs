@@ -13,7 +13,7 @@ use crate::{
         fixed_annual_quantity_for_period,
     },
     rng::{RngFactory, RngStreamPosition},
-    temporary_mobility::TemporaryMobilityState,
+    temporary_mobility::{HouseholdPresence, TemporaryMobilityState},
     world::{BASE_MOVEMENT_COST, PERMILLE_MAX, World},
 };
 
@@ -205,7 +205,14 @@ pub struct MigrationSystem {
     recorded_decision_traces: Vec<MigrationDecisionTrace>,
     living_members: Vec<u32>,
     condition_sums: Vec<u64>,
+    /// Living population by persistent residence, used only for permanent-occupancy accounting.
     cell_living: Vec<u32>,
+    /// Living population provisioned from each cell at the current M4 decision boundary.
+    ///
+    /// With M9 disabled this equals `cell_living`. With M9 enabled, visitors are attributed to
+    /// their destination while outbound/return transit remains provisioned from persistent home,
+    /// matching the M9.5 resource-accounting rule without inventing a physical transit cell.
+    boundary_demand_living: Vec<u32>,
     post_move_cell_living: Vec<u32>,
     kin_locations: Vec<[CellId; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]>,
     kin_location_counts: Vec<u8>,
@@ -251,6 +258,7 @@ impl MigrationSystem {
             living_members: vec![0; households],
             condition_sums: vec![0; households],
             cell_living: vec![0; cells],
+            boundary_demand_living: vec![0; cells],
             post_move_cell_living: vec![0; cells],
             kin_locations: vec![[CellId::INVALID; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]; households],
             kin_location_counts: vec![0; households],
@@ -309,7 +317,7 @@ impl MigrationSystem {
                 "migration decision schedule does not match configuration",
             ));
         }
-        self.prepare_snapshot(population, world)?;
+        self.prepare_snapshot(population, world, temporary_mobility)?;
         self.decision_boundaries = self
             .decision_boundaries
             .checked_add(1)
@@ -364,11 +372,11 @@ impl MigrationSystem {
             let mean_condition =
                 u16::try_from(self.condition_sums[household_index] / u64::from(members))
                     .unwrap_or(PERMILLE_MAX);
-            let origin_population = self.cell_population(origin)?;
+            let origin_demand_population = self.boundary_demand_population(origin)?;
             let origin_utility = self.evaluate_stay(
                 household_index,
                 origin,
-                origin_population,
+                origin_demand_population,
                 resources,
                 world,
                 config,
@@ -402,8 +410,9 @@ impl MigrationSystem {
                 let distance = manhattan_distance(world, origin, candidate).ok_or(
                     MigrationError::InternalInvariant("candidate coordinates invalid"),
                 )?;
-                let destination_population =
-                    self.cell_population(candidate)?.saturating_add(members);
+                let destination_demand_population = self
+                    .boundary_demand_population(candidate)?
+                    .saturating_add(members);
                 let uncertainty = if config.max_uncertainty_penalty_permille == 0 {
                     0
                 } else {
@@ -417,7 +426,7 @@ impl MigrationSystem {
                     household_index,
                     candidate,
                     distance,
-                    destination_population,
+                    destination_demand_population,
                     resources,
                     world,
                     config,
@@ -509,15 +518,18 @@ impl MigrationSystem {
         &mut self,
         population: &Population,
         world: &World,
+        temporary_mobility: Option<&TemporaryMobilityState>,
     ) -> Result<(), MigrationError> {
         if self.living_members.len() != population.household_count()
             || self.cell_living.len() != world.cell_count()
+            || self.boundary_demand_living.len() != world.cell_count()
         {
             return Err(MigrationError::StateShapeMismatch);
         }
         self.living_members.fill(0);
         self.condition_sums.fill(0);
         self.cell_living.fill(0);
+        self.boundary_demand_living.fill(0);
         self.post_move_cell_living.fill(0);
         self.kin_locations
             .fill([CellId::INVALID; MAX_KIN_LOCATIONS_PER_HOUSEHOLD]);
@@ -536,7 +548,22 @@ impl MigrationSystem {
             let location = population.location_at_index(person_index).ok_or(
                 MigrationError::InternalInvariant("living person has no location"),
             )?;
-            let cell_index = cell_index(location, world.cell_count())?;
+            let residence_cell_index = cell_index(location, world.cell_count())?;
+            let demand_location = match temporary_mobility {
+                None => location,
+                Some(state) => match state.presence(household) {
+                    Some(HouseholdPresence::AtResidence)
+                    | Some(HouseholdPresence::OutboundTransit { .. })
+                    | Some(HouseholdPresence::ReturnTransit { .. }) => location,
+                    Some(HouseholdPresence::Visiting { destination, .. }) => destination,
+                    None => {
+                        return Err(MigrationError::InternalInvariant(
+                            "temporary mobility is missing household state",
+                        ));
+                    }
+                },
+            };
+            let demand_cell_index = cell_index(demand_location, world.cell_count())?;
             let condition = population.condition_at_index(person_index).ok_or(
                 MigrationError::InternalInvariant("living person has no condition"),
             )?;
@@ -546,7 +573,11 @@ impl MigrationSystem {
             self.condition_sums[household_index] = self.condition_sums[household_index]
                 .checked_add(u64::from(condition))
                 .ok_or(MigrationError::AccountingOverflow)?;
-            self.cell_living[cell_index] = self.cell_living[cell_index]
+            self.cell_living[residence_cell_index] = self.cell_living[residence_cell_index]
+                .checked_add(1)
+                .ok_or(MigrationError::AccountingOverflow)?;
+            self.boundary_demand_living[demand_cell_index] = self.boundary_demand_living
+                [demand_cell_index]
                 .checked_add(1)
                 .ok_or(MigrationError::AccountingOverflow)?;
 
@@ -597,7 +628,7 @@ impl MigrationSystem {
         &self,
         household_index: usize,
         cell: CellId,
-        resident_population: u32,
+        local_demand_population: u32,
         resources: &ResourceSystem,
         world: &World,
         config: &MigrationConfig,
@@ -606,7 +637,7 @@ impl MigrationSystem {
         let residence = self.evaluate_residence_terms(
             household_index,
             cell,
-            resident_population,
+            local_demand_population,
             resources,
             world,
             period_need_per_person,
@@ -624,7 +655,7 @@ impl MigrationSystem {
         household_index: usize,
         cell: CellId,
         distance: u16,
-        destination_population: u32,
+        destination_demand_population: u32,
         resources: &ResourceSystem,
         world: &World,
         config: &MigrationConfig,
@@ -634,7 +665,7 @@ impl MigrationSystem {
         let residence = self.evaluate_residence_terms(
             household_index,
             cell,
-            destination_population,
+            destination_demand_population,
             resources,
             world,
             period_need_per_person,
@@ -672,7 +703,7 @@ impl MigrationSystem {
         &self,
         household_index: usize,
         cell: CellId,
-        resident_population: u32,
+        local_demand_population: u32,
         resources: &ResourceSystem,
         world: &World,
         period_need_per_person: u64,
@@ -685,7 +716,7 @@ impl MigrationSystem {
             .ok_or(MigrationError::InternalInvariant(
                 "resource cell outside world",
             ))?;
-        let demand = period_need_per_person.saturating_mul(u64::from(resident_population));
+        let demand = period_need_per_person.saturating_mul(u64::from(local_demand_population));
         let resource_score = u16::try_from(
             stock
                 .saturating_mul(u64::from(PERMILLE_MAX))
@@ -906,9 +937,9 @@ impl MigrationSystem {
         Ok(())
     }
 
-    fn cell_population(&self, cell: CellId) -> Result<u32, MigrationError> {
-        let index = cell_index(cell, self.cell_living.len())?;
-        Ok(self.cell_living[index])
+    fn boundary_demand_population(&self, cell: CellId) -> Result<u32, MigrationError> {
+        let index = cell_index(cell, self.boundary_demand_living.len())?;
+        Ok(self.boundary_demand_living[index])
     }
 
     #[must_use]
@@ -1273,9 +1304,14 @@ mod tests {
     use super::*;
     use crate::{
         config::{ExperimentConfig, PopulationConfig, ResourceConfig, WorldConfig},
+        focal_region::{FocalRegion, FocalRegionSource},
         population::Population,
         resources::ResourceSystem,
         rng::RngFactory,
+        temporary_mobility::{
+            TemporaryMobilityProgram, TemporaryMobilitySchedule, TemporaryTravelResolution,
+            TemporaryTravelTable, TemporaryTriggerTiming,
+        },
     };
 
     #[test]
@@ -1340,6 +1376,212 @@ mod tests {
             json["meanDestinationWaterSecurityScorePermille"],
             serde_json::Value::Null
         );
+    }
+
+    fn two_household_fixture() -> (RngFactory, World, Population, CellId, CellId, CellId) {
+        let factory = RngFactory::new(196_001);
+        let world = World::generate(WorldConfig::new(3, 1), factory).unwrap();
+        let mut population = Population::initialize(
+            PopulationConfig::new(4).with_target_household_size(2),
+            &world,
+            factory,
+        )
+        .unwrap();
+        assert_eq!(population.household_count(), 2);
+        let mover_home = world.cell_id(0, 0).unwrap();
+        let destination = world.cell_id(1, 0).unwrap();
+        let visitor_home = world.cell_id(2, 0).unwrap();
+        population
+            .apply_household_relocations(
+                &[mover_home, visitor_home],
+                &[0, 0],
+                &world,
+            )
+            .unwrap();
+        (
+            factory,
+            world,
+            population,
+            mover_home,
+            destination,
+            visitor_home,
+        )
+    }
+
+    fn temporary_visitor_state(
+        population: &Population,
+        world: &World,
+        destination: CellId,
+        visitor_home: CellId,
+        outbound_travel_days: u32,
+    ) -> TemporaryMobilityState {
+        let mut resolutions = vec![TemporaryTravelResolution::Unreachable; world.cell_count()];
+        resolutions[cell_index(visitor_home, world.cell_count()).unwrap()] =
+            TemporaryTravelResolution::Reachable {
+                destination,
+                outbound_travel_days,
+                return_travel_days: outbound_travel_days,
+            };
+        let region = FocalRegion::new(
+            "m4-m9-demand-fixture",
+            FocalRegionSource::Synthetic,
+            vec![destination],
+        )
+        .unwrap();
+        let travel = TemporaryTravelTable::new(resolutions, &region, world).unwrap();
+        let schedule = TemporaryMobilitySchedule::new(
+            "m4-m9-demand-schedule",
+            TemporaryTriggerTiming::DepartureDay,
+            vec![91],
+            5,
+        )
+        .unwrap();
+        let program = TemporaryMobilityProgram::new(region, schedule, travel, world).unwrap();
+        let mut state = TemporaryMobilityState::with_program(population, program, world).unwrap();
+        state
+            .process_day(91, population, world, &mut EventLog::new())
+            .unwrap();
+        state
+    }
+
+    #[test]
+    fn disabled_m9_preserves_persistent_m4_demand_snapshot() {
+        let (_, world, population, _, _, _) = two_household_fixture();
+        let config = MigrationConfig::synthetic_validation_v1();
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+
+        migration.prepare_snapshot(&population, &world, None).unwrap();
+        let baseline_residence = migration.cell_living.clone();
+        let baseline_demand = migration.boundary_demand_living.clone();
+        assert_eq!(baseline_demand, baseline_residence);
+
+        let disabled = TemporaryMobilityState::at_residence(&population);
+        migration
+            .prepare_snapshot(&population, &world, Some(&disabled))
+            .unwrap();
+        assert_eq!(migration.cell_living, baseline_residence);
+        assert_eq!(migration.boundary_demand_living, baseline_demand);
+    }
+
+    #[test]
+    fn same_day_m9_arrival_moves_m4_demand_to_visitor_destination() {
+        let (_, world, population, _, destination, visitor_home) = two_household_fixture();
+        let config = MigrationConfig::synthetic_validation_v1();
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+        migration.prepare_snapshot(&population, &world, None).unwrap();
+        let resident_counts = migration.cell_living.clone();
+        let baseline_demand = migration.boundary_demand_living.clone();
+        let visitor_members = migration.living_members[1];
+
+        let visiting = temporary_visitor_state(&population, &world, destination, visitor_home, 0);
+        assert!(matches!(
+            visiting.presence(HouseholdId::new(2)),
+            Some(HouseholdPresence::Visiting { destination: found, .. }) if found == destination
+        ));
+        migration
+            .prepare_snapshot(&population, &world, Some(&visiting))
+            .unwrap();
+
+        let destination_index = cell_index(destination, world.cell_count()).unwrap();
+        let visitor_home_index = cell_index(visitor_home, world.cell_count()).unwrap();
+        assert_eq!(migration.cell_living, resident_counts);
+        assert_eq!(
+            migration.boundary_demand_living[destination_index],
+            baseline_demand[destination_index] + visitor_members
+        );
+        assert_eq!(
+            migration.boundary_demand_living[visitor_home_index],
+            baseline_demand[visitor_home_index] - visitor_members
+        );
+    }
+
+    #[test]
+    fn m9_transit_remains_home_provisioned_for_m4_resource_demand() {
+        let (_, world, population, _, destination, visitor_home) = two_household_fixture();
+        let config = MigrationConfig::synthetic_validation_v1();
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+        migration.prepare_snapshot(&population, &world, None).unwrap();
+        let baseline_demand = migration.boundary_demand_living.clone();
+
+        let transit = temporary_visitor_state(&population, &world, destination, visitor_home, 2);
+        assert!(matches!(
+            transit.presence(HouseholdId::new(2)),
+            Some(HouseholdPresence::OutboundTransit { destination: found, .. }) if found == destination
+        ));
+        migration
+            .prepare_snapshot(&population, &world, Some(&transit))
+            .unwrap();
+        assert_eq!(migration.boundary_demand_living, baseline_demand);
+    }
+
+    #[test]
+    fn visitor_crowding_reduces_m4_candidate_resource_utility() {
+        let (_, world, population, mover_home, destination, visitor_home) = two_household_fixture();
+        let mut config = MigrationConfig::synthetic_validation_v1();
+        config.resource_weight = 1;
+        config.water_security_weight = 0;
+        config.kin_weight = 0;
+        config.travel_cost_weight = 0;
+        config.max_uncertainty_penalty_permille = 0;
+        config.relocation_risk_base_penalty_permille = 0;
+        config.relocation_risk_per_cell_permille = 0;
+
+        let resources =
+            ResourceSystem::initialize(&world, &ResourceConfig::synthetic_validation_v1()).unwrap();
+        let stock = resources.cell_food_stock(destination).unwrap();
+        assert!(stock > 0);
+        let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
+        let mover_members = 2_u32;
+        let period_need_per_person = stock
+            .checked_div(u64::from(mover_members))
+            .unwrap_or(0)
+            .max(1);
+        let distance = manhattan_distance(&world, mover_home, destination).unwrap();
+
+        migration.prepare_snapshot(&population, &world, None).unwrap();
+        let baseline_population = migration
+            .boundary_demand_population(destination)
+            .unwrap()
+            .saturating_add(mover_members);
+        let baseline = migration
+            .evaluate_relocation(
+                0,
+                destination,
+                distance,
+                baseline_population,
+                &resources,
+                &world,
+                &config,
+                period_need_per_person,
+                0,
+            )
+            .unwrap();
+
+        let visiting = temporary_visitor_state(&population, &world, destination, visitor_home, 0);
+        migration
+            .prepare_snapshot(&population, &world, Some(&visiting))
+            .unwrap();
+        let visitor_aware_population = migration
+            .boundary_demand_population(destination)
+            .unwrap()
+            .saturating_add(mover_members);
+        let visitor_aware = migration
+            .evaluate_relocation(
+                0,
+                destination,
+                distance,
+                visitor_aware_population,
+                &resources,
+                &world,
+                &config,
+                period_need_per_person,
+                0,
+            )
+            .unwrap();
+
+        assert!(visitor_aware_population > baseline_population);
+        assert!(visitor_aware.resource_score_permille < baseline.resource_score_permille);
+        assert!(visitor_aware.total_utility < baseline.total_utility);
     }
 
     #[test]
