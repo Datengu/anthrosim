@@ -6,6 +6,7 @@ on:
       - fix/208-competing-mortality-risks
     paths:
       - scripts/apply-issue-208.py
+      - crates/anthrosim-core/src/competing_mortality_acceptance_tests.rs
       - .github/workflows/issue-208-apply.yml
 
 permissions:
