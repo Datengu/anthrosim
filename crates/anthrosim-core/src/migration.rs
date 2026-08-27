@@ -1392,11 +1392,7 @@ mod tests {
         let destination = world.cell_id(1, 0).unwrap();
         let visitor_home = world.cell_id(2, 0).unwrap();
         population
-            .apply_household_relocations(
-                &[mover_home, visitor_home],
-                &[0, 0],
-                &world,
-            )
+            .apply_household_relocations(&[mover_home, visitor_home], &[0, 0], &world)
             .unwrap();
         (
             factory,
@@ -1450,7 +1446,9 @@ mod tests {
         let config = MigrationConfig::synthetic_validation_v1();
         let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
 
-        migration.prepare_snapshot(&population, &world, None).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
         let baseline_residence = migration.cell_living.clone();
         let baseline_demand = migration.boundary_demand_living.clone();
         assert_eq!(baseline_demand, baseline_residence);
@@ -1468,7 +1466,9 @@ mod tests {
         let (_, world, population, _, destination, visitor_home) = two_household_fixture();
         let config = MigrationConfig::synthetic_validation_v1();
         let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
-        migration.prepare_snapshot(&population, &world, None).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
         let resident_counts = migration.cell_living.clone();
         let baseline_demand = migration.boundary_demand_living.clone();
         let visitor_members = migration.living_members[1];
@@ -1500,7 +1500,9 @@ mod tests {
         let (_, world, population, _, destination, visitor_home) = two_household_fixture();
         let config = MigrationConfig::synthetic_validation_v1();
         let mut migration = MigrationSystem::initialize(&population, &world, &config).unwrap();
-        migration.prepare_snapshot(&population, &world, None).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
         let baseline_demand = migration.boundary_demand_living.clone();
 
         let transit = temporary_visitor_state(&population, &world, destination, visitor_home, 2);
@@ -1538,7 +1540,9 @@ mod tests {
             .max(1);
         let distance = manhattan_distance(&world, mover_home, destination).unwrap();
 
-        migration.prepare_snapshot(&population, &world, None).unwrap();
+        migration
+            .prepare_snapshot(&population, &world, None)
+            .unwrap();
         let baseline_population = migration
             .boundary_demand_population(destination)
             .unwrap()
