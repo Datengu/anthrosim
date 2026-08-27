@@ -12,6 +12,54 @@ def replace_once(path: Path, old: str, new: str) -> None:
     path.write_text(text.replace(old, new, 1))
 
 
+# Migrate the deterministic public M8.6 generator and its checked-in outputs to landscape v2
+# without touching the authoritative terrain/elevation values.
+prepare = ROOT / "scripts/prepare-m8-benchmark-landscape.py"
+replace_once(
+    prepare,
+    'EVIDENCE_ID = "mapzen_skadi_n46e007_elevation"\n',
+    '''EVIDENCE_ID = "mapzen_skadi_n46e007_elevation"\nGRID_CONVENTION = {\n    "originAnchor": "upper_left_outer_corner",\n    "columnDirection": "increasing_x",\n    "rowDirection": "decreasing_y",\n    "cellInterpretation": "area",\n}\n''',
+)
+replace_once(
+    prepare,
+    '''    # HGT rows run north-to-south. Coordinates are integer arcseconds so the M8.1 geometry remains\n    # integer-valued; the spatial-reference text records the row orientation explicitly.\n''',
+    '''    # HGT rows run north-to-south. The v2 bundle records that orientation explicitly as the\n    # normalized upper-left/increasing-X/decreasing-Y pixel-as-area convention. Coordinates remain\n    # integer arcseconds so no floating-point conversion enters the authoritative geometry.\n''',
+)
+replace_once(
+    prepare,
+    '''    landscape = {\n        "schemaVersion": 1,\n        "width": WIDTH,\n        "height": HEIGHT,\n        "geometry": geometry,\n''',
+    '''    landscape = {\n        "schemaVersion": 2,\n        "width": WIDTH,\n        "height": HEIGHT,\n        "gridConvention": GRID_CONVENTION,\n        "geometry": geometry,\n''',
+)
+replace_once(
+    prepare,
+    '"format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v1",',
+    '"format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v2",',
+)
+replace_once(
+    prepare,
+    '''        "hgtSideSamples": side,\n        "patch": {\n''',
+    '''        "hgtSideSamples": side,\n        "gridConvention": GRID_CONVENTION,\n        "patch": {\n''',
+)
+
+benchmark_landscape = ROOT / "examples/m8-first-evidence-grounded-benchmark/landscape.json"
+replace_once(
+    benchmark_landscape,
+    '''{\n  "schemaVersion": 1,\n  "width": 16,\n  "height": 16,\n  "geometry": {\n''',
+    '''{\n  "schemaVersion": 2,\n  "width": 16,\n  "height": 16,\n  "gridConvention": {\n    "originAnchor": "upper_left_outer_corner",\n    "columnDirection": "increasing_x",\n    "rowDirection": "decreasing_y",\n    "cellInterpretation": "area"\n  },\n  "geometry": {\n''',
+)
+benchmark_evidence = ROOT / "examples/m8-first-evidence-grounded-benchmark/evidence.json"
+replace_once(
+    benchmark_evidence,
+    '"format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v1",',
+    '"format": "Mapzen Skadi gzip-compressed HGT; derived AnthroSim LandscapeBundle v2",',
+)
+benchmark_provenance = ROOT / "examples/m8-first-evidence-grounded-benchmark/source-provenance.json"
+replace_once(
+    benchmark_provenance,
+    '''  "hgtSideSamples": 3601,\n  "patch": {\n''',
+    '''  "hgtSideSamples": 3601,\n  "gridConvention": {\n    "originAnchor": "upper_left_outer_corner",\n    "columnDirection": "increasing_x",\n    "rowDirection": "decreasing_y",\n    "cellInterpretation": "area"\n  },\n  "patch": {\n''',
+)
+
 spatial = ROOT / "crates/anthrosim-core/src/spatial_simulation.rs"
 replace_once(
     spatial,
