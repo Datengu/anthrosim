@@ -13,10 +13,10 @@ This is the conservative branch of #203's acceptance criterion. It records raste
 scientifically consequential model input and requires resolution sensitivity/convergence work before
 spatial conclusions are described as scale-independent physical inference.
 
-No artificial metre-to-food, metre-to-migration or metre-to-travel conversion is introduced in this
-contract. Those conversions would themselves be model assumptions requiring evidence, units and
-validation. A future physically normalized model may add a distinct semantics identity only when it
-has executable, tested meaning.
+No artificial metre-to-food, metre-to-reproductive-contact, metre-to-migration or metre-to-travel
+conversion is introduced in this contract. Those conversions would themselves be model assumptions
+requiring evidence, units and validation. A future physically normalized model may add a distinct
+semantics identity only when it has executable, tested meaning.
 
 ## Machine-readable preservation
 
@@ -25,6 +25,7 @@ identity. The assessment records:
 
 - `cellSizeX` and `cellSizeY`;
 - coordinate unit;
+- `m2InteractionBasis = exact_persistent_residence_cell`;
 - `resourceQuantityBasis = per_cell_total`;
 - `m4DistanceBasis = grid_steps`;
 - `m9TravelCostBasis = grid_edges`;
@@ -41,6 +42,18 @@ content-bound empirical inputs while its executable spatial model remains resolu
 scale-independent.
 
 ## Current quantity meanings
+
+### M2 reproductive locality
+
+M2 builds its eligible male-parent pool by exact equality of the female parent's persistent-residence
+`CellId`. It has no physical reproductive-contact radius or settlement-unit abstraction. Raster
+partitioning is therefore an interaction boundary: two people at unchanged nearby physical
+positions can share one coarse cell but occupy different fine cells, changing whether a local male
+parent is available before fertility probability is even drawn.
+
+This contract records that rule as `exact_persistent_residence_cell`. It does not change M2
+parent-selection behavior. #228 remains responsible for richer observability of fertility
+suppression caused by absence of a local eligible male.
 
 ### M3 resources
 
@@ -66,18 +79,22 @@ of the same physical distance represented by four 50 m edges under otherwise ide
 
 ## Metamorphic non-convergence fixture
 
-`spatial_resolution_dependence.rs` fixes simple uniform physical scenarios and varies only the
-raster representation. It proves the currently declared dependence:
+`spatial_resolution_dependence.rs` fixes simple physical scenarios and varies only the raster
+representation. It proves the currently declared dependence:
 
-1. A 200 m x 200 m surface represented as 2x2 100 m cells versus 4x4 50 m cells produces four times
+1. Two hypothetical residents remain 50 m apart. They share one 100 m cell but occupy separate 50 m
+   cells, while M2's interaction basis remains exact persistent-residence-cell equality. The same
+   physical reproductive neighbourhood can therefore change its eligibility structure solely from
+   raster partitioning.
+2. A 200 m x 200 m surface represented as 2x2 100 m cells versus 4x4 50 m cells produces four times
    the aggregate initial M3 food stock at the finer resolution when per-cell productivity is held
    constant.
-2. Two 700 m x 700 m rasters preserve the same `candidateRadiusCells = 3`, but the M4 physical
+3. Two 700 m x 700 m rasters preserve the same `candidateRadiusCells = 3`, but the M4 physical
    horizon changes from 300 m to 150 m.
-3. Two uniform 200 m cardinal M9 routes contain two 100 m edges versus four 50 m edges. Accumulated
+4. Two uniform 200 m cardinal M9 routes contain two 100 m edges versus four 50 m edges. Accumulated
    cost changes from 2,000 to 4,000 abstract units and, under the synthetic validation travel model,
    travel duration changes from one to two model days.
-4. Tampering with the preserved scale assessment causes landscape-binding validation to fail.
+5. Tampering with the preserved scale assessment causes landscape-binding validation to fail.
 
 These are intentionally **failing convergence properties expressed as passing tests of the declared
 model contract**. They ensure a future change cannot silently claim that cell size is incidental
@@ -85,16 +102,16 @@ while retaining the same behaviour.
 
 ## Research-use rule
 
-Before interpreting evidence-grounded spatial absence, migration catchment, route accessibility,
-resource pressure, settlement concentration or related quantities physically, a study must do one
-of the following:
+Before interpreting evidence-grounded reproductive opportunity, spatial absence, migration
+catchment, route accessibility, resource pressure, settlement concentration or related quantities
+physically, a study must do one of the following:
 
 - run a predeclared raster-resolution sensitivity/convergence design over plausible resolutions and
   show that the claim is stable enough for its intended interpretation; or
 - explicitly report material resolution dependence and condition the claim on the selected raster;
   or
-- use a later, separately identified physically normalized spatial model whose conservation and
-  distance semantics have been validated.
+- use a later, separately identified physically normalized spatial model whose reproductive-contact,
+  resource-conservation and distance semantics have been validated.
 
 Resolution changes must preserve the same physical study extent and derive source fields
 consistently. Raster resolution and study-area extent are separate variables: #211 handles boundary
@@ -102,10 +119,10 @@ extent/crop effects and should not be confounded with this scale test.
 
 ## What this contract does not claim
 
-This work does not establish a physically calibrated resource density, walking speed, mobility
-radius, relocation cost or travel-energy model. It does not make the M8.6 terrain transformation an
-empirical movement law. It does not make one raster resolution preferable for a specific archaeological site or any
-other case study.
+This work does not establish a physically calibrated reproductive-contact radius, resource density,
+walking speed, mobility radius, relocation cost or travel-energy model. It does not make the M8.6
+terrain transformation an empirical movement law. It does not make one raster resolution preferable
+for a specific archaeological site or any other case study.
 
 Its scientific purpose is narrower and necessary: raster resolution is no longer a hidden numerical
 choice that can be mistaken for irrelevant GIS metadata.
@@ -118,4 +135,5 @@ also unchanged because the transformation and movement algorithms are unchanged.
 
 The new interpretation is versioned independently through `SpatialScaleAssessment` schema v1 and
 `LandscapeBinding` schema v2. A future physical-normalization mechanism that changes executable
-resource or movement behaviour must receive its own appropriate model/spatial semantics identity.
+resource, reproductive-contact or movement behavior must receive its own appropriate model/spatial
+semantics identity.
