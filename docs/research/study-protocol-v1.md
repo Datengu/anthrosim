@@ -40,15 +40,7 @@ This separation permits honest reuse of the same deterministic simulation output
 - permitted and prohibited interpretations;
 - explicit amendment provenance for revisions after v1.
 
-The exact TRACE evidence-role vocabulary represented here is:
-
-- `model_construction`;
-- `parameterisation`;
-- `calibration`;
-- `model_output_verification`;
-- `independent_corroboration`.
-
-This issue records those assignments so the frozen protocol can carry them. The stronger cross-role leakage/circular-validation checks remain the dedicated scope of #206.
+The TRACE evidence-role vocabulary represented here is `model_construction`, `parameterisation`, `calibration`, `model_output_verification`, and `independent_corroboration`. This issue records those assignments so the frozen protocol can carry them. Stronger cross-role leakage/circular-validation checks remain the dedicated scope of #206.
 
 ## Confirmatory validation
 
@@ -61,28 +53,13 @@ A protocol labelled `confirmatory` must contain at least:
 - every hypothesis represented in a comparison;
 - every primary observable represented in a comparison.
 
-IDs and references are validated strictly. Unknown analysis-window, hypothesis or observable references fail closed.
-
-The schema does not pretend that a syntactically complete protocol is scientifically good. It makes omissions, changes and declared decisions auditable.
+IDs and references are validated strictly. Unknown analysis-window, hypothesis or observable references fail closed. The schema does not pretend that a syntactically complete protocol is scientifically good; it makes omissions, changes and declared decisions auditable.
 
 ## Analysis windows
 
-Each observable references a named analysis window. A window records:
+Each observable references a named analysis window containing `analysisStartDay`, optional `analysisEndDayInclusive`, one explicit selection rule and a rationale. The allowed selection rules mirror #219: `predeclared_fixed_duration`, `convergence_diagnostic`, `externally_meaningful_historical_start`, `initial_state_in_scope`, and `other_explicit`.
 
-- `analysisStartDay`;
-- optional `analysisEndDayInclusive`;
-- one explicit selection rule;
-- a rationale.
-
-The selection rules match the #219 analysis-window contract:
-
-- `predeclared_fixed_duration`;
-- `convergence_diagnostic`;
-- `externally_meaningful_historical_start`;
-- `initial_state_in_scope`;
-- `other_explicit`.
-
-This protocol freezes the intended window. The #219 analysis-window tooling remains responsible for resolving a declared interval against realized run duration and for preventing cumulative since-start metrics from being silently relabelled as post-burn-in totals.
+The study protocol freezes the intended window. The #219 tooling remains responsible for resolving a declared interval against realized run duration and for preventing cumulative since-start metrics from being silently relabelled as post-burn-in totals.
 
 ## Immutable preparation workflow
 
@@ -105,15 +82,7 @@ study/example/
   research-definition.json
 ```
 
-`study-plan.json` and `study-manifest.json` are redundant exact copies of the immutable pre-execution plan. The plan binds:
-
-- the complete exact protocol;
-- `protocolIdentity`;
-- the exact research definition and `definitionIdentity`;
-- the executable `SourceRevisionIdentity`;
-- `studyExecutionId` derived from protocol + definition + source;
-- the fixed child research directory `research/`;
-- whether this protocol is eligible to be described as a pre-result confirmatory declaration.
+`study-plan.json` and `study-manifest.json` are redundant exact copies of the immutable pre-execution plan. They bind the complete protocol and `protocolIdentity`, the exact research definition and `definitionIdentity`, executable `SourceRevisionIdentity`, a `studyExecutionId` derived from protocol + definition + source, the fixed child research directory `research/`, and whether the protocol is eligible to be described as a pre-result confirmatory declaration.
 
 The study directory must be empty when prepared. Protocol changes do not overwrite it; they require a new study root/revision.
 
@@ -142,8 +111,9 @@ Finalization verifies:
 3. both content identities recompute exactly;
 4. the child `research-manifest.json` and `research-plan.json` agree;
 5. the executed `definitionIdentity`, exact definition and source revision equal the pre-execution study plan;
-6. `research-state.json` belongs to the same research execution and contains no still-planned/running runs;
-7. the standard research analysis artifacts exist.
+6. the child `researchId` recomputes using the **same field-order identity algorithm as `anthrosim-research`**;
+7. `research-state.json` belongs to that exact research execution and contains no still-planned/running runs;
+8. the standard `analysis/points.json` and `analysis/runs.json` identify that same research execution.
 
 It then writes immutable `study-result-binding.json`, containing:
 
@@ -155,21 +125,13 @@ It then writes immutable `study-result-binding.json`, containing:
 - executed research ID;
 - exact source revision;
 - completed/failed run counts;
-- bound result-artifact paths.
+- each bound result-artifact path **and a digest of its exact bytes**.
 
-Running `finalize` again is idempotent. If an existing result binding differs from what the frozen plan and executed research now imply, finalization fails rather than rewriting provenance.
+The result-artifact digests mean a later change to an analysis artifact can no longer silently retain the old result binding. Running `finalize` again is idempotent when nothing changed. If the frozen protocol, research identity or bound result bytes differ, finalization fails rather than rewriting provenance.
 
 ## Amendments
 
-Protocol revision 1 must not declare an amendment. Any later `protocolRevision` must declare:
-
-- `previousProtocolIdentity`;
-- amendment `timing`:
-  - `before_result_inspection`, or
-  - `after_result_inspection`;
-- rationale.
-
-Because the complete amendment record is part of protocol content, every amendment necessarily receives a new protocol identity.
+Protocol revision 1 must not declare an amendment. Any later `protocolRevision` must declare `previousProtocolIdentity`, amendment timing (`before_result_inspection` or `after_result_inspection`), and a rationale. Because the complete amendment record is part of protocol content, every amendment necessarily receives a new protocol identity.
 
 A confirmatory protocol explicitly amended **after result inspection** remains reproducible, but `confirmatoryPreResultClaimEligible` becomes `false`. It cannot silently retain a preregistered/predeclared label merely because the revised protocol is now frozen.
 
@@ -189,14 +151,7 @@ The frozen protocol can declare those plans now. Their dedicated issues implemen
 
 ## Model-semantics boundary
 
-Study protocols do not alter:
-
-- `ExperimentConfig`;
-- initialization;
-- M2/M3/M4/M8/M9 transition rules;
-- random-number streams or draw order;
-- checkpoints or deterministic run identity;
-- `MODEL_SEMANTICS_ID`.
+Study protocols do not alter `ExperimentConfig`, initialization, M2/M3/M4/M8/M9 transition rules, random-number streams or draw order, checkpoints or deterministic run identity, or `MODEL_SEMANTICS_ID`.
 
 A study-protocol change is a change to the scientific claim/analysis contract, not to what the simulator causally does.
 
