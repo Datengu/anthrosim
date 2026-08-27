@@ -16,6 +16,7 @@ use crate::{
     },
     population::{Population, PopulationSummary, PopulationValidationError},
     provenance::{MODEL_SEMANTICS_ID, SourceRevisionIdentity},
+    research_readiness::assess_evidence_closure,
     resources::{ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config},
     rng::RngFactory,
     simulation::RecordedRun,
@@ -296,6 +297,7 @@ fn validate_manifest_against_checkpoint_with_world(
         || manifest.git_commit != checkpoint.git_commit
         || manifest.resume_lineage != checkpoint.resume_lineage
         || manifest.experiment != checkpoint.experiment
+        || manifest.evidence_closure != assess_evidence_closure(&checkpoint.experiment)
         || manifest.start_time != SimTime::ZERO
         || manifest.end_time != checkpoint.time
         || checkpoint.terminal_stop_reason != Some(manifest.stop_reason)
