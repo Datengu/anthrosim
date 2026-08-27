@@ -1,0 +1,59 @@
+name: Temporary #211 runner
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  run-existing-validator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: feat/211-spatial-boundary-contract
+          fetch-depth: 0
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
+          rustup default 1.97.1
+
+      - name: Reuse stored #211 patch
+        run: |
+          awk '
+            /python3 - <<'\''PY'\''/ { capture=1; next }
+            capture && /^          PY$/ { exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/tmp-211-format-validation.yml > /tmp/patch211.py
+          test -s /tmp/patch211.py
+          python3 /tmp/patch211.py
+          cargo fmt --all
+          cargo fmt --all -- --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/spatial_boundary.rs crates/anthrosim-core/src/lib.rs crates/anthrosim-core/tests/spatial_boundary_dependence.rs
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: evaluate spatial extent convergence"
+            git push origin HEAD:feat/211-spatial-boundary-contract
+          fi
+
+      - name: Validate
+        run: |
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+          cargo test --locked --workspace --all-features
+          cargo build --locked --workspace --release
+
+      - name: Remove temporary helpers
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/tmp-211-format-validation.yml .github/workflows/tmp-211-runner.yml
+          git commit -m "chore: remove temporary #211 validation workflows"
+          git push origin HEAD:feat/211-spatial-boundary-contract
