@@ -11,7 +11,9 @@ use crate::{
         NoDataPolicy, SpatialFieldTransform, SpatialMechanismConfig, SpatialTargetField,
         TransformDirection,
     },
-    spatial_simulation::{SpatialLandscapeError, SpatialLandscapeSimulation},
+    spatial_simulation::{
+        SpatialLandscapeError, SpatialLandscapeSimulation, validate_spatial_landscape_recorded_run,
+    },
     temporary_mobility::{
         TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTriggerTiming,
     },
@@ -203,6 +205,32 @@ fn spatial_construction_rejects_changed_layer_evidence_input() {
 }
 
 #[test]
+fn spatial_construction_rejects_mask_with_wrong_layer_role() {
+    let config = valid_config();
+    let mut changed_landscape = landscape();
+    changed_landscape.layers[1].role = LandscapeLayerRole::TerrainTraversal;
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, changed_landscape, mechanisms()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::MaskLayerNotAuxiliary { .. }
+        ))
+    ));
+}
+
+#[test]
+fn spatial_construction_rejects_mask_with_wrong_binary_domain() {
+    let config = valid_config();
+    let mut changed_landscape = landscape();
+    changed_landscape.layers[1].value_domain = Some(LandscapeValueDomain { min: 0, max: 2 });
+    assert!(matches!(
+        SpatialLandscapeSimulation::new(config, changed_landscape, mechanisms()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::InvalidBinaryDomain { .. }
+        ))
+    ));
+}
+
+#[test]
 fn spatial_construction_rejects_mask_membership_changed_after_derivation() {
     let config = valid_config();
     let mut changed_landscape = landscape();
@@ -245,6 +273,42 @@ fn spatial_resume_revalidates_focal_region_against_bound_landscape() {
 
     assert!(matches!(
         SpatialLandscapeSimulation::from_checkpoint(checkpoint, landscape()),
+        Err(SpatialLandscapeError::FocalRegionBinding(
+            FocalRegionBindingError::MaskMembershipMismatch { .. }
+        ))
+    ));
+}
+
+#[test]
+fn recorded_run_validation_revalidates_focal_region_against_bound_landscape() {
+    let source_landscape = landscape();
+    let mut run = SpatialLandscapeSimulation::new(
+        valid_config(),
+        source_landscape.clone(),
+        mechanisms(),
+    )
+    .unwrap()
+    .run_recorded()
+    .unwrap();
+    let tampered = tampered_region();
+    run.manifest
+        .core_manifest
+        .experiment
+        .temporary_mobility
+        .as_mut()
+        .unwrap()
+        .region = tampered.clone();
+    run.checkpoint
+        .core_checkpoint
+        .experiment
+        .temporary_mobility
+        .as_mut()
+        .unwrap()
+        .region = tampered;
+    run.checkpoint.core_checkpoint = run.checkpoint.core_checkpoint.seal_continuation_identity();
+
+    assert!(matches!(
+        validate_spatial_landscape_recorded_run(&run, &source_landscape),
         Err(SpatialLandscapeError::FocalRegionBinding(
             FocalRegionBindingError::MaskMembershipMismatch { .. }
         ))
