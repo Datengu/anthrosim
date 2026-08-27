@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  run-existing-validator:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -24,84 +24,59 @@ jobs:
           rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
-      - name: Apply stored evaluator patch
+      - name: Fix convergence result ownership
         run: |
-          awk '
-            /python3 - <<'\''PY'\''/ { capture=1; next }
-            capture && /^          PY$/ { exit }
-            capture { sub(/^          /, ""); print }
-          ' .github/workflows/tmp-211-format-validation.yml > /tmp/patch211.py
-          test -s /tmp/patch211.py
           python3 - <<'PY'
           from pathlib import Path
-          import re
-          path = Path('/tmp/patch211.py')
+          path = Path('crates/anthrosim-core/src/spatial_boundary.rs')
           text = path.read_text()
-          pattern = re.compile(r"(?m)^(\s*)if old_route not in text:\n\1    raise SystemExit\('physical route block not found'\)\n\1text = text\.replace\(old_route, new_route, 1\)$")
-          def relax(match):
-              indent = match.group(1)
-              return indent + "if old_route in text:\n" + indent + "    text = text.replace(old_route, new_route, 1)"
-          text, count = pattern.subn(relax, text, count=1)
-          if count != 1:
-              raise SystemExit('could not relax stored physical-route patch')
-          path.write_text(text)
-          PY
-          python3 /tmp/patch211.py
+          old = """    let latest = comparisons
+        .last()
+        .expect(\"two observations must produce one comparison\");
+    let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;
 
-      - name: Compare M9 destination in physical space
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('crates/anthrosim-core/tests/spatial_boundary_dependence.rs')
-          text = path.read_text()
-          function_start = text.index('fn m9_hard_wall_changes_reachability_until_the_same_inner_landscape_has_a_route_buffer')
-          start = text.index('        let table = model.derive_table(&region, &world).unwrap();', function_start)
-          end = text.index('\n}\n\nfn single_founder', start)
-          lines = [
-              '        let table = model.derive_table(&region, &world).unwrap();',
-              '        let resolution = table.resolution(origin).unwrap();',
-              '        let destination_extent = match resolution {',
-              '            TemporaryTravelResolution::Reachable { destination, .. } => {',
-              '                Some(landscape.cell_extent(destination).unwrap())',
-              '            }',
-              '            TemporaryTravelResolution::Unreachable => None,',
-              '        };',
-              '        (',
-              '            resolution,',
-              '            table.accumulated_cost_units(origin),',
-              '            destination_extent,',
-              '        )',
-              '    };',
-              '',
-              '    let tight_resolution = resolution(&tight);',
-              '    assert_eq!(tight_resolution.0, TemporaryTravelResolution::Unreachable);',
-              '    assert_eq!(tight_resolution.1, None);',
-              '    assert_eq!(tight_resolution.2, None);',
-              '    let buffered_resolution = resolution(&buffered);',
-              '    let larger_resolution = resolution(&larger);',
-              '    assert_eq!(buffered_resolution.1, larger_resolution.1);',
-              '    assert_eq!(buffered_resolution.2, larger_resolution.2);',
-              '    for route_resolution in [buffered_resolution.0, larger_resolution.0] {',
-              '        assert!(matches!(',
-              '            route_resolution,',
-              '            TemporaryTravelResolution::Reachable {',
-              '                outbound_travel_days: 3,',
-              '                return_travel_days: 3,',
-              '                ..',
-              '            }',
-              '        ));',
-              '    }',
-              '    assert_eq!(buffered_resolution.1, Some(8_000));',
-          ]
-          replacement = '\n'.join(lines) + '\n'
-          path.write_text(text[:start] + replacement + text[end:])
+    Ok(SpatialExtentConvergenceAssessment {
+        schema_version: SpatialExtentConvergenceAssessment::CURRENT_SCHEMA_VERSION,
+        criterion,
+        observations,
+        comparisons,
+        trailing_stable_extensions,
+        latest_extension_within_tolerance: latest.all_metrics_within_tolerance,
+        latest_extension_eligible_for_stability_sequence: latest.eligible_for_stability_sequence,
+        material_boundary_dependence_at_latest_extension: !latest.all_metrics_within_tolerance,
+        adequate,
+    })
+"""
+          new = """    let latest = comparisons
+        .last()
+        .expect(\"two observations must produce one comparison\");
+    let latest_extension_within_tolerance = latest.all_metrics_within_tolerance;
+    let latest_extension_eligible_for_stability_sequence = latest.eligible_for_stability_sequence;
+    let material_boundary_dependence_at_latest_extension = !latest_extension_within_tolerance;
+    let adequate = trailing_stable_extensions >= criterion.required_consecutive_stable_extensions;
+
+    Ok(SpatialExtentConvergenceAssessment {
+        schema_version: SpatialExtentConvergenceAssessment::CURRENT_SCHEMA_VERSION,
+        criterion,
+        observations,
+        comparisons,
+        trailing_stable_extensions,
+        latest_extension_within_tolerance,
+        latest_extension_eligible_for_stability_sequence,
+        material_boundary_dependence_at_latest_extension,
+        adequate,
+    })
+"""
+          if old not in text:
+              raise SystemExit('expected convergence return block not found')
+          path.write_text(text.replace(old, new, 1))
           PY
           cargo fmt --all
           cargo fmt --all -- --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/anthrosim-core/src/spatial_boundary.rs crates/anthrosim-core/src/lib.rs crates/anthrosim-core/tests/spatial_boundary_dependence.rs
-          git commit -m "feat: evaluate spatial extent convergence"
+          git add crates/anthrosim-core/src/spatial_boundary.rs
+          git commit -m "fix: finalize spatial extent convergence assessment"
           git push origin HEAD:feat/211-spatial-boundary-contract
 
       - name: Validate
