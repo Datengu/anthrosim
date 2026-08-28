@@ -60,8 +60,8 @@ fn ordinary_experiment_derives_and_preserves_world_specific_temporary_program() 
         .expect("configured temporary mobility");
     let simulation = Simulation::new(configured.clone()).expect("configured simulation");
     let expected_program = expected_definition
-        .derive_program(simulation.world())
-        .expect("world-specific program");
+        .derive_program_with_seed(simulation.world(), configured.seed)
+        .expect("world-specific program with authoritative experiment seed");
     assert_eq!(
         simulation.temporary_mobility().program(),
         Some(&expected_program)
@@ -88,8 +88,8 @@ fn configured_program_is_rederived_for_each_seed_world() {
             .with_temporary_mobility(definition.clone());
         let simulation = Simulation::new(configured).expect("configured simulation");
         let expected = definition
-            .derive_program(simulation.world())
-            .expect("program derived from this seed's world");
+            .derive_program_with_seed(simulation.world(), seed)
+            .expect("program derived from this seed's world and authoritative seed");
         assert_eq!(simulation.temporary_mobility().program(), Some(&expected));
     }
 }

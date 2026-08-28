@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, BinaryHeap},
+};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -8,7 +11,8 @@ use crate::{
     focal_region::{FocalRegion, FocalRegionError},
     ids::CellId,
     temporary_mobility::{
-        TemporaryMobilityProgramError, TemporaryTravelResolution, TemporaryTravelTable,
+        TemporaryMobilityProgramError, TemporaryTravelDestinationCandidate,
+        TemporaryTravelResolution, TemporaryTravelTable,
     },
     world::{BASE_MOVEMENT_COST, World},
 };
@@ -130,12 +134,26 @@ impl TemporaryTravelModel {
 
     /// Derive one indexed M9.4 travel table for every authoritative world origin.
     ///
-    /// One multi-source search is seeded by all focal-region cells, avoiding a global search per
-    /// household. Equal-cost destinations choose the lower authoritative `CellId`.
+    /// The public helper uses a zero tie seed for callers that only need static travel geometry.
+    /// Authoritative simulations call `derive_table_with_tie_seed` with the experiment seed.
     pub fn derive_table(
         &self,
         region: &FocalRegion,
         world: &World,
+    ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
+        self.derive_table_with_tie_seed(region, world, 0)
+    }
+
+    /// Derive M9.4 travel geometry while preserving every exactly equal minimum destination.
+    ///
+    /// `destination_tie_seed` does not affect route cost or reachability. It is retained in the
+    /// table solely so M9 execution can resolve an equal-cost destination with the declared keyed
+    /// tie policy without consuming any sequential RNG stream.
+    pub fn derive_table_with_tie_seed(
+        &self,
+        region: &FocalRegion,
+        world: &World,
+        destination_tie_seed: u64,
     ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
         self.validate()?;
         region.validate(world)?;
@@ -148,24 +166,49 @@ impl TemporaryTravelModel {
         let labels = minimum_cost_labels(self, region, world)?;
         let mut resolutions = Vec::with_capacity(world.cell_count());
         let mut accumulated_costs = Vec::with_capacity(world.cell_count());
+        let mut equal_cost_destinations = Vec::with_capacity(world.cell_count());
 
         for label in labels {
             let Some(label) = label else {
                 resolutions.push(TemporaryTravelResolution::Unreachable);
                 accumulated_costs.push(None);
+                equal_cost_destinations.push(Vec::new());
                 continue;
             };
+            let candidates = label
+                .destinations
+                .into_iter()
+                .map(
+                    |(destination, route_distance_edges)| TemporaryTravelDestinationCandidate {
+                        destination,
+                        route_distance_edges,
+                    },
+                )
+                .collect::<Vec<_>>();
+            let destination = candidates
+                .first()
+                .expect("reachable M9.4 label must retain at least one destination")
+                .destination;
             let travel_days = self.travel_days(label.cost)?;
             resolutions.push(TemporaryTravelResolution::Reachable {
-                destination: label.destination,
+                destination,
                 outbound_travel_days: travel_days,
                 return_travel_days: travel_days,
             });
             accumulated_costs.push(Some(label.cost));
+            equal_cost_destinations.push(candidates);
         }
 
-        TemporaryTravelTable::new_m9_4(resolutions, accumulated_costs, self.clone(), region, world)
-            .map_err(TemporaryTravelModelError::TravelTable)
+        TemporaryTravelTable::new_m9_4(
+            resolutions,
+            accumulated_costs,
+            equal_cost_destinations,
+            destination_tie_seed,
+            self.clone(),
+            region,
+            world,
+        )
+        .map_err(TemporaryTravelModelError::TravelTable)
     }
 }
 
@@ -199,24 +242,24 @@ pub fn temporary_travel_edge_cost(
     Ok(sum.div_ceil(2))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct RouteLabel {
     cost: u64,
-    destination: CellId,
+    destinations: BTreeMap<CellId, u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct QueueState {
-    label: RouteLabel,
+    cost: u64,
     cell: CellId,
 }
 
 impl Ord for QueueState {
     fn cmp(&self, other: &Self) -> Ordering {
-        // `BinaryHeap` is a max-heap; reverse every key so the smallest stable tuple wins.
+        // `BinaryHeap` is a max-heap; reverse cost and cell for deterministic minimum-first work.
         other
-            .label
-            .cmp(&self.label)
+            .cost
+            .cmp(&self.cost)
             .then_with(|| other.cell.cmp(&self.cell))
     }
 }
@@ -237,41 +280,82 @@ fn minimum_cost_labels(
 
     for &destination in region.member_cells() {
         let index = cell_index(destination, world)?;
-        let label = RouteLabel {
+        let mut destinations = BTreeMap::new();
+        destinations.insert(destination, 0);
+        labels[index] = Some(RouteLabel {
             cost: 0,
-            destination,
-        };
-        labels[index] = Some(label);
+            destinations,
+        });
         queue.push(QueueState {
-            label,
+            cost: 0,
             cell: destination,
         });
     }
 
     while let Some(current) = queue.pop() {
         let current_index = cell_index(current.cell, world)?;
-        if labels[current_index] != Some(current.label) {
+        let Some(current_label) = labels[current_index].as_ref() else {
+            continue;
+        };
+        if current_label.cost != current.cost {
             continue;
         }
+        let current_destinations = current_label.destinations.clone();
 
         for neighbour in world.neighbours4(current.cell).into_iter().flatten() {
             if !model.is_traversable(world, neighbour) {
                 continue;
             }
             let edge = temporary_travel_edge_cost(world, current.cell, neighbour)?;
-            let candidate = RouteLabel {
-                cost: current
-                    .label
-                    .cost
-                    .checked_add(edge)
-                    .ok_or(TemporaryTravelModelError::AccumulatedCostOverflow)?,
-                destination: current.label.destination,
-            };
+            let candidate_cost = current
+                .cost
+                .checked_add(edge)
+                .ok_or(TemporaryTravelModelError::AccumulatedCostOverflow)?;
+            let mut candidate_destinations = BTreeMap::new();
+            for (destination, hops) in &current_destinations {
+                candidate_destinations.insert(
+                    *destination,
+                    hops.checked_add(1)
+                        .ok_or(TemporaryTravelModelError::RouteDistanceOverflow)?,
+                );
+            }
             let neighbour_index = cell_index(neighbour, world)?;
-            if labels[neighbour_index].is_none_or(|existing| candidate < existing) {
-                labels[neighbour_index] = Some(candidate);
+            let mut changed = false;
+            match labels[neighbour_index].as_mut() {
+                None => {
+                    labels[neighbour_index] = Some(RouteLabel {
+                        cost: candidate_cost,
+                        destinations: candidate_destinations,
+                    });
+                    changed = true;
+                }
+                Some(existing) if candidate_cost < existing.cost => {
+                    *existing = RouteLabel {
+                        cost: candidate_cost,
+                        destinations: candidate_destinations,
+                    };
+                    changed = true;
+                }
+                Some(existing) if candidate_cost == existing.cost => {
+                    for (destination, candidate_hops) in candidate_destinations {
+                        match existing.destinations.get_mut(&destination) {
+                            None => {
+                                existing.destinations.insert(destination, candidate_hops);
+                                changed = true;
+                            }
+                            Some(existing_hops) if candidate_hops < *existing_hops => {
+                                *existing_hops = candidate_hops;
+                                changed = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Some(_) => {}
+            }
+            if changed {
                 queue.push(QueueState {
-                    label: candidate,
+                    cost: candidate_cost,
                     cell: neighbour,
                 });
             }
@@ -330,6 +414,8 @@ pub enum TemporaryTravelModelError {
     RegionCellImpassable { cell: CellId },
     #[error("temporary travel accumulated cost overflowed u64")]
     AccumulatedCostOverflow,
+    #[error("temporary travel minimum-cost route distance exceeds u32 edges")]
+    RouteDistanceOverflow,
     #[error(
         "temporary travel duration for cost {accumulated_cost} at capacity {capacity_per_day} exceeds u32 days"
     )]
@@ -419,19 +505,18 @@ mod tests {
     }
 
     #[test]
-    fn equal_cost_destinations_choose_lower_cell_id() {
+    fn equal_cost_destinations_preserve_all_minima() {
         let world = world(3, 1, &[1_000, 1_000, 1_000]);
         let region = region(&world, vec![CellId::new(1), CellId::new(3)]);
         let table = TemporaryTravelModel::default()
             .derive_table(&region, &world)
             .unwrap();
-        assert!(matches!(
-            table.resolution(CellId::new(2)),
-            Some(TemporaryTravelResolution::Reachable {
-                destination,
-                ..
-            }) if destination == CellId::new(1)
-        ));
+        let candidates = table.equal_cost_destinations(CellId::new(2)).unwrap();
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].destination, CellId::new(1));
+        assert_eq!(candidates[1].destination, CellId::new(3));
+        assert_eq!(candidates[0].route_distance_edges, 1);
+        assert_eq!(candidates[1].route_distance_edges, 1);
     }
 
     #[test]

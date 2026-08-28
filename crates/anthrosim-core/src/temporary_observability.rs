@@ -1,7 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::{BTreeMap, BTreeSet, BinaryHeap},
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -11,7 +8,6 @@ use crate::{
     SimulationCheckpoint, TemporaryJourneyIneligibility, TemporaryMobilityProgram,
     TemporaryTravelModel, TemporaryTravelResolution, World,
     ids::{CellId, HouseholdId, TemporaryJourneyId},
-    temporary_travel::temporary_travel_edge_cost,
 };
 
 const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 2;
@@ -31,7 +27,7 @@ pub struct TemporaryMobilityObservabilityReport {
 }
 
 impl TemporaryMobilityObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +99,9 @@ pub struct TemporaryMobilityObservabilitySummary {
     pub unrealized_planned_route_distance_edges: u64,
     #[serde(rename = "plannedRouteDistanceUnavailableJourneys")]
     pub route_distance_unavailable_journeys: u64,
+    pub tied_destination_origin_cells: u64,
+    pub maximum_equal_cost_destination_count: u32,
+    pub journeys_started_from_tied_origins: u64,
 }
 
 impl Default for TemporaryMobilityObservabilitySummary {
@@ -151,6 +150,9 @@ impl Default for TemporaryMobilityObservabilitySummary {
             realized_route_distance_edges: 0,
             unrealized_planned_route_distance_edges: 0,
             route_distance_unavailable_journeys: 0,
+            tied_destination_origin_cells: 0,
+            maximum_equal_cost_destination_count: 0,
+            journeys_started_from_tied_origins: 0,
         }
     }
 }
@@ -196,6 +198,7 @@ pub struct TemporaryJourneyObservability {
     pub one_way_accumulated_travel_cost_units: Option<u64>,
     #[serde(rename = "plannedOneWayRouteDistanceEdges")]
     pub one_way_route_distance_edges: Option<u32>,
+    pub equal_cost_destination_count: u32,
     pub people_at_departure: u32,
     pub departure_day: u64,
     pub arrival_day: u64,
@@ -260,6 +263,7 @@ pub struct TemporaryOriginCatchment {
     pub unrealized_planned_route_distance_edges: u64,
     #[serde(rename = "plannedRouteDistanceUnavailableJourneys")]
     pub route_distance_unavailable_journeys: u64,
+    pub equal_cost_destination_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -341,7 +345,6 @@ struct Replay<'a> {
     trigger_outcomes: BTreeSet<(u32, u64)>,
     summary: TemporaryMobilityObservabilitySummary,
     current_visitors: u64,
-    route_distance_edges: Vec<Option<u32>>,
 }
 
 pub fn derive_temporary_mobility_observability(
@@ -383,11 +386,18 @@ pub fn derive_temporary_mobility_observability(
         .validate(world)
         .map_err(|error| invalid(format!("temporary mobility program is invalid: {error}")))?;
     if let Some(config) = checkpoint.experiment.temporary_mobility.as_ref() {
-        let expected = config.derive_program(world).map_err(|error| {
-            invalid(format!(
-                "temporary mobility config cannot derive program: {error}"
-            ))
+        let destination_tie_seed = program.travel.destination_tie_seed().ok_or_else(|| {
+            invalid(
+                "configured temporary mobility program is missing authoritative destination tie seed",
+            )
         })?;
+        let expected = config
+            .derive_program_with_seed(world, destination_tie_seed)
+            .map_err(|error| {
+                invalid(format!(
+                    "temporary mobility config cannot derive program: {error}"
+                ))
+            })?;
         if &expected != program {
             return Err(invalid(
                 "temporary mobility checkpoint program does not match the experiment definition",
@@ -395,7 +405,6 @@ pub fn derive_temporary_mobility_observability(
         }
     }
 
-    let route_distance_edges = derive_route_distances(program, world)?;
     let mut households = Vec::with_capacity(initial_population.household_count());
     for raw in 1..=initial_population.household_count() as u64 {
         let household = HouseholdId::new(raw);
@@ -432,10 +441,27 @@ pub fn derive_temporary_mobility_observability(
         summary: TemporaryMobilityObservabilitySummary {
             provenance: MetricProvenance::Derived,
             observation_duration_days: end_day,
+            tied_destination_origin_cells: (1..=world.cell_count() as u64)
+                .filter(|raw| {
+                    program
+                        .travel
+                        .equal_cost_destination_count(CellId::new(*raw))
+                        .is_some_and(|count| count > 1)
+                })
+                .count()
+                .try_into()
+                .map_err(|_| invalid("tied destination origin count exceeds u64"))?,
+            maximum_equal_cost_destination_count: (1..=world.cell_count() as u64)
+                .filter_map(|raw| {
+                    program
+                        .travel
+                        .equal_cost_destination_count(CellId::new(raw))
+                })
+                .max()
+                .unwrap_or(0),
             ..TemporaryMobilityObservabilitySummary::default()
         },
         current_visitors: 0,
-        route_distance_edges,
     };
 
     replay_events(&mut replay, checkpoint, world)?;
@@ -493,6 +519,9 @@ pub fn derive_temporary_mobility_observability(
             realized_route_distance_edges: row.realized_route_distance_edges,
             unrealized_planned_route_distance_edges: row.unrealized_planned_route_distance_edges,
             route_distance_unavailable_journeys: row.route_distance_unavailable_journeys,
+            equal_cost_destination_count: program
+                .travel
+                .equal_cost_destination_count(CellId::new(origin)),
         })
         .collect::<Vec<_>>();
     let visit_duration_distribution = duration_distribution(&replay.journeys)?;
@@ -686,6 +715,8 @@ fn replay_events(
                 }
                 validate_departure_against_program(
                     replay,
+                    household,
+                    *trigger_index,
                     *residence,
                     *destination,
                     travel_model_identity.as_deref(),
@@ -695,8 +726,15 @@ fn replay_events(
                     region_id,
                     region_identity,
                 )?;
-                let route_distance =
-                    replay.route_distance_edges[cell_index(*residence, replay.cells.len())?];
+                let route_distance = replay
+                    .program
+                    .travel
+                    .route_distance_edges(*residence, *destination);
+                let equal_cost_destination_count = replay
+                    .program
+                    .travel
+                    .equal_cost_destination_count(*residence)
+                    .unwrap_or(1);
                 let planned_visit = return_departure_day
                     .checked_sub(*arrival_day)
                     .ok_or_else(|| invalid("temporary journey has invalid visit interval"))?;
@@ -730,6 +768,7 @@ fn replay_events(
                     travel_model_identity: travel_model_identity.clone(),
                     one_way_accumulated_travel_cost_units: *accumulated_travel_cost_units,
                     one_way_route_distance_edges: route_distance,
+                    equal_cost_destination_count,
                     people_at_departure: *people_affected,
                     departure_day: *departure_day,
                     arrival_day: *arrival_day,
@@ -764,6 +803,10 @@ fn replay_events(
                 };
                 replay.households[index].active_journey = Some(*journey);
                 replay.summary.journeys_started = add(replay.summary.journeys_started, 1)?;
+                if equal_cost_destination_count > 1 {
+                    replay.summary.journeys_started_from_tied_origins =
+                        add(replay.summary.journeys_started_from_tied_origins, 1)?;
+                }
                 replay.summary.people_at_departure = add(
                     replay.summary.people_at_departure,
                     u64::from(*people_affected),
@@ -1627,6 +1670,8 @@ fn count_not_started(
 #[allow(clippy::too_many_arguments)]
 fn validate_departure_against_program(
     replay: &Replay<'_>,
+    household: HouseholdId,
+    trigger_index: u32,
     residence: CellId,
     destination: CellId,
     travel_model_identity: Option<&str>,
@@ -1655,7 +1700,11 @@ fn validate_departure_against_program(
             "temporary departure travel metadata does not match program",
         ));
     }
-    match replay.program.travel.resolution(residence) {
+    match replay
+        .program
+        .travel
+        .resolution_for(residence, household, trigger_index)
+    {
         Some(TemporaryTravelResolution::Reachable {
             destination: expected_destination,
             outbound_travel_days: expected_outbound,
@@ -1727,114 +1776,6 @@ fn add(a: u64, b: u64) -> Result<u64, TemporaryMobilityObservabilityError> {
 fn mul(a: u64, b: u64) -> Result<u64, TemporaryMobilityObservabilityError> {
     a.checked_mul(b)
         .ok_or_else(|| invalid("temporary observability accounting overflow"))
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct RouteLabel {
-    cost: u64,
-    destination: CellId,
-    hops: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct RouteQueueState {
-    label: RouteLabel,
-    cell: CellId,
-}
-
-impl Ord for RouteQueueState {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other
-            .label
-            .cmp(&self.label)
-            .then_with(|| other.cell.cmp(&self.cell))
-    }
-}
-
-impl PartialOrd for RouteQueueState {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-fn derive_route_distances(
-    program: &TemporaryMobilityProgram,
-    world: &World,
-) -> Result<Vec<Option<u32>>, TemporaryMobilityObservabilityError> {
-    let Some(model) = program.travel.travel_model() else {
-        return Ok(vec![None; world.cell_count()]);
-    };
-    let mut labels = vec![None; world.cell_count()];
-    let mut queue = BinaryHeap::new();
-    for &destination in program.region.member_cells() {
-        let index = cell_index(destination, world.cell_count())?;
-        let label = RouteLabel {
-            cost: 0,
-            destination,
-            hops: 0,
-        };
-        labels[index] = Some(label);
-        queue.push(RouteQueueState {
-            label,
-            cell: destination,
-        });
-    }
-    while let Some(current) = queue.pop() {
-        let current_index = cell_index(current.cell, world.cell_count())?;
-        if labels[current_index] != Some(current.label) {
-            continue;
-        }
-        for neighbour in world.neighbours4(current.cell).into_iter().flatten() {
-            if !model.is_traversable(world, neighbour) {
-                continue;
-            }
-            let edge = temporary_travel_edge_cost(world, current.cell, neighbour)
-                .map_err(|error| invalid(format!("route-distance replay failed: {error}")))?;
-            let candidate = RouteLabel {
-                cost: add(current.label.cost, edge)?,
-                destination: current.label.destination,
-                hops: current
-                    .label
-                    .hops
-                    .checked_add(1)
-                    .ok_or_else(|| invalid("route hop count exceeds u32"))?,
-            };
-            let neighbour_index = cell_index(neighbour, world.cell_count())?;
-            if labels[neighbour_index].is_none_or(|existing| candidate < existing) {
-                labels[neighbour_index] = Some(candidate);
-                queue.push(RouteQueueState {
-                    label: candidate,
-                    cell: neighbour,
-                });
-            }
-        }
-    }
-
-    let mut distances = vec![None; world.cell_count()];
-    for (index, label) in labels.into_iter().enumerate() {
-        let origin = CellId::new(index as u64 + 1);
-        match (program.travel.resolution(origin), label) {
-            (Some(TemporaryTravelResolution::Unreachable), None) => {}
-            (Some(TemporaryTravelResolution::Reachable { destination, .. }), Some(label)) => {
-                if label.destination != destination
-                    || program.travel.accumulated_cost_units(origin) != Some(label.cost)
-                {
-                    return Err(invalid(format!(
-                        "derived route distance for origin {} does not reconcile with authoritative travel table",
-                        origin.0
-                    )));
-                }
-                distances[index] = Some(label.hops);
-            }
-            _ => {
-                return Err(invalid(format!(
-                    "derived route reachability for origin {} does not reconcile with authoritative travel table",
-                    origin.0
-                )));
-            }
-        }
-    }
-    Ok(distances)
 }
 
 #[cfg(test)]
@@ -1914,6 +1855,7 @@ mod tests {
             travel_model_identity: Some("test-travel".to_owned()),
             one_way_accumulated_travel_cost_units: Some(10),
             one_way_route_distance_edges: Some(4),
+            equal_cost_destination_count: 1,
             people_at_departure: 2,
             departure_day: 10,
             arrival_day: 13,
@@ -2057,7 +1999,7 @@ mod tests {
             derive_temporary_mobility_observability(&world, &initial_population, &checkpoint)
                 .expect("report");
         assert_eq!(first, second);
-        assert_eq!(first.schema_version, 2);
+        assert_eq!(first.schema_version, 3);
         assert!(first.summary.journeys_started > 0);
         assert_eq!(
             first.summary.journeys_started,

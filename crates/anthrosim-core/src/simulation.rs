@@ -117,7 +117,7 @@ impl Simulation {
         let configured_program = config
             .temporary_mobility
             .as_ref()
-            .map(|definition| definition.derive_program(&world))
+            .map(|definition| definition.derive_program_with_seed(&world, config.seed))
             .transpose()?;
         let temporary_mobility = match (program, configured_program) {
             (Some(_), Some(_)) => {
@@ -802,7 +802,7 @@ fn validate_configured_temporary_mobility(
                 .or_else(|| Some("unconfigured-temporary-mobility-state".to_owned())),
         });
     };
-    let expected = definition.derive_program(world)?;
+    let expected = definition.derive_program_with_seed(world, config.seed)?;
     if state.program() != Some(&expected) {
         return Err(SimulationError::ConfiguredTemporaryMobilityMismatch {
             expected: expected.identity(),
