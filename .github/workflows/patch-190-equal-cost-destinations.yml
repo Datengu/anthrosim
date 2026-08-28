@@ -19,6 +19,26 @@ jobs:
           ref: fix/190-equal-cost-m9-destinations
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
+      - name: Tighten observability selector
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/patch-190.py')
+          text = p.read_text()
+          old = """replace_once(
+              path,
+              '''    pub route_distance_unavailable_journeys: u64,\\n}\\n''',
+              '''    pub route_distance_unavailable_journeys: u64,\\n    pub tied_destination_origin_cells: u64,\\n    pub maximum_equal_cost_destination_count: u32,\\n    pub journeys_started_from_tied_origins: u64,\\n}\\n''',
+          )"""
+          new = """replace_once(
+              path,
+              '''    pub route_distance_unavailable_journeys: u64,\\n}\\n\\nimpl Default for TemporaryMobilityObservabilitySummary''',
+              '''    pub route_distance_unavailable_journeys: u64,\\n    pub tied_destination_origin_cells: u64,\\n    pub maximum_equal_cost_destination_count: u32,\\n    pub journeys_started_from_tied_origins: u64,\\n}\\n\\nimpl Default for TemporaryMobilityObservabilitySummary''',
+          )"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one selector block, got {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
       - name: Apply semantic patch
         run: python .github/patch-190.py
       - name: Format
