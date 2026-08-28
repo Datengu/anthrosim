@@ -1,6 +1,7 @@
 use anthrosim_core::{
     AgeProbabilityBand, DemographyConfig, ExperimentConfig, MigrationConfig, ParameterProvenance,
-    PopulationConfig, ResourceConfig, Simulation, WorldConfig,
+    PopulationConfig, ResearchDimension, ResearchDimensionKind, ResearchExperimentDefinition,
+    ResearchRunConfig, ResourceConfig, Simulation, WorldConfig,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -81,4 +82,48 @@ fn plausible_starting_stock_changes_early_scarcity_with_other_resource_rules_fix
         depleted_run.manifest.resources.unmet_need > stocked_run.manifest.resources.unmet_need,
         "early scarcity must remain sensitive to the explicitly declared starting stock when regeneration and demand are held fixed"
     );
+}
+
+#[test]
+fn research_definition_can_sweep_initial_stock_as_an_exact_numeric_dimension() {
+    let base_experiment = ExperimentConfig::new(216_003, 1);
+    let definition = ResearchExperimentDefinition {
+        schema_version: ResearchExperimentDefinition::CURRENT_SCHEMA_VERSION,
+        seeds: vec![216_003],
+        base: ResearchRunConfig {
+            experiment: base_experiment.clone(),
+            spatial: None,
+        },
+        dimensions: vec![ResearchDimension {
+            id: "initial-stock".to_owned(),
+            kind: ResearchDimensionKind::Numeric,
+            path: "/experiment/resources/initialStockUnitsPerProductivity".to_owned(),
+            values: vec![serde_json::json!(0), serde_json::json!(10)],
+        }],
+    };
+
+    let points = definition.expand().unwrap();
+    assert_eq!(points.len(), 2);
+    assert_eq!(
+        points[0]
+            .run_config
+            .experiment
+            .resources
+            .initial_stock_units_per_productivity,
+        0
+    );
+    assert_eq!(
+        points[1]
+            .run_config
+            .experiment
+            .resources
+            .initial_stock_units_per_productivity,
+        10
+    );
+
+    let mut expected_zero = base_experiment.clone();
+    expected_zero.resources.initial_stock_units_per_productivity = 0;
+    assert_eq!(points[0].run_config.experiment, expected_zero);
+    assert_eq!(points[1].run_config.experiment, base_experiment);
+    assert_ne!(points[0].point_id, points[1].point_id);
 }
