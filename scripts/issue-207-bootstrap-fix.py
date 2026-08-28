@@ -28,8 +28,8 @@ new = '''        aggregate.unmet_need_total += run.manifest.resources.unmet_need
 if old not in text:
     raise SystemExit("example migration-summary anchor not found")
 text = text.replace(old, new, 1)
-old = "        resources.productivity_scale_permille = 1_200;\n"
-new = "        resources.productivity_scale_permille = 1_000;\n"
+old = "resources.productivity_scale_permille = 1_200;"
+new = "resources.productivity_scale_permille = 1_000;"
 if old not in text:
     raise SystemExit("resource productivity scale anchor not found")
 example_path.write_text(text.replace(old, new, 1), encoding="utf-8")
