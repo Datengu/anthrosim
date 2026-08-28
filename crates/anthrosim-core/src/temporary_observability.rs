@@ -386,8 +386,13 @@ pub fn derive_temporary_mobility_observability(
         .validate(world)
         .map_err(|error| invalid(format!("temporary mobility program is invalid: {error}")))?;
     if let Some(config) = checkpoint.experiment.temporary_mobility.as_ref() {
+        let destination_tie_seed = program.travel.destination_tie_seed().ok_or_else(|| {
+            invalid(
+                "configured temporary mobility program is missing authoritative destination tie seed",
+            )
+        })?;
         let expected = config
-            .derive_program_with_seed(world, checkpoint.experiment.seed)
+            .derive_program_with_seed(world, destination_tie_seed)
             .map_err(|error| {
                 invalid(format!(
                     "temporary mobility config cannot derive program: {error}"
