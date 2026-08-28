@@ -259,7 +259,12 @@ impl SpatialLandscapeSimulation {
         let configured_program = config
             .temporary_mobility
             .as_ref()
-            .map(|definition| definition.derive_program_with_seed(&world, config.seed))
+            .map(|definition| {
+                definition.derive_program_with_seed(
+                    &world,
+                    spatial_binding.environment.realization.process_seed,
+                )
+            })
             .transpose()?;
         let temporary_mobility = match configured_program {
             Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
@@ -335,7 +340,12 @@ impl SpatialLandscapeSimulation {
             .population
             .validate(&world)
             .map_err(PopulationError::from)?;
-        validate_spatial_temporary_mobility(&checkpoint.core_checkpoint, &landscape, &world)?;
+        validate_spatial_temporary_mobility(
+            &checkpoint.core_checkpoint,
+            &landscape,
+            &world,
+            checkpoint.spatial.environment.realization.process_seed,
+        )?;
         checkpoint
             .core_checkpoint
             .resources
@@ -901,7 +911,12 @@ pub fn validate_spatial_landscape_recorded_run(
         .population
         .validate(&world)
         .map_err(PopulationError::from)?;
-    validate_spatial_temporary_mobility(&run.checkpoint.core_checkpoint, landscape, &world)?;
+    validate_spatial_temporary_mobility(
+        &run.checkpoint.core_checkpoint,
+        landscape,
+        &world,
+        run.checkpoint.spatial.environment.realization.process_seed,
+    )?;
     run.checkpoint
         .core_checkpoint
         .resources
@@ -1153,6 +1168,7 @@ fn validate_spatial_temporary_mobility(
     checkpoint: &SimulationCheckpoint,
     landscape: &LandscapeBundle,
     world: &World,
+    process_seed: u64,
 ) -> Result<(), SpatialLandscapeError> {
     validate_spatial_temporary_mobility_definition(&checkpoint.experiment, landscape, world)?;
     checkpoint
@@ -1162,7 +1178,7 @@ fn validate_spatial_temporary_mobility(
             reason: error.to_string(),
         })?;
     if let Some(definition) = &checkpoint.experiment.temporary_mobility {
-        let expected = definition.derive_program_with_seed(world, checkpoint.experiment.seed)?;
+        let expected = definition.derive_program_with_seed(world, process_seed)?;
         if checkpoint.temporary_mobility.program() != Some(&expected) {
             return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {
                 expected: expected.identity(),
