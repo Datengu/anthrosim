@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "example": "cumulative-rate-ordering-reversal",
+  "runs": [
+    {
+      "runId": "long-duration",
+      "stopReason": "durationReached",
+      "simulatedDays": 3650,
+      "resourceUnmetNeedCumulative": 10000,
+      "resourceUnmetNeedPer365SimulatedDays": 1000.0
+    },
+    {
+      "runId": "early-extinction",
+      "stopReason": "populationExtinct",
+      "simulatedDays": 365,
+      "resourceUnmetNeedCumulative": 2000,
+      "resourceUnmetNeedPer365SimulatedDays": 2000.0
+    }
+  ],
+  "interpretation": "The early-extinction run has the smaller cumulative total but the higher realized-time intensity. Extinction remains a separate terminal outcome and is not replaced by the normalized rate."
+}
