@@ -28,6 +28,7 @@ jobs:
       - name: Apply observability integration repair
         run: |
           python3 scripts/issue-207-observability-fix.py
+          python3 scripts/issue-207-observability-compile-fix.py
           cargo fmt --all
 
       - name: Compile workspace and tests
