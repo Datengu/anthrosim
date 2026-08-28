@@ -595,7 +595,12 @@ impl ResourceSystem {
                 let presence = period.households.get(household_index_value).ok_or(
                     ResourceError::InternalInvariant("temporary period household is missing"),
                 )?;
-                let (home_need, visiting_need) = duration_weighted_needs(need, presence)?;
+                let (home_need, visiting_need) = duration_weighted_needs(
+                    need,
+                    presence,
+                    household_index_value,
+                    self.periods_processed,
+                )?;
                 if home_need > 0 {
                     cell_home_need[residence_index] = cell_home_need[residence_index]
                         .checked_add(home_need)
@@ -1511,9 +1516,23 @@ fn validate_temporary_resource_period(
     Ok(())
 }
 
+/// Resolve an exact home/visitor fractional tie without assigning semantic priority to either side.
+///
+/// The resource-period sequence follows the Thue-Morse binary-parity phase. A household's stable
+/// zero-based index only complements that phase, so it spreads simultaneous ties without ranking
+/// households or changing any household's long-run 50/50 share. In particular, a tie recurring in
+/// the same seasonal slot every 2^k resource periods still traverses the same balanced sequence
+/// rather than aliasing onto one side as a simple odd/even-period rule would.
+#[must_use]
+fn duration_rounding_tie_visiting_wins(household_index: usize, period_sequence: u64) -> bool {
+    ((period_sequence.count_ones() ^ household_index.count_ones()) & 1) == 1
+}
+
 pub(crate) fn duration_weighted_needs(
     need: u64,
     presence: &TemporaryResourcePresenceDays,
+    household_index: usize,
+    period_sequence: u64,
 ) -> Result<(u64, u64), ResourceError> {
     let duration = presence.total_days()?;
     if duration == 0 {
@@ -1558,7 +1577,10 @@ pub(crate) fn duration_weighted_needs(
     if remainder == 1 {
         let home_fraction = home_numerator % denominator;
         let visiting_fraction = visiting_numerator % denominator;
-        if visiting_fraction > home_fraction {
+        if visiting_fraction > home_fraction
+            || (visiting_fraction == home_fraction
+                && duration_rounding_tie_visiting_wins(household_index, period_sequence))
+        {
             visiting_need = visiting_need
                 .checked_add(1)
                 .ok_or(ResourceError::AccountingOverflow)?;
@@ -2237,6 +2259,15 @@ mod tests {
         ));
     }
 
+    fn fifty_fifty_presence(destination: CellId) -> TemporaryResourcePresenceDays {
+        TemporaryResourcePresenceDays {
+            at_residence_days: 45,
+            visiting_days: 45,
+            visitor_destination: Some(destination),
+            ..TemporaryResourcePresenceDays::default()
+        }
+    }
+
     #[test]
     fn duration_weighting_conserves_one_and_five_day_visits_and_treats_transit_as_home() {
         let one_day = TemporaryResourcePresenceDays {
@@ -2247,7 +2278,10 @@ mod tests {
             visitor_destination: Some(crate::ids::CellId::new(2)),
         };
         assert_eq!(one_day.total_days().unwrap(), 91);
-        assert_eq!(duration_weighted_needs(91, &one_day).unwrap(), (90, 1));
+        assert_eq!(
+            duration_weighted_needs(91, &one_day, 0, 0).unwrap(),
+            (90, 1)
+        );
 
         let five_days = TemporaryResourcePresenceDays {
             at_residence_days: 84,
@@ -2258,7 +2292,10 @@ mod tests {
         };
         assert_eq!(five_days.home_provisioning_days().unwrap(), 86);
         assert_eq!(five_days.total_days().unwrap(), 91);
-        assert_eq!(duration_weighted_needs(91, &five_days).unwrap(), (86, 5));
+        assert_eq!(
+            duration_weighted_needs(91, &five_days, 0, 0).unwrap(),
+            (86, 5)
+        );
 
         let tie = TemporaryResourcePresenceDays {
             at_residence_days: 1,
@@ -2266,9 +2303,209 @@ mod tests {
             visitor_destination: Some(crate::ids::CellId::new(2)),
             ..TemporaryResourcePresenceDays::default()
         };
-        // #182 changes competition among claims after cell demand is known. The separate M9
-        // home/visitor split keeps its existing exact-tie rule; #194 tracks that semantic.
-        assert_eq!(duration_weighted_needs(1, &tie).unwrap(), (1, 0));
+        assert_eq!(duration_weighted_needs(1, &tie, 0, 0).unwrap(), (1, 0));
+        assert_eq!(duration_weighted_needs(1, &tie, 0, 1).unwrap(), (0, 1));
+    }
+
+    #[test]
+    fn repeated_fifty_fifty_one_unit_ties_do_not_favour_home() {
+        let presence = fifty_fifty_presence(CellId::new(2));
+        let mut home_total = 0_u64;
+        let mut visitor_total = 0_u64;
+
+        for period_sequence in 0..1_024 {
+            let (home, visitor) =
+                duration_weighted_needs(1, &presence, 0, period_sequence).unwrap();
+            assert_eq!(home + visitor, 1);
+            home_total += home;
+            visitor_total += visitor;
+        }
+
+        assert_eq!(home_total, 512);
+        assert_eq!(visitor_total, 512);
+    }
+
+    #[test]
+    fn larger_odd_fifty_fifty_demand_is_cumulatively_balanced_and_exact() {
+        let presence = fifty_fifty_presence(CellId::new(2));
+        let mut home_total = 0_u64;
+        let mut visitor_total = 0_u64;
+
+        for period_sequence in 0..1_024 {
+            let (home, visitor) =
+                duration_weighted_needs(125, &presence, 0, period_sequence).unwrap();
+            assert!(matches!((home, visitor), (63, 62) | (62, 63)));
+            assert_eq!(home + visitor, 125);
+            home_total += home;
+            visitor_total += visitor;
+        }
+
+        assert_eq!(home_total, 64_000);
+        assert_eq!(visitor_total, 64_000);
+    }
+
+    #[test]
+    fn same_season_ties_do_not_alias_to_one_side_at_power_of_two_cadence() {
+        let presence = fifty_fifty_presence(CellId::new(2));
+        let mut home_total = 0_u64;
+        let mut visitor_total = 0_u64;
+
+        for recurrence in 0..1_024_u64 {
+            let period_sequence = recurrence * 4;
+            let (home, visitor) =
+                duration_weighted_needs(1, &presence, 0, period_sequence).unwrap();
+            home_total += home;
+            visitor_total += visitor;
+        }
+
+        assert_eq!(home_total, 512);
+        assert_eq!(visitor_total, 512);
+    }
+
+    #[test]
+    fn household_phase_spreads_simultaneous_ties_without_long_run_id_advantage() {
+        let presence = fifty_fifty_presence(CellId::new(2));
+
+        for household_index in 0..8 {
+            let mut home_total = 0_u64;
+            let mut visitor_total = 0_u64;
+            for period_sequence in 0..1_024 {
+                let (home, visitor) = duration_weighted_needs(
+                    1,
+                    &presence,
+                    household_index,
+                    period_sequence,
+                )
+                .unwrap();
+                home_total += home;
+                visitor_total += visitor;
+            }
+            assert_eq!((home_total, visitor_total), (512, 512));
+        }
+
+        assert_ne!(
+            duration_weighted_needs(1, &presence, 0, 0).unwrap(),
+            duration_weighted_needs(1, &presence, 1, 0).unwrap()
+        );
+    }
+
+    #[test]
+    fn non_tied_duration_remainders_ignore_tie_phase_and_keep_largest_remainder() {
+        let home_larger = TemporaryResourcePresenceDays {
+            at_residence_days: 46,
+            visiting_days: 44,
+            visitor_destination: Some(CellId::new(2)),
+            ..TemporaryResourcePresenceDays::default()
+        };
+        let visitor_larger = TemporaryResourcePresenceDays {
+            at_residence_days: 44,
+            visiting_days: 46,
+            visitor_destination: Some(CellId::new(2)),
+            ..TemporaryResourcePresenceDays::default()
+        };
+
+        for period_sequence in 0..64 {
+            assert_eq!(
+                duration_weighted_needs(1, &home_larger, 0, period_sequence).unwrap(),
+                (1, 0)
+            );
+            assert_eq!(
+                duration_weighted_needs(1, &visitor_larger, 0, period_sequence).unwrap(),
+                (0, 1)
+            );
+        }
+    }
+
+    #[test]
+    fn serialized_resource_period_sequence_preserves_next_tie_decision() {
+        let world = World::generate(WorldConfig::new(2, 1), RngFactory::new(194)).unwrap();
+        let config = ResourceConfig::synthetic_validation_v1();
+        let mut system = ResourceSystem::initialize(&world, &config).unwrap();
+        system.periods_processed = 37;
+        let json = serde_json::to_string(&system).unwrap();
+        let restored: ResourceSystem = serde_json::from_str(&json).unwrap();
+        let presence = fifty_fifty_presence(CellId::new(2));
+
+        assert_eq!(restored.periods_processed, system.periods_processed);
+        assert_eq!(
+            duration_weighted_needs(1, &presence, 0, system.periods_processed).unwrap(),
+            duration_weighted_needs(1, &presence, 0, restored.periods_processed).unwrap()
+        );
+    }
+
+    #[test]
+    fn exact_tie_phase_moves_real_resource_pressure_between_home_and_destination() {
+        fn run_with_sequence(period_sequence: u64) -> (u64, u64, u64, u64) {
+            let world = World::generate(WorldConfig::new(2, 1), RngFactory::new(194_500)).unwrap();
+            let mut population = Population::initialize(
+                PopulationConfig::new(1).with_target_household_size(1),
+                &world,
+                RngFactory::new(194_500),
+            )
+            .unwrap();
+            let household = HouseholdId::new(1);
+            let residence = population.household_location(household).unwrap();
+            let destination = if residence == CellId::new(1) {
+                CellId::new(2)
+            } else {
+                CellId::new(1)
+            };
+            let residence_index = cell_index_for(&world, residence).unwrap();
+            let destination_index = cell_index_for(&world, destination).unwrap();
+
+            let mut config = ResourceConfig::synthetic_validation_v1();
+            config.periods_per_year = 2;
+            config.annual_need_units_per_person = 3;
+            config.max_scarcity_mortality_probability_per_million = 0;
+            let mut system = ResourceSystem::initialize(&world, &config).unwrap();
+            let residence_capacity = cell_capacity(world.cells()[residence_index].base_productivity, &config);
+            let destination_capacity = cell_capacity(world.cells()[destination_index].base_productivity, &config);
+            assert!(residence_capacity > 0 && destination_capacity > 0);
+            system.cell_food_stock[residence_index] = residence_capacity;
+            system.cell_food_stock[destination_index] = destination_capacity;
+            system.initial_food_stock = system.total_food_stock().unwrap();
+            system.periods_processed = period_sequence;
+
+            let period = TemporaryResourcePeriod {
+                schema_version: TemporaryResourcePeriod::CURRENT_SCHEMA_VERSION,
+                start_day: 0,
+                end_day: 182,
+                households: vec![TemporaryResourcePresenceDays {
+                    at_residence_days: 91,
+                    visiting_days: 91,
+                    visitor_destination: Some(destination),
+                    ..TemporaryResourcePresenceDays::default()
+                }],
+            };
+            let home_before = system.cell_food_stock[residence_index];
+            let visitor_before = system.cell_food_stock[destination_index];
+            let mut rngs = ResourceRngs::new(RngFactory::new(194_500));
+            let mut events = EventLog::new();
+            system
+                .process_period_recorded_with_presence(
+                    &mut population,
+                    &ResourcePeriodContext {
+                        world: &world,
+                        config: &config,
+                        period_index_in_year: 0,
+                        day: 182,
+                    },
+                    &mut rngs.scarcity_mortality,
+                    &mut events,
+                    Some(&period),
+                )
+                .unwrap();
+            let observation = system.period_observations.last().unwrap();
+            (
+                observation.home_need,
+                observation.visitor_need,
+                home_before - system.cell_food_stock[residence_index],
+                visitor_before - system.cell_food_stock[destination_index],
+            )
+        }
+
+        assert_eq!(run_with_sequence(0), (1, 0, 1, 0));
+        assert_eq!(run_with_sequence(1), (0, 1, 0, 1));
     }
 
     #[test]
@@ -2306,7 +2543,10 @@ mod tests {
             visitor_destination: Some(destination),
             ..TemporaryResourcePresenceDays::default()
         };
-        assert_eq!(duration_weighted_needs(100, &presence).unwrap(), (50, 50));
+        assert_eq!(
+            duration_weighted_needs(100, &presence, 0, 0).unwrap(),
+            (50, 50)
+        );
         let period = TemporaryResourcePeriod {
             schema_version: TemporaryResourcePeriod::CURRENT_SCHEMA_VERSION,
             start_day: 0,
