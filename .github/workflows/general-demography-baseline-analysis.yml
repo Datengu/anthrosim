@@ -66,23 +66,26 @@ jobs:
           while IFS=$'\t' read -r id rel; do target/release/anthrosim-demography-observability --run-dir "/tmp/c304/$rel" --output "/tmp/o304/$id.json" >/dev/null; done </tmp/runs304.tsv
           python3 scripts/research-long-run-diagnostics.py /tmp/c304 /tmp/confirm-long-run.json --output /tmp/a304/long-run.json
           python3 scripts/research-general-demography-baseline.py /tmp/c304 /tmp/o304 /tmp/a304/summary.json --long-run /tmp/a304/long-run.json
-      - name: Apply #231 Monte Carlo precision gates
+      - name: Apply issue 231 Monte Carlo precision gates
         run: |
           python3 - <<'PY'
           import hashlib,json
           from pathlib import Path
           s=json.loads(Path('/tmp/a304/summary.json').read_text()); seeds=list(range(3041001,3041065)); root=Path('/tmp/a304/precision'); root.mkdir()
-          def ident(p):
-              q=dict(p); q['planIdentity']=''; return 'monte-carlo-precision-plan-v1-'+hashlib.sha256(json.dumps(q,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-          def plan(kind,pid):
-              p={'schemaVersion':1,'planIdentity':'','planId':pid,'uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':kind,'confidenceLevel':0.95,'maxHalfWidth':0.001},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':'paired_by_seed' if kind=='paired_mean_difference' else 'independent','rationale':'Issue #304 requires <=0.10 percentage-points/year 95% Monte Carlo half-width for late realized growth estimates used in the baseline decision.'}; p['planIdentity']=ident(p); return p
-          for dem in ['negative_growth_control_v1','replacement_control_v1','positive_growth_control_v1']:
-              for life in ['fixed_founder_v1','deterministic_size_fission_v1']:
-                  key=f'{dem}--{life}'; vals={r['seed']:r['lateGrowthRatePerYear'] for r in s['runs'] if r['demography']==dem and r['householdLifecycle']==life}; assert set(vals)==set(seeds) and all(v is not None for v in vals.values())
-                  (root/f'{key}-plan.json').write_text(json.dumps(plan('mean','issue304-'+key+'-late-growth-v1'),indent=2,sort_keys=True)+'\n')
-                  sample={'schemaVersion':1,'groups':[{'id':key,'replicates':[{'seed':x,'value':vals[x]} for x in seeds]}]}; (root/f'{key}-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
-          f={r['seed']:r['lateGrowthRatePerYear'] for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']=='deterministic_size_fission_v1'}; b={r['seed']:r['lateGrowthRatePerYear'] for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']=='fixed_founder_v1'}
-          p=plan('paired_mean_difference','issue304-positive-household-effect-v1'); (root/'positive-household-effect-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n'); sample={'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':x,'value':f[x]} for x in seeds]},{'id':'fixed','replicates':[{'seed':x,'value':b[x]} for x in seeds]}]}; (root/'positive-household-effect-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
+          def make_plan(pid,kind,half,pairing):
+              p={'schemaVersion':1,'planIdentity':'','planId':pid,'uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':kind,'confidenceLevel':0.95,'maxHalfWidth':half},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':pairing,'rationale':'Predeclared issue #304 precision target for an estimand defined on every replicate used in the final baseline decision.'}
+              q=dict(p); q['planIdentity']=''; p['planIdentity']='monte-carlo-precision-plan-v1-'+hashlib.sha256(json.dumps(q,sort_keys=True,separators=(',',':')).encode()).hexdigest(); return p
+          def runs(life): return {r['seed']:r for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']==life}
+          fixed=runs('fixed_founder_v1'); fiss=runs('deterministic_size_fission_v1'); assert set(fixed)==set(seeds)==set(fiss)
+          # Candidate fixed-founder growth is defined for all 64 runs because extinction is zero.
+          p=make_plan('issue304-positive-fixed-late-growth-v1','mean',0.001,'independent'); sample={'schemaVersion':1,'groups':[{'id':'positive-fixed','replicates':[{'seed':x,'value':fixed[x]['lateGrowthRatePerYear']} for x in seeds]}]}
+          (root/'positive-fixed-growth-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n'); (root/'positive-fixed-growth-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
+          # Extinction remains defined even when a log-growth slope is not.
+          p=make_plan('issue304-positive-fission-extinction-v1','probability',0.085,'independent'); sample={'schemaVersion':1,'groups':[{'id':'positive-fission-extinction','replicates':[{'seed':x,'value':fiss[x]['extinct']} for x in seeds]}]}
+          (root/'positive-fission-extinction-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n'); (root/'positive-fission-extinction-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
+          # Structural effect on terminal population is defined for extinct and surviving trajectories alike.
+          p=make_plan('issue304-positive-household-terminal-population-effect-v1','paired_mean_difference',15.0,'paired_by_seed'); sample={'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':x,'value':fiss[x]['terminalPopulation']} for x in seeds]},{'id':'fixed','replicates':[{'seed':x,'value':fixed[x]['terminalPopulation']} for x in seeds]}]}
+          (root/'positive-household-population-effect-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n'); (root/'positive-household-population-effect-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
           PY
           for p in /tmp/a304/precision/*-plan.json; do s="${p%-plan.json}"; python3 scripts/research-monte-carlo-sufficiency.py diagnose "$p" "${s}-samples.json" "${s}-diagnostic.json"; done
       - name: Preserve scientific conclusion
@@ -96,7 +99,7 @@ jobs:
           for dem in ['negative_growth_control_v1','replacement_control_v1','positive_growth_control_v1']:
               for life in ['fixed_founder_v1','deterministic_size_fission_v1']:
                   a=arms[(dem,life)]; g=a['lateGrowthRatePerYear']; lines.append(f"| `{dem}` | `{life}` | {100*g['mean']:+.3f} [{100*g['ci95Lower']:+.3f}, {100*g['ci95Upper']:+.3f}] | {a['terminalPopulation']['mean']:.1f} | {100*a['extinction']['estimate']:.1f}% | {100*a['mateLimitationFraction']['mean']:.1f}% |")
-          lines += ['','This 64-seed confirmation uses new paired process seeds, founder age ceiling 60 years and resource productivity 1000 permille. The separate 288-run exploratory factorial tested founder ages 40/60 and productivity 500/750/1000. The #220 equilibrium gate and #231 precision diagnostics are preserved in the machine-readable result.','','The result demonstrates model-form dependence, not prehistoric calibration: deterministic fission is a structural sensitivity treatment, and none of these schedules is empirically calibrated. Historical `synthetic_validation_v1` and all three #239 controls remain unchanged; no target-population feedback is introduced.']
+          pe=next(x for x in s['pairedHouseholdEffects'] if x['demography']=='positive_growth_control_v1'); d=pe['fissionMinusFixedTerminalPopulation']; lines += ['','For the positive schedule, deterministic fission changes mean year-240 population by '+f"{d['mean']:+.1f} people (95% MC CI {d['ci95Lower']:+.1f} to {d['ci95Upper']:+.1f}) relative to fixed-founder households." ,'','This 64-seed confirmation uses new paired process seeds, founder age ceiling 60 years and resource productivity 1000 permille. The separate 288-run exploratory factorial tested founder ages 40/60 and productivity 500/750/1000. The #220 equilibrium gate and #231 precision diagnostics are preserved in the machine-readable result.','','The result demonstrates model-form dependence, not prehistoric calibration: deterministic fission is a structural sensitivity treatment, and none of these schedules is empirically calibrated. Historical `synthetic_validation_v1` and all three #239 controls remain unchanged; no target-population feedback is introduced.']
           Path('docs/research/general-scientific-demographic-baseline-v1.md').write_text('\n'.join(lines)+'\n')
           PY
           cp /tmp/confirm-definition.json research/general-demography-baseline-v1/confirmatory-definition.json
