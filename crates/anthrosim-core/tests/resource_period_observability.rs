@@ -34,18 +34,16 @@ fn resource_period_history_is_preserved_and_reconciles() {
             period.stock_before_regeneration + period.regenerated - period.supplied,
             period.stock_after_harvest
         );
+        assert_eq!(period.home_need + period.visitor_need, period.total_need);
         assert_eq!(
-            period.cells.iter().map(|cell| cell.total_need).sum::<u64>(),
-            period.total_need
-        );
-        assert_eq!(
-            period.cells.iter().map(|cell| cell.supplied).sum::<u64>(),
-            period.supplied
-        );
-        assert_eq!(
-            period.cells.iter().map(|cell| cell.unmet).sum::<u64>(),
+            period
+                .scarce_cells
+                .iter()
+                .map(|cell| cell.unmet)
+                .sum::<u64>(),
             period.unmet
         );
+        assert!(period.scarce_cells.iter().all(|cell| cell.unmet > 0));
     }
 }
 

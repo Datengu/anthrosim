@@ -10,7 +10,7 @@ The observation schema is `ResourcePeriodObservation` v1. The parent resource-sy
 
 ## Per-period quantities
 
-Each period preserves the absolute start/end day, period sequence/index, total stock before regeneration, regeneration, stock after regeneration, need, supplied amount, unmet need and stock after harvest. Each cell preserves the same stock/need/supply accounting, plus demand decomposed into `homeNeed` and `visitorNeed` under M9 duration-weighted provisioning. Without temporary mobility all demand is home demand.
+Each period preserves the absolute start/end day, period sequence/index, total stock before regeneration, regeneration, stock after regeneration, need, supplied amount, unmet need and stock after harvest. Each period also preserves total `homeNeed` and `visitorNeed` under M9 duration-weighted provisioning. Per-cell detail is deliberately sparse: every cell with positive unmet need preserves stock before/after regeneration and harvest, total/home/visitor need, supplied amount and unmet need. This captures the cells that require local mechanism interpretation without producing dense world-sized rows every period. Without temporary mobility all demand is home demand.
 
 The identities reconcile exactly:
 
