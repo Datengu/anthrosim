@@ -1,6 +1,5 @@
 use std::{
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
     process::{Command, Output},
     sync::atomic::{AtomicU64, Ordering},
@@ -85,8 +84,9 @@ fn confirmatory_protocol() -> StudyProtocol {
         protocol_revision: 1,
         study_id: "analysis-provenance-e2e".to_owned(),
         status: StudyScientificStatus::Confirmatory,
-        research_question: "Does the declared M3 period-count treatment produce two preserved research arms?"
-            .to_owned(),
+        research_question:
+            "Does the declared M3 period-count treatment produce two preserved research arms?"
+                .to_owned(),
         applicability_domain: "Synthetic executable provenance verification only.".to_owned(),
         hypotheses: vec![
             StudyHypothesis {
@@ -105,25 +105,28 @@ fn confirmatory_protocol() -> StudyProtocol {
             analysis_start_day: 0,
             analysis_end_day_inclusive: None,
             selection_rule: StudyAnalysisWindowSelectionRule::InitialStateInScope,
-            rationale: "The synthetic provenance test intentionally includes the complete one-year run."
-                .to_owned(),
+            rationale:
+                "The synthetic provenance test intentionally includes the complete one-year run."
+                    .to_owned(),
         }],
         observables: vec![StudyObservable {
             id: "completed_runs".to_owned(),
             role: StudyObservableRole::Primary,
             source: "research.analysis.runs completed-state count".to_owned(),
             analysis_window_id: "primary".to_owned(),
-            interpretation: "Both declared research arms must be present as completed immutable runs."
-                .to_owned(),
+            interpretation:
+                "Both declared research arms must be present as completed immutable runs."
+                    .to_owned(),
         }],
         comparisons: vec![StudyComparison {
             id: "declared_arms".to_owned(),
             hypothesis_ids: vec!["four_periods".to_owned(), "twelve_periods".to_owned()],
             observable_ids: vec!["completed_runs".to_owned()],
-            prediction: "The immutable research design contains one completed run per declared arm."
-                .to_owned(),
-            decision_criterion: "The canonical downstream result must report exactly two completed runs."
-                .to_owned(),
+            prediction:
+                "The immutable research design contains one completed run per declared arm."
+                    .to_owned(),
+            decision_criterion:
+                "The canonical downstream result must report exactly two completed runs.".to_owned(),
         }],
         evidence_roles: vec![],
         uncertainty: StudyUncertaintyPlan {
@@ -132,32 +135,38 @@ fn confirmatory_protocol() -> StudyProtocol {
         },
         ensemble_policy: StudyEnsemblePolicy {
             seed_policy: "Use exactly seed 101 for both paired arms.".to_owned(),
-            pairing_policy: "Pair the same seed across both declared period-count values.".to_owned(),
+            pairing_policy: "Pair the same seed across both declared period-count values."
+                .to_owned(),
             replication_policy: "No adaptive replicate addition.".to_owned(),
         },
         run_handling: StudyRunHandling {
             stopping_rules: vec!["Run each arm for the configured one model year.".to_owned()],
             exclusion_rules: vec!["No post-hoc exclusions are permitted.".to_owned()],
-            censoring_rules: vec!["Any non-completed run invalidates this synthetic check.".to_owned()],
+            censoring_rules: vec![
+                "Any non-completed run invalidates this synthetic check.".to_owned(),
+            ],
         },
-        sensitivity_plan: vec!["No additional sensitivity analysis is required for this infrastructure test."
-            .to_owned()],
-        equifinality_plan: vec!["No substantive equifinality claim is made by this infrastructure test."
-            .to_owned()],
+        sensitivity_plan: vec![
+            "No additional sensitivity analysis is required for this infrastructure test."
+                .to_owned(),
+        ],
+        equifinality_plan: vec![
+            "No substantive equifinality claim is made by this infrastructure test.".to_owned(),
+        ],
         manipulation_checks: vec![StudyManipulationCheck {
             id: "period_count_realized".to_owned(),
             mechanism: "M3 resource-period schedule".to_owned(),
-            criterion: "The two research rows preserve periodsPerYear values 4 and 12."
-                .to_owned(),
-            failure_handling: "Fail the infrastructure regression rather than interpret the result."
-                .to_owned(),
+            criterion: "The two research rows preserve periodsPerYear values 4 and 12.".to_owned(),
+            failure_handling:
+                "Fail the infrastructure regression rather than interpret the result.".to_owned(),
         }],
         analysis_method: "Count the immutable completed run rows produced by anthrosim-research."
             .to_owned(),
         multiplicity_policy: "One synthetic primary result only.".to_owned(),
         held_out_corroboration: vec![],
-        permitted_interpretations: vec!["Executable provenance plumbing is connected end to end."
-            .to_owned()],
+        permitted_interpretations: vec![
+            "Executable provenance plumbing is connected end to end.".to_owned(),
+        ],
         prohibited_interpretations: vec!["Any empirical or archaeological inference.".to_owned()],
         amendment: None,
     }
@@ -338,7 +347,9 @@ fn immutable_sweep_to_downstream_result_to_integrity_archive_is_replayable() {
             .arg(&analysis_definition_path),
         "downstream analysis provenance run",
     );
-    let provenance_identity = String::from_utf8_lossy(&run_output.stdout).trim().to_owned();
+    let provenance_identity = String::from_utf8_lossy(&run_output.stdout)
+        .trim()
+        .to_owned();
     assert!(provenance_identity.starts_with("analysis-provenance-v1-sha256-"));
 
     let result: Value = serde_json::from_slice(
@@ -350,8 +361,7 @@ fn immutable_sweep_to_downstream_result_to_integrity_archive_is_replayable() {
     assert_eq!(result["researchId"], runs["researchId"]);
 
     let provenance: Value = serde_json::from_slice(
-        &fs::read(analysis_dir.join("analysis-provenance.json"))
-            .expect("read analysis provenance"),
+        &fs::read(analysis_dir.join("analysis-provenance.json")).expect("read analysis provenance"),
     )
     .expect("parse analysis provenance");
     assert_eq!(provenance["provenanceIdentity"], provenance_identity);
