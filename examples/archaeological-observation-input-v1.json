@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "simulationSourceId": "synthetic-observation-fixture-run",
+  "values": {
+    "activityUnits": 100,
+    "meanCondition": 750
+  }
+}
