@@ -227,6 +227,14 @@ def pair_stats(flat: dict[str, Any], arm: dict[str, Any], metric: str) -> dict[s
             "relativeEffect": None,
             "available": False,
         }
+        if flat_record.get("terminalDegenerate") or arm_record.get("terminalDegenerate"):
+            unavailable += 1
+            pair["reason"] = (
+                "fixed-horizon primary metric unavailable because one or both paired runs "
+                "did not reach the declared duration"
+            )
+            pairs.append(pair)
+            continue
         if flat_value is None or arm_value is None:
             unavailable += 1
             pair["reason"] = "primary metric unavailable because one or both paired runs were not analyzable"
