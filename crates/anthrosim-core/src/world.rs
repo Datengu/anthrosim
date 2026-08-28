@@ -397,13 +397,10 @@ fn synthetic_environment_from_elevation(
     let elevation_extremeness = i32::from(elevation).unsigned_abs();
     let midpoint_favourability = synthetic_mid_elevation_favourability(elevation);
     let water_access = ((wetness * 3 + midpoint_favourability) / 4) as u16;
-    let productivity = ((u32::from(water_access) * 5
-        + fertility * 3
-        + midpoint_favourability * 2)
-        / 10) as u16;
-    let movement_cost =
-        (u32::from(BASE_MOVEMENT_COST) + ruggedness * 2 + elevation_extremeness)
-            .min(u32::from(u16::MAX)) as u16;
+    let productivity =
+        ((u32::from(water_access) * 5 + fertility * 3 + midpoint_favourability * 2) / 10) as u16;
+    let movement_cost = (u32::from(BASE_MOVEMENT_COST) + ruggedness * 2 + elevation_extremeness)
+        .min(u32::from(u16::MAX)) as u16;
     (water_access, productivity, movement_cost)
 }
 
@@ -538,7 +535,10 @@ mod tests {
         ];
 
         for (elevation, favourability, fields) in expected {
-            assert_eq!(synthetic_mid_elevation_favourability(elevation), favourability);
+            assert_eq!(
+                synthetic_mid_elevation_favourability(elevation),
+                favourability
+            );
             assert_eq!(
                 synthetic_environment_from_elevation(elevation, 400, 600, 100),
                 fields
