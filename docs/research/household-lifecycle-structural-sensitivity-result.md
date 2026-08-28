@@ -36,6 +36,8 @@ Counts below pool active terminal households across all eight paired seeds.
 
 The declared lifecycle contrast is **material for at least one predeclared household/resource/mobility observable** in this synthetic ensemble. Household lifecycle must therefore remain an explicit structural uncertainty dimension for claims that depend on household sharing, M4 permanent migration, or M9 participation/aggregation. This does not establish which lifecycle is historically correct.
 
+M9 is specifically mixed rather than uniformly sensitive: fission changes household-level participation (departures +9.7% and visitor household-days +9.7%), while visitor person-days are nearly unchanged (-0.2%) and the maximum peak is lower (-7.7%). Thus claims about household-event frequency/grouping are structurally sensitive here, whereas this exact aggregate person-exposure measure is comparatively robust in the tested ensemble.
+
 The fixed-founder arm's active household ages are exactly the 40-year run duration by construction. The size-fission arm instead contains multiple household ages because annual creation boundaries are now preserved authoritatively and replayable. M9 visitor person-days, household-days and peak visitors are derived through the ordinary temporary-mobility observability replay rather than counted by a special analysis path.
 
 The machine-readable aggregate used for this page is `research/household-lifecycle-sensitivity-v1/reference-result.json`.
