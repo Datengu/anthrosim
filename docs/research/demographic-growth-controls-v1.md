@@ -31,7 +31,12 @@ A female-only age × birth-spacing transition model is used as the intrinsic dem
 3. the female share of successful births (`1 - 0.512 = 0.488`);
 4. mother aging and spacing-state transition.
 
-The dominant annual growth factor `lambda` is computed from this transition system. The executable reproducer is `scripts/demographic-growth-control-analysis.py`.
+Two complementary quantities are derived from this same declared schedule:
+
+- the dominant annual growth factor `lambda` and `r = ln(lambda)`, which classify intrinsic annual growth direction;
+- expected lifetime daughters per newborn female, an `R0`-like generation-replacement quantity that is centred on `1.0` for replacement.
+
+The executable reproducer is `scripts/demographic-growth-control-analysis.py`, and the committed Rust regression independently recomputes the daughter-replacement quantity from the JSON schedules.
 
 This derivation deliberately excludes:
 
@@ -54,6 +59,7 @@ Its intrinsic age/spacing transition has approximately:
 ```text
 lambda ~= 0.99504/year
 r = ln(lambda) ~= -0.00497/year
+expected lifetime daughters/newborn female ~= 0.86245
 ```
 
 The historical baseline is therefore intrinsically declining once its effective four-year spacing is represented, even before local-male losses and founder/spatial effects are added.
@@ -76,6 +82,7 @@ The age/spacing transition gives approximately:
 ```text
 lambda ~= 1.00002/year
 r ~= +0.000025/year
+expected lifetime daughters/newborn female ~= 1.00074
 ```
 
 This is an **intrinsic replacement control**, not a guarantee that every realized simulation remains numerically constant. Spatial mate limitation, founder transients, stochasticity, mortality from other enabled mechanisms, and later structural changes may still produce growth or decline. That departure is diagnostically useful.
@@ -96,6 +103,7 @@ The intrinsic age/spacing transition gives approximately:
 ```text
 lambda ~= 1.00417/year
 r ~= +0.00416/year
+expected lifetime daughters/newborn female ~= 1.13076
 ```
 
 This creates a deliberately modest positive-growth control rather than an explosive high-fertility stress case.
@@ -122,9 +130,27 @@ replacement: absolute mean late annual log growth < 0.0025
 positive:    mean late annual log growth > +0.002
 ```
 
+The generation-replacement regression additionally requires:
+
+```text
+negative:    expected lifetime daughters < 0.90
+replacement: |expected lifetime daughters - 1.0| < 0.005
+positive:    expected lifetime daughters > 1.10
+```
+
 These are classification tolerances for synthetic controls, not empirical confidence intervals. The fixed-seed regression proves directional model behavior; future inferential use remains subject to the repository's Monte Carlo precision contract.
 
 A separate regression runs the same replacement schedule in a concentrated one-cell versus dispersed 32×32 founder world and requires more realized births in the concentrated case. This explicitly preserves local-male availability as a structural fertility suppressor instead of tuning it out of the replacement schedule.
+
+## Interpreting founder and non-demographic effects
+
+The control definition separates rather than hides these effects:
+
+- **Founder initialization:** the intrinsic calculation has no founder-age distribution; the simulation benchmark uses the ordinary synthetic founder distribution but measures years 80–160, after the strongest direct founder-age transient. A study that needs a stronger convergence claim must use the analysis-window/initialization machinery and, ultimately, #220 diagnostics.
+- **Local male availability:** the concentrated-versus-dispersed regression deliberately demonstrates that the same replacement schedule can realize fewer births when locality suppresses eligible male opportunities.
+- **Non-demographic mortality:** the control benchmark sets condition-mediated mortality to zero and disables M4, so its classification is not contaminated by resource/travel condition mortality. Downstream studies may re-enable those pathways as independent causal dimensions rather than retuning fertility to offset them.
+
+This is the intended decomposition boundary: the demographic schedule has a known intrinsic replacement tendency, while departures caused by initialization, locality or other mechanisms remain visible as departures.
 
 ## Interpretation
 
