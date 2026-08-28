@@ -41,6 +41,18 @@ jobs:
           PY
       - name: Apply semantic patch
         run: python .github/patch-190.py
+      - name: Update observability schema expectation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('crates/anthrosim-core/src/temporary_observability.rs')
+          text = p.read_text()
+          old = '        assert_eq!(first.schema_version, 2);'
+          new = '        assert_eq!(first.schema_version, 3);'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one schema assertion, got {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
       - name: Format
         run: cargo fmt --all
       - name: Compile core
