@@ -122,3 +122,22 @@ fn five_day_visit_between_resource_boundaries_exerts_five_days_of_destination_de
     let (disabled_stock, enabled_stock) = destination_stock_shift(5);
     assert_eq!(disabled_stock.checked_sub(enabled_stock), Some(5));
 }
+
+#[test]
+fn five_day_visit_is_explicitly_preserved_as_visitor_resource_pressure() {
+    let config = config(95_215);
+    let (temporary_mobility, _) = temporary_mobility_for_stay(&config, 5);
+    let checkpoint = Simulation::new(config.with_temporary_mobility(temporary_mobility))
+        .unwrap()
+        .checkpoint_at_year(1)
+        .unwrap();
+    let observation = checkpoint
+        .resources
+        .period_observations()
+        .last()
+        .expect("one-period resource configuration must preserve its observation");
+
+    assert_eq!(observation.visitor_need, 5);
+    assert_eq!(observation.home_need, 360);
+    assert_eq!(observation.home_need + observation.visitor_need, observation.total_need);
+}
