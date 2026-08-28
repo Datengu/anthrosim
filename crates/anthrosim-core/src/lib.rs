@@ -19,6 +19,7 @@ pub mod landscape_binding;
 pub mod manifest;
 pub mod metrics;
 pub mod migration;
+mod mortality;
 pub mod population;
 pub mod provenance;
 pub mod research_experiment;
@@ -46,6 +47,8 @@ pub mod temporary_travel;
 pub mod time;
 pub mod world;
 
+#[cfg(test)]
+mod competing_mortality_acceptance_tests;
 #[cfg(test)]
 mod condition_mortality_acceptance_tests;
 #[cfg(test)]

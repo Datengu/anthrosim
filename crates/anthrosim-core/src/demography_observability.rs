@@ -10,8 +10,10 @@ use crate::{
     events::{DeathCause, EventKind, EventProvenance, EventRecord},
     ids::{CellId, HouseholdId, PersonId},
     manifest::StopReason,
+    mortality::{annual_probability_for_interval, probability_fraction_per_million_ceil},
     population::{Population, ReproductiveSex},
     provenance::MODEL_SEMANTICS_ID,
+    resources::resource_period_day_bounds,
     rng::RngFactory,
     time::DAYS_PER_YEAR,
 };
@@ -91,6 +93,10 @@ pub struct DemographyObservabilityReport {
     pub annual_boundaries_observed: u64,
     pub requested_birth_spacing_days: u32,
     pub effective_birth_spacing_days: u64,
+    pub mortality_risk_intervals_per_year: u16,
+    pub mortality_is_order_invariant_competing_risk: bool,
+    /// Historical field name retained for wire continuity. Under v15 this means fertility is
+    /// conditional on survival through the complete competing-mortality process for the year.
     pub fertility_probability_is_conditional_on_m2_survival: bool,
     pub parentage_uses_pre_same_day_m4_residence: bool,
     pub summary: DemographyObservabilitySummary,
@@ -103,7 +109,7 @@ pub struct DemographyObservabilityReport {
 }
 
 impl DemographyObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -180,6 +186,7 @@ pub fn derive_demography_observability(
         .map(fertility_band_row)
         .collect::<Vec<_>>();
     let mut summary = empty_summary(initial_population, &checkpoint.population);
+    summarize_background_mortality(checkpoint, &mut mortality_bands, &mut summary)?;
     let mut model_intervals = BTreeMap::<u64, u64>::new();
     let mut declared_intervals = BTreeMap::<u64, u64>::new();
     let mut fertility_rng =
@@ -207,23 +214,6 @@ pub fn derive_demography_observability(
         let day_events = &checkpoint.events.events[day_start..event_cursor];
         let same_day_origins = apply_pre_m2_boundary_events(&mut people, day_events, day)?;
         let interval_start_day = day - DAYS_PER_YEAR;
-
-        count_mortality_exposures(
-            &people,
-            config,
-            interval_start_day,
-            &mut mortality_bands,
-            &mut summary,
-        )?;
-        apply_demographic_deaths(
-            &mut people,
-            day_events,
-            config,
-            interval_start_day,
-            &mut mortality_bands,
-            &mut summary,
-            day,
-        )?;
 
         if people.iter().all(|person| !person.alive()) {
             continue;
@@ -423,6 +413,8 @@ pub fn derive_demography_observability(
         annual_boundaries_observed: annual_boundaries,
         requested_birth_spacing_days: config.minimum_birth_spacing_days,
         effective_birth_spacing_days: effective_spacing,
+        mortality_risk_intervals_per_year: checkpoint.experiment.resources.periods_per_year,
+        mortality_is_order_invariant_competing_risk: true,
         fertility_probability_is_conditional_on_m2_survival: true,
         parentage_uses_pre_same_day_m4_residence: true,
         summary,
@@ -548,11 +540,7 @@ fn apply_pre_m2_boundary_events(
                 origins.entry(*household).or_insert(*origin);
                 apply_household_migration(people, *household, *destination);
             }
-            EventKind::Death {
-                person,
-                cause: DeathCause::ResourceScarcity,
-                ..
-            } => mark_replay_death(people, *person, day)?,
+            EventKind::Death { person, .. } => mark_replay_death(people, *person, day)?,
             _ => {}
         }
     }
@@ -588,32 +576,67 @@ fn mark_replay_death(
     Ok(())
 }
 
-fn count_mortality_exposures(
-    people: &[ReplayPerson],
-    config: &DemographyConfig,
-    interval_start_day: u64,
+fn summarize_background_mortality(
+    checkpoint: &SimulationCheckpoint,
     bands: &mut [DemographicMortalityBandObservability],
     summary: &mut DemographyObservabilitySummary,
 ) -> Result<(), DemographyObservabilityError> {
-    for person in people.iter().filter(|person| person.alive()) {
-        let age_days = replay_age(person, interval_start_day)?;
-        let index = schedule_band_index(&config.mortality_bands, age_days)?;
-        bands[index].exposures = bands[index].exposures.saturating_add(1);
-        summary.mortality_exposures = summary.mortality_exposures.saturating_add(1);
-    }
-    Ok(())
-}
+    let config = &checkpoint.experiment.demography;
+    let periods_per_year = checkpoint.experiment.resources.periods_per_year;
+    let end_day = checkpoint.time.days();
+    let years_touched = end_day.div_ceil(DAYS_PER_YEAR);
 
-fn apply_demographic_deaths(
-    people: &mut [ReplayPerson],
-    records: &[EventRecord],
-    config: &DemographyConfig,
-    interval_start_day: u64,
-    bands: &mut [DemographicMortalityBandObservability],
-    summary: &mut DemographyObservabilitySummary,
-    day: u64,
-) -> Result<(), DemographyObservabilityError> {
-    for record in records {
+    for index in 0..checkpoint.population.person_count() {
+        let id = PersonId::new(index as u64 + 1);
+        let person = checkpoint
+            .population
+            .person(id)
+            .ok_or_else(|| invalid(format!("final population is missing {id:?}")))?;
+        for year_index in 0..years_touched {
+            let year_start = year_index.saturating_mul(DAYS_PER_YEAR);
+            if year_start >= end_day {
+                break;
+            }
+            let year_start_i64 = i64::try_from(year_start)
+                .map_err(|_| invalid("demographic year start does not fit i64".to_owned()))?;
+            if person.birth_day > year_start_i64
+                || person
+                    .death_day
+                    .is_some_and(|death_day| death_day <= year_start)
+            {
+                continue;
+            }
+            let age_days = u64::try_from(
+                year_start_i64
+                    .checked_sub(person.birth_day)
+                    .ok_or_else(|| invalid("demographic age subtraction overflowed".to_owned()))?,
+            )
+            .map_err(|_| invalid(format!("{id:?} has negative age at day {year_start}")))?;
+            let band = schedule_band_index(&config.mortality_bands, age_days)?;
+
+            for period_index in 0..periods_per_year {
+                let (_, interval_end) = resource_period_day_bounds(period_index, periods_per_year)
+                    .ok_or_else(|| invalid("resource mortality interval is invalid".to_owned()))?;
+                let boundary_day = year_start.saturating_add(interval_end);
+                if boundary_day > end_day {
+                    break;
+                }
+                if person
+                    .death_day
+                    .is_some_and(|death_day| death_day < boundary_day)
+                {
+                    break;
+                }
+                bands[band].exposures = bands[band].exposures.saturating_add(1);
+                summary.mortality_exposures = summary.mortality_exposures.saturating_add(1);
+                if person.death_day == Some(boundary_day) {
+                    break;
+                }
+            }
+        }
+    }
+
+    for record in &checkpoint.events.events {
         let EventKind::Death {
             person,
             cause: DeathCause::DemographicMortality,
@@ -623,25 +646,53 @@ fn apply_demographic_deaths(
         else {
             continue;
         };
-        let index = replay_index(*person, people.len()).ok_or_else(|| {
+        if record.day == 0 {
+            return Err(invalid(format!(
+                "background death for {person:?} occurs at day zero"
+            )));
+        }
+        let person_record = checkpoint
+            .population
+            .person(*person)
+            .ok_or_else(|| invalid(format!("background death references unknown {person:?}")))?;
+        let year_start = (record.day - 1) / DAYS_PER_YEAR * DAYS_PER_YEAR;
+        let year_start_i64 = i64::try_from(year_start)
+            .map_err(|_| invalid("demographic year start does not fit i64".to_owned()))?;
+        let age_days = u64::try_from(
+            year_start_i64
+                .checked_sub(person_record.birth_day)
+                .ok_or_else(|| invalid("demographic age subtraction overflowed".to_owned()))?,
+        )
+        .map_err(|_| invalid(format!("{person:?} has negative age at day {year_start}")))?;
+        let band = schedule_band_index(&config.mortality_bands, age_days)?;
+        let annual_probability = config.mortality_bands[band].annual_probability_per_million;
+        let offset = record.day - year_start;
+        let mut interval = None;
+        for period_index in 0..periods_per_year {
+            let bounds = resource_period_day_bounds(period_index, periods_per_year)
+                .ok_or_else(|| invalid("resource mortality interval is invalid".to_owned()))?;
+            if bounds.1 == offset {
+                interval = Some(bounds);
+                break;
+            }
+        }
+        let (interval_start, interval_end) = interval.ok_or_else(|| {
             invalid(format!(
-                "M2 death references unknown {person:?} at day {day}"
+                "background death for {person:?} at day {} is not an M3 mortality boundary",
+                record.day
             ))
         })?;
-        if !people[index].alive() {
-            return Err(invalid(format!(
-                "M2 death references already-dead {person:?} at day {day}"
-            )));
-        }
-        let age_days = replay_age(&people[index], interval_start_day)?;
-        let band = schedule_band_index(&config.mortality_bands, age_days)?;
-        let expected = config.mortality_bands[band].annual_probability_per_million;
+        let expected = probability_fraction_per_million_ceil(
+            annual_probability_for_interval(annual_probability, interval_start, interval_end)
+                .map_err(|error| invalid(error.to_string()))?,
+        )
+        .map_err(|error| invalid(error.to_string()))?;
         if *probability_per_million != expected {
             return Err(invalid(format!(
-                "M2 death probability for {person:?} at day {day} is {probability_per_million}, expected {expected}"
+                "background death probability for {person:?} at day {} is {probability_per_million}, expected {expected}",
+                record.day
             )));
         }
-        people[index].death_day = Some(day);
         bands[band].deaths = bands[band].deaths.saturating_add(1);
         summary.demographic_deaths = summary.demographic_deaths.saturating_add(1);
     }

@@ -1,14 +1,19 @@
 use std::sync::OnceLock;
 
-use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    config::{PROBABILITY_PER_MILLION, ResourceConfig},
+    config::{DemographyConfig, PROBABILITY_PER_MILLION, ResourceConfig},
+    demography::annual_probability_for_age,
     events::{DeathCause, EventKind, EventLog},
     ids::HouseholdId,
+    mortality::{
+        CompetingMortalityCause, MortalityMathError, ProbabilityFraction,
+        annual_probability_for_interval, draw_probability_fraction,
+        probability_fraction_per_million_ceil, resolve_two_cause_competing_mortality,
+    },
     population::{Population, PopulationError},
     rng::{RngFactory, RngStreamPosition},
     temporary_resource::{
@@ -83,17 +88,18 @@ pub(crate) struct ResourcePeriodContext<'a> {
     pub day: u64,
 }
 
+/// M2 background mortality inputs evaluated on the same elapsed interval as M3 condition
+/// mortality. The demographic schedule remains age-indexed from the start of the model year.
+pub(crate) struct BackgroundMortalityContext<'a> {
+    pub config: &'a DemographyConfig,
+    pub mortality_rng: &'a mut ChaCha8Rng,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ResourceDemandClaim {
     household_index: usize,
     cell_index: usize,
     need: u64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ProbabilityFraction {
-    numerator: u128,
-    denominator: u128,
 }
 
 fn apportion_resource_claims(
@@ -363,11 +369,31 @@ impl ResourceSystem {
         self.process_period_recorded_with_presence(population, context, scarcity_rng, events, None)
     }
 
+    #[cfg(test)]
     pub(crate) fn process_period_recorded_with_presence(
         &mut self,
         population: &mut Population,
         context: &ResourcePeriodContext<'_>,
         scarcity_rng: &mut ChaCha8Rng,
+        events: &mut EventLog,
+        temporary_presence: Option<&TemporaryResourcePeriod>,
+    ) -> Result<ResourceStepOutcome, ResourceError> {
+        self.process_period_recorded_with_presence_and_background(
+            population,
+            context,
+            scarcity_rng,
+            None,
+            events,
+            temporary_presence,
+        )
+    }
+
+    pub(crate) fn process_period_recorded_with_presence_and_background(
+        &mut self,
+        population: &mut Population,
+        context: &ResourcePeriodContext<'_>,
+        scarcity_rng: &mut ChaCha8Rng,
+        mut background_mortality: Option<BackgroundMortalityContext<'_>>,
         events: &mut EventLog,
         temporary_presence: Option<&TemporaryResourcePeriod>,
     ) -> Result<ResourceStepOutcome, ResourceError> {
@@ -617,6 +643,11 @@ impl ResourceSystem {
         }
 
         let people_at_mortality_boundary = population.person_count();
+        let year_start_day =
+            day.checked_sub(period_end)
+                .ok_or(ResourceError::InternalInvariant(
+                    "resource mortality boundary precedes its model-year interval",
+                ))?;
         for person_index in 0..people_at_mortality_boundary {
             if !population.is_alive_index(person_index) {
                 continue;
@@ -630,40 +661,87 @@ impl ResourceSystem {
                     / u64::from(PERMILLE_MAX),
             )
             .map_err(|_| ResourceError::AccountingOverflow)?;
-            let interval_probability = reference_quarter_probability_for_interval(
+            let condition_probability = reference_quarter_probability_for_interval(
                 reference_probability,
                 period_start,
                 period_end,
             )?;
-            if draw_probability_fraction(scarcity_rng, interval_probability) {
-                let person = population.person_id_at_index(person_index).ok_or(
-                    ResourceError::InternalInvariant("living person has no stable ID"),
-                )?;
-                let household = population.household_at_index(person_index).ok_or(
-                    ResourceError::InternalInvariant("living person has no household"),
-                )?;
-                let cell = population.location_at_index(person_index).ok_or(
-                    ResourceError::InternalInvariant("living person has no location"),
-                )?;
-                if population.mark_death(person_index, day) {
-                    self.scarcity_deaths = self
-                        .scarcity_deaths
-                        .checked_add(1)
-                        .ok_or(ResourceError::AccountingOverflow)?;
-                    events.push_authoritative(
-                        day,
-                        EventKind::Death {
-                            person,
-                            household,
-                            cell,
-                            cause: DeathCause::ResourceScarcity,
-                            condition_permille: condition,
-                            probability_per_million: probability_fraction_per_million_ceil(
-                                interval_probability,
-                            )?,
-                        },
-                    );
-                }
+            let condition_probability_per_million =
+                probability_fraction_per_million_ceil(condition_probability)?;
+
+            let (resolved_cause, background_probability_per_million) =
+                if let Some(background) = background_mortality.as_mut() {
+                    let age_days = population
+                        .age_days_at_index(person_index, year_start_day)
+                        .ok_or(ResourceError::InternalInvariant(
+                            "living person has no representable age at demographic year start",
+                        ))?;
+                    let annual_background_probability =
+                        annual_probability_for_age(&background.config.mortality_bands, age_days);
+                    let background_probability = annual_probability_for_interval(
+                        annual_background_probability,
+                        period_start,
+                        period_end,
+                    )?;
+                    let background_probability_per_million =
+                        probability_fraction_per_million_ceil(background_probability)?;
+                    (
+                        resolve_two_cause_competing_mortality(
+                            condition_probability,
+                            background_probability,
+                            scarcity_rng,
+                            &mut *background.mortality_rng,
+                        )?,
+                        background_probability_per_million,
+                    )
+                } else {
+                    (
+                        draw_probability_fraction(scarcity_rng, condition_probability)?
+                            .then_some(CompetingMortalityCause::ConditionMediated),
+                        0,
+                    )
+                };
+
+            let Some(resolved_cause) = resolved_cause else {
+                continue;
+            };
+            let person = population.person_id_at_index(person_index).ok_or(
+                ResourceError::InternalInvariant("living person has no stable ID"),
+            )?;
+            let household = population.household_at_index(person_index).ok_or(
+                ResourceError::InternalInvariant("living person has no household"),
+            )?;
+            let cell = population.location_at_index(person_index).ok_or(
+                ResourceError::InternalInvariant("living person has no location"),
+            )?;
+            if population.mark_death(person_index, day) {
+                let (cause, probability_per_million) = match resolved_cause {
+                    CompetingMortalityCause::ConditionMediated => {
+                        self.scarcity_deaths = self
+                            .scarcity_deaths
+                            .checked_add(1)
+                            .ok_or(ResourceError::AccountingOverflow)?;
+                        (
+                            DeathCause::ResourceScarcity,
+                            condition_probability_per_million,
+                        )
+                    }
+                    CompetingMortalityCause::Background => (
+                        DeathCause::DemographicMortality,
+                        background_probability_per_million,
+                    ),
+                };
+                events.push_authoritative(
+                    day,
+                    EventKind::Death {
+                        person,
+                        household,
+                        cell,
+                        cause,
+                        condition_permille: condition,
+                        probability_per_million,
+                    },
+                );
             }
         }
 
@@ -1035,42 +1113,6 @@ fn reference_quarter_probability_for_interval(
     })
 }
 
-fn draw_probability_fraction(rng: &mut ChaCha8Rng, probability: ProbabilityFraction) -> bool {
-    if probability.numerator == 0 {
-        return false;
-    }
-    if probability.numerator >= probability.denominator {
-        return true;
-    }
-    draw_bounded_u128(rng, probability.denominator) < probability.numerator
-}
-
-fn draw_bounded_u128<R: Rng + ?Sized>(rng: &mut R, upper_exclusive: u128) -> u128 {
-    debug_assert!(upper_exclusive > 0);
-    let acceptance_limit = u128::MAX - (u128::MAX % upper_exclusive);
-    loop {
-        let draw = (u128::from(rng.next_u64()) << 64) | u128::from(rng.next_u64());
-        if draw < acceptance_limit {
-            return draw % upper_exclusive;
-        }
-    }
-}
-
-fn probability_fraction_per_million_ceil(
-    probability: ProbabilityFraction,
-) -> Result<u32, ResourceError> {
-    if probability.numerator == 0 {
-        return Ok(0);
-    }
-    let scaled = probability
-        .numerator
-        .checked_mul(u128::from(PROBABILITY_PER_MILLION))
-        .ok_or(ResourceError::AccountingOverflow)?
-        .div_ceil(probability.denominator)
-        .min(u128::from(PROBABILITY_PER_MILLION));
-    u32::try_from(scaled).map_err(|_| ResourceError::AccountingOverflow)
-}
-
 fn seasonal_prefix_table() -> &'static [Vec<u64>] {
     SEASONAL_PREFIX_BY_AMPLITUDE
         .get_or_init(|| {
@@ -1321,6 +1363,8 @@ pub enum ResourceError {
     Population(#[from] PopulationError),
     #[error(transparent)]
     TemporaryResource(#[from] TemporaryResourceAccountingError),
+    #[error(transparent)]
+    Mortality(#[from] MortalityMathError),
     #[error("resource accounting overflowed")]
     AccountingOverflow,
     #[error("resource cell {cell_index} stock {stock} exceeds configured capacity {capacity}")]

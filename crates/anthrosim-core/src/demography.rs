@@ -186,6 +186,10 @@ impl DemographyRngs {
         positions[2].restore(&mut self.parentage);
         positions[3].restore(&mut self.newborn_sex);
     }
+
+    pub(crate) fn mortality_rng_mut(&mut self) -> &mut ChaCha8Rng {
+        &mut self.mortality
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -198,10 +202,11 @@ pub(crate) enum DemographyStepOutcome {
 /// Advance one annual M2 demographic transition for `[day - 365, day)`.
 ///
 /// The schedule probability is selected from age at the **start** of the elapsed interval.
-/// Mortality is then drawn first. Fertility is a conditional live-birth opportunity among
-/// surviving females, so a female that undergoes demographic mortality on this boundary cannot
-/// also give birth on it. This is an explicit annual discrete competing-transition contract, not
-/// a continuous-time hazard model.
+/// The test-only standalone transition can still draw the annual background-mortality risk in
+/// one step. Authoritative simulation hosts instead partition that same annual risk over elapsed
+/// M3 intervals and resolve it jointly with condition-mediated mortality before calling the annual
+/// fertility/parentage finalizer below. Fertility therefore remains conditional on survival through
+/// all mortality processes in the elapsed year.
 ///
 /// Parentage locality uses the persistent-residence snapshot immediately before any M4 relocation
 /// recorded on the same day. A zero-duration destination therefore cannot redefine exposure over
@@ -219,6 +224,7 @@ pub(crate) fn process_demographic_year(
     process_demographic_year_recorded(population, world, config, day, rngs, &mut events)
 }
 
+#[cfg(test)]
 pub(crate) fn process_demographic_year_recorded(
     population: &mut Population,
     world: &World,
@@ -232,6 +238,7 @@ pub(crate) fn process_demographic_year_recorded(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn process_demographic_year_recorded_with_founder_history(
     population: &mut Population,
     world: &World,
@@ -239,6 +246,63 @@ pub(crate) fn process_demographic_year_recorded_with_founder_history(
     day: u64,
     rngs: &mut DemographyRngs,
     events: &mut EventLog,
+    founder_population: Option<&FounderPopulationDefinition>,
+) -> Result<DemographyStepOutcome, PopulationError> {
+    process_demographic_year_recorded_internal(
+        population,
+        world,
+        config,
+        day,
+        rngs,
+        events,
+        true,
+        founder_population,
+    )
+}
+
+pub(crate) fn process_demographic_year_after_competing_mortality_recorded(
+    population: &mut Population,
+    world: &World,
+    config: &DemographyConfig,
+    day: u64,
+    rngs: &mut DemographyRngs,
+    events: &mut EventLog,
+) -> Result<DemographyStepOutcome, PopulationError> {
+    process_demographic_year_after_competing_mortality_recorded_with_founder_history(
+        population, world, config, day, rngs, events, None,
+    )
+}
+
+pub(crate) fn process_demographic_year_after_competing_mortality_recorded_with_founder_history(
+    population: &mut Population,
+    world: &World,
+    config: &DemographyConfig,
+    day: u64,
+    rngs: &mut DemographyRngs,
+    events: &mut EventLog,
+    founder_population: Option<&FounderPopulationDefinition>,
+) -> Result<DemographyStepOutcome, PopulationError> {
+    process_demographic_year_recorded_internal(
+        population,
+        world,
+        config,
+        day,
+        rngs,
+        events,
+        false,
+        founder_population,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn process_demographic_year_recorded_internal(
+    population: &mut Population,
+    world: &World,
+    config: &DemographyConfig,
+    day: u64,
+    rngs: &mut DemographyRngs,
+    events: &mut EventLog,
+    apply_background_mortality: bool,
     founder_population: Option<&FounderPopulationDefinition>,
 ) -> Result<DemographyStepOutcome, PopulationError> {
     if day < DAYS_PER_YEAR || !day.is_multiple_of(DAYS_PER_YEAR) {
@@ -251,56 +315,54 @@ pub(crate) fn process_demographic_year_recorded_with_founder_history(
     let records_at_boundary_start = population.person_count();
     let same_day_migration_origins = same_day_migration_origins(events, day);
 
-    for index in 0..records_at_boundary_start {
-        if !population.is_alive_index(index) {
-            continue;
-        }
-        let age_days = population
-            .age_days_at_index(index, interval_start_day)
-            .ok_or(PopulationError::InternalInvariant {
-                reason: "living person has no representable age at demographic interval start",
-            })?;
-        let probability = annual_probability_for_age(&config.mortality_bands, age_days);
-        if draw_per_million(&mut rngs.mortality, probability) {
-            let person =
-                population
-                    .person_id_at_index(index)
-                    .ok_or(PopulationError::InternalInvariant {
+    if apply_background_mortality {
+        for index in 0..records_at_boundary_start {
+            if !population.is_alive_index(index) {
+                continue;
+            }
+            let age_days = population
+                .age_days_at_index(index, interval_start_day)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "living person has no representable age at demographic interval start",
+                })?;
+            let probability = annual_probability_for_age(&config.mortality_bands, age_days);
+            if draw_per_million(&mut rngs.mortality, probability) {
+                let person = population.person_id_at_index(index).ok_or(
+                    PopulationError::InternalInvariant {
                         reason: "living person is missing a stable ID at mortality boundary",
-                    })?;
-            let household =
-                population
-                    .household_at_index(index)
-                    .ok_or(PopulationError::InternalInvariant {
+                    },
+                )?;
+                let household = population.household_at_index(index).ok_or(
+                    PopulationError::InternalInvariant {
                         reason: "living person is missing a household at mortality boundary",
-                    })?;
-            let cell = population.location_at_index(index).ok_or(
+                    },
+                )?;
+                let cell = population.location_at_index(index).ok_or(
                 PopulationError::InternalInvariant {
                     reason: "living person is missing a current residence at mortality boundary",
                 },
             )?;
-            let condition =
-                population
-                    .condition_at_index(index)
-                    .ok_or(PopulationError::InternalInvariant {
+                let condition = population.condition_at_index(index).ok_or(
+                    PopulationError::InternalInvariant {
                         reason: "living person is missing condition at mortality boundary",
-                    })?;
-            if population.mark_death(index, day) {
-                events.push_authoritative(
-                    day,
-                    EventKind::Death {
-                        person,
-                        household,
-                        cell,
-                        cause: DeathCause::DemographicMortality,
-                        condition_permille: condition,
-                        probability_per_million: probability,
                     },
-                );
+                )?;
+                if population.mark_death(index, day) {
+                    events.push_authoritative(
+                        day,
+                        EventKind::Death {
+                            person,
+                            household,
+                            cell,
+                            cause: DeathCause::DemographicMortality,
+                            condition_permille: condition,
+                            probability_per_million: probability,
+                        },
+                    );
+                }
             }
         }
     }
-
     if population.living_count() == 0 {
         return Ok(DemographyStepOutcome::PopulationExtinct);
     }
