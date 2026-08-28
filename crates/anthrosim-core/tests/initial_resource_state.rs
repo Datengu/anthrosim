@@ -18,9 +18,9 @@ fn no_event_demography() -> DemographyConfig {
     }
 }
 
-fn run_with(resources: ResourceConfig) -> anthrosim_core::RecordedRun {
+fn simulation_with(seed: u64, resources: ResourceConfig) -> Simulation {
     Simulation::new(
-        ExperimentConfig::new(216_001, 1)
+        ExperimentConfig::new(seed, 1)
             .with_world(WorldConfig::new(1, 1))
             .with_population(PopulationConfig::new(1).with_target_household_size(1))
             .with_demography(no_event_demography())
@@ -28,8 +28,17 @@ fn run_with(resources: ResourceConfig) -> anthrosim_core::RecordedRun {
             .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false)),
     )
     .unwrap()
-    .run_recorded()
-    .unwrap()
+}
+
+fn positive_productivity_seed() -> u64 {
+    (1..=1_000)
+        .find(|seed| {
+            simulation_with(*seed, ResourceConfig::synthetic_validation_v1())
+                .resources()
+                .total_food_stock()
+                .is_ok_and(|stock| stock > 0)
+        })
+        .expect("controlled seed search must find a positive-productivity one-cell world")
 }
 
 #[test]
@@ -44,6 +53,7 @@ fn synthetic_baseline_declares_the_historical_full_stock_assumption() {
 
 #[test]
 fn storage_capacity_does_not_create_additional_initial_stock() {
+    let seed = positive_productivity_seed();
     let mut ten_year_capacity =
         ResourceConfig::synthetic_validation_v1().with_initial_stock_units_per_productivity(5);
     ten_year_capacity.cell_stock_capacity_years = 10;
@@ -51,16 +61,18 @@ fn storage_capacity_does_not_create_additional_initial_stock() {
     let mut twenty_year_capacity = ten_year_capacity.clone();
     twenty_year_capacity.cell_stock_capacity_years = 20;
 
-    let ten = run_with(ten_year_capacity);
-    let twenty = run_with(twenty_year_capacity);
+    let ten = simulation_with(seed, ten_year_capacity);
+    let twenty = simulation_with(seed, twenty_year_capacity);
     assert_eq!(
-        ten.manifest.resources.initial_food_stock, twenty.manifest.resources.initial_food_stock,
+        ten.resources().total_food_stock().unwrap(),
+        twenty.resources().total_food_stock().unwrap(),
         "capacity may cap starting stock, but increasing capacity must not manufacture historical stock"
     );
 }
 
 #[test]
 fn plausible_starting_stock_changes_early_scarcity_with_other_resource_rules_fixed() {
+    let seed = positive_productivity_seed();
     let mut depleted = ResourceConfig::synthetic_validation_v1()
         .with_initial_stock_units_per_productivity(0)
         .with_annual_regeneration_units_per_productivity(0)
@@ -72,11 +84,19 @@ fn plausible_starting_stock_changes_early_scarcity_with_other_resource_rules_fix
         .clone()
         .with_initial_stock_units_per_productivity(10);
 
-    let depleted_run = run_with(depleted);
-    let stocked_run = run_with(stocked);
+    let depleted_simulation = simulation_with(seed, depleted);
+    let stocked_simulation = simulation_with(seed, stocked);
+    assert_eq!(
+        depleted_simulation.resources().total_food_stock().unwrap(),
+        0
+    );
+    assert!(
+        stocked_simulation.resources().total_food_stock().unwrap() > 0,
+        "the controlled positive-productivity world must retain the declared stocked start"
+    );
 
-    assert_eq!(depleted_run.manifest.resources.initial_food_stock, 0);
-    assert!(stocked_run.manifest.resources.initial_food_stock > 0);
+    let depleted_run = depleted_simulation.run_recorded().unwrap();
+    let stocked_run = stocked_simulation.run_recorded().unwrap();
     assert!(
         depleted_run.manifest.resources.unmet_need > stocked_run.manifest.resources.unmet_need,
         "early scarcity must remain sensitive to the explicitly declared starting stock when regeneration and demand are held fixed"
