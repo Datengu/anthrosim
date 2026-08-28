@@ -1,0 +1,1047 @@
+{
+  "base": {
+    "experiment": {
+      "demography": {
+        "fertilityBands": [
+          {
+            "annualProbabilityPerMillion": 0,
+            "endAgeYearsExclusive": 18,
+            "startAgeYears": 0
+          },
+          {
+            "annualProbabilityPerMillion": 281600,
+            "endAgeYearsExclusive": 25,
+            "startAgeYears": 18
+          },
+          {
+            "annualProbabilityPerMillion": 320000,
+            "endAgeYearsExclusive": 35,
+            "startAgeYears": 25
+          },
+          {
+            "annualProbabilityPerMillion": 230400,
+            "endAgeYearsExclusive": 40,
+            "startAgeYears": 35
+          },
+          {
+            "annualProbabilityPerMillion": 102400,
+            "endAgeYearsExclusive": 45,
+            "startAgeYears": 40
+          },
+          {
+            "annualProbabilityPerMillion": 0,
+            "endAgeYearsExclusive": 4294967295,
+            "startAgeYears": 45
+          }
+        ],
+        "maleBirthPermille": 512,
+        "maleParentMaxAgeYearsExclusive": 70,
+        "maleParentMinAgeYears": 18,
+        "minimumBirthSpacingDays": 1278,
+        "mortalityBands": [
+          {
+            "annualProbabilityPerMillion": 180000,
+            "endAgeYearsExclusive": 1,
+            "startAgeYears": 0
+          },
+          {
+            "annualProbabilityPerMillion": 50000,
+            "endAgeYearsExclusive": 5,
+            "startAgeYears": 1
+          },
+          {
+            "annualProbabilityPerMillion": 8000,
+            "endAgeYearsExclusive": 15,
+            "startAgeYears": 5
+          },
+          {
+            "annualProbabilityPerMillion": 10000,
+            "endAgeYearsExclusive": 40,
+            "startAgeYears": 15
+          },
+          {
+            "annualProbabilityPerMillion": 20000,
+            "endAgeYearsExclusive": 55,
+            "startAgeYears": 40
+          },
+          {
+            "annualProbabilityPerMillion": 50000,
+            "endAgeYearsExclusive": 65,
+            "startAgeYears": 55
+          },
+          {
+            "annualProbabilityPerMillion": 120000,
+            "endAgeYearsExclusive": 75,
+            "startAgeYears": 65
+          },
+          {
+            "annualProbabilityPerMillion": 300000,
+            "endAgeYearsExclusive": 4294967295,
+            "startAgeYears": 75
+          }
+        ],
+        "provenance": "synthetic_validation",
+        "scheduleId": "replacement_control_v1",
+        "schemaVersion": 1
+      },
+      "durationYears": 240,
+      "householdLifecycle": {
+        "maxLivingMembers": 8,
+        "modelId": "deterministic_size_fission_v1",
+        "provenance": "synthetic_validation",
+        "schemaVersion": 1
+      },
+      "migration": {
+        "candidateRadiusCells": 3,
+        "conditionPressureThresholdPermille": 900,
+        "decisionPeriodsPerYear": 4,
+        "enabled": true,
+        "kinWeight": 1,
+        "maxRecordedDecisionTraces": 256,
+        "maxUncertaintyPenaltyPermille": 100,
+        "minimumUtilityImprovement": 150,
+        "modelId": "synthetic_validation_v1",
+        "provenance": "synthetic_validation",
+        "relocationRiskBasePenaltyPermille": 50,
+        "relocationRiskPerCellPermille": 25,
+        "resourcePressureThresholdPermille": 850,
+        "resourceWeight": 5,
+        "schemaVersion": 2,
+        "travelConditionCostPerCell": 10,
+        "travelCostWeight": 2,
+        "waterSecurityWeight": 2
+      },
+      "population": {
+        "initialPopulation": 120,
+        "initialization": "synthetic_validation_v1",
+        "maxPersonRecords": 1000000,
+        "schemaVersion": 2,
+        "syntheticMalePermille": 500,
+        "syntheticMaxAgeYears": 60,
+        "targetHouseholdSize": 5
+      },
+      "resources": {
+        "annualNeedUnitsPerPerson": 100,
+        "annualRegenerationUnitsPerProductivity": 1,
+        "cellStockCapacityYears": 10,
+        "conditionRecoveryPerPeriod": 25,
+        "initialStockUnitsPerProductivity": 10,
+        "maxConditionLossPerPeriod": 200,
+        "maxConditionMortalityProbabilityPerMillion": 200000,
+        "modelId": "synthetic_validation_v1",
+        "periodsPerYear": 4,
+        "productivityScalePermille": 1000,
+        "provenance": "synthetic_validation",
+        "schemaVersion": 5,
+        "seasonalityScalePermille": 1000
+      },
+      "schemaVersion": 10,
+      "seed": 3041001,
+      "world": {
+        "height": 12,
+        "schemaVersion": 1,
+        "width": 12
+      }
+    },
+    "spatial": {
+      "landscape": {
+        "geometry": {
+          "cellSizeX": 1000,
+          "cellSizeY": 1000,
+          "coordinateUnit": "metre",
+          "originX": 0,
+          "originY": 12000,
+          "spatialReference": "LOCAL:synthetic"
+        },
+        "gridConvention": {
+          "cellInterpretation": "area",
+          "columnDirection": "increasing_x",
+          "originAnchor": "upper_left_outer_corner",
+          "rowDirection": "decreasing_y"
+        },
+        "height": 12,
+        "layers": [
+          {
+            "layerId": "uniform-traversal",
+            "role": "terrain_traversal",
+            "unit": "normalized_index",
+            "valueDomain": {
+              "max": 1000,
+              "min": 0
+            },
+            "values": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "layerId": "uniform-water",
+            "role": "water_accessibility",
+            "unit": "normalized_index",
+            "valueDomain": {
+              "max": 1000,
+              "min": 0
+            },
+            "values": [
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000
+            ]
+          },
+          {
+            "layerId": "uniform-productivity",
+            "role": "resource_opportunity",
+            "unit": "normalized_index",
+            "valueDomain": {
+              "max": 1000,
+              "min": 0
+            },
+            "values": [
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000,
+              1000
+            ]
+          }
+        ],
+        "schemaVersion": 2,
+        "width": 12
+      },
+      "mechanisms": {
+        "modelId": "general_demography_baseline_uniform_environment_v1",
+        "runRealization": {
+          "environmentSeed": 3040001,
+          "populationSeed": 3040002,
+          "schemaVersion": 1
+        },
+        "schemaVersion": 1,
+        "transforms": [
+          {
+            "direction": "direct",
+            "expectedUnit": "normalized_index",
+            "nodata": {
+              "kind": "reject"
+            },
+            "sourceDomain": {
+              "max": 1000,
+              "min": 0
+            },
+            "sourceLayerId": "uniform-traversal",
+            "target": "movement_cost",
+            "targetMax": 1000,
+            "targetMin": 1000
+          },
+          {
+            "direction": "direct",
+            "expectedUnit": "normalized_index",
+            "nodata": {
+              "kind": "reject"
+            },
+            "sourceDomain": {
+              "max": 1000,
+              "min": 0
+            },
+            "sourceLayerId": "uniform-water",
+            "target": "water_access",
+            "targetMax": 1000,
+            "targetMin": 1000
+          },
+          {
+            "direction": "direct",
+            "expectedUnit": "normalized_index",
+            "nodata": {
+              "kind": "reject"
+            },
+            "sourceDomain": {
+              "max": 1000,
+              "min": 0
+            },
+            "sourceLayerId": "uniform-productivity",
+            "target": "base_productivity",
+            "targetMax": 250,
+            "targetMin": 0
+          }
+        ]
+      },
+      "spatialModelSemanticsId": "anthrosim-spatial-transform-semantics-v3"
+    }
+  },
+  "dimensions": [
+    {
+      "id": "demography",
+      "kind": "structural",
+      "path": "/experiment/demography",
+      "values": [
+        {
+          "fertilityBands": [
+            {
+              "annualProbabilityPerMillion": 0,
+              "endAgeYearsExclusive": 18,
+              "startAgeYears": 0
+            },
+            {
+              "annualProbabilityPerMillion": 220000,
+              "endAgeYearsExclusive": 25,
+              "startAgeYears": 18
+            },
+            {
+              "annualProbabilityPerMillion": 250000,
+              "endAgeYearsExclusive": 35,
+              "startAgeYears": 25
+            },
+            {
+              "annualProbabilityPerMillion": 180000,
+              "endAgeYearsExclusive": 40,
+              "startAgeYears": 35
+            },
+            {
+              "annualProbabilityPerMillion": 80000,
+              "endAgeYearsExclusive": 45,
+              "startAgeYears": 40
+            },
+            {
+              "annualProbabilityPerMillion": 0,
+              "endAgeYearsExclusive": 4294967295,
+              "startAgeYears": 45
+            }
+          ],
+          "maleBirthPermille": 512,
+          "maleParentMaxAgeYearsExclusive": 70,
+          "maleParentMinAgeYears": 18,
+          "minimumBirthSpacingDays": 1278,
+          "mortalityBands": [
+            {
+              "annualProbabilityPerMillion": 180000,
+              "endAgeYearsExclusive": 1,
+              "startAgeYears": 0
+            },
+            {
+              "annualProbabilityPerMillion": 50000,
+              "endAgeYearsExclusive": 5,
+              "startAgeYears": 1
+            },
+            {
+              "annualProbabilityPerMillion": 8000,
+              "endAgeYearsExclusive": 15,
+              "startAgeYears": 5
+            },
+            {
+              "annualProbabilityPerMillion": 10000,
+              "endAgeYearsExclusive": 40,
+              "startAgeYears": 15
+            },
+            {
+              "annualProbabilityPerMillion": 20000,
+              "endAgeYearsExclusive": 55,
+              "startAgeYears": 40
+            },
+            {
+              "annualProbabilityPerMillion": 50000,
+              "endAgeYearsExclusive": 65,
+              "startAgeYears": 55
+            },
+            {
+              "annualProbabilityPerMillion": 120000,
+              "endAgeYearsExclusive": 75,
+              "startAgeYears": 65
+            },
+            {
+              "annualProbabilityPerMillion": 300000,
+              "endAgeYearsExclusive": 4294967295,
+              "startAgeYears": 75
+            }
+          ],
+          "provenance": "synthetic_validation",
+          "scheduleId": "negative_growth_control_v1",
+          "schemaVersion": 1
+        },
+        {
+          "fertilityBands": [
+            {
+              "annualProbabilityPerMillion": 0,
+              "endAgeYearsExclusive": 18,
+              "startAgeYears": 0
+            },
+            {
+              "annualProbabilityPerMillion": 281600,
+              "endAgeYearsExclusive": 25,
+              "startAgeYears": 18
+            },
+            {
+              "annualProbabilityPerMillion": 320000,
+              "endAgeYearsExclusive": 35,
+              "startAgeYears": 25
+            },
+            {
+              "annualProbabilityPerMillion": 230400,
+              "endAgeYearsExclusive": 40,
+              "startAgeYears": 35
+            },
+            {
+              "annualProbabilityPerMillion": 102400,
+              "endAgeYearsExclusive": 45,
+              "startAgeYears": 40
+            },
+            {
+              "annualProbabilityPerMillion": 0,
+              "endAgeYearsExclusive": 4294967295,
+              "startAgeYears": 45
+            }
+          ],
+          "maleBirthPermille": 512,
+          "maleParentMaxAgeYearsExclusive": 70,
+          "maleParentMinAgeYears": 18,
+          "minimumBirthSpacingDays": 1278,
+          "mortalityBands": [
+            {
+              "annualProbabilityPerMillion": 180000,
+              "endAgeYearsExclusive": 1,
+              "startAgeYears": 0
+            },
+            {
+              "annualProbabilityPerMillion": 50000,
+              "endAgeYearsExclusive": 5,
+              "startAgeYears": 1
+            },
+            {
+              "annualProbabilityPerMillion": 8000,
+              "endAgeYearsExclusive": 15,
+              "startAgeYears": 5
+            },
+            {
+              "annualProbabilityPerMillion": 10000,
+              "endAgeYearsExclusive": 40,
+              "startAgeYears": 15
+            },
+            {
+              "annualProbabilityPerMillion": 20000,
+              "endAgeYearsExclusive": 55,
+              "startAgeYears": 40
+            },
+            {
+              "annualProbabilityPerMillion": 50000,
+              "endAgeYearsExclusive": 65,
+              "startAgeYears": 55
+            },
+            {
+              "annualProbabilityPerMillion": 120000,
+              "endAgeYearsExclusive": 75,
+              "startAgeYears": 65
+            },
+            {
+              "annualProbabilityPerMillion": 300000,
+              "endAgeYearsExclusive": 4294967295,
+              "startAgeYears": 75
+            }
+          ],
+          "provenance": "synthetic_validation",
+          "scheduleId": "replacement_control_v1",
+          "schemaVersion": 1
+        },
+        {
+          "fertilityBands": [
+            {
+              "annualProbabilityPerMillion": 0,
+              "endAgeYearsExclusive": 18,
+              "startAgeYears": 0
+            },
+            {
+              "annualProbabilityPerMillion": 352000,
+              "endAgeYearsExclusive": 25,
+              "startAgeYears": 18
+            },
+            {
+              "annualProbabilityPerMillion": 400000,
+              "endAgeYearsExclusive": 35,
+              "startAgeYears": 25
+            },
+            {
+              "annualProbabilityPerMillion": 288000,
+              "endAgeYearsExclusive": 40,
+              "startAgeYears": 35
+            },
+            {
+              "annualProbabilityPerMillion": 128000,
+              "endAgeYearsExclusive": 45,
+              "startAgeYears": 40
+            },
+            {
+              "annualProbabilityPerMillion": 0,
+              "endAgeYearsExclusive": 4294967295,
+              "startAgeYears": 45
+            }
+          ],
+          "maleBirthPermille": 512,
+          "maleParentMaxAgeYearsExclusive": 70,
+          "maleParentMinAgeYears": 18,
+          "minimumBirthSpacingDays": 1278,
+          "mortalityBands": [
+            {
+              "annualProbabilityPerMillion": 180000,
+              "endAgeYearsExclusive": 1,
+              "startAgeYears": 0
+            },
+            {
+              "annualProbabilityPerMillion": 50000,
+              "endAgeYearsExclusive": 5,
+              "startAgeYears": 1
+            },
+            {
+              "annualProbabilityPerMillion": 8000,
+              "endAgeYearsExclusive": 15,
+              "startAgeYears": 5
+            },
+            {
+              "annualProbabilityPerMillion": 10000,
+              "endAgeYearsExclusive": 40,
+              "startAgeYears": 15
+            },
+            {
+              "annualProbabilityPerMillion": 20000,
+              "endAgeYearsExclusive": 55,
+              "startAgeYears": 40
+            },
+            {
+              "annualProbabilityPerMillion": 50000,
+              "endAgeYearsExclusive": 65,
+              "startAgeYears": 55
+            },
+            {
+              "annualProbabilityPerMillion": 120000,
+              "endAgeYearsExclusive": 75,
+              "startAgeYears": 65
+            },
+            {
+              "annualProbabilityPerMillion": 300000,
+              "endAgeYearsExclusive": 4294967295,
+              "startAgeYears": 75
+            }
+          ],
+          "provenance": "synthetic_validation",
+          "scheduleId": "positive_growth_control_v1",
+          "schemaVersion": 1
+        }
+      ]
+    },
+    {
+      "id": "household_lifecycle",
+      "kind": "structural",
+      "path": "/experiment/householdLifecycle",
+      "values": [
+        null,
+        {
+          "maxLivingMembers": 8,
+          "modelId": "deterministic_size_fission_v1",
+          "provenance": "synthetic_validation",
+          "schemaVersion": 1
+        }
+      ]
+    },
+    {
+      "id": "founder_age_ceiling_years",
+      "kind": "numeric",
+      "path": "/experiment/population/syntheticMaxAgeYears",
+      "values": [
+        60
+      ]
+    },
+    {
+      "id": "resource_productivity_scale_permille",
+      "kind": "numeric",
+      "path": "/experiment/resources/productivityScalePermille",
+      "values": [
+        1000
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "seeds": [
+    3041001,
+    3041002,
+    3041003,
+    3041004,
+    3041005,
+    3041006,
+    3041007,
+    3041008,
+    3041009,
+    3041010,
+    3041011,
+    3041012,
+    3041013,
+    3041014,
+    3041015,
+    3041016,
+    3041017,
+    3041018,
+    3041019,
+    3041020,
+    3041021,
+    3041022,
+    3041023,
+    3041024,
+    3041025,
+    3041026,
+    3041027,
+    3041028,
+    3041029,
+    3041030,
+    3041031,
+    3041032,
+    3041033,
+    3041034,
+    3041035,
+    3041036,
+    3041037,
+    3041038,
+    3041039,
+    3041040,
+    3041041,
+    3041042,
+    3041043,
+    3041044,
+    3041045,
+    3041046,
+    3041047,
+    3041048,
+    3041049,
+    3041050,
+    3041051,
+    3041052,
+    3041053,
+    3041054,
+    3041055,
+    3041056,
+    3041057,
+    3041058,
+    3041059,
+    3041060,
+    3041061,
+    3041062,
+    3041063,
+    3041064
+  ]
+}

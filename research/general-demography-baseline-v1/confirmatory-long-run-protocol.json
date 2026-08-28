@@ -1,0 +1,36 @@
+{
+  "analysisEndSensitivityDays": [
+    80300,
+    83950
+  ],
+  "analysisStartDay": 43800,
+  "analysisStartSensitivityDays": [
+    36500,
+    51100
+  ],
+  "claimMode": "equilibrium_like",
+  "environmentCoordinateIds": [
+    "resource_productivity_scale_permille"
+  ],
+  "initializationCoordinateIds": [
+    "founder_age_ceiling_years"
+  ],
+  "metrics": [
+    {
+      "id": "living_population",
+      "maxAdjacentWindowMeanShiftPermille": 30,
+      "maxWithinWindowDriftPermille": 30,
+      "regimeBinWidth": 10,
+      "sourcePointer": "/population/livingPopulation"
+    }
+  ],
+  "rationale": "64 new paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille; broad founder/resource sensitivity was tested in the 288-run exploratory factorial. Long-run thresholds/windows are unchanged.",
+  "requiredConsecutiveStableWindows": 2,
+  "runLengthSensitivityEndDays": [
+    65700,
+    76650
+  ],
+  "schemaVersion": 1,
+  "studyId": "issue-304-general-demography-baseline-confirmatory-v1",
+  "windowSnapshots": 20
+}

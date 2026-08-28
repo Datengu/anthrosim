@@ -1,0 +1,928 @@
+{
+  "arms": [
+    {
+      "births": {
+        "ci95Lower": 170.9900210788344,
+        "ci95Upper": 190.6662289211656,
+        "mean": 180.828125,
+        "n": 64,
+        "sd": 40.15626408961522
+      },
+      "deaths": {
+        "ci95Lower": 288.86650386375965,
+        "ci95Upper": 307.53974613624035,
+        "mean": 298.203125,
+        "n": 64,
+        "sd": 38.10935796733579
+      },
+      "demography": "negative_growth_control_v1",
+      "earlyGrowthRatePerYear": {
+        "ci95Lower": -0.010214949933300915,
+        "ci95Upper": -0.008792331271356977,
+        "mean": -0.009503640602328946,
+        "n": 64,
+        "sd": 0.0029033567415837677
+      },
+      "extinction": {
+        "ci95Lower": 0.3229400970440308,
+        "ci95Upper": 0.5591379104300699,
+        "estimate": 0.4375,
+        "n": 64,
+        "successes": 28
+      },
+      "founderAgeCeilingYears": 60,
+      "householdLifecycle": "deterministic_size_fission_v1",
+      "lateBirthDeathRatio": {
+        "ci95Lower": 0.3400373060116793,
+        "ci95Upper": 0.44776788283409,
+        "mean": 0.39390259442288467,
+        "n": 64,
+        "sd": 0.2198623600681967
+      },
+      "lateGrowthRatePerYear": {
+        "ci95Lower": -0.028152640792774207,
+        "ci95Upper": -0.021109868421657893,
+        "mean": -0.02463125460721605,
+        "n": 57,
+        "sd": 0.013564475109399841
+      },
+      "mateLimitationFraction": {
+        "ci95Lower": 0.34280628444104383,
+        "ci95Upper": 0.3697921347457262,
+        "mean": 0.356299209593385,
+        "n": 64,
+        "sd": 0.05507417588801285
+      },
+      "replicates": 64,
+      "resourceProductivityScalePermille": 1000,
+      "spacingLimitationFraction": {
+        "ci95Lower": 0.2553002351837695,
+        "ci95Upper": 0.26525934683287394,
+        "mean": 0.2602797910083217,
+        "n": 64,
+        "sd": 0.020325091129552667
+      },
+      "terminalMaleFraction": {
+        "ci95Lower": 0.4382199274260834,
+        "ci95Upper": 0.6825753267025041,
+        "mean": 0.5603976270642937,
+        "n": 36,
+        "sd": 0.3740202389490801
+      },
+      "terminalPopulation": {
+        "ci95Lower": 1.6533168838549481,
+        "ci95Upper": 3.596683116145052,
+        "max": 14,
+        "mean": 2.625,
+        "median": 1.0,
+        "min": 0,
+        "n": 64,
+        "sd": 3.966126413789496
+      }
+    },
+    {
+      "births": {
+        "ci95Lower": 214.1797740375223,
+        "ci95Upper": 254.5389759624777,
+        "mean": 234.359375,
+        "n": 64,
+        "sd": 82.36723173140662
+      },
+      "deaths": {
+        "ci95Lower": 325.48032879977757,
+        "ci95Upper": 360.36342120022243,
+        "mean": 342.921875,
+        "n": 64,
+        "sd": 71.19129264741247
+      },
+      "demography": "negative_growth_control_v1",
+      "earlyGrowthRatePerYear": {
+        "ci95Lower": -0.010346469472556411,
+        "ci95Upper": -0.008940610602206054,
+        "mean": -0.009643540037381233,
+        "n": 64,
+        "sd": 0.002869152456758582
+      },
+      "extinction": {
+        "ci95Lower": 0.17296379074222612,
+        "ci95Upper": 0.38482873728565137,
+        "estimate": 0.265625,
+        "n": 64,
+        "successes": 17
+      },
+      "founderAgeCeilingYears": 60,
+      "householdLifecycle": "fixed_founder_v1",
+      "lateBirthDeathRatio": {
+        "ci95Lower": 0.496254066776558,
+        "ci95Upper": 0.6304846338860463,
+        "mean": 0.5633693503313021,
+        "n": 64,
+        "sd": 0.27394496667955504
+      },
+      "lateGrowthRatePerYear": {
+        "ci95Lower": -0.018750217664356205,
+        "ci95Upper": -0.012226592648942103,
+        "mean": -0.015488405156649154,
+        "n": 61,
+        "sd": 0.012997978678248845
+      },
+      "mateLimitationFraction": {
+        "ci95Lower": 0.22925403609083916,
+        "ci95Upper": 0.266014900381912,
+        "mean": 0.24763446823637558,
+        "n": 64,
+        "sd": 0.0750235505979453
+      },
+      "replicates": 64,
+      "resourceProductivityScalePermille": 1000,
+      "spacingLimitationFraction": {
+        "ci95Lower": 0.28384002791967,
+        "ci95Upper": 0.2969375305665425,
+        "mean": 0.29038877924310624,
+        "n": 64,
+        "sd": 0.026730088410162566
+      },
+      "terminalMaleFraction": {
+        "ci95Lower": 0.44108677659823115,
+        "ci95Upper": 0.5892907385654194,
+        "mean": 0.5151887575818253,
+        "n": 47,
+        "sd": 0.25919740915454853
+      },
+      "terminalPopulation": {
+        "ci95Lower": 8.095672284063134,
+        "ci95Upper": 14.779327715936866,
+        "max": 62,
+        "mean": 11.4375,
+        "median": 7.5,
+        "min": 0,
+        "n": 64,
+        "sd": 13.640363771158151
+      }
+    },
+    {
+      "births": {
+        "ci95Lower": 398.8251171238377,
+        "ci95Upper": 454.2998828761623,
+        "mean": 426.5625,
+        "n": 64,
+        "sd": 113.21588802631591
+      },
+      "deaths": {
+        "ci95Lower": 494.09836896902243,
+        "ci95Upper": 541.2453810309776,
+        "mean": 517.671875,
+        "n": 64,
+        "sd": 96.22016003119394
+      },
+      "demography": "positive_growth_control_v1",
+      "earlyGrowthRatePerYear": {
+        "ci95Lower": -0.005142272095155,
+        "ci95Upper": -0.003937413977663824,
+        "mean": -0.004539843036409412,
+        "n": 64,
+        "sd": 0.0024589393009156147
+      },
+      "extinction": {
+        "ci95Lower": 0.016069016786292974,
+        "ci95Upper": 0.12899653740093686,
+        "estimate": 0.046875,
+        "n": 64,
+        "successes": 3
+      },
+      "founderAgeCeilingYears": 60,
+      "householdLifecycle": "deterministic_size_fission_v1",
+      "lateBirthDeathRatio": {
+        "ci95Lower": 0.6821590743460519,
+        "ci95Upper": 0.7631813487554606,
+        "mean": 0.7226702115507563,
+        "n": 64,
+        "sd": 0.16535461885728925
+      },
+      "lateGrowthRatePerYear": {
+        "ci95Lower": -0.011984689711338715,
+        "ci95Upper": -0.00789309008716113,
+        "mean": -0.009938889899249922,
+        "n": 64,
+        "sd": 0.008350356754413042
+      },
+      "mateLimitationFraction": {
+        "ci95Lower": 0.3734362250743339,
+        "ci95Upper": 0.3996686319239658,
+        "mean": 0.38655242849914984,
+        "n": 64,
+        "sd": 0.053536507928818755
+      },
+      "replicates": 64,
+      "resourceProductivityScalePermille": 1000,
+      "spacingLimitationFraction": {
+        "ci95Lower": 0.34229894940955624,
+        "ci95Upper": 0.35274736486051167,
+        "mean": 0.34752315713503396,
+        "n": 64,
+        "sd": 0.021323688666467853
+      },
+      "terminalMaleFraction": {
+        "ci95Lower": 0.4436443663694702,
+        "ci95Upper": 0.50778881639361,
+        "mean": 0.47571659138154004,
+        "n": 61,
+        "sd": 0.12780443262323873
+      },
+      "terminalPopulation": {
+        "ci95Lower": 23.78650691629119,
+        "ci95Upper": 33.994743083708805,
+        "max": 100,
+        "mean": 28.890625,
+        "median": 24.5,
+        "min": 0,
+        "n": 64,
+        "sd": 20.833517856325688
+      }
+    },
+    {
+      "births": {
+        "ci95Lower": 770.216153009386,
+        "ci95Upper": 876.565096990614,
+        "mean": 823.390625,
+        "n": 64,
+        "sd": 217.04264939579508
+      },
+      "deaths": {
+        "ci95Lower": 789.5083678020692,
+        "ci95Upper": 880.7728821979308,
+        "mean": 835.140625,
+        "n": 64,
+        "sd": 186.2575335378496
+      },
+      "demography": "positive_growth_control_v1",
+      "earlyGrowthRatePerYear": {
+        "ci95Lower": -0.004031928791128718,
+        "ci95Upper": -0.002628577894697079,
+        "mean": -0.0033302533429128986,
+        "n": 64,
+        "sd": 0.0028640340485867944
+      },
+      "extinction": {
+        "ci95Lower": 0.0,
+        "ci95Upper": 0.05662405979280534,
+        "estimate": 0.0,
+        "n": 64,
+        "successes": 0
+      },
+      "founderAgeCeilingYears": 60,
+      "householdLifecycle": "fixed_founder_v1",
+      "lateBirthDeathRatio": {
+        "ci95Lower": 0.9820161567805638,
+        "ci95Upper": 1.012760103460996,
+        "mean": 0.99738813012078,
+        "n": 64,
+        "sd": 0.06274390126132265
+      },
+      "lateGrowthRatePerYear": {
+        "ci95Lower": -0.0006154215553444897,
+        "ci95Upper": 0.0005781192060599922,
+        "mean": -1.8651174642248804e-05,
+        "n": 64,
+        "sd": 0.002435842231426657
+      },
+      "mateLimitationFraction": {
+        "ci95Lower": 0.10234799341324861,
+        "ci95Upper": 0.12364817283669481,
+        "mean": 0.11299808312497171,
+        "n": 64,
+        "sd": 0.04347055270700746
+      },
+      "replicates": 64,
+      "resourceProductivityScalePermille": 1000,
+      "spacingLimitationFraction": {
+        "ci95Lower": 0.43225958538066067,
+        "ci95Upper": 0.4404057644753292,
+        "mean": 0.43633267492799493,
+        "n": 64,
+        "sd": 0.016625160786472734
+      },
+      "terminalMaleFraction": {
+        "ci95Lower": 0.5020837118143338,
+        "ci95Upper": 0.5248864804751645,
+        "mean": 0.5134850961447491,
+        "n": 64,
+        "sd": 0.04653711770358251
+      },
+      "terminalPopulation": {
+        "ci95Lower": 99.69501352581824,
+        "ci95Upper": 116.80498647418176,
+        "max": 218,
+        "mean": 108.25,
+        "median": 109.0,
+        "min": 25,
+        "n": 64,
+        "sd": 34.91895378348746
+      }
+    },
+    {
+      "births": {
+        "ci95Lower": 239.70873387385592,
+        "ci95Upper": 272.5725161261441,
+        "mean": 256.140625,
+        "n": 64,
+        "sd": 67.07017580223611
+      },
+      "deaths": {
+        "ci95Lower": 353.2574167111618,
+        "ci95Upper": 382.7113332888382,
+        "mean": 367.984375,
+        "n": 64,
+        "sd": 60.11113838826655
+      },
+      "demography": "replacement_control_v1",
+      "earlyGrowthRatePerYear": {
+        "ci95Lower": -0.008505873570562776,
+        "ci95Upper": -0.007048440740321712,
+        "mean": -0.007777157155442244,
+        "n": 64,
+        "sd": 0.0029744073702111015
+      },
+      "extinction": {
+        "ci95Lower": 0.1474989559392414,
+        "ci95Upper": 0.35133257582568644,
+        "estimate": 0.234375,
+        "n": 64,
+        "successes": 15
+      },
+      "founderAgeCeilingYears": 60,
+      "householdLifecycle": "deterministic_size_fission_v1",
+      "lateBirthDeathRatio": {
+        "ci95Lower": 0.4967580273330921,
+        "ci95Upper": 0.5996068254456022,
+        "mean": 0.5481824263893471,
+        "n": 64,
+        "sd": 0.20989936330211834
+      },
+      "lateGrowthRatePerYear": {
+        "ci95Lower": -0.020583854679795066,
+        "ci95Upper": -0.014266183762592097,
+        "mean": -0.01742501922119358,
+        "n": 61,
+        "sd": 0.012587626003022863
+      },
+      "mateLimitationFraction": {
+        "ci95Lower": 0.37123147914531773,
+        "ci95Upper": 0.4041357791807476,
+        "mean": 0.3876836291630327,
+        "n": 64,
+        "sd": 0.06715286667505087
+      },
+      "replicates": 64,
+      "resourceProductivityScalePermille": 1000,
+      "spacingLimitationFraction": {
+        "ci95Lower": 0.2931226320216272,
+        "ci95Upper": 0.3055928964570164,
+        "mean": 0.2993577642393218,
+        "n": 64,
+        "sd": 0.02544998690537801
+      },
+      "terminalMaleFraction": {
+        "ci95Lower": 0.46766179782496475,
+        "ci95Upper": 0.6111408482740716,
+        "mean": 0.5394013230495182,
+        "n": 49,
+        "sd": 0.25621729814066957
+      },
+      "terminalPopulation": {
+        "ci95Lower": 5.762861958639062,
+        "ci95Upper": 10.549638041360938,
+        "max": 47,
+        "mean": 8.15625,
+        "median": 5.0,
+        "min": 0,
+        "n": 64,
+        "sd": 9.769110290759127
+      }
+    },
+    {
+      "births": {
+        "ci95Lower": 431.41773916215635,
+        "ci95Upper": 506.45726083784365,
+        "mean": 468.9375,
+        "n": 64,
+        "sd": 153.14469504049958
+      },
+      "deaths": {
+        "ci95Lower": 508.0309045197394,
+        "ci95Upper": 569.1565954802605,
+        "mean": 538.59375,
+        "n": 64,
+        "sd": 124.74860036750229
+      },
+      "demography": "replacement_control_v1",
+      "earlyGrowthRatePerYear": {
+        "ci95Lower": -0.007334633678379427,
+        "ci95Upper": -0.0057928111476940585,
+        "mean": -0.006563722413036743,
+        "n": 64,
+        "sd": 0.0031466344133812027
+      },
+      "extinction": {
+        "ci95Lower": 0.002763541923337505,
+        "ci95Upper": 0.08334101600094265,
+        "estimate": 0.015625,
+        "n": 64,
+        "successes": 1
+      },
+      "founderAgeCeilingYears": 60,
+      "householdLifecycle": "fixed_founder_v1",
+      "lateBirthDeathRatio": {
+        "ci95Lower": 0.8457458070563236,
+        "ci95Upper": 0.9272806562037926,
+        "mean": 0.8865132316300581,
+        "n": 64,
+        "sd": 0.16640070897344142
+      },
+      "lateGrowthRatePerYear": {
+        "ci95Lower": -0.00517984618677957,
+        "ci95Upper": -0.0022118358946757585,
+        "mean": -0.0036958410407276644,
+        "n": 63,
+        "sd": 0.006009766391265836
+      },
+      "mateLimitationFraction": {
+        "ci95Lower": 0.15284090535334582,
+        "ci95Upper": 0.18044065560415473,
+        "mean": 0.16664078047875028,
+        "n": 64,
+        "sd": 0.05632705594288925
+      },
+      "replicates": 64,
+      "resourceProductivityScalePermille": 1000,
+      "spacingLimitationFraction": {
+        "ci95Lower": 0.3628133215022983,
+        "ci95Upper": 0.3726167100651937,
+        "mean": 0.367715015783746,
+        "n": 64,
+        "sd": 0.020007283073001904
+      },
+      "terminalMaleFraction": {
+        "ci95Lower": 0.4937646705127385,
+        "ci95Upper": 0.5488140018967507,
+        "mean": 0.5212893362047446,
+        "n": 63,
+        "sd": 0.11146646711214325
+      },
+      "terminalPopulation": {
+        "ci95Lower": 42.5071493436657,
+        "ci95Upper": 58.1803506563343,
+        "max": 116,
+        "mean": 50.34375,
+        "median": 48.5,
+        "min": 0,
+        "n": 64,
+        "sd": 31.986712891250665
+      }
+    }
+  ],
+  "longRun": {
+    "environmentDependenceDetected": false,
+    "initializationDependenceDetected": false,
+    "multipleStableRegimesDetected": true,
+    "primaryClassificationCounts": {
+      "drifting": 369,
+      "insufficient_data": 10,
+      "stable": 5
+    },
+    "researchGateStatus": "failed",
+    "sensitivityChangedRunCountByTreatmentContext": {
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":220000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":250000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":80000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"negative_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle=null": 6,
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":220000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":250000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":80000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"negative_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle={\"maxLivingMembers\":8,\"modelId\":\"deterministic_size_fission_v1\",\"provenance\":\"synthetic_validation\",\"schemaVersion\":1}": 8,
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":281600,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":320000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":230400,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":102400,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"replacement_control_v1\",\"schemaVersion\":1}|household_lifecycle=null": 3,
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":281600,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":320000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":230400,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":102400,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"replacement_control_v1\",\"schemaVersion\":1}|household_lifecycle={\"maxLivingMembers\":8,\"modelId\":\"deterministic_size_fission_v1\",\"provenance\":\"synthetic_validation\",\"schemaVersion\":1}": 3,
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":352000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":400000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":288000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":128000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"positive_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle=null": 7,
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":352000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":400000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":288000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":128000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"positive_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle={\"maxLivingMembers\":8,\"modelId\":\"deterministic_size_fission_v1\",\"provenance\":\"synthetic_validation\",\"schemaVersion\":1}": 0
+    },
+    "statusCountsByTreatmentContext": {
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":220000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":250000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":80000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"negative_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle=null": {
+        "drifting": 59,
+        "insufficient_data": 5
+      },
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":220000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":250000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":80000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"negative_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle={\"maxLivingMembers\":8,\"modelId\":\"deterministic_size_fission_v1\",\"provenance\":\"synthetic_validation\",\"schemaVersion\":1}": {
+        "drifting": 59,
+        "insufficient_data": 5
+      },
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":281600,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":320000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":230400,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":102400,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"replacement_control_v1\",\"schemaVersion\":1}|household_lifecycle=null": {
+        "drifting": 63,
+        "stable": 1
+      },
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":281600,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":320000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":230400,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":102400,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"replacement_control_v1\",\"schemaVersion\":1}|household_lifecycle={\"maxLivingMembers\":8,\"modelId\":\"deterministic_size_fission_v1\",\"provenance\":\"synthetic_validation\",\"schemaVersion\":1}": {
+        "drifting": 64
+      },
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":352000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":400000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":288000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":128000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"positive_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle=null": {
+        "drifting": 60,
+        "stable": 4
+      },
+      "demography={\"fertilityBands\":[{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":18,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":352000,\"endAgeYearsExclusive\":25,\"startAgeYears\":18},{\"annualProbabilityPerMillion\":400000,\"endAgeYearsExclusive\":35,\"startAgeYears\":25},{\"annualProbabilityPerMillion\":288000,\"endAgeYearsExclusive\":40,\"startAgeYears\":35},{\"annualProbabilityPerMillion\":128000,\"endAgeYearsExclusive\":45,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":0,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":45}],\"maleBirthPermille\":512,\"maleParentMaxAgeYearsExclusive\":70,\"maleParentMinAgeYears\":18,\"minimumBirthSpacingDays\":1278,\"mortalityBands\":[{\"annualProbabilityPerMillion\":180000,\"endAgeYearsExclusive\":1,\"startAgeYears\":0},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":5,\"startAgeYears\":1},{\"annualProbabilityPerMillion\":8000,\"endAgeYearsExclusive\":15,\"startAgeYears\":5},{\"annualProbabilityPerMillion\":10000,\"endAgeYearsExclusive\":40,\"startAgeYears\":15},{\"annualProbabilityPerMillion\":20000,\"endAgeYearsExclusive\":55,\"startAgeYears\":40},{\"annualProbabilityPerMillion\":50000,\"endAgeYearsExclusive\":65,\"startAgeYears\":55},{\"annualProbabilityPerMillion\":120000,\"endAgeYearsExclusive\":75,\"startAgeYears\":65},{\"annualProbabilityPerMillion\":300000,\"endAgeYearsExclusive\":4294967295,\"startAgeYears\":75}],\"provenance\":\"synthetic_validation\",\"scheduleId\":\"positive_growth_control_v1\",\"schemaVersion\":1}|household_lifecycle={\"maxLivingMembers\":8,\"modelId\":\"deterministic_size_fission_v1\",\"provenance\":\"synthetic_validation\",\"schemaVersion\":1}": {
+        "drifting": 64
+      }
+    },
+    "stochasticMultiRegimeContextCount": 1
+  },
+  "monteCarloPrecision": {
+    "positive-fission-extinction-diagnostic": {
+      "batchBoundary": 1,
+      "decision": "sufficient_stop",
+      "designMode": "fixed",
+      "estimand": {
+        "confidenceLevel": 0.95,
+        "kind": "probability",
+        "maxHalfWidth": 0.085
+      },
+      "groupIds": [
+        "positive-fission-extinction"
+      ],
+      "nextDeclaredBatchSeeds": [],
+      "planId": "issue304-positive-fission-extinction-v1",
+      "planIdentity": "monte-carlo-precision-plan-v1-2ce53b6be399ec5852491b7421bd4928ed77e8eba752dfd2a204538999939cd0",
+      "precision": {
+        "confidenceLevel": 0.95,
+        "declaredMaxHalfWidth": 0.085,
+        "estimate": 0.046875,
+        "halfWidth": 0.0821215374009368,
+        "intervalLower": 0.01606901678629298,
+        "intervalUpper": 0.1289965374009368,
+        "precisionMethod": "wilson_score_probability",
+        "sufficient": true
+      },
+      "replicateCount": 64,
+      "schemaVersion": 1,
+      "scientificInterpretation": {
+        "doesNotRepresent": [
+          "parameter uncertainty",
+          "archaeological or evidence uncertainty",
+          "structural or model-form uncertainty"
+        ],
+        "represents": "Monte Carlo/process stochastic uncertainty conditional on this declared model, parameterization, evidence treatment, estimand, and seed design."
+      },
+      "seedIdentities": [
+        3041001,
+        3041002,
+        3041003,
+        3041004,
+        3041005,
+        3041006,
+        3041007,
+        3041008,
+        3041009,
+        3041010,
+        3041011,
+        3041012,
+        3041013,
+        3041014,
+        3041015,
+        3041016,
+        3041017,
+        3041018,
+        3041019,
+        3041020,
+        3041021,
+        3041022,
+        3041023,
+        3041024,
+        3041025,
+        3041026,
+        3041027,
+        3041028,
+        3041029,
+        3041030,
+        3041031,
+        3041032,
+        3041033,
+        3041034,
+        3041035,
+        3041036,
+        3041037,
+        3041038,
+        3041039,
+        3041040,
+        3041041,
+        3041042,
+        3041043,
+        3041044,
+        3041045,
+        3041046,
+        3041047,
+        3041048,
+        3041049,
+        3041050,
+        3041051,
+        3041052,
+        3041053,
+        3041054,
+        3041055,
+        3041056,
+        3041057,
+        3041058,
+        3041059,
+        3041060,
+        3041061,
+        3041062,
+        3041063,
+        3041064
+      ],
+      "uncertaintyCategory": "process_stochastic_monte_carlo"
+    },
+    "positive-fixed-growth-diagnostic": {
+      "batchBoundary": 1,
+      "decision": "sufficient_stop",
+      "designMode": "fixed",
+      "estimand": {
+        "confidenceLevel": 0.95,
+        "kind": "mean",
+        "maxHalfWidth": 0.001
+      },
+      "groupIds": [
+        "positive-fixed"
+      ],
+      "nextDeclaredBatchSeeds": [],
+      "planId": "issue304-positive-fixed-late-growth-v1",
+      "planIdentity": "monte-carlo-precision-plan-v1-802610078d889305e7d5ad33527b1e2422ca95d02e3e52e6257ce69fd965db03",
+      "precision": {
+        "confidenceLevel": 0.95,
+        "declaredMaxHalfWidth": 0.001,
+        "estimate": -1.8651174642248804e-05,
+        "halfWidth": 0.0005967703807022407,
+        "intervalLower": -0.0006154215553444895,
+        "intervalUpper": 0.000578119206059992,
+        "precisionMethod": "normal_clt_mean_se",
+        "sufficient": true
+      },
+      "replicateCount": 64,
+      "schemaVersion": 1,
+      "scientificInterpretation": {
+        "doesNotRepresent": [
+          "parameter uncertainty",
+          "archaeological or evidence uncertainty",
+          "structural or model-form uncertainty"
+        ],
+        "represents": "Monte Carlo/process stochastic uncertainty conditional on this declared model, parameterization, evidence treatment, estimand, and seed design."
+      },
+      "seedIdentities": [
+        3041001,
+        3041002,
+        3041003,
+        3041004,
+        3041005,
+        3041006,
+        3041007,
+        3041008,
+        3041009,
+        3041010,
+        3041011,
+        3041012,
+        3041013,
+        3041014,
+        3041015,
+        3041016,
+        3041017,
+        3041018,
+        3041019,
+        3041020,
+        3041021,
+        3041022,
+        3041023,
+        3041024,
+        3041025,
+        3041026,
+        3041027,
+        3041028,
+        3041029,
+        3041030,
+        3041031,
+        3041032,
+        3041033,
+        3041034,
+        3041035,
+        3041036,
+        3041037,
+        3041038,
+        3041039,
+        3041040,
+        3041041,
+        3041042,
+        3041043,
+        3041044,
+        3041045,
+        3041046,
+        3041047,
+        3041048,
+        3041049,
+        3041050,
+        3041051,
+        3041052,
+        3041053,
+        3041054,
+        3041055,
+        3041056,
+        3041057,
+        3041058,
+        3041059,
+        3041060,
+        3041061,
+        3041062,
+        3041063,
+        3041064
+      ],
+      "uncertaintyCategory": "process_stochastic_monte_carlo"
+    },
+    "positive-household-population-effect-diagnostic": {
+      "batchBoundary": 1,
+      "decision": "sufficient_stop",
+      "designMode": "fixed",
+      "estimand": {
+        "confidenceLevel": 0.95,
+        "kind": "paired_mean_difference",
+        "maxHalfWidth": 15.0
+      },
+      "groupIds": [
+        "fission",
+        "fixed"
+      ],
+      "nextDeclaredBatchSeeds": [],
+      "planId": "issue304-positive-household-terminal-population-effect-v1",
+      "planIdentity": "monte-carlo-precision-plan-v1-b22a3db24d4d2937670faf6a7dcda7c800270fa066c831e1b32aa1e3d6dd62de",
+      "precision": {
+        "confidenceLevel": 0.95,
+        "declaredMaxHalfWidth": 15.0,
+        "estimate": -79.359375,
+        "halfWidth": 8.506669031476521,
+        "intervalLower": -87.86604403147652,
+        "intervalUpper": -70.85270596852348,
+        "precisionMethod": "normal_clt_paired_seed_difference",
+        "sufficient": true
+      },
+      "replicateCount": 64,
+      "schemaVersion": 1,
+      "scientificInterpretation": {
+        "doesNotRepresent": [
+          "parameter uncertainty",
+          "archaeological or evidence uncertainty",
+          "structural or model-form uncertainty"
+        ],
+        "represents": "Monte Carlo/process stochastic uncertainty conditional on this declared model, parameterization, evidence treatment, estimand, and seed design."
+      },
+      "seedIdentities": [
+        3041001,
+        3041002,
+        3041003,
+        3041004,
+        3041005,
+        3041006,
+        3041007,
+        3041008,
+        3041009,
+        3041010,
+        3041011,
+        3041012,
+        3041013,
+        3041014,
+        3041015,
+        3041016,
+        3041017,
+        3041018,
+        3041019,
+        3041020,
+        3041021,
+        3041022,
+        3041023,
+        3041024,
+        3041025,
+        3041026,
+        3041027,
+        3041028,
+        3041029,
+        3041030,
+        3041031,
+        3041032,
+        3041033,
+        3041034,
+        3041035,
+        3041036,
+        3041037,
+        3041038,
+        3041039,
+        3041040,
+        3041041,
+        3041042,
+        3041043,
+        3041044,
+        3041045,
+        3041046,
+        3041047,
+        3041048,
+        3041049,
+        3041050,
+        3041051,
+        3041052,
+        3041053,
+        3041054,
+        3041055,
+        3041056,
+        3041057,
+        3041058,
+        3041059,
+        3041060,
+        3041061,
+        3041062,
+        3041063,
+        3041064
+      ],
+      "uncertaintyCategory": "process_stochastic_monte_carlo"
+    }
+  },
+  "pairedHouseholdEffects": [
+    {
+      "demography": "negative_growth_control_v1",
+      "fissionMinusFixedLateGrowthRatePerYear": {
+        "ci95Lower": -0.014663935466742897,
+        "ci95Upper": -0.005641697780492616,
+        "mean": -0.010152816623617757,
+        "n": 55,
+        "sd": 0.01706937117385062
+      },
+      "fissionMinusFixedMateLimitationFraction": {
+        "ci95Lower": 0.08773363138347293,
+        "ci95Upper": 0.12959585133054588,
+        "mean": 0.1086647413570094,
+        "n": 64,
+        "sd": 0.08543467181494517
+      },
+      "fissionMinusFixedTerminalPopulation": {
+        "ci95Lower": -11.904973713711346,
+        "ci95Upper": -5.720026286288653,
+        "mean": -8.8125,
+        "n": 64,
+        "sd": 12.622573631370312
+      },
+      "founderAgeCeilingYears": 60,
+      "pairedReplicates": 64,
+      "resourceProductivityScalePermille": 1000
+    },
+    {
+      "demography": "positive_growth_control_v1",
+      "fissionMinusFixedLateGrowthRatePerYear": {
+        "ci95Lower": -0.012062809442328262,
+        "ci95Upper": -0.007777668006887086,
+        "mean": -0.009920238724607674,
+        "n": 64,
+        "sd": 0.008745347300750066
+      },
+      "fissionMinusFixedMateLimitationFraction": {
+        "ci95Lower": 0.2574951399676181,
+        "ci95Upper": 0.28961355078073814,
+        "mean": 0.2735543453741781,
+        "n": 64,
+        "sd": 0.06554898164755257
+      },
+      "fissionMinusFixedTerminalPopulation": {
+        "ci95Lower": -87.86604403147652,
+        "ci95Upper": -70.85270596852348,
+        "mean": -79.359375,
+        "n": 64,
+        "sd": 34.72173610770829
+      },
+      "founderAgeCeilingYears": 60,
+      "pairedReplicates": 64,
+      "resourceProductivityScalePermille": 1000
+    },
+    {
+      "demography": "replacement_control_v1",
+      "fissionMinusFixedLateGrowthRatePerYear": {
+        "ci95Lower": -0.016768899860024576,
+        "ci95Upper": -0.010473348045616034,
+        "mean": -0.013621123952820306,
+        "n": 60,
+        "sd": 0.01244031396735693
+      },
+      "fissionMinusFixedMateLimitationFraction": {
+        "ci95Lower": 0.2000630557791537,
+        "ci95Upper": 0.24202264158941109,
+        "mean": 0.2210428486842824,
+        "n": 64,
+        "sd": 0.0856333813095123
+      },
+      "fissionMinusFixedTerminalPopulation": {
+        "ci95Lower": -49.63291111965718,
+        "ci95Upper": -34.74208888034282,
+        "mean": -42.1875,
+        "n": 64,
+        "sd": 30.389991564684372
+      },
+      "founderAgeCeilingYears": 60,
+      "pairedReplicates": 64,
+      "resourceProductivityScalePermille": 1000
+    }
+  ],
+  "recommendation": "no_universal_demographic_baseline",
+  "researchId": "research-execution-v1-8a26e4fe5a3c7647",
+  "runCount": 384,
+  "schemaVersion": 1,
+  "scientificStatus": "confirmatory_synthetic_model_analysis"
+}
