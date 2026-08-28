@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scheduleId": "negative_growth_control_v1",
+  "provenance": "synthetic_validation",
+  "mortalityBands": [
+    {"startAgeYears": 0, "endAgeYearsExclusive": 1, "annualProbabilityPerMillion": 180000},
+    {"startAgeYears": 1, "endAgeYearsExclusive": 5, "annualProbabilityPerMillion": 50000},
+    {"startAgeYears": 5, "endAgeYearsExclusive": 15, "annualProbabilityPerMillion": 8000},
+    {"startAgeYears": 15, "endAgeYearsExclusive": 40, "annualProbabilityPerMillion": 10000},
+    {"startAgeYears": 40, "endAgeYearsExclusive": 55, "annualProbabilityPerMillion": 20000},
+    {"startAgeYears": 55, "endAgeYearsExclusive": 65, "annualProbabilityPerMillion": 50000},
+    {"startAgeYears": 65, "endAgeYearsExclusive": 75, "annualProbabilityPerMillion": 120000},
+    {"startAgeYears": 75, "endAgeYearsExclusive": 4294967295, "annualProbabilityPerMillion": 300000}
+  ],
+  "fertilityBands": [
+    {"startAgeYears": 0, "endAgeYearsExclusive": 18, "annualProbabilityPerMillion": 0},
+    {"startAgeYears": 18, "endAgeYearsExclusive": 25, "annualProbabilityPerMillion": 220000},
+    {"startAgeYears": 25, "endAgeYearsExclusive": 35, "annualProbabilityPerMillion": 250000},
+    {"startAgeYears": 35, "endAgeYearsExclusive": 40, "annualProbabilityPerMillion": 180000},
+    {"startAgeYears": 40, "endAgeYearsExclusive": 45, "annualProbabilityPerMillion": 80000},
+    {"startAgeYears": 45, "endAgeYearsExclusive": 4294967295, "annualProbabilityPerMillion": 0}
+  ],
+  "minimumBirthSpacingDays": 1278,
+  "maleBirthPermille": 512,
+  "maleParentMinAgeYears": 18,
+  "maleParentMaxAgeYearsExclusive": 70
+}
