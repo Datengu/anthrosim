@@ -1,5 +1,4 @@
 name: Issue 304 demographic baseline analysis
-
 on:
   pull_request:
     paths:
@@ -13,155 +12,101 @@ on:
       - "crates/anthrosim-core/src/spatial_simulation.rs"
       - ".github/workflows/general-demography-baseline-analysis.yml"
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   confirmatory-analysis:
     name: 64-seed demographic baseline confirmation
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Checkout issue 304 branch
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: feat/304-general-demographic-baseline
           persist-credentials: true
-
-      - name: Install pinned Rust toolchain
-        run: |
+      - run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
-
       - name: Build research binaries
         run: |
           export ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)"
           cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --bin anthrosim-demography-observability
-
-      - name: Freeze confirmatory definition and long-run protocol
+      - name: Freeze central confirmatory design
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
-          src=Path('research/general-demography-baseline-v1/exploratory-definition.json')
-          d=json.loads(src.read_text())
-          seeds=list(range(3041001,3041065))
-          d['seeds']=seeds
-          d['base']['experiment']['seed']=seeds[0]
-          # Confirm the central 3x2 contrast at the nominal/favourable background; broad
-          # founder/resource sensitivity was already measured in the predeclared exploratory factorial.
+          d=json.loads(Path('research/general-demography-baseline-v1/exploratory-definition.json').read_text())
+          seeds=list(range(3041001,3041065)); d['seeds']=seeds; d['base']['experiment']['seed']=seeds[0]
           d['base']['experiment']['population']['syntheticMaxAgeYears']=60
           d['base']['experiment']['resources']['productivityScalePermille']=1000
-          d['dimensions']=[x for x in d['dimensions'] if x['id'] in {'demography','household_lifecycle'}]
-          Path('/tmp/confirmatory-source.json').write_text(json.dumps(d,separators=(',',':'))+'\n')
-          PY
-          python3 scripts/prepare-general-demography-baseline-definition.py /tmp/confirmatory-source.json /tmp/confirmatory-definition.json
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
+          for x in d['dimensions']:
+              if x['id']=='founder_age_ceiling_years': x['values']=[60]
+              if x['id']=='resource_productivity_scale_permille': x['values']=[1000]
+          Path('/tmp/confirm-source.json').write_text(json.dumps(d,separators=(',',':'))+'\n')
           p=json.loads(Path('research/general-demography-baseline-v1/long-run-protocol.json').read_text())
           p['studyId']='issue-304-general-demography-baseline-confirmatory-v1'
-          p['initializationCoordinateIds']=[]
-          p['environmentCoordinateIds']=[]
-          p['rationale']='Confirmatory 64-seed central 3x2 demographic-control by household-lifecycle comparison at founder age ceiling 60 and resource productivity 1000 permille. Broad initialization/resource sensitivity was tested separately in the exploratory factorial. The long-run thresholds and windows are unchanged from the pre-result protocol.'
-          Path('/tmp/confirmatory-long-run.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n')
+          p['rationale']='64 new paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille; broad founder/resource sensitivity was tested in the 288-run exploratory factorial. Long-run thresholds/windows are unchanged.'
+          Path('/tmp/confirm-long-run.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n')
           PY
-
-      - name: Execute 384 confirmatory runs
+          python3 scripts/prepare-general-demography-baseline-definition.py /tmp/confirm-source.json /tmp/confirm-definition.json
+      - name: Execute and summarize 384 confirmatory runs
         run: |
-          rm -rf /tmp/issue304-confirm /tmp/issue304-observability /tmp/issue304-output
-          target/release/anthrosim-research --definition /tmp/confirmatory-definition.json --run-dir /tmp/issue304-confirm
-          mkdir -p /tmp/issue304-observability /tmp/issue304-output
-          python3 - <<'PY' >/tmp/issue304-runs.tsv
+          rm -rf /tmp/c304 /tmp/o304 /tmp/a304
+          target/release/anthrosim-research --definition /tmp/confirm-definition.json --run-dir /tmp/c304
+          mkdir -p /tmp/o304 /tmp/a304
+          python3 - <<'PY' >/tmp/runs304.tsv
           import json
           from pathlib import Path
-          rows=json.loads(Path('/tmp/issue304-confirm/analysis/runs.json').read_text())['runs']
-          assert len(rows)==384
-          for row in rows:
-              assert row['state']=='completed'
-              print(f"{row['runId']}\t{row['relativeDir']}")
+          rows=json.loads(Path('/tmp/c304/analysis/runs.json').read_text())['runs']; assert len(rows)==384
+          for r in rows:
+              assert r['state']=='completed'; print(f"{r['runId']}\t{r['relativeDir']}")
           PY
-          while IFS=$'\t' read -r run_id relative_dir; do
-            target/release/anthrosim-demography-observability --run-dir "/tmp/issue304-confirm/${relative_dir}" --output "/tmp/issue304-observability/${run_id}.json" >/dev/null
-          done </tmp/issue304-runs.tsv
-          python3 scripts/research-long-run-diagnostics.py /tmp/issue304-confirm /tmp/confirmatory-long-run.json --output /tmp/issue304-output/long-run.json
-          python3 scripts/research-general-demography-baseline.py /tmp/issue304-confirm /tmp/issue304-observability /tmp/issue304-output/summary.json --long-run /tmp/issue304-output/long-run.json
-
-      - name: Apply Monte Carlo precision gates
+          while IFS=$'\t' read -r id rel; do target/release/anthrosim-demography-observability --run-dir "/tmp/c304/$rel" --output "/tmp/o304/$id.json" >/dev/null; done </tmp/runs304.tsv
+          python3 scripts/research-long-run-diagnostics.py /tmp/c304 /tmp/confirm-long-run.json --output /tmp/a304/long-run.json
+          python3 scripts/research-general-demography-baseline.py /tmp/c304 /tmp/o304 /tmp/a304/summary.json --long-run /tmp/a304/long-run.json
+      - name: Apply #231 Monte Carlo precision gates
         run: |
           python3 - <<'PY'
           import hashlib,json
           from pathlib import Path
-          summary=json.loads(Path('/tmp/issue304-output/summary.json').read_text())
-          seeds=list(range(3041001,3041065))
-          root=Path('/tmp/issue304-output/precision'); root.mkdir(parents=True,exist_ok=True)
-          def identity(plan):
-              q=dict(plan); q['planIdentity']=''
-              b=json.dumps(q,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
-              return 'monte-carlo-precision-plan-v1-'+hashlib.sha256(b).hexdigest()
-          def write_mean(schedule,lifecycle):
-              key=f'{schedule}--{lifecycle}'
-              plan={'schemaVersion':1,'planIdentity':'','planId':'issue304-'+key+'-late-growth-v1','uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':'mean','confidenceLevel':0.95,'maxHalfWidth':0.001},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':'independent','rationale':'Require the 95% Monte Carlo half-width for late annual realized population growth to be <=0.10 percentage points/year before interpreting the central demographic baseline contrast.'}
-              plan['planIdentity']=identity(plan)
-              vals={r['seed']:r['lateGrowthRatePerYear'] for r in summary['runs'] if r['demography']==schedule and r['householdLifecycle']==lifecycle}
-              assert set(vals)==set(seeds) and all(v is not None for v in vals.values())
-              sample={'schemaVersion':1,'groups':[{'id':key,'replicates':[{'seed':s,'value':vals[s]} for s in seeds]}]}
-              Path(root/f'{key}-plan.json').write_text(json.dumps(plan,indent=2,sort_keys=True)+'\n')
-              Path(root/f'{key}-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
-          for schedule in ['negative_growth_control_v1','replacement_control_v1','positive_growth_control_v1']:
-              for lifecycle in ['fixed_founder_v1','deterministic_size_fission_v1']:
-                  write_mean(schedule,lifecycle)
-          # Paired structural effect for the least-negative candidate, positive growth.
-          plan={'schemaVersion':1,'planIdentity':'','planId':'issue304-positive-household-effect-v1','uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':'paired_mean_difference','confidenceLevel':0.95,'maxHalfWidth':0.001},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':'paired_by_seed','rationale':'Require <=0.10 percentage points/year Monte Carlo half-width for the paired fission-minus-fixed late-growth effect.'}
-          plan['planIdentity']=identity(plan)
-          def vals(life): return {r['seed']:r['lateGrowthRatePerYear'] for r in summary['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']==life}
-          f=vals('deterministic_size_fission_v1'); b=vals('fixed_founder_v1')
-          sample={'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':s,'value':f[s]} for s in seeds]},{'id':'fixed','replicates':[{'seed':s,'value':b[s]} for s in seeds]}]}
-          Path(root/'positive-household-effect-plan.json').write_text(json.dumps(plan,indent=2,sort_keys=True)+'\n')
-          Path(root/'positive-household-effect-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
-          PY
-          for plan in /tmp/issue304-output/precision/*-plan.json; do
-            stem="${plan%-plan.json}"
-            python3 scripts/research-monte-carlo-sufficiency.py diagnose "$plan" "${stem}-samples.json" "${stem}-diagnostic.json"
-          done
-
-      - name: Preserve confirmatory result and interpretation
-        run: |
-          python3 - <<'PY'
-          import json,statistics
-          from pathlib import Path
-          s=json.loads(Path('/tmp/issue304-output/summary.json').read_text())
-          arms={(a['demography'],a['householdLifecycle']):a for a in s['arms']}
-          def pct(x): return 100*x
-          rows=[]
+          s=json.loads(Path('/tmp/a304/summary.json').read_text()); seeds=list(range(3041001,3041065)); root=Path('/tmp/a304/precision'); root.mkdir()
+          def ident(p):
+              q=dict(p); q['planIdentity']=''; return 'monte-carlo-precision-plan-v1-'+hashlib.sha256(json.dumps(q,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+          def plan(kind,pid):
+              p={'schemaVersion':1,'planIdentity':'','planId':pid,'uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':kind,'confidenceLevel':0.95,'maxHalfWidth':0.001},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':'paired_by_seed' if kind=='paired_mean_difference' else 'independent','rationale':'Issue #304 requires <=0.10 percentage-points/year 95% Monte Carlo half-width for late realized growth estimates used in the baseline decision.'}; p['planIdentity']=ident(p); return p
           for dem in ['negative_growth_control_v1','replacement_control_v1','positive_growth_control_v1']:
               for life in ['fixed_founder_v1','deterministic_size_fission_v1']:
-                  a=arms[(dem,life)]; g=a['lateGrowthRatePerYear']; e=a['extinction']; m=a['mateLimitationFraction']
-                  rows.append((dem,life,pct(g['mean']),pct(g['ci95Lower']),pct(g['ci95Upper']),a['terminalPopulation']['mean'],100*e['estimate'],100*m['mean']))
-          out=Path('research/general-demography-baseline-v1'); out.mkdir(parents=True,exist_ok=True)
-          compact={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':{p.stem:json.loads(p.read_text()) for p in sorted(Path('/tmp/issue304-output/precision').glob('*-diagnostic.json'))}}
-          (out/'confirmatory-result.json').write_text(json.dumps(compact,indent=2,sort_keys=True)+'\n')
-          lines=['# General scientific demographic baseline result v1','','Issue #304 conclusion: **AnthroSim should not designate one universal demographic baseline.** Studies must explicitly declare their demographic schedule; `replacement_control_v1` remains an intrinsic replacement control, not a realized-stationarity default.','','## Confirmatory central 3×2 comparison','', '| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N at year 240 | Extinction | Mate-limited eligible opportunities |','|---|---|---:|---:|---:|---:|']
-          for r in rows: lines.append(f'| `{r[0]}` | `{r[1]}` | {r[2]:+.3f} [{r[3]:+.3f}, {r[4]:+.3f}] | {r[5]:.1f} | {r[6]:.1f}% | {r[7]:.1f}% |')
-          lines += ['','The 64 process seeds are paired across all six arms. Founder age ceiling is 60 years and resource productivity scale is 1000 permille; the prior 288-run exploratory factorial separately tested founder-age and resource-background sensitivity. The #220 equilibrium-like gate is reported in the machine-readable result and remains the authority for stationarity claims.','','### Scientific interpretation','','Intrinsic replacement does not guarantee realized replacement. Local mate availability, persistent/fissioning household topology, migration and stochastic demographic histories alter realized fertility enough that the same demographic schedule can occupy materially different trajectories under different structural assumptions. The deterministic fission alternative is a synthetic sensitivity mechanism, not an empirical household model, so this result does not calibrate prehistoric demography; it demonstrates that hiding demography behind a universal default would confound future experiments.','','Historical `synthetic_validation_v1` and all three #239 controls are unchanged. No population-targeting feedback or artificial regulation is introduced.']
+                  key=f'{dem}--{life}'; vals={r['seed']:r['lateGrowthRatePerYear'] for r in s['runs'] if r['demography']==dem and r['householdLifecycle']==life}; assert set(vals)==set(seeds) and all(v is not None for v in vals.values())
+                  (root/f'{key}-plan.json').write_text(json.dumps(plan('mean','issue304-'+key+'-late-growth-v1'),indent=2,sort_keys=True)+'\n')
+                  sample={'schemaVersion':1,'groups':[{'id':key,'replicates':[{'seed':x,'value':vals[x]} for x in seeds]}]}; (root/f'{key}-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
+          f={r['seed']:r['lateGrowthRatePerYear'] for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']=='deterministic_size_fission_v1'}; b={r['seed']:r['lateGrowthRatePerYear'] for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']=='fixed_founder_v1'}
+          p=plan('paired_mean_difference','issue304-positive-household-effect-v1'); (root/'positive-household-effect-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n'); sample={'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':x,'value':f[x]} for x in seeds]},{'id':'fixed','replicates':[{'seed':x,'value':b[x]} for x in seeds]}]}; (root/'positive-household-effect-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
+          PY
+          for p in /tmp/a304/precision/*-plan.json; do s="${p%-plan.json}"; python3 scripts/research-monte-carlo-sufficiency.py diagnose "$p" "${s}-samples.json" "${s}-diagnostic.json"; done
+      - name: Preserve scientific conclusion
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path('/tmp/a304/summary.json').read_text()); arms={(a['demography'],a['householdLifecycle']):a for a in s['arms']}; prec={p.stem:json.loads(p.read_text()) for p in Path('/tmp/a304/precision').glob('*-diagnostic.json')}
+          out=Path('research/general-demography-baseline-v1'); compact={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':prec}; (out/'confirmatory-result.json').write_text(json.dumps(compact,indent=2,sort_keys=True)+'\n')
+          lines=['# General scientific demographic baseline result v1','','**Conclusion: no universal demographic baseline should be designated.** Future scientific studies must explicitly declare demography. `replacement_control_v1` remains an intrinsic replacement control, not a promise of realized stationarity.','','| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N240 | Extinction | Mate limitation |','|---|---|---:|---:|---:|---:|']
+          for dem in ['negative_growth_control_v1','replacement_control_v1','positive_growth_control_v1']:
+              for life in ['fixed_founder_v1','deterministic_size_fission_v1']:
+                  a=arms[(dem,life)]; g=a['lateGrowthRatePerYear']; lines.append(f"| `{dem}` | `{life}` | {100*g['mean']:+.3f} [{100*g['ci95Lower']:+.3f}, {100*g['ci95Upper']:+.3f}] | {a['terminalPopulation']['mean']:.1f} | {100*a['extinction']['estimate']:.1f}% | {100*a['mateLimitationFraction']['mean']:.1f}% |")
+          lines += ['','This 64-seed confirmation uses new paired process seeds, founder age ceiling 60 years and resource productivity 1000 permille. The separate 288-run exploratory factorial tested founder ages 40/60 and productivity 500/750/1000. The #220 equilibrium gate and #231 precision diagnostics are preserved in the machine-readable result.','','The result demonstrates model-form dependence, not prehistoric calibration: deterministic fission is a structural sensitivity treatment, and none of these schedules is empirically calibrated. Historical `synthetic_validation_v1` and all three #239 controls remain unchanged; no target-population feedback is introduced.']
           Path('docs/research/general-scientific-demographic-baseline-v1.md').write_text('\n'.join(lines)+'\n')
           PY
-          cp /tmp/confirmatory-definition.json research/general-demography-baseline-v1/confirmatory-definition.json
-          cp /tmp/confirmatory-long-run.json research/general-demography-baseline-v1/confirmatory-long-run-protocol.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp /tmp/confirm-definition.json research/general-demography-baseline-v1/confirmatory-definition.json
+          cp /tmp/confirm-long-run.json research/general-demography-baseline-v1/confirmatory-long-run-protocol.json
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add research/general-demography-baseline-v1 docs/research/general-scientific-demographic-baseline-v1.md
           git commit -m "research: preserve issue 304 confirmatory result"
           git push origin HEAD:feat/304-general-demographic-baseline
-
-      - name: Upload confirmatory analysis artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: issue-304-demographic-baseline-confirmatory
           retention-days: 14
-          path: |
-            /tmp/issue304-output
-            /tmp/confirmatory-definition.json
-            /tmp/confirmatory-long-run.json
+          path: /tmp/a304
