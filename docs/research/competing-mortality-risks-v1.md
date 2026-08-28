@@ -74,7 +74,9 @@ P(condition cause | dual trigger)  proportional to q_c
 P(background cause | dual trigger) proportional to q_b
 ```
 
-The implementation uses the per-million representations of the two exact interval risks as integer weights. The tie draw combines one draw from each named cause stream using XOR before unbiased bounded selection. XOR is commutative, so exchanging the two cause labels/streams exchanges attribution but cannot introduce a left/right or first-called preference.
+The implementation uses the event-visible per-million representations of the two exact interval risks as integer weights. Each cause stream contributes one 64-bit word to the ordinary dual-trigger tie draw. Their non-zero XOR supplies a commutative uniform base rank, while the ordering of the two words supplies an exchange-reversing orientation. Reversing the two cause labels and RNG streams therefore leaves the base rank unchanged but complements the bounded draw, so the selected cause reverses exactly. The measure-zero-equality case is resampled symmetrically. This construction introduces no left/right or first-called priority and does not consume extra RNG words in the ordinary dual-trigger case.
+
+The per-million integer weighting is the declared attribution resolution: it matches the probability resolution exposed on authoritative death events but is not a claim of infinitely precise continuous hazards. The latent trigger probabilities themselves continue to use the exact rational interval risks described above.
 
 This is an explicit **discrete independent-trigger competing-risk model**. It should not be described as a fitted continuous-time cause-specific hazard model.
 
