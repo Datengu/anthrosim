@@ -10,6 +10,8 @@ The ordinary sweep run table preserves `simulatedDays` and `endDay` together wit
 
 A smaller cumulative value is not, by itself, evidence of lower process intensity. A run that becomes extinct after ten years has had less time to accrue later births, deaths, migration and resource deficit than a run that survives for one hundred years.
 
+A machine-readable worked reversal is preserved in `docs/research/sweep-exposure-normalization-example-v1.json`.
+
 ## Exposure-aware derived analysis
 
 `scripts/research-sweep-exposure.py` consumes the authoritative derived `analysis/runs.json` table and produces a provenance-bound exposure assessment. It reports, for every parameter point:
