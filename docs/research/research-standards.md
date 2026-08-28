@@ -20,6 +20,8 @@ These frameworks are not certifications and do not by themselves make a model va
 - [`../research-principles.md`](../research-principles.md) — repository-wide research principles.
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence and parameter/input provenance contract.
 - [`../experiments-v0.1.md`](../experiments-v0.1.md) — experiment, ensemble, sweep and reproduction contract.
+- [`study-protocol-v1.md`](study-protocol-v1.md) — machine-readable frozen study-protocol and result-binding contract.
+- [`analysis-window-provenance-v1.md`](analysis-window-provenance-v1.md) — declared burn-in/analysis-window provenance contract.
 - [`../research-integrity.md`](../research-integrity.md) — cryptographic archive-integrity procedure.
 
 The ODD/ODD+D documents do **not** replace the detailed scientific specification. Where a concise standards document and the detailed scientific-model specification appear inconsistent, the discrepancy is a documentation defect that must be resolved before relying on the affected model semantics.
@@ -63,7 +65,11 @@ Before a study is represented as inferential research, freeze a study-specific p
 - analysis method and decision criteria;
 - predictions or discriminating observations that could falsify or separate hypotheses.
 
-Exploratory work may precede such a protocol, but exploratory results must not be retrospectively described as confirmatory.
+For machine-bound confirmatory work, use the versioned [`StudyProtocol`](study-protocol-v1.md) contract and prepare the immutable study root before running the bound `ResearchExperimentDefinition`. The resulting study identity is separate from deterministic simulation/run identity: changing an analysis rule or scientific interpretation creates a new protocol identity without pretending that the underlying model trajectory changed.
+
+A confirmatory result may be described as predeclared/preregistered under this repository contract only when its preserved result binding points back to a frozen pre-execution protocol that remains eligible for that claim. Protocol amendments made after result inspection are allowed and reproducible, but they receive a new identity/revision and cannot silently retain the earlier pre-result label.
+
+Exploratory work may precede such a protocol, and ordinary exploratory/engineering `anthrosim-research` runs remain deliberately easy to execute without the study wrapper. Unbound exploratory results must not be retrospectively described as confirmatory.
 
 ## Primary references
 

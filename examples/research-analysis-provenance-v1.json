@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "definitionType": "anthrosim-analysis-definition",
+  "analysisId": "resource-variability-primary-v1",
+  "analysisStatus": "confirmatory",
+  "executionMode": "scripted",
+  "workingDirectory": ".",
+  "command": [
+    "python3",
+    "analysis/resource-variability.py",
+    "--input",
+    "research/analysis/runs.json",
+    "--config",
+    "analysis/resource-variability-config.json",
+    "--output",
+    "analysis/resource-variability-result.json"
+  ],
+  "arguments": {
+    "analysisWindowId": "primary",
+    "estimand": "predeclared paired mean difference",
+    "extinctionHandling": "report separately; do not drop silently"
+  },
+  "analysisRngSeeds": [
+    314159
+  ],
+  "runtimeDescription": "Python environment reconstructed from analysis/requirements.lock.",
+  "reproductionCriterion": "exact_output_bytes",
+  "inputs": [
+    {
+      "path": "research/analysis/runs.json",
+      "role": "immutable-research-run-table"
+    },
+    {
+      "path": "analysis/studies/PRIMARY_PROTOCOL_ID/analysis-window-manifest.json",
+      "role": "declared-analysis-window"
+    }
+  ],
+  "implementation": [
+    {
+      "path": "analysis/resource-variability.py",
+      "role": "canonical-analysis-script"
+    },
+    {
+      "path": "analysis/resource-variability-config.json",
+      "role": "analysis-configuration"
+    }
+  ],
+  "environment": [
+    {
+      "path": "analysis/requirements.lock",
+      "role": "dependency-lock"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "analysis/resource-variability-result.json",
+      "role": "canonical-machine-readable-result"
+    }
+  ],
+  "manualSteps": [],
+  "observationModelIdentity": null
+}
