@@ -71,6 +71,32 @@ fn storage_capacity_does_not_create_additional_initial_stock() {
 }
 
 #[test]
+fn initial_stock_is_bounded_by_storage_capacity() {
+    let seed = positive_productivity_seed();
+    let mut at_capacity =
+        ResourceConfig::synthetic_validation_v1().with_initial_stock_units_per_productivity(3);
+    at_capacity.cell_stock_capacity_years = 3;
+
+    let above_capacity = at_capacity
+        .clone()
+        .with_initial_stock_units_per_productivity(20);
+
+    let capacity_stock = simulation_with(seed, at_capacity)
+        .resources()
+        .total_food_stock()
+        .unwrap();
+    let capped_stock = simulation_with(seed, above_capacity)
+        .resources()
+        .total_food_stock()
+        .unwrap();
+    assert!(capacity_stock > 0);
+    assert_eq!(
+        capped_stock, capacity_stock,
+        "a requested historical starting stock above physical storage capacity must be capped"
+    );
+}
+
+#[test]
 fn plausible_starting_stock_changes_early_scarcity_with_other_resource_rules_fixed() {
     let seed = positive_productivity_seed();
     let mut depleted = ResourceConfig::synthetic_validation_v1()
