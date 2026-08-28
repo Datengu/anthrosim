@@ -265,6 +265,10 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
     environment = validate_artifact_specs(
         raw["environment"], "environment", require_nonempty=False
     )
+    if status == "confirmatory" and not environment:
+        raise AnalysisProvenanceError(
+            "confirmatory analysis requires at least one environment artifact"
+        )
     outputs = validate_artifact_specs(raw["outputs"], "outputs", require_nonempty=True)
 
     manual_steps = raw["manualSteps"]
@@ -286,6 +290,10 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
     ):
         for entry in entries:
             path = entry["path"]
+            if path == "study-result-binding.json":
+                raise AnalysisProvenanceError(
+                    "study-result-binding.json is automatically bound and may not be redeclared as an analysis artifact"
+                )
             if path in all_paths:
                 raise AnalysisProvenanceError(
                     f"artifact path {path!r} appears in both {all_paths[path]} and {category}"
@@ -559,6 +567,7 @@ def build_record(
             "protocolRevision": binding["protocolRevision"],
             "studyId": binding["studyId"],
             "scientificStatus": binding["scientificStatus"],
+            "boundBeforeExecution": binding["boundBeforeExecution"],
             "confirmatoryPreResultClaimEligible": binding[
                 "confirmatoryPreResultClaimEligible"
             ],
@@ -628,9 +637,9 @@ def prepare_record(
             output_path = resolve_inside(
                 root, output["path"], "declared output", must_exist=False
             )
-            if output_path.is_symlink():
+            if output_path.exists() or output_path.is_symlink():
                 raise AnalysisProvenanceError(
-                    f"declared output must not be a symbolic link: {output_path}"
+                    f"scripted analysis output already exists; use a fresh canonical output path or replay an existing result: {output_path}"
                 )
         result = subprocess.run(definition["command"], cwd=cwd, check=False)
         if result.returncode != 0:
@@ -734,6 +743,7 @@ def verify_record(study_root: Path, record_path: Path | None) -> dict[str, Any]:
         "protocolRevision",
         "studyId",
         "scientificStatus",
+        "boundBeforeExecution",
         "confirmatoryPreResultClaimEligible",
         "definitionIdentity",
         "researchId",
@@ -743,7 +753,8 @@ def verify_record(study_root: Path, record_path: Path | None) -> dict[str, Any]:
     if set(study) != required_study:
         raise AnalysisProvenanceError("record study has missing/unknown fields")
     for key in required_study - {"artifact"}:
-        if study[key] != binding[key]:
+        binding_key = key
+        if study[key] != binding[binding_key]:
             raise AnalysisProvenanceError(
                 f"record study.{key} differs from current frozen study result binding"
             )
