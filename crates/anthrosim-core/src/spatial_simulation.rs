@@ -259,7 +259,7 @@ impl SpatialLandscapeSimulation {
         let configured_program = config
             .temporary_mobility
             .as_ref()
-            .map(|definition| definition.derive_program(&world))
+            .map(|definition| definition.derive_program_with_seed(&world, config.seed))
             .transpose()?;
         let temporary_mobility = match configured_program {
             Some(program) => TemporaryMobilityState::with_program(&population, program, &world)?,
@@ -1162,7 +1162,7 @@ fn validate_spatial_temporary_mobility(
             reason: error.to_string(),
         })?;
     if let Some(definition) = &checkpoint.experiment.temporary_mobility {
-        let expected = definition.derive_program(world)?;
+        let expected = definition.derive_program_with_seed(world, checkpoint.experiment.seed)?;
         if checkpoint.temporary_mobility.program() != Some(&expected) {
             return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {
                 expected: expected.identity(),

@@ -192,7 +192,8 @@ pub use temporary_mobility::{
     TemporaryMobilityConfigError, TemporaryMobilityDayOutcome, TemporaryMobilityError,
     TemporaryMobilityExecutionError, TemporaryMobilityProgram, TemporaryMobilityProgramError,
     TemporaryMobilitySchedule, TemporaryMobilityState, TemporaryMobilityValidationError,
-    TemporaryTravelResolution, TemporaryTravelTable, TemporaryTriggerTiming,
+    TemporaryTravelDestinationCandidate, TemporaryTravelResolution, TemporaryTravelTable,
+    TemporaryTriggerTiming,
 };
 pub use temporary_observability::{
     TemporaryJourneyObservability, TemporaryJourneyObservedStatus,
