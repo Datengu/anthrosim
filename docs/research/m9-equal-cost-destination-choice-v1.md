@@ -8,7 +8,7 @@ M9.4 can find more than one focal-region destination with exactly the same minim
 
 M9.4 now preserves the complete canonical set of exactly equal minimum-cost destinations for every origin. The set is sorted only for stable serialization; ordering is not the causal choice rule. Each candidate also retains the minimum route-edge count among paths achieving that same minimum cost.
 
-When a household actually evaluates a trigger from a tied origin, AnthroSim chooses one candidate using the versioned keyed policy `m9/equal-cost-destination-keyed-v1`. The key contains the experiment seed, origin cell, household identity and trigger index and is passed through a fixed integer avalanche before reduction to the candidate count.
+When a household actually evaluates a trigger from a tied origin, AnthroSim chooses one candidate using the versioned keyed policy `m9/equal-cost-destination-keyed-v1`. The key contains the authoritative M9 tie seed, origin cell, household identity and trigger index and is passed through a fixed integer avalanche before reduction to the candidate count. Core runs use the experiment seed for this role; spatial runs use the resolved process seed from the spatial-realization provenance contract.
 
 This choice is deterministic and platform independent, but it consumes no sequential RNG draw. Therefore adding or removing a tied journey cannot shift M2, M3, M4 or other stochastic streams. Replaying the same experiment/household/trigger produces the same destination exactly.
 

@@ -411,6 +411,11 @@ impl TemporaryTravelTable {
     }
 
     #[must_use]
+    pub const fn destination_tie_seed(&self) -> Option<u64> {
+        self.destination_tie_seed
+    }
+
+    #[must_use]
     pub fn route_distance_edges(&self, origin: CellId, destination: CellId) -> Option<u32> {
         self.equal_cost_destinations(origin)?
             .iter()
