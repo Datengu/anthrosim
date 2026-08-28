@@ -568,7 +568,8 @@ fn process_events(
                     .checked_add(people_moved)
                     .ok_or(SpatialObservabilityError::AccountingOverflow)?;
             }
-            EventKind::TemporaryJourneyNotStarted { .. }
+            EventKind::HouseholdFission { .. }
+            | EventKind::TemporaryJourneyNotStarted { .. }
             | EventKind::TemporaryJourneyDeparted { .. }
             | EventKind::TemporaryJourneyArrived { .. }
             | EventKind::TemporaryReturnDeparted { .. }

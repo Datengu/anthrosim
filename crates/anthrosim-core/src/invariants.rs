@@ -562,7 +562,8 @@ fn validate_events(
                 if snapshot.birth_day != birth_day
                     || snapshot.female_parent != *female_parent
                     || snapshot.male_parent != *male_parent
-                    || snapshot.household != *household
+                    || household.0 == 0
+                    || household.0 > population.household_count
                     || snapshot.reproductive_sex != *reproductive_sex
                     || world.cell(*cell).is_none()
                 {
@@ -646,6 +647,34 @@ fn validate_events(
                     || *choice_draw >= *total_move_weight
                 {
                     return violation("migration event accounting is invalid");
+                }
+            }
+            EventKind::HouseholdFission {
+                event_schema_version,
+                source_household,
+                new_household,
+                residence,
+                people_reassigned,
+            } => {
+                if *event_schema_version != 1
+                    || source_household.0 == 0
+                    || source_household.0 > population.household_count
+                    || new_household.0 == 0
+                    || new_household.0 > population.household_count
+                    || source_household == new_household
+                    || world.cell(*residence).is_none()
+                    || people_reassigned.is_empty()
+                {
+                    return violation("household fission event is invalid");
+                }
+                let mut unique_people = BTreeSet::new();
+                for person in people_reassigned {
+                    if !unique_people.insert(*person) || population_state.person(*person).is_none()
+                    {
+                        return violation(
+                            "household fission event has duplicate or invalid reassigned people",
+                        );
+                    }
                 }
             }
             EventKind::TemporaryJourneyNotStarted {
@@ -926,7 +955,8 @@ fn validate_metrics(
                     migration_distance =
                         migration_distance.saturating_add(u64::from(*distance_cells));
                 }
-                EventKind::TemporaryJourneyNotStarted { .. }
+                EventKind::HouseholdFission { .. }
+                | EventKind::TemporaryJourneyNotStarted { .. }
                 | EventKind::TemporaryJourneyDeparted { .. }
                 | EventKind::TemporaryJourneyArrived { .. }
                 | EventKind::TemporaryReturnDeparted { .. }

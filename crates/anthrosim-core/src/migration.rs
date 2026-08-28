@@ -551,13 +551,25 @@ impl MigrationSystem {
         world: &World,
         temporary_mobility: Option<&TemporaryMobilityState>,
     ) -> Result<(), MigrationError> {
-        if self.living_members.len() != population.household_count()
-            || self.condition_sums.len() != population.household_count()
-            || self.living_conditions.len() != population.household_count()
-            || self.kin_locations.len() != population.household_count()
-            || self.planned_destinations.len() != population.household_count()
-            || self.planned_condition_costs.len() != population.household_count()
-            || self.planned_realized_condition_losses.len() != population.household_count()
+        let household_count = population.household_count();
+        self.living_members.resize(household_count, 0);
+        self.condition_sums.resize(household_count, 0);
+        self.living_conditions
+            .resize_with(household_count, Vec::new);
+        self.kin_locations.resize_with(household_count, Vec::new);
+        self.planned_destinations
+            .resize(household_count, CellId::INVALID);
+        self.planned_condition_costs.resize(household_count, 0);
+        self.planned_realized_condition_losses
+            .resize(household_count, 0);
+
+        if self.living_members.len() != household_count
+            || self.condition_sums.len() != household_count
+            || self.living_conditions.len() != household_count
+            || self.kin_locations.len() != household_count
+            || self.planned_destinations.len() != household_count
+            || self.planned_condition_costs.len() != household_count
+            || self.planned_realized_condition_losses.len() != household_count
             || self.cell_living.len() != world.cell_count()
             || self.boundary_demand_living.len() != world.cell_count()
         {

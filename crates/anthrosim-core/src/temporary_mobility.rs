@@ -1108,6 +1108,65 @@ impl TemporaryMobilityState {
     ///
     /// Ordering is frozen as: return completions, arrivals, return departures, new outward
     /// departures. Zero-day transit closes immediately after the corresponding start event.
+    pub(crate) fn reconcile_household_topology_at_boundary(
+        &mut self,
+        population: &Population,
+        day: u64,
+    ) -> Result<(), TemporaryMobilityExecutionError> {
+        let previous_count = self.household_count();
+        let next_count = population.household_count();
+        if next_count < previous_count {
+            return Err(TemporaryMobilityExecutionError::HouseholdCountContracted {
+                state: previous_count,
+                population: next_count,
+            });
+        }
+        if next_count == previous_count {
+            self.reconcile_after_population_change(population);
+            return Ok(());
+        }
+
+        if let Some(ledger) = self.resource_ledger.as_mut() {
+            ledger.extend_households_at_boundary(next_count)?;
+        }
+        self.household_presence
+            .resize(next_count, HouseholdPresence::AtResidence);
+        self.active_journeys.resize(next_count, None);
+
+        if let Some(program) = &self.program {
+            let past_trigger_indices = program
+                .schedule
+                .trigger_days
+                .iter()
+                .enumerate()
+                .filter(|(_, trigger_day)| **trigger_day <= day)
+                .map(|(index, _)| {
+                    u32::try_from(index)
+                        .map_err(|_| TemporaryMobilityExecutionError::TooManyTriggers)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            for household_index in previous_count..next_count {
+                let household = HouseholdId::new(
+                    u64::try_from(household_index)
+                        .map_err(|_| TemporaryMobilityExecutionError::HouseholdIdOverflow)?
+                        .checked_add(1)
+                        .ok_or(TemporaryMobilityExecutionError::HouseholdIdOverflow)?,
+                );
+                for &trigger_index in &past_trigger_indices {
+                    self.processed_triggers.push(ProcessedTemporaryTrigger {
+                        trigger_index,
+                        household,
+                    });
+                }
+            }
+            self.processed_triggers.sort_unstable();
+            self.processed_triggers.dedup();
+        }
+
+        self.reconcile_after_population_change(population);
+        Ok(())
+    }
+
     pub(crate) fn process_day(
         &mut self,
         day: u64,
@@ -2269,6 +2328,12 @@ pub enum TemporaryMobilityExecutionError {
     TooManyTriggers,
     #[error("temporary journey ID space exhausted")]
     JourneyIdExhausted,
+    #[error("temporary mobility household identity does not fit supported u64 space")]
+    HouseholdIdOverflow,
+    #[error(
+        "temporary mobility household state contracted from {state} to population {population}"
+    )]
+    HouseholdCountContracted { state: usize, population: usize },
     #[error("temporary journey timing overflowed simulation day range")]
     JourneyTimeOverflow,
     #[error("temporary journey active record is missing")]

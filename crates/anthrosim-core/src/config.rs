@@ -20,6 +20,11 @@ pub struct ExperimentConfig {
     /// experiments omit this field, preserving their established serialized experiment identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub founder_population: Option<FounderPopulationDefinition>,
+    /// Optional structural household-lifecycle treatment. `None` preserves the historical
+    /// founder-defined household lifecycle exactly; configured alternatives are explicit
+    /// scientific treatments included in ordinary experiment identity and provenance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub household_lifecycle: Option<HouseholdLifecycleConfig>,
     pub demography: DemographyConfig,
     pub resources: ResourceConfig,
     pub migration: MigrationConfig,
@@ -47,6 +52,7 @@ impl ExperimentConfig {
             world: WorldConfig::default_config(),
             population: PopulationConfig::default_config(),
             founder_population: None,
+            household_lifecycle: None,
             demography: DemographyConfig::synthetic_validation_v1(),
             resources: ResourceConfig::synthetic_validation_v1(),
             migration: MigrationConfig::synthetic_validation_v1(),
@@ -74,6 +80,15 @@ impl ExperimentConfig {
     ) -> Self {
         self.population.initialization = PopulationInitialization::DeclaredFounderStateV1;
         self.founder_population = Some(founder_population);
+        self
+    }
+
+    #[must_use]
+    pub fn with_household_lifecycle(
+        mut self,
+        household_lifecycle: HouseholdLifecycleConfig,
+    ) -> Self {
+        self.household_lifecycle = Some(household_lifecycle);
         self
     }
 
@@ -237,6 +252,41 @@ pub enum ParameterProvenance {
     EvidenceInformed,
     SyntheticValidation,
     Unresolved,
+}
+
+/// Stable identity for the historical baseline in which founder-defined households persist
+/// for the complete run except for extinction. It remains represented by an omitted optional
+/// lifecycle field so pre-#207 synthetic experiment serialization is unchanged.
+pub const FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID: &str = "fixed_founder_v1";
+
+/// Stable identity for the deliberately neutral structural-sensitivity alternative introduced by
+/// #207. It is a stress-test mechanism, not a calibrated household-formation model.
+pub const DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID: &str = "deterministic_size_fission_v1";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HouseholdLifecycleConfig {
+    pub schema_version: u32,
+    pub model_id: String,
+    pub provenance: ParameterProvenance,
+    /// Maximum number of living members retained in one household after an annual lifecycle
+    /// boundary. Oversized at-residence households are partitioned deterministically into the
+    /// minimum number of balanced co-resident groups needed to satisfy this ceiling.
+    pub max_living_members: u16,
+}
+
+impl HouseholdLifecycleConfig {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    #[must_use]
+    pub fn deterministic_size_fission_v1(max_living_members: u16) -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            model_id: DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID.to_owned(),
+            provenance: ParameterProvenance::SyntheticValidation,
+            max_living_members,
+        }
+    }
 }
 
 /// Annual event probability for a half-open age interval.

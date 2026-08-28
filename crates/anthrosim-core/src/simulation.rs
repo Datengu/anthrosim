@@ -15,6 +15,10 @@ use crate::{
     evidence::EvidenceError,
     focal_region::FocalRegionSource,
     founder_initialization::FounderGenealogyStatus,
+    household_lifecycle::{
+        HouseholdLifecycleError, apply_household_lifecycle_at_annual_boundary,
+        validate_household_lifecycle_config,
+    },
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
     metrics::{
         MetricProvenance, MetricSeries, MetricSnapshot, MigrationMetrics, PopulationMetrics,
@@ -518,8 +522,16 @@ impl Simulation {
                 )?;
             self.temporary_mobility
                 .reconcile_after_population_change(&self.population);
+            if let Some(household_lifecycle) = self.config.household_lifecycle.clone() {
+                apply_household_lifecycle_at_annual_boundary(
+                    &mut self.population,
+                    &mut self.temporary_mobility,
+                    &mut self.events,
+                    &household_lifecycle,
+                    self.time.days(),
+                )?;
+            }
             self.record_metric_snapshot();
-
             match outcome {
                 DemographyStepOutcome::Continue => {}
                 DemographyStepOutcome::PopulationExtinct => {
@@ -727,6 +739,9 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SimulationError>
     }
     validate_founder_population_binding(config)?;
     validate_demography_config(&config.demography)?;
+    if let Some(household_lifecycle) = &config.household_lifecycle {
+        validate_household_lifecycle_config(household_lifecycle)?;
+    }
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
     if let Some(temporary_mobility) = &config.temporary_mobility {
@@ -915,6 +930,8 @@ pub enum SimulationError {
     World(#[from] WorldError),
     #[error(transparent)]
     Population(#[from] PopulationError),
+    #[error(transparent)]
+    HouseholdLifecycle(#[from] HouseholdLifecycleError),
     #[error("both ExperimentConfig and an explicit constructor supplied temporary mobility")]
     AmbiguousTemporaryMobilityConfiguration,
     #[error(
