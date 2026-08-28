@@ -134,10 +134,10 @@ pub(crate) fn draw_probability_fraction<R: Rng + ?Sized>(
 /// stream. Neither trigger is allowed to suppress the other. Survival is therefore exactly the
 /// product `(1 - q_condition) * (1 - q_background)`, regardless of which cause is evaluated first.
 /// If exactly one trigger fires, that cause is authoritative. If both fire, attribution is resolved
-/// symmetrically in proportion to the two cause-specific interval risks. The tie allocator first
-/// derives an exchange-reversing orientation from an independent draw pair, then combines later
-/// draws with XOR. Exchanging cause labels/streams therefore complements the bounded tie draw and
-/// exchanges attribution exactly; neither argument position can create a first-called advantage.
+/// symmetrically in proportion to the two cause-specific interval risks. One draw from each
+/// stream supplies both an exchange-reversing orientation and a commutative XOR base. Exchanging
+/// cause labels/streams therefore complements the bounded tie draw and exchanges attribution
+/// exactly without consuming extra ordinary-case RNG words.
 pub(crate) fn resolve_two_cause_competing_mortality(
     condition_probability: ProbabilityFraction,
     background_probability: ProbabilityFraction,
@@ -191,27 +191,24 @@ fn draw_symmetric_bounded(
     upper_exclusive: u64,
 ) -> u64 {
     debug_assert!(upper_exclusive > 0);
-
-    // A commutative XOR alone gives the same bounded draw after exchanging the two streams.
-    // Weighted attribution needs the stronger property d(right,left) = upper - 1 - d(left,right)
-    // so that swapping cause weights swaps the selected cause exactly. Use one independent draw
-    // pair only to choose orientation; equality consumes another pair symmetrically.
-    let left_is_lower = loop {
-        let left_order = left.next_u64();
-        let right_order = right.next_u64();
-        if left_order != right_order {
-            break left_order < right_order;
-        }
-    };
-
     let acceptance_limit = u64::MAX - (u64::MAX % upper_exclusive);
+
     loop {
-        // These later draws are independent of the orientation pair. XOR is commutative, so the
-        // base value is identical after exchanging streams; the orientation then complements it.
-        let draw = left.next_u64() ^ right.next_u64();
-        if draw < acceptance_limit {
-            let base = draw % upper_exclusive;
-            return if left_is_lower {
+        let left_draw = left.next_u64();
+        let right_draw = right.next_u64();
+        if left_draw == right_draw {
+            // Equality has no exchange-reversing orientation. Resample both streams together; this
+            // path has probability 2^-64 for independent 64-bit words and remains exactly symmetric.
+            continue;
+        }
+
+        // Conditional on unequal independent draws, XOR is uniform over 1..=u64::MAX and the
+        // comparison orientation is balanced for every non-zero XOR value. Map XOR-1 to a uniform
+        // zero-based rank, reject the incomplete modulo tail, then complement under reversed order.
+        let rank = (left_draw ^ right_draw) - 1;
+        if rank < acceptance_limit {
+            let base = rank % upper_exclusive;
+            return if left_draw < right_draw {
                 base
             } else {
                 upper_exclusive - 1 - base
