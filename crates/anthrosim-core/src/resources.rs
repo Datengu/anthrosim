@@ -8,7 +8,7 @@ use crate::{
     config::{DemographyConfig, PROBABILITY_PER_MILLION, ResourceConfig},
     demography::annual_probability_for_age,
     events::{DeathCause, EventKind, EventLog},
-    ids::HouseholdId,
+    ids::{CellId, HouseholdId},
     mortality::{
         CompetingMortalityCause, MortalityMathError, ProbabilityFraction,
         annual_probability_for_interval, draw_probability_fraction,
@@ -57,6 +57,75 @@ impl ResourceSummary {
     pub const CURRENT_SCHEMA_VERSION: u32 = 3;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceCellPeriodObservation {
+    pub cell: CellId,
+    pub stock_before_regeneration: u64,
+    pub regenerated: u64,
+    pub stock_after_regeneration: u64,
+    pub home_need: u64,
+    pub visitor_need: u64,
+    pub total_need: u64,
+    pub supplied: u64,
+    pub unmet: u64,
+    pub stock_after_harvest: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HouseholdSupplyFractionDistribution {
+    pub households_with_need: u64,
+    pub supplied_0_to_249_permille: u64,
+    pub supplied_250_to_499_permille: u64,
+    pub supplied_500_to_749_permille: u64,
+    pub supplied_750_to_999_permille: u64,
+    pub supplied_1000_permille: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionDistributionObservation {
+    pub living_people: u64,
+    pub mean_permille: Option<u16>,
+    pub minimum_permille: Option<u16>,
+    pub p10_permille: Option<u16>,
+    pub p25_permille: Option<u16>,
+    pub median_permille: Option<u16>,
+    pub p75_permille: Option<u16>,
+    pub p90_permille: Option<u16>,
+    pub maximum_permille: Option<u16>,
+    pub living_below_250_permille: u64,
+    pub living_below_500_permille: u64,
+    pub living_below_750_permille: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourcePeriodObservation {
+    pub schema_version: u32,
+    pub sequence: u64,
+    pub period_index_in_year: u16,
+    pub start_day: u64,
+    pub end_day: u64,
+    pub stock_before_regeneration: u64,
+    pub regenerated: u64,
+    pub stock_after_regeneration: u64,
+    pub total_need: u64,
+    pub supplied: u64,
+    pub unmet: u64,
+    pub stock_after_harvest: u64,
+    pub households_with_unmet_need: u64,
+    pub household_supply_fraction: HouseholdSupplyFractionDistribution,
+    pub condition_after_resource_response: ConditionDistributionObservation,
+    pub condition_after_mortality: ConditionDistributionObservation,
+    pub cells: Vec<ResourceCellPeriodObservation>,
+}
+
+impl ResourcePeriodObservation {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+}
+
 /// Dynamic M3 resource state.
 ///
 /// The environmental `World` remains an immutable description of baseline
@@ -79,6 +148,14 @@ pub struct ResourceSystem {
     /// checkpoint wire name describes the general condition-mediated mortality mechanism.
     #[serde(rename = "conditionMortalityDeaths")]
     scarcity_deaths: u64,
+    /// Retained diagnostic history. This is downstream observability material and is deliberately
+    /// excluded from `digest64`, so adding it cannot alter causal scientific state identity.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    period_observations: Vec<ResourcePeriodObservation>,
+    /// New runs preserve observations from period one. Legacy checkpoints deserialize this as
+    /// false, making pre-checkpoint history loss explicit rather than fabricating it.
+    #[serde(default)]
+    period_observation_history_complete_from_start: bool,
 }
 
 pub(crate) struct ResourcePeriodContext<'a> {
@@ -271,6 +348,8 @@ impl ResourceSystem {
             periods_processed: 0,
             household_periods_with_unmet_need: 0,
             scarcity_deaths: 0,
+            period_observations: Vec::new(),
+            period_observation_history_complete_from_start: true,
         })
     }
 
@@ -289,6 +368,16 @@ impl ResourceSystem {
     pub fn cell_food_stock(&self, cell: crate::ids::CellId) -> Option<u64> {
         let index = usize::try_from(cell.0.checked_sub(1)?).ok()?;
         self.cell_food_stock.get(index).copied()
+    }
+
+    #[must_use]
+    pub fn period_observations(&self) -> &[ResourcePeriodObservation] {
+        &self.period_observations
+    }
+
+    #[must_use]
+    pub const fn period_observation_history_complete_from_start(&self) -> bool {
+        self.period_observation_history_complete_from_start
     }
 
     #[must_use]
@@ -434,7 +523,10 @@ impl ResourceSystem {
         .map_err(|_| ResourceError::AccountingOverflow)?;
 
         let stock_before = self.total_food_stock()?;
+        let cell_stock_before_regeneration = self.cell_food_stock.clone();
         let regenerated = self.regenerate(world, config, period_index_in_year)?;
+        let cell_stock_after_regeneration = self.cell_food_stock.clone();
+        let stock_after_regeneration = self.total_food_stock()?;
 
         let household_count = population.household_count();
         if let Some(period) = temporary_presence {
@@ -474,6 +566,8 @@ impl ResourceSystem {
 
         let mut household_need = vec![0_u64; household_count];
         let mut cell_need = vec![0_u64; world.cell_count()];
+        let mut cell_home_need = vec![0_u64; world.cell_count()];
+        let mut cell_visitor_need = vec![0_u64; world.cell_count()];
         let mut total_need = 0_u64;
         let mut claims = Vec::with_capacity(household_count.saturating_mul(2));
         for household_index_value in 0..household_count {
@@ -499,6 +593,9 @@ impl ResourceSystem {
                 )?;
                 let (home_need, visiting_need) = duration_weighted_needs(need, presence)?;
                 if home_need > 0 {
+                    cell_home_need[residence_index] = cell_home_need[residence_index]
+                        .checked_add(home_need)
+                        .ok_or(ResourceError::AccountingOverflow)?;
                     claims.push(ResourceDemandClaim {
                         household_index: household_index_value,
                         cell_index: residence_index,
@@ -518,6 +615,9 @@ impl ResourceSystem {
                             "temporary visitor destination equals residence",
                         ));
                     }
+                    cell_visitor_need[destination_index] = cell_visitor_need[destination_index]
+                        .checked_add(visiting_need)
+                        .ok_or(ResourceError::AccountingOverflow)?;
                     claims.push(ResourceDemandClaim {
                         household_index: household_index_value,
                         cell_index: destination_index,
@@ -525,6 +625,9 @@ impl ResourceSystem {
                     });
                 }
             } else {
+                cell_home_need[residence_index] = cell_home_need[residence_index]
+                    .checked_add(need)
+                    .ok_or(ResourceError::AccountingOverflow)?;
                 claims.push(ResourceDemandClaim {
                     household_index: household_index_value,
                     cell_index: residence_index,
@@ -552,6 +655,14 @@ impl ResourceSystem {
                 .checked_add(allocation)
                 .ok_or(ResourceError::AccountingOverflow)?;
         }
+
+        let household_supply_fraction =
+            household_supply_fraction_distribution(&household_need, &household_harvest)?;
+        let households_with_unmet_need = household_need
+            .iter()
+            .zip(&household_harvest)
+            .filter(|(need, supplied)| **need > **supplied)
+            .count() as u64;
 
         let mut harvested = 0_u64;
         for cell_index in 0..world.cell_count() {
@@ -641,6 +752,8 @@ impl ResourceSystem {
                 ));
             }
         }
+
+        let condition_after_resource_response = condition_distribution(population)?;
 
         let people_at_mortality_boundary = population.person_count();
         let year_start_day =
@@ -745,6 +858,7 @@ impl ResourceSystem {
             }
         }
 
+        let condition_after_mortality = condition_distribution(population)?;
         let stock_after = self.total_food_stock()?;
         let expected_after = stock_before
             .checked_add(regenerated)
@@ -756,6 +870,53 @@ impl ResourceSystem {
                 actual: stock_after,
             });
         }
+
+        let period_duration = period_end
+            .checked_sub(period_start)
+            .ok_or(ResourceError::AccountingOverflow)?;
+        let absolute_start_day = day
+            .checked_sub(period_duration)
+            .ok_or(ResourceError::AccountingOverflow)?;
+        let mut cells = Vec::with_capacity(world.cell_count());
+        for cell_index in 0..world.cell_count() {
+            let cell_total_need = cell_need[cell_index];
+            let supplied = cell_allocated[cell_index];
+            cells.push(ResourceCellPeriodObservation {
+                cell: CellId::new(cell_index as u64 + 1),
+                stock_before_regeneration: cell_stock_before_regeneration[cell_index],
+                regenerated: cell_stock_after_regeneration[cell_index]
+                    .checked_sub(cell_stock_before_regeneration[cell_index])
+                    .ok_or(ResourceError::AccountingOverflow)?,
+                stock_after_regeneration: cell_stock_after_regeneration[cell_index],
+                home_need: cell_home_need[cell_index],
+                visitor_need: cell_visitor_need[cell_index],
+                total_need: cell_total_need,
+                supplied,
+                unmet: cell_total_need
+                    .checked_sub(supplied)
+                    .ok_or(ResourceError::AccountingOverflow)?,
+                stock_after_harvest: self.cell_food_stock[cell_index],
+            });
+        }
+        self.period_observations.push(ResourcePeriodObservation {
+            schema_version: ResourcePeriodObservation::CURRENT_SCHEMA_VERSION,
+            sequence: self.periods_processed,
+            period_index_in_year,
+            start_day: absolute_start_day,
+            end_day: day,
+            stock_before_regeneration: stock_before,
+            regenerated,
+            stock_after_regeneration,
+            total_need,
+            supplied: harvested,
+            unmet,
+            stock_after_harvest: stock_after,
+            households_with_unmet_need,
+            household_supply_fraction,
+            condition_after_resource_response,
+            condition_after_mortality,
+            cells,
+        });
         self.validate_accounting()?;
 
         if population.living_count() == 0 {
@@ -854,6 +1015,113 @@ impl ResourceSystem {
         }
         Ok(())
     }
+}
+
+fn household_supply_fraction_distribution(
+    household_need: &[u64],
+    household_harvest: &[u64],
+) -> Result<HouseholdSupplyFractionDistribution, ResourceError> {
+    if household_need.len() != household_harvest.len() {
+        return Err(ResourceError::InternalInvariant(
+            "household resource observation arrays differ in length",
+        ));
+    }
+    let mut result = HouseholdSupplyFractionDistribution {
+        households_with_need: 0,
+        supplied_0_to_249_permille: 0,
+        supplied_250_to_499_permille: 0,
+        supplied_500_to_749_permille: 0,
+        supplied_750_to_999_permille: 0,
+        supplied_1000_permille: 0,
+    };
+    for (&need, &supplied) in household_need.iter().zip(household_harvest) {
+        if need == 0 {
+            continue;
+        }
+        result.households_with_need = result
+            .households_with_need
+            .checked_add(1)
+            .ok_or(ResourceError::AccountingOverflow)?;
+        let fraction = supplied
+            .saturating_mul(u64::from(PERMILLE_MAX))
+            .checked_div(need)
+            .ok_or(ResourceError::AccountingOverflow)?
+            .min(u64::from(PERMILLE_MAX));
+        let bucket = if fraction < 250 {
+            &mut result.supplied_0_to_249_permille
+        } else if fraction < 500 {
+            &mut result.supplied_250_to_499_permille
+        } else if fraction < 750 {
+            &mut result.supplied_500_to_749_permille
+        } else if fraction < 1000 {
+            &mut result.supplied_750_to_999_permille
+        } else {
+            &mut result.supplied_1000_permille
+        };
+        *bucket = bucket
+            .checked_add(1)
+            .ok_or(ResourceError::AccountingOverflow)?;
+    }
+    Ok(result)
+}
+
+fn condition_distribution(
+    population: &Population,
+) -> Result<ConditionDistributionObservation, ResourceError> {
+    let mut values = Vec::with_capacity(population.living_count());
+    let mut sum = 0_u64;
+    let mut below_250 = 0_u64;
+    let mut below_500 = 0_u64;
+    let mut below_750 = 0_u64;
+    for person_index in 0..population.person_count() {
+        if !population.is_alive_index(person_index) {
+            continue;
+        }
+        let value =
+            population
+                .condition_at_index(person_index)
+                .ok_or(ResourceError::InternalInvariant(
+                    "living person has no condition state",
+                ))?;
+        sum = sum
+            .checked_add(u64::from(value))
+            .ok_or(ResourceError::AccountingOverflow)?;
+        below_250 += u64::from(value < 250);
+        below_500 += u64::from(value < 500);
+        below_750 += u64::from(value < 750);
+        values.push(value);
+    }
+    values.sort_unstable();
+    let living_people = values.len() as u64;
+    let quantile = |numerator: usize, denominator: usize| -> Option<u16> {
+        if values.is_empty() {
+            None
+        } else {
+            let index = (values.len() - 1).saturating_mul(numerator) / denominator;
+            values.get(index).copied()
+        }
+    };
+    Ok(ConditionDistributionObservation {
+        living_people,
+        mean_permille: if living_people == 0 {
+            None
+        } else {
+            Some(
+                u16::try_from(sum / living_people)
+                    .map_err(|_| ResourceError::AccountingOverflow)?,
+            )
+        },
+        minimum_permille: values.first().copied(),
+        p10_permille: quantile(1, 10),
+        p25_permille: quantile(1, 4),
+        median_permille: quantile(1, 2),
+        p75_permille: quantile(3, 4),
+        p90_permille: quantile(9, 10),
+        maximum_permille: values.last().copied(),
+        living_below_250_permille: below_250,
+        living_below_500_permille: below_500,
+        living_below_750_permille: below_750,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -6,8 +6,8 @@ use thiserror::Error;
 use crate::{
     DeathCause, EventKind, EventLog, EventProvenance, GridGeometry, LandscapeBundle,
     LandscapeError, LandscapeLayerRole, LandscapeValueDomain, MetricProvenance, Population,
-    PopulationValidationError, ResourceError, ResourceSystem, SimulationCheckpoint,
-    SpatialMechanismBinding, World,
+    PopulationValidationError, ResourceError, ResourcePeriodObservation, ResourceSystem,
+    SimulationCheckpoint, SpatialMechanismBinding, World,
     ids::{CellId, PersonId},
 };
 
@@ -29,12 +29,14 @@ pub struct SpatialObservabilityReport {
     pub cells: Vec<SpatialCellObservability>,
     pub migration_flows: Vec<SpatialMigrationFlow>,
     pub migration_distance_distribution: Vec<SpatialMigrationDistanceBin>,
+    pub resource_periods: Vec<ResourcePeriodObservation>,
+    pub resource_temporal_summary: ResourceTemporalObservabilitySummary,
     pub summary: SpatialObservabilitySummary,
     pub unavailable_observables: Vec<String>,
 }
 
 impl SpatialObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,6 +164,18 @@ pub struct SpatialObservabilitySummary {
     pub migration_moves: u64,
     pub migration_people_moved: u64,
     pub migration_total_distance_cells: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceTemporalObservabilitySummary {
+    pub provenance: MetricProvenance,
+    pub history_complete_from_start: bool,
+    pub preserved_periods: u64,
+    pub periods_with_unmet_need: u64,
+    pub longest_consecutive_scarcity_periods: u64,
+    pub total_unmet_need: u64,
+    pub maximum_period_unmet_need: u64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -312,6 +326,13 @@ pub fn derive_spatial_observability(
         .collect::<Vec<_>>();
 
     let summary = build_summary(end_day, &cell_rows, checkpoint)?;
+    let resource_periods = checkpoint.resources.period_observations().to_vec();
+    let resource_temporal_summary = build_resource_temporal_summary(
+        &resource_periods,
+        checkpoint
+            .resources
+            .period_observation_history_complete_from_start(),
+    )?;
     let normalized_layers = landscape
         .layers
         .iter()
@@ -362,18 +383,29 @@ pub fn derive_spatial_observability(
         cells: cell_rows,
         migration_flows,
         migration_distance_distribution,
+        resource_periods,
+        resource_temporal_summary,
         summary,
-        unavailable_observables: vec![
-            "historical per-cell food stock between serialized checkpoint boundaries is not recorded"
-                .to_owned(),
-            "per-cell unmet resource need is not recorded by the current resource system".to_owned(),
-            "historical per-person condition between authoritative death/checkpoint observations is not recorded"
+        unavailable_observables: {
+            let mut unavailable = vec![
+            "historical per-person condition trajectories are not retained; compact condition distributions are preserved at resource-period boundaries"
                 .to_owned(),
             "spatial population, occupancy, person-day, birth and death cell observables use persistent residence and exclude temporary visitors and transit; use temporary-observability.json for M9 physical presence"
                 .to_owned(),
             "Death.cell and spatial death counts are attributed to persistent residence, not necessarily the physical location of death while a household is away"
                 .to_owned(),
-        ],
+            ];
+            if !checkpoint
+                .resources
+                .period_observation_history_complete_from_start()
+            {
+                unavailable.push(
+                    "resource-period history before the source checkpoint boundary is unavailable because this run resumed from a legacy checkpoint without retained M3 period observations"
+                        .to_owned(),
+                );
+            }
+            unavailable
+        },
     })
 }
 
@@ -628,6 +660,50 @@ fn validate_terminal_counts(
     Ok(())
 }
 
+fn build_resource_temporal_summary(
+    periods: &[ResourcePeriodObservation],
+    history_complete_from_start: bool,
+) -> Result<ResourceTemporalObservabilitySummary, SpatialObservabilityError> {
+    let mut periods_with_unmet_need = 0_u64;
+    let mut current_scarcity_run = 0_u64;
+    let mut longest_consecutive_scarcity_periods = 0_u64;
+    let mut total_unmet_need = 0_u64;
+    let mut maximum_period_unmet_need = 0_u64;
+    for period in periods {
+        if period.schema_version != ResourcePeriodObservation::CURRENT_SCHEMA_VERSION {
+            return Err(SpatialObservabilityError::UnsupportedResourcePeriodSchema {
+                found: period.schema_version,
+                supported: ResourcePeriodObservation::CURRENT_SCHEMA_VERSION,
+            });
+        }
+        total_unmet_need = total_unmet_need
+            .checked_add(period.unmet)
+            .ok_or(SpatialObservabilityError::AccountingOverflow)?;
+        maximum_period_unmet_need = maximum_period_unmet_need.max(period.unmet);
+        if period.unmet > 0 {
+            periods_with_unmet_need = periods_with_unmet_need
+                .checked_add(1)
+                .ok_or(SpatialObservabilityError::AccountingOverflow)?;
+            current_scarcity_run = current_scarcity_run
+                .checked_add(1)
+                .ok_or(SpatialObservabilityError::AccountingOverflow)?;
+            longest_consecutive_scarcity_periods =
+                longest_consecutive_scarcity_periods.max(current_scarcity_run);
+        } else {
+            current_scarcity_run = 0;
+        }
+    }
+    Ok(ResourceTemporalObservabilitySummary {
+        provenance: MetricProvenance::Derived,
+        history_complete_from_start,
+        preserved_periods: periods.len() as u64,
+        periods_with_unmet_need,
+        longest_consecutive_scarcity_periods,
+        total_unmet_need,
+        maximum_period_unmet_need,
+    })
+}
+
 fn build_summary(
     end_day: u64,
     cells: &[SpatialCellObservability],
@@ -816,6 +892,8 @@ pub enum SpatialObservabilityError {
     },
     #[error("spatial observability totals do not reconcile with checkpoint summaries")]
     SummaryMismatch,
+    #[error("unsupported retained resource-period schema {found}; supported schema is {supported}")]
+    UnsupportedResourcePeriodSchema { found: u32, supported: u32 },
     #[error("spatial observability accounting overflow")]
     AccountingOverflow,
 }
