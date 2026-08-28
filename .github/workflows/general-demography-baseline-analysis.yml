@@ -1,0 +1,109 @@
+name: Issue 304 demographic baseline analysis
+
+on:
+  pull_request:
+    paths:
+      - "research/general-demography-baseline-v1/**"
+      - "scripts/research-general-demography-baseline.py"
+      - ".github/workflows/general-demography-baseline-analysis.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exploratory-analysis:
+    name: Exploratory 3x2 demographic baseline analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build research binaries
+        env:
+          ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
+        run: |
+          cargo build --locked --release -p anthrosim-cli \
+            --bin anthrosim-research \
+            --bin anthrosim-demography-observability
+
+      - name: Execute immutable exploratory research plan
+        run: |
+          rm -rf /tmp/issue-304-research /tmp/issue-304-observability /tmp/issue-304-output
+          target/release/anthrosim-research \
+            --definition research/general-demography-baseline-v1/exploratory-definition.json \
+            --run-dir /tmp/issue-304-research
+
+      - name: Derive M2 opportunity-funnel observability
+        run: |
+          mkdir -p /tmp/issue-304-observability
+          python3 - <<'PY' >/tmp/issue-304-runs.tsv
+          import json
+          from pathlib import Path
+          rows = json.loads(Path("/tmp/issue-304-research/analysis/runs.json").read_text())["runs"]
+          for row in rows:
+              if row["state"] != "completed":
+                  raise SystemExit(f"non-completed run: {row['runId']}")
+              print(f"{row['runId']}\t{row['relativeDir']}")
+          PY
+          while IFS=$'\t' read -r run_id relative_dir; do
+            target/release/anthrosim-demography-observability \
+              --run-dir "/tmp/issue-304-research/${relative_dir}" \
+              --output "/tmp/issue-304-observability/${run_id}.json" \
+              >/dev/null
+          done </tmp/issue-304-runs.tsv
+
+      - name: Apply long-run TRACE diagnostics
+        run: |
+          mkdir -p /tmp/issue-304-output
+          python3 scripts/research-long-run-diagnostics.py \
+            /tmp/issue-304-research \
+            research/general-demography-baseline-v1/long-run-protocol.json \
+            --output /tmp/issue-304-output/long-run.json
+
+      - name: Quantify demographic outcomes
+        run: |
+          python3 scripts/research-general-demography-baseline.py \
+            /tmp/issue-304-research \
+            /tmp/issue-304-observability \
+            /tmp/issue-304-output/exploratory-summary.json \
+            --long-run /tmp/issue-304-output/long-run.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("/tmp/issue-304-output/exploratory-summary.json").read_text())
+          assert result["runCount"] == 288, result["runCount"]
+          assert len(result["arms"]) == 36, len(result["arms"])
+          assert all(run["stopReason"] == "durationReached" for run in result["runs"])
+          PY
+
+      - name: Preserve compact scientific result
+        run: |
+          mkdir -p /tmp/issue-304-artifact
+          cp research/general-demography-baseline-v1/exploratory-definition.json /tmp/issue-304-artifact/
+          cp research/general-demography-baseline-v1/long-run-protocol.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-research/research-manifest.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-research/research-plan.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-research/analysis/points.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-research/analysis/runs.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-output/exploratory-summary.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-output/long-run.json /tmp/issue-304-artifact/
+          cp -R /tmp/issue-304-observability /tmp/issue-304-artifact/demography-observability
+
+      - name: Upload scientific analysis artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: issue-304-demographic-baseline-exploratory
+          if-no-files-found: error
+          retention-days: 14
+          path: /tmp/issue-304-artifact
