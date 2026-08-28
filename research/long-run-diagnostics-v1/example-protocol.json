@@ -21,9 +21,10 @@
       "regimeBinWidth": 2
     }
   ],
-  "runLengthSensitivityEndDays": [36500, 73000, 109500],
-  "analysisStartSensitivityDays": [18250, 73000],
+  "runLengthSensitivityEndDays": [73000, 109500, 146000],
+  "analysisStartSensitivityDays": [18250, 54750],
+  "analysisEndSensitivityDays": [109500, 127750],
   "initializationCoordinateIds": ["founder_state"],
   "environmentCoordinateIds": ["spatial_realization_seed"],
-  "rationale": "Example only: thresholds must be justified and frozen for the actual study before interpreting long-run results."
+  "rationale": "Example only: thresholds and sensitivity intervals must be justified and frozen for the actual study before interpreting long-run results."
 }
