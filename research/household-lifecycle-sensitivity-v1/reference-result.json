@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "purpose": "TRACE structural sensitivity to founder-defined versus deterministic size-fission household lifecycles",
+  "scientificStatus": "synthetic structural sensitivity; not empirical household validation",
+  "seeds": [
+    20701,
+    20702,
+    20703,
+    20704,
+    20705,
+    20706,
+    20707,
+    20708
+  ],
+  "durationYears": 40,
+  "founderPopulation": 120,
+  "founderTargetHouseholdSize": 5,
+  "alternativeMaxLivingMembers": 8,
+  "baseline": {
+    "lifecycleModelId": "fixed_founder_v1",
+    "completedRuns": 8,
+    "populationExtinctRuns": 0,
+    "terminalLivingPopulationTotal": 817,
+    "terminalActiveHouseholdsTotal": 176,
+    "terminalLargestHouseholdSizeTotal": 85,
+    "terminalMultigenerationalHouseholdsTotal": 133,
+    "terminalLivingOccupiedCellsTotal": 173,
+    "meanLivingConditionPermilleSum": 7999,
+    "meanLivingConditionDefinedRuns": 8,
+    "unmetNeedTotal": 962,
+    "migrationMovesTotal": 85,
+    "migrationPeopleMovedTotal": 704,
+    "temporaryDeparturesTotal": 7336
+  },
+  "deterministicSizeFission": {
+    "lifecycleModelId": "deterministic_size_fission_v1",
+    "completedRuns": 8,
+    "populationExtinctRuns": 0,
+    "terminalLivingPopulationTotal": 816,
+    "terminalActiveHouseholdsTotal": 208,
+    "terminalLargestHouseholdSizeTotal": 58,
+    "terminalMultigenerationalHouseholdsTotal": 152,
+    "terminalLivingOccupiedCellsTotal": 193,
+    "meanLivingConditionPermilleSum": 7998,
+    "meanLivingConditionDefinedRuns": 8,
+    "unmetNeedTotal": 449,
+    "migrationMovesTotal": 97,
+    "migrationPeopleMovedTotal": 499,
+    "temporaryDeparturesTotal": 8046
+  }
+}

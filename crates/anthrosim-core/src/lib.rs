@@ -12,6 +12,8 @@ pub mod events;
 pub mod evidence;
 pub mod focal_region;
 pub mod founder_initialization;
+pub mod household_lifecycle;
+pub mod household_observability;
 pub mod ids;
 pub mod invariants;
 pub mod landscape;
@@ -72,8 +74,10 @@ mod target_arrival_reconsideration_tests;
 
 pub use checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64};
 pub use config::{
-    AgeProbabilityBand, DemographyConfig, ExperimentConfig, MigrationConfig, ParameterProvenance,
-    PopulationConfig, PopulationInitialization, ResourceConfig, WorldConfig,
+    AgeProbabilityBand, DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID, DemographyConfig,
+    ExperimentConfig, FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID, HouseholdLifecycleConfig,
+    MigrationConfig, ParameterProvenance, PopulationConfig, PopulationInitialization,
+    ResourceConfig, WorldConfig,
 };
 pub use demography::{
     DemographyConfigError, annual_probability_for_age, effective_birth_spacing_days,
@@ -96,6 +100,14 @@ pub use focal_region::{FocalRegion, FocalRegionBindingError, FocalRegionError, F
 pub use founder_initialization::{
     FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
     FounderPopulationError,
+};
+pub use household_lifecycle::{
+    HouseholdLifecycleError, HouseholdLifecycleOutcome, household_lifecycle_model_id,
+    validate_household_lifecycle_config,
+};
+pub use household_observability::{
+    HouseholdGenerationSpanBin, HouseholdObservabilityError, HouseholdObservabilityReport,
+    HouseholdSizeBin, derive_household_observability,
 };
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
