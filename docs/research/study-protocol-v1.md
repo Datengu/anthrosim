@@ -40,7 +40,7 @@ This separation permits honest reuse of the same deterministic simulation output
 - permitted and prohibited interpretations;
 - explicit amendment provenance for revisions after v1.
 
-The TRACE evidence-role vocabulary represented here is `model_construction`, `parameterisation`, `calibration`, `model_output_verification`, and `independent_corroboration`. This issue records those assignments so the frozen protocol can carry them. Stronger cross-role leakage/circular-validation checks remain the dedicated scope of #206.
+The TRACE evidence-role vocabulary represented here is `model_construction`, `parameterisation`, `calibration`, `model_output_verification`, and `independent_corroboration`. The frozen protocol records those assignments; the dedicated #206 evidence-role firewall in `docs/research/evidence-role-firewall-v1.md` audits cross-role reuse and rejects circular held-out/independent-corroboration claims for confirmatory studies.
 
 ## Confirmatory validation
 
@@ -54,6 +54,14 @@ A protocol labelled `confirmatory` must contain at least:
 - every primary observable represented in a comparison.
 
 IDs and references are validated strictly. Unknown analysis-window, hypothesis or observable references fail closed. The schema does not pretend that a syntactically complete protocol is scientifically good; it makes omissions, changes and declared decisions auditable.
+
+Evidence-role circularity is a distinct study-level validation concern. Before freezing a confirmatory protocol that claims held-out corroboration, run:
+
+```text
+python scripts/research-evidence-role-audit.py validate protocol.json
+```
+
+After finalization, derive and preserve the assessment against the exact frozen study/result binding. This keeps the protocol schema stable while making the stronger #206 independence rules machine-auditable.
 
 ## Analysis windows
 
@@ -129,6 +137,8 @@ It then writes immutable `study-result-binding.json`, containing:
 
 The result-artifact digests mean a later change to an analysis artifact can no longer silently retain the old result binding. Running `finalize` again is idempotent when nothing changed. If the frozen protocol, research identity or bound result bytes differ, finalization fails rather than rewriting provenance.
 
+For studies that claim held-out/independent corroboration, #206 then derives `analysis/evidence-role-assessment.json` from this exact finalized binding. That assessment makes calibration/corroboration reuse machine-visible without changing simulation identity.
+
 ## Amendments
 
 Protocol revision 1 must not declare an amendment. Any later `protocolRevision` must declare `previousProtocolIdentity`, amendment timing (`before_result_inspection` or `after_result_inspection`), and a rationale. Because the complete amendment record is part of protocol content, every amendment necessarily receives a new protocol identity.
@@ -141,11 +151,11 @@ This mechanism records the scientific timing declaration; it is not a trusted ex
 
 This contract deliberately provides stable attachment points rather than absorbing all downstream methods work:
 
-- **#206**: validate evidence-role independence and detect calibration/corroboration leakage;
+- **#206 / evidence-role firewall v1**: validates evidence-role independence and detects calibration/corroboration leakage;
 - **#217**: execute and diagnose identifiability/equifinality analyses;
 - **#226**: derive exposure-aware rates and cumulative-outcome semantics;
-- **#231**: deepen manipulation-check realization diagnostics;
-- **#229**: formalize analysis/statistical semantics where needed.
+- **#231**: quantify Monte Carlo precision and replicate sufficiency for stochastic claims;
+- **#229**: formalize survivor-conditioned and other analysis/statistical semantics where needed.
 
 The frozen protocol can declare those plans now. Their dedicated issues implement the corresponding analysis logic.
 
