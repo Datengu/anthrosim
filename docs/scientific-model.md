@@ -47,7 +47,7 @@ Reproductive sex remains a deliberately limited biological state variable for th
 
 ### Households
 
-A household is a persistent resource-sharing and mobility unit, not a tribe, clan, lineage, settlement, marriage or universal nuclear-family structure. Parentage and household membership are separate relationships.
+A household is a resource-sharing and mobility unit, not a tribe, clan, lineage, settlement, marriage or universal nuclear-family structure. Parentage and household membership are separate relationships. The historical baseline keeps founder-defined household IDs persistent; post-audit structural-sensitivity experiments may instead enable the explicit `deterministic_size_fission_v1` lifecycle, which partitions oversized at-residence households at annual boundaries. That alternative is a neutral stress test rather than an empirical household-formation claim.
 
 Birth/fertility semantics remain residence-based under M9. A newborn joins the female parent's current household and inherits that household's persistent residence even if the household is temporarily away; temporary physical-presence bookkeeping is kept consistent separately. Parent eligibility likewise uses residence rather than visitor co-presence.
 

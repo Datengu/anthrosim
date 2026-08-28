@@ -14,6 +14,10 @@ use crate::{
     events::EventLog,
     focal_region::{FocalRegionBindingError, FocalRegionSource},
     founder_initialization::FounderGenealogyStatus,
+    household_lifecycle::{
+        HouseholdLifecycleError, apply_household_lifecycle_at_annual_boundary,
+        validate_household_lifecycle_config,
+    },
     landscape::LandscapeBundle,
     landscape_binding::{LandscapeBinding, LandscapeBindingError},
     manifest::{ArtifactSchemas, RunManifest, RunStatistics, StopReason},
@@ -647,6 +651,14 @@ impl SpatialLandscapeSimulation {
             )?;
             self.temporary_mobility
                 .reconcile_after_population_change(&self.population);
+            if let Some(household_lifecycle) = self.config.household_lifecycle.clone() {
+                apply_household_lifecycle_at_annual_boundary(
+                    &mut self.population,
+                    &mut self.temporary_mobility,
+                    &household_lifecycle,
+                    self.time.days(),
+                )?;
+            }
             self.record_metric_snapshot();
             match outcome {
                 DemographyStepOutcome::Continue => {}
@@ -1018,6 +1030,9 @@ fn validate_experiment(config: &ExperimentConfig) -> Result<(), SpatialLandscape
     }
     validate_founder_population_binding(config)?;
     validate_demography_config(&config.demography)?;
+    if let Some(household_lifecycle) = &config.household_lifecycle {
+        validate_household_lifecycle_config(household_lifecycle)?;
+    }
     validate_resource_config(&config.resources)?;
     validate_migration_config(&config.migration)?;
     if let Some(temporary_mobility) = &config.temporary_mobility {
@@ -1239,6 +1254,8 @@ pub enum SpatialLandscapeError {
     World(#[from] WorldError),
     #[error(transparent)]
     Population(#[from] PopulationError),
+    #[error(transparent)]
+    HouseholdLifecycle(#[from] HouseholdLifecycleError),
     #[error(transparent)]
     DemographyConfig(#[from] DemographyConfigError),
     #[error(transparent)]

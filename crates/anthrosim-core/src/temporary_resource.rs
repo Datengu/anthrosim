@@ -222,6 +222,29 @@ impl TemporaryResourceLedger {
         Ok(())
     }
 
+    pub(crate) fn extend_households_at_boundary(
+        &mut self,
+        household_count: usize,
+    ) -> Result<(), TemporaryResourceAccountingError> {
+        if household_count < self.households.len() {
+            return Err(TemporaryResourceAccountingError::HouseholdCountContracted {
+                ledger: self.households.len(),
+                requested: household_count,
+            });
+        }
+        if self.period_start_day != self.accounted_until_day {
+            return Err(
+                TemporaryResourceAccountingError::HouseholdTopologyChangedMidPeriod {
+                    period_start_day: self.period_start_day,
+                    accounted_until_day: self.accounted_until_day,
+                },
+            );
+        }
+        self.households
+            .resize(household_count, TemporaryResourcePresenceDays::default());
+        Ok(())
+    }
+
     pub(crate) fn validate(
         &self,
         household_count: usize,
@@ -332,6 +355,15 @@ pub enum TemporaryResourceAccountingError {
     UnsupportedPeriodSchema { found: u32, supported: u32 },
     #[error("temporary resource ledger has {ledger} households but expected {expected}")]
     HouseholdCountMismatch { ledger: usize, expected: usize },
+    #[error("temporary resource household count cannot contract from {ledger} to {requested}")]
+    HouseholdCountContracted { ledger: usize, requested: usize },
+    #[error(
+        "household topology changed inside resource period {period_start_day}..{accounted_until_day}"
+    )]
+    HouseholdTopologyChangedMidPeriod {
+        period_start_day: u64,
+        accounted_until_day: u64,
+    },
     #[error("temporary resource accounting duration overflowed")]
     DurationOverflow,
     #[error(
