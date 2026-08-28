@@ -31,7 +31,7 @@ Temporary-mobility observability v3 reports:
 
 Researchers should inspect these fields before interpreting destination-level visitor concentration or resource pressure. A high tied-origin frequency means destination-level conclusions depend materially on the declared ambiguity policy even when total catchment participation is stable.
 
-Downstream observability regeneration reads the authoritative tie seed preserved in the M9 travel table rather than guessing the seed role from the outer experiment config. Core and spatial execution hosts remain responsible for validating that the stored seed matches their declared seed-role provenance.
+Downstream observability regeneration reads the authoritative tie seed preserved in the M9 travel table rather than guessing the seed role from the outer experiment config. Core and spatial execution hosts remain responsible for validating that the stored seed matches their declared seed-role provenance. Any validation or replay check that re-derives an executed M9 program must therefore use that same authoritative tie seed when testing program equality.
 
 ## Provenance boundary
 
