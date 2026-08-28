@@ -36,5 +36,7 @@ fn research_monte_carlo_sufficiency_script_contract() {
         }
     }
 
-    eprintln!("skipping Monte Carlo sufficiency regression suite because no Python interpreter was found");
+    eprintln!(
+        "skipping Monte Carlo sufficiency regression suite because no Python interpreter was found"
+    );
 }
