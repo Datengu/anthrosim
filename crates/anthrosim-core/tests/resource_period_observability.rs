@@ -1,4 +1,6 @@
-use anthrosim_core::{ExperimentConfig, ResourcePeriodObservation, Simulation};
+use anthrosim_core::{
+    ExperimentConfig, ResourcePeriodObservation, Simulation, SimulationCheckpoint,
+};
 
 #[test]
 fn resource_period_history_is_preserved_and_reconciles() {
@@ -68,6 +70,37 @@ fn checkpoint_resume_preserves_exact_period_history() {
     assert_eq!(
         uninterrupted.checkpoint.resources.period_observations(),
         resumed.checkpoint.resources.period_observations()
+    );
+}
+
+#[test]
+fn legacy_checkpoint_without_period_history_marks_history_incomplete() {
+    let mut config = ExperimentConfig::new(21504, 1);
+    config.world.width = 2;
+    config.world.height = 2;
+    config.population.initial_population = 12;
+    let checkpoint = Simulation::new(config)
+        .unwrap()
+        .checkpoint_at_year(1)
+        .unwrap();
+    let mut value = serde_json::to_value(checkpoint).unwrap();
+    let resources = value
+        .get_mut("resources")
+        .and_then(serde_json::Value::as_object_mut)
+        .expect("checkpoint resources must serialize as an object");
+    assert!(resources.remove("periodObservations").is_some());
+    assert!(
+        resources
+            .remove("periodObservationHistoryCompleteFromStart")
+            .is_some()
+    );
+
+    let legacy: SimulationCheckpoint = serde_json::from_value(value).unwrap();
+    assert!(legacy.resources.period_observations().is_empty());
+    assert!(
+        !legacy
+            .resources
+            .period_observation_history_complete_from_start()
     );
 }
 
