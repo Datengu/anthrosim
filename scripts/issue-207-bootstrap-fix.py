@@ -36,3 +36,19 @@ new = 'invalid household identity {household:?}'
 if old not in text:
     raise SystemExit("household observability diagnostic anchor not found")
 observability_path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+population_path = root / "crates/anthrosim-core/src/population.rs"
+text = population_path.read_text(encoding="utf-8")
+old = '''        for household_index in 0..original_household_count {
+            if !eligible_households[household_index] {
+                continue;
+            }
+'''
+new = '''        for (household_index, &is_eligible) in eligible_households.iter().enumerate() {
+            if !is_eligible {
+                continue;
+            }
+'''
+if old not in text:
+    raise SystemExit("household fission loop anchor not found")
+population_path.write_text(text.replace(old, new, 1), encoding="utf-8")
