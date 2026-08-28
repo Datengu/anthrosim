@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "protocolRevision": 1,
+  "studyId": "example-evidence-role-firewall-study",
+  "status": "confirmatory",
+  "researchQuestion": "Can a declared synthetic treatment be checked against evidence reserved from calibration?",
+  "applicabilityDomain": "Synthetic research-governance example only; not an empirical archaeological claim.",
+  "hypotheses": [
+    {
+      "id": "null",
+      "kind": "null_model",
+      "statement": "The treatment does not change the declared occupancy observable."
+    },
+    {
+      "id": "alternative",
+      "kind": "alternative",
+      "statement": "The treatment changes the declared occupancy observable."
+    }
+  ],
+  "analysisWindows": [
+    {
+      "id": "primary_window",
+      "analysisStartDay": 3650,
+      "selectionRule": "predeclared_fixed_duration",
+      "rationale": "Exclude a fixed ten-year initialization interval before the declared comparison."
+    }
+  ],
+  "observables": [
+    {
+      "id": "occupancy_pattern",
+      "role": "primary",
+      "source": "study-specific archaeological observation model output",
+      "analysisWindowId": "primary_window",
+      "interpretation": "Higher values indicate stronger expression of the declared occupancy pattern after the observation model is applied."
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "primary_occupancy_contrast",
+      "hypothesisIds": [
+        "null",
+        "alternative"
+      ],
+      "observableIds": [
+        "occupancy_pattern"
+      ],
+      "prediction": "The treatment arm differs from the null arm in the predeclared direction.",
+      "decisionCriterion": "Interpret the contrast only under the frozen analysis and evidence-role rules."
+    }
+  ],
+  "evidenceRoles": [
+    {
+      "evidenceId": "contextual-source-a",
+      "role": "model_construction",
+      "target": "mechanism:settlement-choice",
+      "notes": "Qualitative contextual evidence informs the conceptual mechanism without being forced into a numeric parameter link."
+    },
+    {
+      "evidenceId": "parameter-source-b",
+      "role": "parameterisation",
+      "target": "parameter:migration.threshold",
+      "notes": "Constrains a declared parameter range; it is not presented as held-out validation."
+    },
+    {
+      "evidenceId": "calibration-pattern-c",
+      "role": "calibration",
+      "target": "occupancy_pattern",
+      "notes": "Used to fit the occupancy target and therefore cannot be described as independent corroboration of that target."
+    },
+    {
+      "evidenceId": "calibration-pattern-c",
+      "role": "model_output_verification",
+      "target": "occupancy_pattern",
+      "notes": "Explicit in-sample reuse after calibration; useful as a fit diagnostic but not an independent prediction."
+    },
+    {
+      "evidenceId": "held-out-pattern-d",
+      "role": "independent_corroboration",
+      "target": "occupancy_pattern",
+      "notes": "Reserved until the frozen confirmatory result is evaluated."
+    }
+  ],
+  "uncertainty": {
+    "parameterUncertainty": [
+      "Preserve the declared parameter uncertainty range from the bound research definition."
+    ],
+    "structuralUncertainty": [
+      "Treat defensible observation-model alternatives as structural uncertainty rather than tuning them against held-out evidence."
+    ]
+  },
+  "ensemblePolicy": {
+    "seedPolicy": "Use exactly the seeds in the frozen research definition.",
+    "pairingPolicy": "Use only the pairing interpretation declared for the study.",
+    "replicationPolicy": "Do not add replicates adaptively after inspecting the confirmatory result."
+  },
+  "runHandling": {
+    "stoppingRules": [
+      "Use only the predeclared scientific stopping rules."
+    ],
+    "exclusionRules": [
+      "Do not exclude completed scientific outcomes because they weaken the prediction."
+    ],
+    "censoringRules": [
+      "Report operational censoring separately."
+    ]
+  },
+  "sensitivityPlan": [
+    "Retain evidence-role assignments unchanged across the declared confirmatory sensitivity analysis."
+  ],
+  "equifinalityPlan": [
+    "Report alternative model/parameter combinations that remain compatible with the non-held-out evidence."
+  ],
+  "manipulationChecks": [],
+  "analysisMethod": "Apply the frozen downstream analysis and observation-model mapping before opening the held-out corroboration target.",
+  "multiplicityPolicy": "One primary held-out corroboration target; additional inspected evidence is exploratory unless separately declared.",
+  "heldOutCorroboration": [
+    {
+      "id": "held-out-occupancy-check",
+      "evidenceId": "held-out-pattern-d",
+      "observableId": "occupancy_pattern",
+      "criterion": "Compare only after the primary confirmatory result and all calibration decisions are frozen."
+    }
+  ],
+  "permittedInterpretations": [
+    "The held-out target is independent of calibration for the exact occupancy observable under this frozen study declaration."
+  ],
+  "prohibitedInterpretations": [
+    "The calibration pattern itself is an independent prediction.",
+    "The metadata firewall proves statistical or causal independence beyond the declared study-use history."
+  ]
+}
