@@ -1,0 +1,50 @@
+name: Validate issue 190 ensemble seed expectation
+
+on:
+  push:
+    branches:
+      - fix/190-equal-cost-m9-destinations
+    paths:
+      - .github/workflows/fix-190-ensemble-expectation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/190-equal-cost-m9-destinations
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Update ensemble expectation to authoritative run seed
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('crates/anthrosim-cli/src/ensemble.rs')
+          text = p.read_text()
+          old = '''            let expected = definition\n                .derive_program(&world)\n                .expect("program from this run world");\n'''
+          new = '''            let expected = definition\n                .derive_program_with_seed(&world, seed)\n                .expect("program from this run world and seed");\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one stale assertion, got {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+      - name: Format
+        run: cargo fmt --all
+      - name: Run affected CLI test
+        run: cargo test -p anthrosim-cli --bin anthrosim ensemble::tests::ensemble_derives_configured_temporary_mobility_from_each_stored_world -- --exact --nocapture
+      - name: Run workspace tests
+        run: cargo test --locked --workspace --all-features
+      - name: Remove validation workflow
+        if: success()
+        run: rm .github/workflows/fix-190-ensemble-expectation.yml
+      - name: Commit validated correction
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "test: expect per-run M9 destination tie seed"
+          git push origin HEAD:fix/190-equal-cost-m9-destinations
