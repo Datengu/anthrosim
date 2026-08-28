@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "research/general-demography-baseline-v1/**"
+      - "scripts/prepare-general-demography-baseline-definition.py"
       - "scripts/research-general-demography-baseline.py"
       - ".github/workflows/general-demography-baseline-analysis.yml"
   workflow_dispatch:
@@ -37,11 +38,26 @@ jobs:
             --bin anthrosim-research \
             --bin anthrosim-demography-observability
 
+      - name: Materialize exact exploratory definition
+        run: |
+          python3 scripts/prepare-general-demography-baseline-definition.py \
+            research/general-demography-baseline-v1/exploratory-definition.json \
+            /tmp/issue-304-definition.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          definition = json.loads(Path("/tmp/issue-304-definition.json").read_text())
+          landscape = definition["base"]["spatial"]["landscape"]
+          expected = landscape["width"] * landscape["height"]
+          assert expected == 144
+          assert all(len(layer["values"]) == expected for layer in landscape["layers"])
+          PY
+
       - name: Execute immutable exploratory research plan
         run: |
           rm -rf /tmp/issue-304-research /tmp/issue-304-observability /tmp/issue-304-output
           target/release/anthrosim-research \
-            --definition research/general-demography-baseline-v1/exploratory-definition.json \
+            --definition /tmp/issue-304-definition.json \
             --run-dir /tmp/issue-304-research
 
       - name: Derive M2 opportunity-funnel observability
@@ -90,7 +106,7 @@ jobs:
       - name: Preserve compact scientific result
         run: |
           mkdir -p /tmp/issue-304-artifact
-          cp research/general-demography-baseline-v1/exploratory-definition.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-definition.json /tmp/issue-304-artifact/exploratory-definition.json
           cp research/general-demography-baseline-v1/long-run-protocol.json /tmp/issue-304-artifact/
           cp /tmp/issue-304-research/research-manifest.json /tmp/issue-304-artifact/
           cp /tmp/issue-304-research/research-plan.json /tmp/issue-304-artifact/
