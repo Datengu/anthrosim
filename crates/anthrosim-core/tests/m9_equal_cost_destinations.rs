@@ -10,8 +10,9 @@ use anthrosim_core::{
 
 fn flat_world(width: u32, height: u32) -> World {
     let world = World::generate(WorldConfig::new(width, height), RngFactory::new(190)).unwrap();
+    let movement_cost = vec![1_000; world.cell_count()];
     world
-        .with_model_field_overlay(Some(&vec![1_000; world.cell_count()]), None, None)
+        .with_model_field_overlay(Some(&movement_cost), None, None)
         .unwrap()
 }
 
