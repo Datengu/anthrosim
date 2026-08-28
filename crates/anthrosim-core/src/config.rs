@@ -343,16 +343,20 @@ pub struct ResourceConfig {
     pub periods_per_year: u16,
     pub annual_need_units_per_person: u32,
     pub annual_regeneration_units_per_productivity: u32,
+    /// Day-zero stock units per cell productivity unit before the ordinary productivity scale.
+    /// This is an explicit initial-condition assumption, independent of storage capacity. Capacity
+    /// may cap an impossible starting stock but increasing capacity does not create historical stock.
+    pub initial_stock_units_per_productivity: u32,
     pub productivity_scale_permille: u16,
     /// Scales the generated cell seasonal amplitude, 0..=1000.
     /// 0 removes the seasonal swing; 1000 preserves the synthetic v0.1 baseline.
     pub seasonality_scale_permille: u16,
     pub cell_stock_capacity_years: u16,
-    /// Legacy wire name retained for input compatibility. Under schema v4 this is the maximum
+    /// Legacy wire name retained for input compatibility. Under schema v5 this is the maximum
     /// condition recovery over one reference quarter-year (365/4 days), not over an arbitrary
     /// configured resource period. M3 rescales it by actual elapsed interval duration.
     pub condition_recovery_per_period: u16,
-    /// Legacy wire name retained for input compatibility. Under schema v4 this is the maximum
+    /// Legacy wire name retained for input compatibility. Under schema v5 this is the maximum
     /// condition loss over one reference quarter-year and is rescaled by elapsed duration.
     pub max_condition_loss_per_period: u16,
     /// Historical Rust field name retained to minimize execution-code churn. In v10 configuration
@@ -364,7 +368,7 @@ pub struct ResourceConfig {
 }
 
 impl ResourceConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 
     #[must_use]
     pub fn synthetic_validation_v1() -> Self {
@@ -375,6 +379,7 @@ impl ResourceConfig {
             periods_per_year: 4,
             annual_need_units_per_person: 100,
             annual_regeneration_units_per_productivity: 1,
+            initial_stock_units_per_productivity: 10,
             productivity_scale_permille: 1_000,
             seasonality_scale_permille: 1_000,
             cell_stock_capacity_years: 10,
@@ -382,6 +387,12 @@ impl ResourceConfig {
             max_condition_loss_per_period: 200,
             max_scarcity_mortality_probability_per_million: 200_000,
         }
+    }
+
+    #[must_use]
+    pub const fn with_initial_stock_units_per_productivity(mut self, value: u32) -> Self {
+        self.initial_stock_units_per_productivity = value;
+        self
     }
 
     #[must_use]

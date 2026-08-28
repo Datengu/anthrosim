@@ -327,10 +327,11 @@ impl ResourceSystem {
         let mut cell_food_stock = Vec::with_capacity(world.cell_count());
         let mut initial_food_stock = 0_u64;
         for cell in world.cells() {
-            let scaled_initial = scale_permille(
-                u64::from(cell.food_stock),
-                config.productivity_scale_permille,
-            );
+            let configured_initial = u64::from(cell.base_productivity)
+                .checked_mul(u64::from(config.initial_stock_units_per_productivity))
+                .ok_or(ResourceError::AccountingOverflow)?;
+            let scaled_initial =
+                scale_permille(configured_initial, config.productivity_scale_permille);
             let capacity = cell_capacity(cell.base_productivity, config);
             let stock = scaled_initial.min(capacity);
             cell_food_stock.push(stock);
