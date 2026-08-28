@@ -53,6 +53,8 @@ A definition declares:
 - any unavoidable manual steps;
 - optional observation-model identity.
 
+For confirmatory analysis, `environment` must contain at least one machine-readable artifact. A prose-only runtime description is not sufficient evidence of the computational environment used for a confirmatory result. Exploratory work may leave the environment-artifact list empty, but doing so weakens reproducibility and remains visible in the provenance record.
+
 Schema v1 deliberately supports one reproduction criterion:
 
 ```text
@@ -68,6 +70,8 @@ A definition labelled `confirmatory` is accepted only when `study-result-binding
 - the frozen study itself is confirmatory;
 - its protocol was bound before execution;
 - it remains eligible for a pre-result confirmatory claim.
+
+The downstream provenance record preserves that `boundBeforeExecution` state explicitly rather than merely inferring it from the study status.
 
 An exploratory downstream analysis may reuse a confirmatory study result, but the new analysis remains labelled exploratory. Changing the analysis definition changes its content identity.
 
@@ -90,6 +94,8 @@ Before the command executes, the wrapper SHA-256 fingerprints:
 - every declared implementation artifact;
 - every declared environment artifact.
 
+Every declared canonical output path must also be absent before execution. `run` fails if an output already exists. This prevents a command that exits successfully without actually regenerating a result from causing a stale pre-existing file to be published as though the wrapper had just produced it. Reproduction of an existing canonical result belongs under `replay`, not another canonical `run` into the same output path.
+
 It then executes the exact declared command in the declared working directory.
 
 After successful execution it fingerprints those source artifacts again. If any input, script, environment file, or study binding changed during execution, provenance publication fails closed.
@@ -107,6 +113,7 @@ The record also embeds the complete normalized analysis definition and preserves
 - study result identity;
 - study execution identity;
 - frozen protocol identity and revision;
+- explicit `boundBeforeExecution` state;
 - research execution identity;
 - source revision;
 - scientific status;
@@ -130,7 +137,7 @@ Replay first verifies the canonical provenance record. It then creates an isolat
 - implementation files;
 - environment files.
 
-It reruns the declared command there and requires the regenerated output artifact bytes to match the canonical output digests exactly.
+It does not copy the canonical outputs. It reruns the declared command there and requires the newly generated output artifact bytes to match the canonical output digests exactly.
 
 This is intentionally strict. If the analysis depended on an undeclared helper/input file, the isolated replay should fail so that the missing dependency becomes visible rather than remaining accidental hidden state.
 
@@ -211,7 +218,13 @@ Each layer answers a different reproducibility question and none substitutes for
 9. rejects provenance-record tampering;
 10. seals the complete synthetic study with `research-integrity.py` and proves later output mutation breaks archive verification.
 
-A Rust integration-test wrapper executes this Python suite in the normal workspace CI.
+`scripts/test-research-analysis-provenance-hardening.py` separately verifies that:
+
+1. scripted canonical runs reject pre-existing output files;
+2. confirmatory definitions reject a missing environment artifact;
+3. the published study lineage exposes and verifies `boundBeforeExecution`.
+
+Rust integration-test wrappers execute both Python suites in the normal workspace CI.
 
 ## Scientific interpretation
 
