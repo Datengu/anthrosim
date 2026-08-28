@@ -1,0 +1,47 @@
+name: Stage compact issue 215 history
+on:
+  push:
+    branches: [feat/215-resource-condition-observability]
+permissions:
+  contents: write
+jobs:
+  compact:
+    if: ${{ !contains(github.event.head_commit.message, '[215-sparse-history]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make per-cell history scarcity-sparse
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('crates/anthrosim-core/src/resources.rs'); s=p.read_text()
+          reps=[
+          ('    pub total_need: u64,\n    pub supplied: u64,\n', '    pub home_need: u64,\n    pub visitor_need: u64,\n    pub total_need: u64,\n    pub supplied: u64,\n'),
+          ('    pub condition_after_mortality: ConditionDistributionObservation,\n    pub cells: Vec<ResourceCellPeriodObservation>,\n', '    pub condition_after_mortality: ConditionDistributionObservation,\n    /// Sparse cell detail: every cell with positive unmet need in this period.\n    pub scarce_cells: Vec<ResourceCellPeriodObservation>,\n'),
+          ('        let mut cells = Vec::with_capacity(world.cell_count());\n', '        let mut scarce_cells = Vec::new();\n'),
+          ('            cells.push(ResourceCellPeriodObservation {\n', '            if cell_total_need > supplied {\n                scarce_cells.push(ResourceCellPeriodObservation {\n'),
+          ('                stock_after_harvest: self.cell_food_stock[cell_index],\n            });\n        }\n        self.period_observations.push(ResourcePeriodObservation {\n', '                stock_after_harvest: self.cell_food_stock[cell_index],\n                });\n            }\n        }\n        let home_need = cell_home_need.iter().try_fold(0_u64, |total, value| total.checked_add(*value).ok_or(ResourceError::AccountingOverflow))?;\n        let visitor_need = cell_visitor_need.iter().try_fold(0_u64, |total, value| total.checked_add(*value).ok_or(ResourceError::AccountingOverflow))?;\n        if home_need.checked_add(visitor_need) != Some(total_need) {\n            return Err(ResourceError::InternalInvariant("home and visitor demand do not reconcile to total need"));\n        }\n        self.period_observations.push(ResourcePeriodObservation {\n'),
+          ('            stock_after_regeneration,\n            total_need,\n', '            stock_after_regeneration,\n            home_need,\n            visitor_need,\n            total_need,\n'),
+          ('            condition_after_mortality,\n            cells,\n', '            condition_after_mortality,\n            scarce_cells,\n'),
+          ]
+          for old,new in reps:
+              assert s.count(old)==1, old
+              s=s.replace(old,new,1)
+          p.write_text(s)
+
+          p=Path('crates/anthrosim-core/tests/resource_period_observability.rs'); s=p.read_text()
+          s=s.replace('            period.cells.iter().map(|cell| cell.total_need).sum::<u64>(),\n            period.total_need\n        );\n        assert_eq!(\n            period.cells.iter().map(|cell| cell.supplied).sum::<u64>(),\n            period.supplied\n        );\n        assert_eq!(\n            period.cells.iter().map(|cell| cell.unmet).sum::<u64>(),\n            period.unmet\n        );', '            period.home_need + period.visitor_need,\n            period.total_need\n        );\n        assert_eq!(\n            period.scarce_cells.iter().map(|cell| cell.unmet).sum::<u64>(),\n            period.unmet\n        );\n        assert!(period.scarce_cells.iter().all(|cell| cell.unmet > 0));')
+          p.write_text(s)
+
+          p=Path('docs/research/resource-condition-period-observability-v1.md'); s=p.read_text()
+          s=s.replace('Each cell preserves the same stock/need/supply accounting, plus demand decomposed into `homeNeed` and `visitorNeed` under M9 duration-weighted provisioning. Without temporary mobility all demand is home demand.', 'Each period also preserves total `homeNeed` and `visitorNeed` under M9 duration-weighted provisioning. Per-cell detail is deliberately sparse: every cell with positive unmet need preserves stock before/after regeneration and harvest, total/home/visitor need, supplied amount and unmet need. This captures the cells that require local mechanism interpretation without producing dense world-sized rows every period. Without temporary mobility all demand is home demand.')
+          p.write_text(s)
+          PY
+          cargo fmt --all
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/resources.rs crates/anthrosim-core/tests/resource_period_observability.rs docs/research/resource-condition-period-observability-v1.md
+          git commit -m "refactor: keep resource-period cell history scarcity-sparse [215-sparse-history]"
+          git push origin HEAD:feat/215-resource-condition-observability
