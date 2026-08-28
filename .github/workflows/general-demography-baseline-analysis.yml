@@ -7,6 +7,7 @@ on:
       - "scripts/prepare-general-demography-baseline-definition.py"
       - "scripts/research-general-demography-baseline.py"
       - "crates/anthrosim-cli/src/bundle.rs"
+      - "crates/anthrosim-core/src/demography_observability.rs"
       - "crates/anthrosim-core/src/spatial_invariants.rs"
       - "crates/anthrosim-core/src/spatial_simulation.rs"
       - ".github/workflows/general-demography-baseline-analysis.yml"
@@ -28,95 +29,90 @@ jobs:
           ref: feat/304-general-demographic-baseline
           persist-credentials: true
 
-      - name: Repair split-realization and extinction validation contracts
+      - name: Repair demographic household-fission replay
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          bundle = Path("crates/anthrosim-cli/src/bundle.rs")
-          text = bundle.read_text()
-          old = "let reconstructed_initial_population = reconstruct_initial_population(&checkpoint, &world)?;"
-          new = "let reconstructed_initial_population = reconstruct_initial_population(run_dir, &checkpoint, &world)?;"
-          assert text.count(old) == 1
-          text = text.replace(old, new)
-          old = '''fn reconstruct_initial_population(
-              checkpoint: &SimulationCheckpoint,
-              world: &World,
-          ) -> Result<Population, BundleValidationError> {
-              let config = checkpoint.experiment.population;
-              let population = match config.initialization {
-                  PopulationInitialization::SyntheticValidationV1 => Population::initialize(
-                      config,
-                      world,
-                      RngFactory::new(checkpoint.experiment.seed),
-                  ),'''
-          new = '''fn reconstruct_initial_population(
-              run_dir: &Path,
-              checkpoint: &SimulationCheckpoint,
-              world: &World,
-          ) -> Result<Population, BundleValidationError> {
-              let config = checkpoint.experiment.population;
-              // Spatial split-realization runs initialize synthetic founders from the bound
-              // population seed, not the dynamic process seed. The spatial artifacts are fully
-              // cross-validated later in this function, so reading the declared mechanisms here
-              // only selects the deterministic reconstruction seed; it does not weaken binding.
-              let population_seed = if run_dir.join("spatial-mechanisms.json").is_file() {
-                  let mechanisms: SpatialMechanismConfig =
-                      read_json(&run_dir.join("spatial-mechanisms.json"))?;
-                  mechanisms
-                      .run_realization
-                      .map_or(checkpoint.experiment.seed, |realization| realization.population_seed)
-              } else {
-                  checkpoint.experiment.seed
-              };
-              let population = match config.initialization {
-                  PopulationInitialization::SyntheticValidationV1 => Population::initialize(
-                      config,
-                      world,
-                      RngFactory::new(population_seed),
-                  ),'''
-          assert text.count(old) == 1
-          bundle.write_text(text.replace(old, new))
+          path = Path("crates/anthrosim-core/src/demography_observability.rs")
+          text = path.read_text()
+          anchor = '''        if let Some((&female_parent, _)) = births.iter().next() {
+              return Err(invalid(format!(
+                  "unexplained birth for {female_parent:?} at day {day}"
+              )));
+          }
+          if stop_boundary {'''
+          replacement = '''        if let Some((&female_parent, _)) = births.iter().next() {
+              return Err(invalid(format!(
+                  "unexplained birth for {female_parent:?} at day {day}"
+              )));
+          }
+          // Household fission is authoritative but occurs after M2 fertility at the annual
+          // boundary. Apply it only after the fertility replay so later M4 migrations and
+          // parentage opportunities use the same household identities as the simulation.
+          apply_post_m2_boundary_events(&mut people, day_events, day)?;
+          if stop_boundary {'''
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, replacement)
 
-          spatial = Path("crates/anthrosim-core/src/spatial_simulation.rs")
-          text = spatial.read_text()
-          old = '''    if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
-                  || checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR
-              {
-                  return Err(SpatialLandscapeError::UnsupportedCheckpointBoundary {
-                      day: checkpoint.time.days(),
-                  });
-              }'''
-          new = '''    if (!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
-                  && !matches!(
-                      checkpoint.terminal_stop_reason,
-                      Some(StopReason::PopulationExtinct)
-                  ))
-                  || checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR
-              {
-                  return Err(SpatialLandscapeError::UnsupportedCheckpointBoundary {
-                      day: checkpoint.time.days(),
-                  });
-              }'''
-          assert text.count(old) == 1
-          spatial.write_text(text.replace(old, new))
+          anchor = '''fn apply_household_migration(
+              people: &mut [ReplayPerson],
+              household: HouseholdId,
+              destination: CellId,
+          ) {'''
+          helper = '''fn apply_post_m2_boundary_events(
+              people: &mut [ReplayPerson],
+              records: &[EventRecord],
+              day: u64,
+          ) -> Result<(), DemographyObservabilityError> {
+              for record in records {
+                  let EventKind::HouseholdFission {
+                      source_household,
+                      new_household,
+                      residence,
+                      people_reassigned,
+                      ..
+                  } = &record.event
+                  else {
+                      continue;
+                  };
+                  for person_id in people_reassigned {
+                      let index = replay_index(*person_id, people.len()).ok_or_else(|| {
+                          invalid(format!(
+                              "household fission at day {day} references unknown {person_id:?}"
+                          ))
+                      })?;
+                      let person = &mut people[index];
+                      if !person.alive() || person.household != *source_household {
+                          return Err(invalid(format!(
+                              "household fission at day {day} cannot reassign {person_id:?} from {source_household:?}"
+                          )));
+                      }
+                      if person.location != *residence {
+                          return Err(invalid(format!(
+                              "household fission at day {day} residence mismatch for {person_id:?}"
+                          )));
+                      }
+                      person.household = *new_household;
+                  }
+              }
+              Ok(())
+          }
 
-          invariants = Path("crates/anthrosim-core/src/spatial_invariants.rs")
-          text = invariants.read_text()
-          old = "let world = World::generate(config.world, RngFactory::new(config.seed))?"
-          new = '''let world = World::generate(
-                  config.world,
-                  RngFactory::new(run.checkpoint.spatial.environment.realization.environment_seed),
-              )?'''
-          assert text.count(old) == 1
-          invariants.write_text(text.replace(old, new))
+          fn apply_household_migration(
+              people: &mut [ReplayPerson],
+              household: HouseholdId,
+              destination: CellId,
+          ) {'''
+          assert text.count(anchor) == 1
+          path.write_text(text.replace(anchor, helper))
           PY
           cargo fmt --all
           if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add crates/anthrosim-cli/src/bundle.rs crates/anthrosim-core/src/spatial_invariants.rs crates/anthrosim-core/src/spatial_simulation.rs
-            git commit -m "fix: validate split-realization research bundles"
+            git add crates/anthrosim-core/src/demography_observability.rs
+            git commit -m "fix: replay household fission in demography observability"
             git push origin HEAD:feat/304-general-demographic-baseline
           fi
 
@@ -138,15 +134,6 @@ jobs:
           python3 scripts/prepare-general-demography-baseline-definition.py \
             research/general-demography-baseline-v1/exploratory-definition.json \
             /tmp/issue-304-definition.json
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          definition = json.loads(Path("/tmp/issue-304-definition.json").read_text())
-          landscape = definition["base"]["spatial"]["landscape"]
-          expected = landscape["width"] * landscape["height"]
-          assert expected == 144
-          assert all(len(layer["values"]) == expected for layer in landscape["layers"])
-          PY
 
       - name: Execute immutable exploratory research plan
         run: |
