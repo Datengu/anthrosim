@@ -2370,13 +2370,9 @@ mod tests {
             let mut home_total = 0_u64;
             let mut visitor_total = 0_u64;
             for period_sequence in 0..1_024 {
-                let (home, visitor) = duration_weighted_needs(
-                    1,
-                    &presence,
-                    household_index,
-                    period_sequence,
-                )
-                .unwrap();
+                let (home, visitor) =
+                    duration_weighted_needs(1, &presence, household_index, period_sequence)
+                        .unwrap();
                 home_total += home;
                 visitor_total += visitor;
             }
@@ -2458,8 +2454,10 @@ mod tests {
             config.annual_need_units_per_person = 3;
             config.max_scarcity_mortality_probability_per_million = 0;
             let mut system = ResourceSystem::initialize(&world, &config).unwrap();
-            let residence_capacity = cell_capacity(world.cells()[residence_index].base_productivity, &config);
-            let destination_capacity = cell_capacity(world.cells()[destination_index].base_productivity, &config);
+            let residence_capacity =
+                cell_capacity(world.cells()[residence_index].base_productivity, &config);
+            let destination_capacity =
+                cell_capacity(world.cells()[destination_index].base_productivity, &config);
             assert!(residence_capacity > 0 && destination_capacity > 0);
             system.cell_food_stock[residence_index] = residence_capacity;
             system.cell_food_stock[destination_index] = destination_capacity;
