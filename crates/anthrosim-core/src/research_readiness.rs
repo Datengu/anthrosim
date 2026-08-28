@@ -17,6 +17,7 @@ const RESOURCE_PARAMETER_PATHS: &[&str] = &[
     "resources.periodsPerYear",
     "resources.annualNeedUnitsPerPerson",
     "resources.annualRegenerationUnitsPerProductivity",
+    "resources.initialStockUnitsPerProductivity",
     "resources.productivityScalePermille",
     "resources.seasonalityScalePermille",
     "resources.cellStockCapacityYears",
