@@ -48,7 +48,9 @@ home_floor  = floor(N * H / D)
 visit_floor = floor(N * V / D)
 ```
 
-Any remaining unit caused by integer division is assigned by descending fractional remainder. An exact tie is resolved to the home-provisioning claim first. This stable rule conserves `N` exactly without stochastic rounding.
+Any remaining unit caused by integer division is assigned by descending fractional remainder. When the two fractional remainders are exactly equal, neither semantic side receives permanent priority. The tie is resolved by a deterministic balanced binary rotation keyed only by the household's stable zero-based index and the already-authoritative resource-period sequence. The period phase uses parity of the set bits in the zero-based sequence (the Thue-Morse binary parity sequence); the household key only complements that phase. This makes consecutive power-of-two blocks exactly balanced and avoids the seasonal aliasing that a simple odd/even period rule can create, while retaining bit-for-bit replay without introducing a new RNG stream or mutable rounding carry.
+
+The tie policy is deliberately semantic-side symmetric: relabelling which equal-duration claim is called home versus visitor reverses the awarded side rather than preserving a home preference. Household identity selects only the phase of the balanced rotation, not a rank or a long-run advantage. Every period still conserves `N` exactly.
 
 Claims with zero attributed need are omitted. A period with no visiting days therefore produces exactly one residence claim, matching the legacy M3 shape.
 
@@ -59,7 +61,7 @@ After duration-weighted claims are produced, M3 retains its existing cell-stock 
 1. claims at a cell are summed to cell demand;
 2. available stock defines the cell target harvest;
 3. target harvest is allocated proportionally across claims;
-4. bounded integer allocation remainder is resolved in stable claim order: household ID, then home claim before visitor claim;
+4. bounded integer allocation remainder is resolved by the separately audited cell-competition tie policy;
 5. claim allocations are summed back to one household harvest total.
 
 A household's overall resource-satisfaction fraction and condition update use its **total household harvest divided by its unchanged total household need**. A household drawing from two cells therefore receives one reconciled condition consequence; demand is neither created nor destroyed by travel.
@@ -87,7 +89,9 @@ When temporary mobility is not configured, no M9 resource ledger is active and M
 
 The duration ledger is authoritative model state while M9 is enabled. It is serialized and included in deterministic state identity. At supported annual checkpoint boundaries the immediately preceding resource period has already been settled, so the ledger is expected to be reset at that boundary; resumed execution must nevertheless validate and preserve the serialized ledger exactly.
 
-M9.5 changes authoritative resource attribution. The implementation therefore advances `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v5` and the checkpoint schema to v9 while leaving the package version unchanged during M9 development.
+The exact-tie rounding rule adds no new mutable carry and consumes no RNG. Its complete continuation key is the stable household index plus `ResourceSystem.periods_processed`, both of which are already preserved by checkpoint state and continuation identity. A checkpoint/resumed run therefore reconstructs the same next tie side without a new checkpoint field or schema change.
+
+M9.5 originally changed authoritative resource attribution at model-semantics v5. The post-M9 scientific audit in issue #194 changes the exact-tie allocation meaning again, removing the persistent home preference and advancing `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v19`. The package version remains unchanged.
 
 ## Acceptance
 
@@ -98,11 +102,15 @@ Implemented tests cover:
 - visits spanning a resource boundary;
 - outbound and return transit attributed to home provisioning;
 - exact household-demand conservation under integer rounding;
-- deterministic remainder ties;
+- repeated 50/50 one-unit ties with no persistent home advantage;
+- larger odd-demand 50/50 ties with balanced cumulative allocation;
+- repeated same-season ties at power-of-two resource-period cadence, guarding against simple parity aliasing;
+- non-tied fractional-remainder cases retaining ordinary largest-remainder behaviour;
+- resource-pressure consequences following the side selected by the tie rule;
+- deterministic replay and checkpoint/resume using the checkpointed resource-period sequence;
 - a household drawing supply from both residence and visitor cells;
 - condition/scarcity consequences based on the reconciled household supply fraction;
 - same-day resource/temporary-transition ordering through the scheduler boundary;
-- deterministic replay and checkpoint/resume through the existing M9 integration coverage;
 - disabled-M9 compatibility with the legacy M3 path through the preserved single-claim execution path and regression suite.
 
 The public M9.5 acceptance test additionally verifies that an otherwise identical one-day visit removes exactly one unit of destination stock and a five-day visit removes exactly five units under a one-unit-per-day synthetic fixture, demonstrating that visits wholly between resource boundaries do not disappear from M3 accounting.
