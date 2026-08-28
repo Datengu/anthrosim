@@ -1,6 +1,11 @@
 use anthrosim_core::{
-    CellId, FocalRegion, FocalRegionSource, HouseholdId, RngFactory, TemporaryTravelModel,
-    TemporaryTravelResolution, World, WorldConfig,
+    config::WorldConfig,
+    focal_region::{FocalRegion, FocalRegionSource},
+    ids::{CellId, HouseholdId},
+    rng::RngFactory,
+    temporary_mobility::TemporaryTravelResolution,
+    temporary_travel::TemporaryTravelModel,
+    world::World,
 };
 
 fn flat_world(width: u32, height: u32) -> World {
