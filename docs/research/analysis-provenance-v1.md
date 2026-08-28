@@ -226,6 +226,8 @@ Each layer answers a different reproducibility question and none substitutes for
 
 Rust integration-test wrappers execute both Python suites in the normal workspace CI.
 
+`crates/anthrosim-cli/tests/research_analysis_provenance_end_to_end.rs` additionally exercises the complete real executable chain required by #232 rather than mocking the upstream sweep. It creates a tiny two-point `ResearchExperimentDefinition`, freezes a confirmatory `StudyProtocol` with `anthrosim-study prepare`, executes both actual simulation arms with `anthrosim-research`, finalizes the study binding, runs a downstream Python inference through this provenance wrapper, verifies and isolated-replays the result, and finally creates and verifies the archive-wide `research-integrity.py` manifest. The test asserts that the two declared M3-period coordinates survive into the immutable research rows and that the downstream result is linked to the same real `researchId`.
+
 ## Scientific interpretation
 
 A valid v1 provenance record establishes that a named output is cryptographically linked to one frozen study result and one declared executable analysis lineage.
