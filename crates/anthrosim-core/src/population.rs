@@ -152,10 +152,19 @@ pub(crate) struct HouseholdRelocationOutcome {
     pub condition_loss_total: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HouseholdFissionRecord {
+    pub source_household: HouseholdId,
+    pub new_household: HouseholdId,
+    pub residence: CellId,
+    pub people_reassigned: Vec<PersonId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct HouseholdFissionOutcome {
     pub households_created: u64,
     pub people_reassigned: u64,
+    pub fissions: Vec<HouseholdFissionRecord>,
 }
 
 /// Authoritative persistent person/household state.
@@ -619,11 +628,19 @@ impl Population {
                     .ok_or(PopulationError::HouseholdIdSpaceExhausted)?;
                 let new_household = HouseholdId::new(new_household_raw);
                 self.household_locations.push(residence);
+                let mut reassigned = Vec::with_capacity(group_size);
                 for &person_index in &living_members[cursor..cursor + group_size] {
                     self.households[person_index] = new_household;
+                    reassigned.push(person_id_from_index(person_index));
                     outcome.people_reassigned = outcome.people_reassigned.saturating_add(1);
                 }
                 outcome.households_created = outcome.households_created.saturating_add(1);
+                outcome.fissions.push(HouseholdFissionRecord {
+                    source_household: household,
+                    new_household,
+                    residence,
+                    people_reassigned: reassigned,
+                });
                 cursor += group_size;
             }
 

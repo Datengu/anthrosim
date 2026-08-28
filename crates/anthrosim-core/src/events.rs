@@ -36,6 +36,8 @@ pub enum TemporaryJourneyIneligibility {
     DepartureWindowMissed,
 }
 
+pub(crate) const HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum EventKind {
@@ -78,6 +80,16 @@ pub enum EventKind {
         nominal_travel_condition_cost_per_person: u16,
         /// Exact summed condition loss actually realized by living movers after saturation at zero.
         realized_travel_condition_loss_total: u64,
+    },
+    /// Annual-boundary structural household split. This event exists so derived observability can
+    /// replay household creation without inferring it from terminal state. The alternative is a
+    /// synthetic sensitivity treatment, not a claim about historical household formation.
+    HouseholdFission {
+        event_schema_version: u32,
+        source_household: HouseholdId,
+        new_household: HouseholdId,
+        residence: CellId,
+        people_reassigned: Vec<PersonId>,
     },
     TemporaryJourneyNotStarted {
         event_schema_version: u32,

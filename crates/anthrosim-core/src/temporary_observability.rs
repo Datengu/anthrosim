@@ -7,6 +7,7 @@ use crate::{
     EventKind, EventProvenance, HouseholdPresence, MetricProvenance, Population,
     SimulationCheckpoint, TemporaryJourneyIneligibility, TemporaryMobilityProgram,
     TemporaryTravelModel, TemporaryTravelResolution, World,
+    events::HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION,
     ids::{CellId, HouseholdId, TemporaryJourneyId},
 };
 
@@ -366,8 +367,10 @@ pub fn derive_temporary_mobility_observability(
             checkpoint.world_digest64, world_digest64
         )));
     }
-    if initial_population.household_count() != checkpoint.population.household_count() {
-        return Err(invalid("initial and checkpoint household counts differ"));
+    if initial_population.household_count() > checkpoint.population.household_count() {
+        return Err(invalid(
+            "terminal household count is smaller than the founder household count",
+        ));
     }
     let end_day = checkpoint.time.days();
     checkpoint
@@ -592,6 +595,26 @@ fn replay_events(
         }
         previous_sequence = record.sequence;
         previous_day = record.day;
+
+        if let EventKind::HouseholdFission {
+            event_schema_version,
+            source_household,
+            new_household,
+            residence,
+            people_reassigned,
+        } = &record.event
+        {
+            replay_household_fission(
+                replay,
+                record.day,
+                *event_schema_version,
+                *source_household,
+                *new_household,
+                *residence,
+                people_reassigned.len(),
+            )?;
+            continue;
+        }
 
         let household = event_household(&record.event);
         let index = household_index(household, replay.households.len())?;
@@ -975,8 +998,68 @@ fn replay_events(
                 let origin = replay.origins.entry(residence.0).or_default();
                 origin.journeys_completed = add(origin.journeys_completed, 1)?;
             }
+            EventKind::HouseholdFission { .. } => {
+                unreachable!("household fission is handled before ordinary event replay")
+            }
         }
     }
+    Ok(())
+}
+
+fn replay_household_fission(
+    replay: &mut Replay<'_>,
+    day: u64,
+    event_schema_version: u32,
+    source_household: HouseholdId,
+    new_household: HouseholdId,
+    residence: CellId,
+    people_reassigned: usize,
+) -> Result<(), TemporaryMobilityObservabilityError> {
+    if event_schema_version != HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION {
+        return Err(invalid(format!(
+            "household-fission event schema {event_schema_version} is unsupported; expected {HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION}"
+        )));
+    }
+    let source_index = household_index(source_household, replay.households.len())?;
+    accrue_household(replay, source_index, day)?;
+    if !replay.households[source_index].presence.is_at_residence()
+        || replay.households[source_index].active_journey.is_some()
+    {
+        return Err(invalid(
+            "household fission occurred while the source household was temporarily away",
+        ));
+    }
+    if replay.households[source_index].residence != residence {
+        return Err(invalid(
+            "household fission residence does not match replay source residence",
+        ));
+    }
+    let expected_new = u64::try_from(replay.households.len())
+        .map_err(|_| invalid("household replay count exceeds u64"))?
+        .checked_add(1)
+        .ok_or_else(|| invalid("household replay identity overflow"))?;
+    if new_household != HouseholdId::new(expected_new) {
+        return Err(invalid(format!(
+            "household fission created {:?}, expected next canonical household {:?}",
+            new_household,
+            HouseholdId::new(expected_new)
+        )));
+    }
+    let moved = u64::try_from(people_reassigned)
+        .map_err(|_| invalid("household fission reassignment count exceeds u64"))?;
+    if moved == 0 || moved >= replay.households[source_index].living {
+        return Err(invalid(
+            "household fission must move a nonzero proper subset of living source members",
+        ));
+    }
+    replay.households[source_index].living -= moved;
+    replay.households.push(HouseholdReplay {
+        residence,
+        living: moved,
+        presence: HouseholdPresence::AtResidence,
+        active_journey: None,
+        last_day: day,
+    });
     Ok(())
 }
 
@@ -1197,6 +1280,13 @@ fn reconcile_terminal_state(
     replay: &mut Replay<'_>,
     checkpoint: &SimulationCheckpoint,
 ) -> Result<(), TemporaryMobilityObservabilityError> {
+    if replay.households.len() != checkpoint.population.household_count() {
+        return Err(invalid(format!(
+            "household replay reconstructed {} households but terminal population has {}",
+            replay.households.len(),
+            checkpoint.population.household_count()
+        )));
+    }
     let mut final_living = vec![0_u64; replay.households.len()];
     for raw in 1..=checkpoint.population.person_count() as u64 {
         let person = checkpoint
@@ -1612,6 +1702,10 @@ fn event_household(event: &EventKind) -> HouseholdId {
         EventKind::Birth { household, .. }
         | EventKind::Death { household, .. }
         | EventKind::HouseholdMigration { household, .. }
+        | EventKind::HouseholdFission {
+            source_household: household,
+            ..
+        }
         | EventKind::TemporaryJourneyNotStarted { household, .. }
         | EventKind::TemporaryJourneyDeparted { household, .. }
         | EventKind::TemporaryJourneyArrived { household, .. }

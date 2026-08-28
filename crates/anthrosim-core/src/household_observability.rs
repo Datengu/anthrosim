@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    EventKind, EventLog, EventProvenance,
     config::{ExperimentConfig, FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID},
+    events::HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION,
     household_lifecycle::household_lifecycle_model_id,
     ids::{HouseholdId, PersonId},
     population::Population,
@@ -14,6 +16,13 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 pub struct HouseholdSizeBin {
     pub living_members: u32,
+    pub household_count: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HouseholdAgeBin {
+    pub age_days: u64,
     pub household_count: u64,
 }
 
@@ -35,9 +44,11 @@ pub struct HouseholdObservabilityReport {
     pub active_households: u64,
     pub extinct_households: u64,
     /// Under the historical fixed-founder baseline every household record was created at day
-    /// zero, so its age is exactly the run day. Dynamic lifecycle variants deliberately return
-    /// null because creation-day history is not persisted by this minimal sensitivity model.
+    /// zero, so its age is exactly the run day. Dynamic treatments retain this compatibility
+    /// field as null and expose the complete distribution below instead.
     pub uniform_founder_household_age_days: Option<u64>,
+    pub oldest_living_household_age_days: u64,
+    pub living_household_age_distribution: Vec<HouseholdAgeBin>,
     pub largest_living_household_size: u32,
     pub living_household_size_distribution: Vec<HouseholdSizeBin>,
     pub maximum_living_generation_span: u32,
@@ -46,15 +57,17 @@ pub struct HouseholdObservabilityReport {
 }
 
 impl HouseholdObservabilityReport {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 }
 
 pub fn derive_household_observability(
     population: &Population,
     experiment: &ExperimentConfig,
+    events: &EventLog,
     day: u64,
 ) -> Result<HouseholdObservabilityReport, HouseholdObservabilityError> {
     let household_count = population.household_count();
+    let creation_days = household_creation_days(experiment, events, household_count, day)?;
     let mut living_sizes = vec![0_u32; household_count];
     let mut minimum_generation = vec![u32::MAX; household_count];
     let mut maximum_generation = vec![0_u32; household_count];
@@ -94,9 +107,11 @@ pub fn derive_household_observability(
         maximum_generation[household_index] = maximum_generation[household_index].max(generation);
     }
 
+    let mut age_bins = BTreeMap::<u64, u64>::new();
     let mut size_bins = BTreeMap::<u32, u64>::new();
     let mut span_bins = BTreeMap::<u32, u64>::new();
     let mut active_households = 0_u64;
+    let mut oldest_age = 0_u64;
     let mut largest = 0_u32;
     let mut max_span = 0_u32;
     let mut multigenerational = 0_u64;
@@ -105,6 +120,15 @@ pub fn derive_household_observability(
             continue;
         }
         active_households = active_households.saturating_add(1);
+        let age = day.checked_sub(creation_days[index]).ok_or(
+            HouseholdObservabilityError::CreationDayAfterObservation {
+                household: HouseholdId::new(index as u64 + 1),
+                creation_day: creation_days[index],
+                observation_day: day,
+            },
+        )?;
+        oldest_age = oldest_age.max(age);
+        *age_bins.entry(age).or_default() += 1;
         let size = living_sizes[index];
         largest = largest.max(size);
         *size_bins.entry(size).or_default() += 1;
@@ -131,6 +155,14 @@ pub fn derive_household_observability(
         uniform_founder_household_age_days: (experiment.household_lifecycle.is_none()
             && household_lifecycle_model_id(None) == FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID)
             .then_some(day),
+        oldest_living_household_age_days: oldest_age,
+        living_household_age_distribution: age_bins
+            .into_iter()
+            .map(|(age_days, household_count)| HouseholdAgeBin {
+                age_days,
+                household_count,
+            })
+            .collect(),
         largest_living_household_size: largest,
         living_household_size_distribution: size_bins
             .into_iter()
@@ -151,6 +183,90 @@ pub fn derive_household_observability(
             )
             .collect(),
     })
+}
+
+fn household_creation_days(
+    experiment: &ExperimentConfig,
+    events: &EventLog,
+    household_count: usize,
+    observation_day: u64,
+) -> Result<Vec<u64>, HouseholdObservabilityError> {
+    let mut creation_days = vec![0_u64; household_count];
+    let mut first_dynamic_household = None::<u64>;
+    let mut dynamic_count = 0_u64;
+    for record in &events.events {
+        let EventKind::HouseholdFission {
+            event_schema_version,
+            new_household,
+            ..
+        } = &record.event
+        else {
+            continue;
+        };
+        if experiment.household_lifecycle.is_none() {
+            return Err(HouseholdObservabilityError::UnexpectedFissionEvent);
+        }
+        if record.provenance != EventProvenance::Authoritative {
+            return Err(HouseholdObservabilityError::NonAuthoritativeFissionEvent);
+        }
+        if *event_schema_version != HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION {
+            return Err(HouseholdObservabilityError::UnsupportedFissionEventSchema {
+                found: *event_schema_version,
+                supported: HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION,
+            });
+        }
+        if record.day > observation_day {
+            return Err(HouseholdObservabilityError::CreationDayAfterObservation {
+                household: *new_household,
+                creation_day: record.day,
+                observation_day,
+            });
+        }
+        let raw = new_household.0;
+        let first = *first_dynamic_household.get_or_insert(raw);
+        let expected = first
+            .checked_add(dynamic_count)
+            .ok_or(HouseholdObservabilityError::HouseholdCountOverflow)?;
+        if raw != expected {
+            return Err(HouseholdObservabilityError::NonCanonicalFissionHousehold {
+                expected: HouseholdId::new(expected),
+                found: *new_household,
+            });
+        }
+        let index = usize::try_from(raw.checked_sub(1).ok_or(
+            HouseholdObservabilityError::InvalidHousehold {
+                household: *new_household,
+            },
+        )?)
+        .map_err(|_| HouseholdObservabilityError::InvalidHousehold {
+            household: *new_household,
+        })?;
+        if index >= household_count {
+            return Err(HouseholdObservabilityError::InvalidHousehold {
+                household: *new_household,
+            });
+        }
+        creation_days[index] = record.day;
+        dynamic_count = dynamic_count.saturating_add(1);
+    }
+    if let Some(first) = first_dynamic_household {
+        let founder_count = first
+            .checked_sub(1)
+            .ok_or(HouseholdObservabilityError::HouseholdCountOverflow)?;
+        let observed_total = founder_count
+            .checked_add(dynamic_count)
+            .ok_or(HouseholdObservabilityError::HouseholdCountOverflow)?;
+        if observed_total
+            != u64::try_from(household_count)
+                .map_err(|_| HouseholdObservabilityError::HouseholdCountOverflow)?
+        {
+            return Err(HouseholdObservabilityError::IncompleteFissionHistory {
+                expected_households: household_count,
+                history_households: observed_total,
+            });
+        }
+    }
+    Ok(creation_days)
 }
 
 fn generation_depth(
@@ -213,6 +329,34 @@ pub enum HouseholdObservabilityError {
     HouseholdCountOverflow,
     #[error("invalid household identity {household:?}")]
     InvalidHousehold { household: HouseholdId },
+    #[error("fixed-founder experiment unexpectedly contains a household-fission event")]
+    UnexpectedFissionEvent,
+    #[error("household-fission event is not authoritative")]
+    NonAuthoritativeFissionEvent,
+    #[error(
+        "household-fission event schema {found} is unsupported; supported schema is {supported}"
+    )]
+    UnsupportedFissionEventSchema { found: u32, supported: u32 },
+    #[error("non-canonical household-fission identity: expected {expected:?}, found {found:?}")]
+    NonCanonicalFissionHousehold {
+        expected: HouseholdId,
+        found: HouseholdId,
+    },
+    #[error(
+        "household-fission history accounts for {history_households} households but terminal state has {expected_households}"
+    )]
+    IncompleteFissionHistory {
+        expected_households: usize,
+        history_households: u64,
+    },
+    #[error(
+        "household {household:?} was created on day {creation_day}, after observation day {observation_day}"
+    )]
+    CreationDayAfterObservation {
+        household: HouseholdId,
+        creation_day: u64,
+        observation_day: u64,
+    },
     #[error("invalid person identity {person:?}")]
     InvalidPerson { person: PersonId },
     #[error("person {person:?} references invalid parent {parent:?}")]

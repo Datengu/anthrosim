@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "purpose": "TRACE structural sensitivity to founder-defined versus deterministic size-fission household lifecycles",
   "scientificStatus": "synthetic structural sensitivity; not empirical household validation",
   "seeds": [
@@ -25,12 +25,38 @@
     "terminalLargestHouseholdSizeTotal": 85,
     "terminalMultigenerationalHouseholdsTotal": 133,
     "terminalLivingOccupiedCellsTotal": 173,
+    "terminalHouseholdSizeDistribution": {
+      "1": 30,
+      "2": 16,
+      "3": 27,
+      "4": 23,
+      "5": 23,
+      "6": 20,
+      "7": 9,
+      "8": 8,
+      "9": 5,
+      "10": 4,
+      "12": 8,
+      "13": 3
+    },
+    "terminalHouseholdAgeDaysDistribution": {
+      "14600": 176
+    },
+    "terminalHouseholdGenerationSpanDistribution": {
+      "1": 43,
+      "2": 57,
+      "3": 71,
+      "4": 5
+    },
     "meanLivingConditionPermilleSum": 7999,
     "meanLivingConditionDefinedRuns": 8,
     "unmetNeedTotal": 962,
     "migrationMovesTotal": 85,
     "migrationPeopleMovedTotal": 704,
-    "temporaryDeparturesTotal": 7336
+    "temporaryDeparturesTotal": 7336,
+    "temporaryVisitorPersonDaysTotal": 247348,
+    "temporaryVisitorHouseholdDaysTotal": 51317,
+    "temporaryPeakVisitorsMax": 130
   },
   "deterministicSizeFission": {
     "lifecycleModelId": "deterministic_size_fission_v1",
@@ -41,11 +67,54 @@
     "terminalLargestHouseholdSizeTotal": 58,
     "terminalMultigenerationalHouseholdsTotal": 152,
     "terminalLivingOccupiedCellsTotal": 193,
+    "terminalHouseholdSizeDistribution": {
+      "1": 27,
+      "2": 27,
+      "3": 35,
+      "4": 36,
+      "5": 37,
+      "6": 24,
+      "7": 19,
+      "8": 3
+    },
+    "terminalHouseholdAgeDaysDistribution": {
+      "365": 1,
+      "1825": 3,
+      "2190": 2,
+      "2555": 1,
+      "3650": 2,
+      "5110": 3,
+      "5475": 1,
+      "6205": 1,
+      "6935": 4,
+      "7665": 1,
+      "8030": 1,
+      "8395": 1,
+      "9125": 2,
+      "9490": 2,
+      "9855": 2,
+      "10220": 1,
+      "10950": 2,
+      "11315": 2,
+      "12045": 2,
+      "12410": 2,
+      "12775": 1,
+      "14600": 171
+    },
+    "terminalHouseholdGenerationSpanDistribution": {
+      "1": 56,
+      "2": 79,
+      "3": 71,
+      "4": 2
+    },
     "meanLivingConditionPermilleSum": 7998,
     "meanLivingConditionDefinedRuns": 8,
     "unmetNeedTotal": 449,
     "migrationMovesTotal": 97,
     "migrationPeopleMovedTotal": 499,
-    "temporaryDeparturesTotal": 8046
+    "temporaryDeparturesTotal": 8046,
+    "temporaryVisitorPersonDaysTotal": 246965,
+    "temporaryVisitorHouseholdDaysTotal": 56280,
+    "temporaryPeakVisitorsMax": 120
   }
 }

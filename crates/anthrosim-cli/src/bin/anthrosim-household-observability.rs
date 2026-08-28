@@ -38,6 +38,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let report = derive_household_observability(
         &checkpoint.population,
         &checkpoint.experiment,
+        &checkpoint.events,
         checkpoint.time.days(),
     )?;
 

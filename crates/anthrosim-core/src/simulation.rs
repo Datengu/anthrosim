@@ -526,6 +526,7 @@ impl Simulation {
                 apply_household_lifecycle_at_annual_boundary(
                     &mut self.population,
                     &mut self.temporary_mobility,
+                    &mut self.events,
                     &household_lifecycle,
                     self.time.days(),
                 )?;

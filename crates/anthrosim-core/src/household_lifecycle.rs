@@ -5,6 +5,7 @@ use crate::{
         DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID, FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID,
         HouseholdLifecycleConfig,
     },
+    events::{EventKind, EventLog, HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION},
     ids::HouseholdId,
     population::{HouseholdFissionOutcome, Population, PopulationError},
     temporary_mobility::{TemporaryMobilityExecutionError, TemporaryMobilityState},
@@ -46,6 +47,7 @@ pub fn household_lifecycle_model_id(config: Option<&HouseholdLifecycleConfig>) -
 pub(crate) fn apply_household_lifecycle_at_annual_boundary(
     population: &mut Population,
     temporary_mobility: &mut TemporaryMobilityState,
+    events: &mut EventLog,
     config: &HouseholdLifecycleConfig,
     day: u64,
 ) -> Result<HouseholdLifecycleOutcome, HouseholdLifecycleError> {
@@ -68,8 +70,21 @@ pub(crate) fn apply_household_lifecycle_at_annual_boundary(
     let HouseholdFissionOutcome {
         households_created,
         people_reassigned,
+        fissions,
     } = population.fission_oversized_households(config.max_living_members, &eligible)?;
     temporary_mobility.reconcile_household_topology_at_boundary(population, day)?;
+    for fission in fissions {
+        events.push_authoritative(
+            day,
+            EventKind::HouseholdFission {
+                event_schema_version: HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION,
+                source_household: fission.source_household,
+                new_household: fission.new_household,
+                residence: fission.residence,
+                people_reassigned: fission.people_reassigned,
+            },
+        );
+    }
     Ok(HouseholdLifecycleOutcome {
         households_created,
         people_reassigned,
