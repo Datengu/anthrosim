@@ -164,7 +164,7 @@ fn spatial_observability_is_deterministic_and_reconciles_terminal_state() {
     .unwrap();
 
     assert_eq!(first, second);
-    assert_eq!(first.schema_version, 3);
+    assert_eq!(first.schema_version, 4);
     assert_eq!(first.provenance, MetricProvenance::Derived);
     assert_eq!(
         first.semantics.population_location_basis,
@@ -203,8 +203,13 @@ fn spatial_observability_is_deterministic_and_reconciles_terminal_state() {
         first.summary.migration_moves,
         run.core_checkpoint().migration.moves_completed
     );
+    assert_eq!(
+        first.resource_temporal_summary.preserved_periods as usize,
+        first.resource_periods.len()
+    );
+    assert!(first.resource_temporal_summary.history_complete_from_start);
     assert!(
-        first
+        !first
             .unavailable_observables
             .iter()
             .any(|value| value.contains("historical per-cell food stock"))
