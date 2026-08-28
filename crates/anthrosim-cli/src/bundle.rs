@@ -188,7 +188,8 @@ fn validate_semantics(
             initial_population = Some(population);
         }
     }
-    let reconstructed_initial_population = reconstruct_initial_population(&checkpoint, &world)?;
+    let reconstructed_initial_population =
+        reconstruct_initial_population(run_dir, &checkpoint, &world)?;
     if let Some(recorded_initial_population) = initial_population.as_ref() {
         if recorded_initial_population != &reconstructed_initial_population {
             return Err(invalid(
@@ -236,15 +237,31 @@ fn validate_semantics(
 }
 
 fn reconstruct_initial_population(
+    run_dir: &Path,
     checkpoint: &SimulationCheckpoint,
     world: &World,
 ) -> Result<Population, BundleValidationError> {
     let config = checkpoint.experiment.population;
+    // Spatial split-realization runs initialize synthetic founders from the bound
+    // population seed, not the dynamic process seed. The spatial artifacts are fully
+    // cross-validated later in this function, so reading the declared mechanisms here
+    // only selects the deterministic reconstruction seed; it does not weaken binding.
+    let population_seed = if run_dir.join("spatial-mechanisms.json").is_file() {
+        let mechanisms: SpatialMechanismConfig =
+            read_json(&run_dir.join("spatial-mechanisms.json"))?;
+        mechanisms
+            .run_realization
+            .map_or(checkpoint.experiment.seed, |realization| {
+                realization.population_seed
+            })
+    } else {
+        checkpoint.experiment.seed
+    };
     let population = match config.initialization {
         PopulationInitialization::SyntheticValidationV1 => Population::initialize(
             config,
             world,
-            RngFactory::new(checkpoint.experiment.seed),
+            RngFactory::new(population_seed),
         ),
         PopulationInitialization::DeclaredFounderStateV1 => {
             let definition = checkpoint
