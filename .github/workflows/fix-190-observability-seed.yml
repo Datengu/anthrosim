@@ -1,0 +1,69 @@
+name: Validate issue 190 observability seed provenance
+
+on:
+  push:
+    branches:
+      - fix/190-equal-cost-m9-destinations
+    paths:
+      - .github/workflows/fix-190-observability-seed.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/190-equal-cost-m9-destinations
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Bind observability regeneration to stored authoritative tie seed
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          mobility = Path('crates/anthrosim-core/src/temporary_mobility.rs')
+          text = mobility.read_text()
+          old = '''    #[must_use]\n    pub fn equal_cost_destination_count(&self, origin: CellId) -> Option<u32> {\n        self.equal_cost_destinations(origin)?.len().try_into().ok()\n    }\n\n    #[must_use]\n    pub fn route_distance_edges(&self, origin: CellId, destination: CellId) -> Option<u32> {\n'''
+          new = '''    #[must_use]\n    pub fn equal_cost_destination_count(&self, origin: CellId) -> Option<u32> {\n        self.equal_cost_destinations(origin)?.len().try_into().ok()\n    }\n\n    #[must_use]\n    pub const fn destination_tie_seed(&self) -> Option<u64> {\n        self.destination_tie_seed\n    }\n\n    #[must_use]\n    pub fn route_distance_edges(&self, origin: CellId, destination: CellId) -> Option<u32> {\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'mobility selector count={text.count(old)}')
+          mobility.write_text(text.replace(old, new, 1))
+
+          observability = Path('crates/anthrosim-core/src/temporary_observability.rs')
+          text = observability.read_text()
+          old = '''    if let Some(config) = checkpoint.experiment.temporary_mobility.as_ref() {\n        let expected = config\n            .derive_program_with_seed(world, checkpoint.experiment.seed)\n            .map_err(|error| {\n                invalid(format!(\n                    "temporary mobility config cannot derive program: {error}"\n                ))\n            })?;\n        if &expected != program {\n'''
+          new = '''    if let Some(config) = checkpoint.experiment.temporary_mobility.as_ref() {\n        let destination_tie_seed = program.travel.destination_tie_seed().ok_or_else(|| {\n            invalid(\n                "configured temporary mobility program is missing authoritative destination tie seed",\n            )\n        })?;\n        let expected = config\n            .derive_program_with_seed(world, destination_tie_seed)\n            .map_err(|error| {\n                invalid(format!(\n                    "temporary mobility config cannot derive program: {error}"\n                ))\n            })?;\n        if &expected != program {\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'observability selector count={text.count(old)}')
+          observability.write_text(text.replace(old, new, 1))
+
+          docs = Path('docs/research/m9-equal-cost-destination-choice-v1.md')
+          text = docs.read_text()
+          old = 'The key contains the experiment seed, origin cell, household identity and trigger index and is passed through a fixed integer avalanche before reduction to the candidate count.'
+          new = 'The key contains the authoritative M9 tie seed, origin cell, household identity and trigger index and is passed through a fixed integer avalanche before reduction to the candidate count. Core runs use the experiment seed for this role; spatial runs use the resolved process seed from the spatial-realization provenance contract.'
+          if text.count(old) != 1:
+              raise SystemExit(f'docs selector count={text.count(old)}')
+          docs.write_text(text.replace(old, new, 1))
+          PY
+      - name: Format
+        run: cargo fmt --all
+      - name: Compile core
+        run: cargo check -p anthrosim-core --all-targets
+      - name: Run M9 observability and symmetry tests
+        run: |
+          cargo test -p anthrosim-core temporary_observability -- --nocapture
+          cargo test -p anthrosim-core --test m9_equal_cost_destinations -- --nocapture
+      - name: Remove validation workflow
+        if: success()
+        run: rm .github/workflows/fix-190-observability-seed.yml
+      - name: Commit validated correction
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: preserve M9 tie seed in observability regeneration"
+          git push origin HEAD:fix/190-equal-cost-m9-destinations
