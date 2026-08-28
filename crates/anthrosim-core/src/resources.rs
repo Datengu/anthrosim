@@ -1128,14 +1128,10 @@ fn condition_distribution(
     };
     Ok(ConditionDistributionObservation {
         living_people,
-        mean_permille: if living_people == 0 {
-            None
-        } else {
-            Some(
-                u16::try_from(sum / living_people)
-                    .map_err(|_| ResourceError::AccountingOverflow)?,
-            )
-        },
+        mean_permille: sum
+            .checked_div(living_people)
+            .map(|mean| u16::try_from(mean).map_err(|_| ResourceError::AccountingOverflow))
+            .transpose()?,
         minimum_permille: values.first().copied(),
         p10_permille: quantile(1, 10),
         p25_permille: quantile(1, 4),
