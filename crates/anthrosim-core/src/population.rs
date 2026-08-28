@@ -152,6 +152,21 @@ pub(crate) struct HouseholdRelocationOutcome {
     pub condition_loss_total: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HouseholdFissionRecord {
+    pub source_household: HouseholdId,
+    pub new_household: HouseholdId,
+    pub residence: CellId,
+    pub people_reassigned: Vec<PersonId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct HouseholdFissionOutcome {
+    pub households_created: u64,
+    pub people_reassigned: u64,
+    pub fissions: Vec<HouseholdFissionRecord>,
+}
+
 /// Authoritative persistent person/household state.
 ///
 /// Hot per-person fields are stored as parallel contiguous arrays rather than
@@ -554,6 +569,84 @@ impl Population {
         self.condition_permille.push(PERMILLE_MAX);
         self.births_since_start = self.births_since_start.saturating_add(1);
         Ok(id)
+    }
+
+    pub(crate) fn fission_oversized_households(
+        &mut self,
+        max_living_members: u16,
+        eligible_households: &[bool],
+    ) -> Result<HouseholdFissionOutcome, PopulationError> {
+        if max_living_members == 0 {
+            return Err(PopulationError::ZeroLifecycleHouseholdSize);
+        }
+        let original_household_count = self.household_count();
+        if eligible_households.len() != original_household_count {
+            return Err(PopulationError::HouseholdLifecycleShapeMismatch);
+        }
+
+        let ceiling = usize::from(max_living_members);
+        let mut outcome = HouseholdFissionOutcome::default();
+        for (household_index, &is_eligible) in eligible_households.iter().enumerate() {
+            if !is_eligible {
+                continue;
+            }
+            let household = HouseholdId::new(
+                u64::try_from(household_index)
+                    .map_err(|_| PopulationError::HouseholdIdSpaceExhausted)?
+                    .checked_add(1)
+                    .ok_or(PopulationError::HouseholdIdSpaceExhausted)?,
+            );
+            let living_members = (0..self.person_count())
+                .filter(|&person_index| {
+                    self.is_alive_index(person_index) && self.households[person_index] == household
+                })
+                .collect::<Vec<_>>();
+            if living_members.len() <= ceiling {
+                continue;
+            }
+
+            // Use the minimum number of groups needed to obey the configured ceiling, then
+            // balance group sizes so deterministic fission does not manufacture avoidable
+            // singleton households. Stable PersonId order is the explicit neutral partition rule.
+            let group_count = living_members.len().div_ceil(ceiling);
+            let base_group_size = living_members.len() / group_count;
+            let larger_group_count = living_members.len() % group_count;
+            let source_group_size = base_group_size + if larger_group_count > 0 { 1 } else { 0 };
+            let residence = self.household_locations[household_index];
+            let mut cursor = source_group_size;
+
+            for group_index in 1..group_count {
+                let group_size = base_group_size
+                    + if group_index < larger_group_count {
+                        1
+                    } else {
+                        0
+                    };
+                let new_household_raw = u64::try_from(self.household_locations.len())
+                    .map_err(|_| PopulationError::HouseholdIdSpaceExhausted)?
+                    .checked_add(1)
+                    .ok_or(PopulationError::HouseholdIdSpaceExhausted)?;
+                let new_household = HouseholdId::new(new_household_raw);
+                self.household_locations.push(residence);
+                let mut reassigned = Vec::with_capacity(group_size);
+                for &person_index in &living_members[cursor..cursor + group_size] {
+                    self.households[person_index] = new_household;
+                    reassigned.push(person_id_from_index(person_index));
+                    outcome.people_reassigned = outcome.people_reassigned.saturating_add(1);
+                }
+                outcome.households_created = outcome.households_created.saturating_add(1);
+                outcome.fissions.push(HouseholdFissionRecord {
+                    source_household: household,
+                    new_household,
+                    residence,
+                    people_reassigned: reassigned,
+                });
+                cursor += group_size;
+            }
+
+            debug_assert_eq!(cursor, living_members.len());
+        }
+        Ok(outcome)
     }
 
     pub(crate) fn apply_household_relocations(
@@ -1041,6 +1134,12 @@ pub enum PopulationError {
     PersonRecordLimitReached { limit: u64 },
     #[error("household relocation arrays do not match the population household layout")]
     RelocationShapeMismatch,
+    #[error("household lifecycle eligibility does not match the population household layout")]
+    HouseholdLifecycleShapeMismatch,
+    #[error("household lifecycle maximum living size must be greater than zero")]
+    ZeroLifecycleHouseholdSize,
+    #[error("household identity space is exhausted")]
+    HouseholdIdSpaceExhausted,
     #[error("household relocation destination {destination:?} is outside the world")]
     InvalidRelocationDestination { destination: CellId },
     #[error("simulation day {day} cannot be represented as an epoch-relative signed birth day")]

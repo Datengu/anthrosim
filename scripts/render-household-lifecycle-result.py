@@ -1,0 +1,84 @@
+import json
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+data = json.loads(source.read_text(encoding="utf-8"))
+b = data["baseline"]
+f = data["deterministicSizeFission"]
+n = len(data["seeds"])
+
+def mean(total):
+    return total / n
+
+def pct_change(before, after):
+    return 100.0 * (after - before) / before if before else 0.0
+
+def distribution(values, suffix=""):
+    return ", ".join(
+        f"{key}{suffix}: {value}"
+        for key, value in sorted(values.items(), key=lambda item: int(item[0]))
+    )
+
+lines = [
+    "# Household lifecycle structural sensitivity — first result",
+    "",
+    "**Scientific status:** synthetic structural sensitivity; not empirical household validation.",
+    "",
+    f"Eight paired seeds were run for {data['durationYears']} years. The arms differ only in household lifecycle: `fixed_founder_v1` versus `deterministic_size_fission_v1` with a maximum of {data['alternativeMaxLivingMembers']} living members per eligible household after an annual boundary.",
+    "",
+    "| Observable | Fixed founder | Size fission |",
+    "| --- | ---: | ---: |",
+    f"| Completed runs | {b['completedRuns']}/{n} | {f['completedRuns']}/{n} |",
+    f"| Extinct runs | {b['populationExtinctRuns']}/{n} | {f['populationExtinctRuns']}/{n} |",
+    f"| Mean terminal living population | {mean(b['terminalLivingPopulationTotal']):.2f} | {mean(f['terminalLivingPopulationTotal']):.2f} |",
+    f"| Mean terminal active households | {mean(b['terminalActiveHouseholdsTotal']):.2f} | {mean(f['terminalActiveHouseholdsTotal']):.2f} |",
+    f"| Mean terminal largest household | {mean(b['terminalLargestHouseholdSizeTotal']):.2f} | {mean(f['terminalLargestHouseholdSizeTotal']):.2f} |",
+    f"| Mean terminal multi-generational households | {mean(b['terminalMultigenerationalHouseholdsTotal']):.2f} | {mean(f['terminalMultigenerationalHouseholdsTotal']):.2f} |",
+    f"| Mean terminal occupied residence cells | {mean(b['terminalLivingOccupiedCellsTotal']):.2f} | {mean(f['terminalLivingOccupiedCellsTotal']):.2f} |",
+    f"| Total unmet resource need | {b['unmetNeedTotal']} | {f['unmetNeedTotal']} |",
+    f"| Total M4 moves | {b['migrationMovesTotal']} | {f['migrationMovesTotal']} |",
+    f"| Mean people per M4 move | {(b['migrationPeopleMovedTotal'] / b['migrationMovesTotal']) if b['migrationMovesTotal'] else 0:.3f} | {(f['migrationPeopleMovedTotal'] / f['migrationMovesTotal']) if f['migrationMovesTotal'] else 0:.3f} |",
+    f"| Total M9 departures | {b['temporaryDeparturesTotal']} | {f['temporaryDeparturesTotal']} |",
+    f"| Total M9 visitor person-days | {b['temporaryVisitorPersonDaysTotal']} | {f['temporaryVisitorPersonDaysTotal']} |",
+    f"| Total M9 visitor household-days | {b['temporaryVisitorHouseholdDaysTotal']} | {f['temporaryVisitorHouseholdDaysTotal']} |",
+    f"| Maximum peak simultaneous visitors | {b['temporaryPeakVisitorsMax']} | {f['temporaryPeakVisitorsMax']} |",
+    "",
+    "## Pooled terminal household distributions",
+    "",
+    "Counts below pool active terminal households across all eight paired seeds.",
+    "",
+    f"- **Living members per household — fixed:** {distribution(b['terminalHouseholdSizeDistribution'])}",
+    f"- **Living members per household — fission:** {distribution(f['terminalHouseholdSizeDistribution'])}",
+    f"- **Household age (days) — fixed:** {distribution(b['terminalHouseholdAgeDaysDistribution'], 'd')}",
+    f"- **Household age (days) — fission:** {distribution(f['terminalHouseholdAgeDaysDistribution'], 'd')}",
+    f"- **Living genealogical generations — fixed:** {distribution(b['terminalHouseholdGenerationSpanDistribution'])}",
+    f"- **Living genealogical generations — fission:** {distribution(f['terminalHouseholdGenerationSpanDistribution'])}",
+    "",
+    "## Interpretation",
+    "",
+]
+materially_different = (
+    b["terminalActiveHouseholdsTotal"] != f["terminalActiveHouseholdsTotal"]
+    or b["migrationMovesTotal"] != f["migrationMovesTotal"]
+    or b["temporaryVisitorPersonDaysTotal"] != f["temporaryVisitorPersonDaysTotal"]
+    or b["unmetNeedTotal"] != f["unmetNeedTotal"]
+)
+if materially_different:
+    lines.append(
+        "The declared lifecycle contrast is **material for at least one predeclared household/resource/mobility observable** in this synthetic ensemble. Household lifecycle must therefore remain an explicit structural uncertainty dimension for claims that depend on household sharing, M4 permanent migration, or M9 participation/aggregation. This does not establish which lifecycle is historically correct."
+    )
+else:
+    lines.append(
+        "The declared lifecycle contrast did not alter the predeclared aggregate observables in this synthetic ensemble. That is robustness evidence only for this exact contrast and does not validate either lifecycle historically."
+    )
+lines.extend([
+    "",
+    f"M9 is specifically mixed rather than uniformly sensitive: fission changes household-level participation (departures {pct_change(b['temporaryDeparturesTotal'], f['temporaryDeparturesTotal']):+.1f}% and visitor household-days {pct_change(b['temporaryVisitorHouseholdDaysTotal'], f['temporaryVisitorHouseholdDaysTotal']):+.1f}%), while visitor person-days are nearly unchanged ({pct_change(b['temporaryVisitorPersonDaysTotal'], f['temporaryVisitorPersonDaysTotal']):+.1f}%) and the maximum peak is lower ({pct_change(b['temporaryPeakVisitorsMax'], f['temporaryPeakVisitorsMax']):+.1f}%). Thus claims about household-event frequency/grouping are structurally sensitive here, whereas this exact aggregate person-exposure measure is comparatively robust in the tested ensemble.",
+    "",
+    "The fixed-founder arm's active household ages are exactly the 40-year run duration by construction. The size-fission arm instead contains multiple household ages because annual creation boundaries are now preserved authoritatively and replayable. M9 visitor person-days, household-days and peak visitors are derived through the ordinary temporary-mobility observability replay rather than counted by a special analysis path.",
+    "",
+    "The machine-readable aggregate used for this page is `research/household-lifecycle-sensitivity-v1/reference-result.json`.",
+])
+target.write_text("\n".join(lines) + "\n", encoding="utf-8")
