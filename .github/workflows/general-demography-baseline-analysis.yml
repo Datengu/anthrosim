@@ -21,7 +21,6 @@ jobs:
     name: Exploratory 3x2 demographic baseline analysis
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     steps:
       - name: Checkout issue 304 branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -33,33 +32,13 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path("crates/anthrosim-core/src/demography_observability.rs")
           text = path.read_text()
-          anchor = '''        if let Some((&female_parent, _)) = births.iter().next() {
-              return Err(invalid(format!(
-                  "unexplained birth for {female_parent:?} at day {day}"
-              )));
-          }
-          if stop_boundary {'''
-          replacement = '''        if let Some((&female_parent, _)) = births.iter().next() {
-              return Err(invalid(format!(
-                  "unexplained birth for {female_parent:?} at day {day}"
-              )));
-          }
-          // Household fission is authoritative but occurs after M2 fertility at the annual
-          // boundary. Apply it only after the fertility replay so later M4 migrations and
-          // parentage opportunities use the same household identities as the simulation.
-          apply_post_m2_boundary_events(&mut people, day_events, day)?;
-          if stop_boundary {'''
-          assert text.count(anchor) == 1
-          text = text.replace(anchor, replacement)
-
-          anchor = '''fn apply_household_migration(
-              people: &mut [ReplayPerson],
-              household: HouseholdId,
-              destination: CellId,
-          ) {'''
+          marker = "        if stop_boundary {\n"
+          assert text.count(marker) == 1, text.count(marker)
+          text = text.replace(marker, "        apply_post_m2_boundary_events(&mut people, day_events, day)?;\n        if stop_boundary {\n", 1)
+          marker = "fn apply_household_migration(\n"
+          assert text.count(marker) == 1, text.count(marker)
           helper = '''fn apply_post_m2_boundary_events(
               people: &mut [ReplayPerson],
               records: &[EventRecord],
@@ -78,20 +57,14 @@ jobs:
                   };
                   for person_id in people_reassigned {
                       let index = replay_index(*person_id, people.len()).ok_or_else(|| {
-                          invalid(format!(
-                              "household fission at day {day} references unknown {person_id:?}"
-                          ))
+                          invalid(format!("household fission at day {day} references unknown {person_id:?}"))
                       })?;
                       let person = &mut people[index];
                       if !person.alive() || person.household != *source_household {
-                          return Err(invalid(format!(
-                              "household fission at day {day} cannot reassign {person_id:?} from {source_household:?}"
-                          )));
+                          return Err(invalid(format!("household fission at day {day} cannot reassign {person_id:?} from {source_household:?}")));
                       }
                       if person.location != *residence {
-                          return Err(invalid(format!(
-                              "household fission at day {day} residence mismatch for {person_id:?}"
-                          )));
+                          return Err(invalid(format!("household fission at day {day} residence mismatch for {person_id:?}")));
                       }
                       person.household = *new_household;
                   }
@@ -100,21 +73,16 @@ jobs:
           }
 
           fn apply_household_migration(
-              people: &mut [ReplayPerson],
-              household: HouseholdId,
-              destination: CellId,
-          ) {'''
-          assert text.count(anchor) == 1
-          path.write_text(text.replace(anchor, helper))
+          '''
+          text = text.replace(marker, helper, 1)
+          path.write_text(text)
           PY
           cargo fmt --all
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add crates/anthrosim-core/src/demography_observability.rs
-            git commit -m "fix: replay household fission in demography observability"
-            git push origin HEAD:feat/304-general-demographic-baseline
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/demography_observability.rs
+          git commit -m "fix: replay household fission in demography observability"
+          git push origin HEAD:feat/304-general-demographic-baseline
 
       - name: Install pinned Rust toolchain
         run: |
@@ -125,82 +93,45 @@ jobs:
       - name: Build research binaries
         run: |
           export ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)"
-          cargo build --locked --release -p anthrosim-cli \
-            --bin anthrosim-research \
-            --bin anthrosim-demography-observability
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --bin anthrosim-demography-observability
 
-      - name: Materialize exact exploratory definition
+      - name: Run exploratory analysis
         run: |
-          python3 scripts/prepare-general-demography-baseline-definition.py \
-            research/general-demography-baseline-v1/exploratory-definition.json \
-            /tmp/issue-304-definition.json
-
-      - name: Execute immutable exploratory research plan
-        run: |
+          python3 scripts/prepare-general-demography-baseline-definition.py research/general-demography-baseline-v1/exploratory-definition.json /tmp/issue-304-definition.json
           rm -rf /tmp/issue-304-research /tmp/issue-304-observability /tmp/issue-304-output
-          target/release/anthrosim-research \
-            --definition /tmp/issue-304-definition.json \
-            --run-dir /tmp/issue-304-research
-
-      - name: Derive M2 opportunity-funnel observability
-        run: |
-          mkdir -p /tmp/issue-304-observability
+          target/release/anthrosim-research --definition /tmp/issue-304-definition.json --run-dir /tmp/issue-304-research
+          mkdir -p /tmp/issue-304-observability /tmp/issue-304-output
           python3 - <<'PY' >/tmp/issue-304-runs.tsv
           import json
           from pathlib import Path
-          rows = json.loads(Path("/tmp/issue-304-research/analysis/runs.json").read_text())["runs"]
-          for row in rows:
-              if row["state"] != "completed":
-                  raise SystemExit(f"non-completed run: {row['runId']}")
+          for row in json.loads(Path('/tmp/issue-304-research/analysis/runs.json').read_text())['runs']:
+              assert row['state'] == 'completed'
               print(f"{row['runId']}\t{row['relativeDir']}")
           PY
           while IFS=$'\t' read -r run_id relative_dir; do
-            target/release/anthrosim-demography-observability \
-              --run-dir "/tmp/issue-304-research/${relative_dir}" \
-              --output "/tmp/issue-304-observability/${run_id}.json" \
-              >/dev/null
+            target/release/anthrosim-demography-observability --run-dir "/tmp/issue-304-research/${relative_dir}" --output "/tmp/issue-304-observability/${run_id}.json" >/dev/null
           done </tmp/issue-304-runs.tsv
+          python3 scripts/research-long-run-diagnostics.py /tmp/issue-304-research research/general-demography-baseline-v1/long-run-protocol.json --output /tmp/issue-304-output/long-run.json
+          python3 scripts/research-general-demography-baseline.py /tmp/issue-304-research /tmp/issue-304-observability /tmp/issue-304-output/exploratory-summary.json --long-run /tmp/issue-304-output/long-run.json
 
-      - name: Apply long-run TRACE diagnostics
+      - name: Validate and preserve result
         run: |
-          mkdir -p /tmp/issue-304-output
-          python3 scripts/research-long-run-diagnostics.py \
-            /tmp/issue-304-research \
-            research/general-demography-baseline-v1/long-run-protocol.json \
-            --output /tmp/issue-304-output/long-run.json
-
-      - name: Quantify demographic outcomes
-        run: |
-          python3 scripts/research-general-demography-baseline.py \
-            /tmp/issue-304-research \
-            /tmp/issue-304-observability \
-            /tmp/issue-304-output/exploratory-summary.json \
-            --long-run /tmp/issue-304-output/long-run.json
           python3 - <<'PY'
           import json
           from pathlib import Path
-          result = json.loads(Path("/tmp/issue-304-output/exploratory-summary.json").read_text())
-          assert result["runCount"] == 288, result["runCount"]
-          assert len(result["arms"]) == 36, len(result["arms"])
+          r=json.loads(Path('/tmp/issue-304-output/exploratory-summary.json').read_text())
+          assert r['runCount']==288
+          assert len(r['arms'])==36
           PY
-
-      - name: Preserve compact scientific result
-        run: |
           mkdir -p /tmp/issue-304-artifact
-          cp /tmp/issue-304-definition.json /tmp/issue-304-artifact/exploratory-definition.json
-          cp research/general-demography-baseline-v1/long-run-protocol.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-definition.json /tmp/issue-304-artifact/
+          cp /tmp/issue-304-output/*.json /tmp/issue-304-artifact/
           cp /tmp/issue-304-research/research-manifest.json /tmp/issue-304-artifact/
-          cp /tmp/issue-304-research/research-plan.json /tmp/issue-304-artifact/
-          cp /tmp/issue-304-research/analysis/points.json /tmp/issue-304-artifact/
           cp /tmp/issue-304-research/analysis/runs.json /tmp/issue-304-artifact/
-          cp /tmp/issue-304-output/exploratory-summary.json /tmp/issue-304-artifact/
-          cp /tmp/issue-304-output/long-run.json /tmp/issue-304-artifact/
-          cp -R /tmp/issue-304-observability /tmp/issue-304-artifact/demography-observability
 
       - name: Upload scientific analysis artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: issue-304-demographic-baseline-exploratory
-          if-no-files-found: error
           retention-days: 14
           path: /tmp/issue-304-artifact
