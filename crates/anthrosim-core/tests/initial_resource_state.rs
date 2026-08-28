@@ -75,8 +75,8 @@ fn plausible_starting_stock_changes_early_scarcity_with_other_resource_rules_fix
     let seed = positive_productivity_seed();
     let mut depleted = ResourceConfig::synthetic_validation_v1()
         .with_initial_stock_units_per_productivity(0)
-        .with_annual_regeneration_units_per_productivity(0)
-        .with_annual_need_units_per_person(100);
+        .with_annual_regeneration_units_per_productivity(1)
+        .with_annual_need_units_per_person(20_000);
     depleted.periods_per_year = 1;
     depleted.max_scarcity_mortality_probability_per_million = 0;
 
