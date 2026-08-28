@@ -103,6 +103,26 @@ mod tests {
     }
 
     #[test]
+    fn conditional_consumption_breaks_agent_level_paired_seed_alignment() {
+        let factory = RngFactory::new(42);
+        let mut control = factory.stream("demography/mortality");
+        let mut intervention = factory.stream("demography/mortality");
+
+        // In the control arm, an earlier person is eligible for a mortality
+        // decision and consumes the first variate. A treatment-induced state
+        // change makes that person ineligible in the intervention arm, so the
+        // later unrelated person receives a different stream position.
+        let control_early_person = control.next_u64();
+        let control_later_person = control.next_u64();
+        let intervention_later_person = intervention.next_u64();
+
+        // Both arms still share the same deterministic stream realization.
+        assert_eq!(control_early_person, intervention_later_person);
+        // But the same later person is no longer assigned the same variate.
+        assert_ne!(control_later_person, intervention_later_person);
+    }
+
+    #[test]
     fn stream_position_restores_exact_continuation() {
         let factory = RngFactory::new(42);
         let mut original = factory.stream("checkpoint-test");
