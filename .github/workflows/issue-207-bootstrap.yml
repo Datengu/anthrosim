@@ -28,6 +28,7 @@ jobs:
 
       - name: Apply implementation
         run: |
+          python3 scripts/issue-207-preflight.py
           python3 scripts/issue-207-bootstrap.py
           python3 scripts/issue-207-bootstrap-fix.py
           cargo fmt --all
