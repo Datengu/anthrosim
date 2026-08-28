@@ -1164,7 +1164,11 @@ fn validate_core_checkpoint_header(
             artifact: "metrics",
         });
     }
-    if !checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
+    if (!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
+        && !matches!(
+            checkpoint.terminal_stop_reason,
+            Some(StopReason::PopulationExtinct)
+        ))
         || checkpoint.completed_years != checkpoint.time.days() / DAYS_PER_YEAR
     {
         return Err(SpatialLandscapeError::UnsupportedCheckpointBoundary {
