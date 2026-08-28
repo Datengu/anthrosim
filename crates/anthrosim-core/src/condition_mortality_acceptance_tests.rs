@@ -280,7 +280,7 @@ fn migration_switch_is_the_only_source_of_travel_condition_loss_under_full_suppo
 fn v10_resource_config_requires_general_condition_mortality_wire_name() {
     let config = ResourceConfig::synthetic_validation_v1();
     let serialized = serde_json::to_value(&config).unwrap();
-    assert_eq!(serialized["schemaVersion"], json!(4));
+    assert_eq!(serialized["schemaVersion"], json!(5));
     assert_eq!(
         serialized["maxConditionMortalityProbabilityPerMillion"],
         json!(200_000)
