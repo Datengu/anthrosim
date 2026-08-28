@@ -374,6 +374,7 @@ pub fn derive_demography_observability(
                 "unexplained birth for {female_parent:?} at day {day}"
             )));
         }
+        apply_post_m2_boundary_events(&mut people, day_events, day)?;
         if stop_boundary {
             if checkpoint.terminal_stop_reason != Some(StopReason::PersonRecordLimitReached)
                 || day != end_day
@@ -545,6 +546,45 @@ fn apply_pre_m2_boundary_events(
         }
     }
     Ok(origins)
+}
+
+fn apply_post_m2_boundary_events(
+    people: &mut [ReplayPerson],
+    records: &[EventRecord],
+    day: u64,
+) -> Result<(), DemographyObservabilityError> {
+    for record in records {
+        let EventKind::HouseholdFission {
+            source_household,
+            new_household,
+            residence,
+            people_reassigned,
+            ..
+        } = &record.event
+        else {
+            continue;
+        };
+        for person_id in people_reassigned {
+            let index = replay_index(*person_id, people.len()).ok_or_else(|| {
+                invalid(format!(
+                    "household fission at day {day} references unknown {person_id:?}"
+                ))
+            })?;
+            let person = &mut people[index];
+            if !person.alive() || person.household != *source_household {
+                return Err(invalid(format!(
+                    "household fission at day {day} cannot reassign {person_id:?} from {source_household:?}"
+                )));
+            }
+            if person.location != *residence {
+                return Err(invalid(format!(
+                    "household fission at day {day} residence mismatch for {person_id:?}"
+                )));
+            }
+            person.household = *new_household;
+        }
+    }
+    Ok(())
 }
 
 fn apply_household_migration(
