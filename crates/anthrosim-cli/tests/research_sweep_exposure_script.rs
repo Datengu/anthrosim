@@ -41,7 +41,10 @@ fn research_sweep_exposure_script_contract() {
             }
             Ok(_) => continue,
             Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
-            Err(error) => panic!("failed to probe Python interpreter {}: {error}", python.display()),
+            Err(error) => panic!(
+                "failed to probe Python interpreter {}: {error}",
+                python.display()
+            ),
         }
     }
 
