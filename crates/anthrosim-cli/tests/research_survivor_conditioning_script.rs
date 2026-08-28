@@ -25,5 +25,8 @@ fn survivor_conditioning_research_gate_regressions_pass() {
         .arg("scripts/test-research-survivor-conditioning.py")
         .status()
         .expect("run survivor-conditioning regression script");
-    assert!(status.success(), "survivor-conditioning regression script failed");
+    assert!(
+        status.success(),
+        "survivor-conditioning regression script failed"
+    );
 }
