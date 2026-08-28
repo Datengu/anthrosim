@@ -18,11 +18,15 @@ The synthetic-validation preset declares `initialStockUnitsPerProductivity = 10`
 
 The initial-stock parameter is inside `ExperimentConfig.resources`. It is therefore serialized into run manifests, checkpoints, research definitions, exact research identities, and sensitivity coordinates through the same full-configuration machinery used for other M3 parameters.
 
+Evidence can bind the assumption directly at `resources.initialStockUnitsPerProductivity`. For an empirical or evidence-informed resource claim, support for capacity, regeneration, or productivity does not substitute for explicit support for the historical starting-stock assumption.
+
 A study interpreting early scarcity, persistence, migration pressure, or temporary aggregation should either vary plausible starting stocks or justify a particular starting state with evidence. Changing `cellStockCapacityYears` is not a substitute for declaring starting stock.
 
 ## Burn-in and analysis windows
 
 AnthroSim does not silently run an unrecorded resource-only equilibration phase. If a study intends to discard initialization transients, the burn-in is an analysis decision and must be declared in the frozen `StudyProtocol.analysisWindows` contract.
+
+A burn-in exclusion must therefore be visible as a nonzero `analysisStartDay`. If the cutoff is selected by a convergence diagnostic, the analysis window should use the `convergence_diagnostic` selection rule and the diagnostic and criterion must be predeclared in the study rationale or analysis plan rather than chosen after inspecting the target result.
 
 A study may claim practical insensitivity to initial stock only after comparing plausible starting-stock alternatives under otherwise identical regeneration and demand rules and showing convergence for the predeclared outcome/window. A long elapsed time by itself is not evidence that convergence occurred.
 
