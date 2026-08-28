@@ -111,6 +111,8 @@ pub struct ResourcePeriodObservation {
     pub stock_before_regeneration: u64,
     pub regenerated: u64,
     pub stock_after_regeneration: u64,
+    pub home_need: u64,
+    pub visitor_need: u64,
     pub total_need: u64,
     pub supplied: u64,
     pub unmet: u64,
@@ -119,7 +121,8 @@ pub struct ResourcePeriodObservation {
     pub household_supply_fraction: HouseholdSupplyFractionDistribution,
     pub condition_after_resource_response: ConditionDistributionObservation,
     pub condition_after_mortality: ConditionDistributionObservation,
-    pub cells: Vec<ResourceCellPeriodObservation>,
+    /// Sparse cell detail: every cell with positive unmet need in this period.
+    pub scarce_cells: Vec<ResourceCellPeriodObservation>,
 }
 
 impl ResourcePeriodObservation {
@@ -877,26 +880,43 @@ impl ResourceSystem {
         let absolute_start_day = day
             .checked_sub(period_duration)
             .ok_or(ResourceError::AccountingOverflow)?;
-        let mut cells = Vec::with_capacity(world.cell_count());
+        let mut scarce_cells = Vec::new();
         for cell_index in 0..world.cell_count() {
             let cell_total_need = cell_need[cell_index];
             let supplied = cell_allocated[cell_index];
-            cells.push(ResourceCellPeriodObservation {
-                cell: CellId::new(cell_index as u64 + 1),
-                stock_before_regeneration: cell_stock_before_regeneration[cell_index],
-                regenerated: cell_stock_after_regeneration[cell_index]
-                    .checked_sub(cell_stock_before_regeneration[cell_index])
-                    .ok_or(ResourceError::AccountingOverflow)?,
-                stock_after_regeneration: cell_stock_after_regeneration[cell_index],
-                home_need: cell_home_need[cell_index],
-                visitor_need: cell_visitor_need[cell_index],
-                total_need: cell_total_need,
-                supplied,
-                unmet: cell_total_need
-                    .checked_sub(supplied)
-                    .ok_or(ResourceError::AccountingOverflow)?,
-                stock_after_harvest: self.cell_food_stock[cell_index],
-            });
+            if cell_total_need > supplied {
+                scarce_cells.push(ResourceCellPeriodObservation {
+                    cell: CellId::new(cell_index as u64 + 1),
+                    stock_before_regeneration: cell_stock_before_regeneration[cell_index],
+                    regenerated: cell_stock_after_regeneration[cell_index]
+                        .checked_sub(cell_stock_before_regeneration[cell_index])
+                        .ok_or(ResourceError::AccountingOverflow)?,
+                    stock_after_regeneration: cell_stock_after_regeneration[cell_index],
+                    home_need: cell_home_need[cell_index],
+                    visitor_need: cell_visitor_need[cell_index],
+                    total_need: cell_total_need,
+                    supplied,
+                    unmet: cell_total_need
+                        .checked_sub(supplied)
+                        .ok_or(ResourceError::AccountingOverflow)?,
+                    stock_after_harvest: self.cell_food_stock[cell_index],
+                });
+            }
+        }
+        let home_need = cell_home_need.iter().try_fold(0_u64, |total, value| {
+            total
+                .checked_add(*value)
+                .ok_or(ResourceError::AccountingOverflow)
+        })?;
+        let visitor_need = cell_visitor_need.iter().try_fold(0_u64, |total, value| {
+            total
+                .checked_add(*value)
+                .ok_or(ResourceError::AccountingOverflow)
+        })?;
+        if home_need.checked_add(visitor_need) != Some(total_need) {
+            return Err(ResourceError::InternalInvariant(
+                "home and visitor demand do not reconcile to total need",
+            ));
         }
         self.period_observations.push(ResourcePeriodObservation {
             schema_version: ResourcePeriodObservation::CURRENT_SCHEMA_VERSION,
@@ -907,6 +927,8 @@ impl ResourceSystem {
             stock_before_regeneration: stock_before,
             regenerated,
             stock_after_regeneration,
+            home_need,
+            visitor_need,
             total_need,
             supplied: harvested,
             unmet,
@@ -915,7 +937,7 @@ impl ResourceSystem {
             household_supply_fraction,
             condition_after_resource_response,
             condition_after_mortality,
-            cells,
+            scarce_cells,
         });
         self.validate_accounting()?;
 
