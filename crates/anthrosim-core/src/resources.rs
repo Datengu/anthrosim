@@ -1068,7 +1068,10 @@ fn household_supply_fraction_distribution(
 fn condition_distribution(
     population: &Population,
 ) -> Result<ConditionDistributionObservation, ResourceError> {
-    let mut values = Vec::with_capacity(population.living_count());
+    let mut values = Vec::with_capacity(
+        usize::try_from(population.living_count())
+            .map_err(|_| ResourceError::AccountingOverflow)?,
+    );
     let mut sum = 0_u64;
     let mut below_250 = 0_u64;
     let mut below_500 = 0_u64;
