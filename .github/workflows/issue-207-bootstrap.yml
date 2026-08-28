@@ -1,0 +1,59 @@
+name: Issue 207 implementation bootstrap
+
+on:
+  push:
+    branches: [feat/207-household-lifecycle-sensitivity]
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: feat/207-household-lifecycle-sensitivity
+          persist-credentials: true
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
+          rustup default 1.97.1
+
+      - name: Apply implementation
+        run: |
+          python3 scripts/issue-207-bootstrap.py
+          python3 scripts/issue-207-bootstrap-fix.py
+          cargo fmt --all
+
+      - name: Compile workspace and tests
+        run: cargo test --locked --workspace --all-features --no-run
+
+      - name: Run lifecycle acceptance tests
+        run: cargo test --locked -p anthrosim-core --test household_lifecycle_sensitivity
+
+      - name: Lint changed implementation
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+      - name: Generate paired structural-sensitivity result
+        run: |
+          mkdir -p research/household-lifecycle-sensitivity-v1
+          cargo run --locked -q -p anthrosim-core --example household_lifecycle_sensitivity > research/household-lifecycle-sensitivity-v1/reference-result.json
+          python3 scripts/render-household-lifecycle-result.py \
+            research/household-lifecycle-sensitivity-v1/reference-result.json \
+            docs/research/household-lifecycle-structural-sensitivity-result.md
+
+      - name: Commit implementation and first result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "feat: add household lifecycle structural sensitivity"
+          git push origin HEAD:feat/207-household-lifecycle-sensitivity
