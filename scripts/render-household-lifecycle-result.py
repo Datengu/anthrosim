@@ -12,6 +12,9 @@ n = len(data["seeds"])
 def mean(total):
     return total / n
 
+def pct_change(before, after):
+    return 100.0 * (after - before) / before if before else 0.0
+
 def distribution(values, suffix=""):
     return ", ".join(
         f"{key}{suffix}: {value}"
@@ -71,6 +74,8 @@ else:
         "The declared lifecycle contrast did not alter the predeclared aggregate observables in this synthetic ensemble. That is robustness evidence only for this exact contrast and does not validate either lifecycle historically."
     )
 lines.extend([
+    "",
+    f"M9 is specifically mixed rather than uniformly sensitive: fission changes household-level participation (departures {pct_change(b['temporaryDeparturesTotal'], f['temporaryDeparturesTotal']):+.1f}% and visitor household-days {pct_change(b['temporaryVisitorHouseholdDaysTotal'], f['temporaryVisitorHouseholdDaysTotal']):+.1f}%), while visitor person-days are nearly unchanged ({pct_change(b['temporaryVisitorPersonDaysTotal'], f['temporaryVisitorPersonDaysTotal']):+.1f}%) and the maximum peak is lower ({pct_change(b['temporaryPeakVisitorsMax'], f['temporaryPeakVisitorsMax']):+.1f}%). Thus claims about household-event frequency/grouping are structurally sensitive here, whereas this exact aggregate person-exposure measure is comparatively robust in the tested ensemble.",
     "",
     "The fixed-founder arm's active household ages are exactly the 40-year run duration by construction. The size-fission arm instead contains multiple household ages because annual creation boundaries are now preserved authoritatively and replayable. M9 visitor person-days, household-days and peak visitors are derived through the ordinary temporary-mobility observability replay rather than counted by a special analysis path.",
     "",
