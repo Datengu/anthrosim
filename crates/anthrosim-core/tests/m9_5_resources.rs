@@ -139,5 +139,8 @@ fn five_day_visit_is_explicitly_preserved_as_visitor_resource_pressure() {
 
     assert_eq!(observation.visitor_need, 5);
     assert_eq!(observation.home_need, 360);
-    assert_eq!(observation.home_need + observation.visitor_need, observation.total_need);
+    assert_eq!(
+        observation.home_need + observation.visitor_need,
+        observation.total_need
+    );
 }
