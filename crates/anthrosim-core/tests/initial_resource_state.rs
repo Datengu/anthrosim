@@ -44,8 +44,8 @@ fn synthetic_baseline_declares_the_historical_full_stock_assumption() {
 
 #[test]
 fn storage_capacity_does_not_create_additional_initial_stock() {
-    let mut ten_year_capacity = ResourceConfig::synthetic_validation_v1()
-        .with_initial_stock_units_per_productivity(5);
+    let mut ten_year_capacity =
+        ResourceConfig::synthetic_validation_v1().with_initial_stock_units_per_productivity(5);
     ten_year_capacity.cell_stock_capacity_years = 10;
 
     let mut twenty_year_capacity = ten_year_capacity.clone();
@@ -54,8 +54,7 @@ fn storage_capacity_does_not_create_additional_initial_stock() {
     let ten = run_with(ten_year_capacity);
     let twenty = run_with(twenty_year_capacity);
     assert_eq!(
-        ten.manifest.resources.initial_food_stock,
-        twenty.manifest.resources.initial_food_stock,
+        ten.manifest.resources.initial_food_stock, twenty.manifest.resources.initial_food_stock,
         "capacity may cap starting stock, but increasing capacity must not manufacture historical stock"
     );
 }
