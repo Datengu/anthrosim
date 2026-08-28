@@ -7,15 +7,12 @@ use anthrosim_core::{
     time::DAYS_PER_YEAR,
 };
 
-const NEGATIVE: &str = include_str!(
-    "../../../research/demography-controls-v1/negative-growth-control.json"
-);
-const REPLACEMENT: &str = include_str!(
-    "../../../research/demography-controls-v1/replacement-control.json"
-);
-const POSITIVE: &str = include_str!(
-    "../../../research/demography-controls-v1/positive-growth-control.json"
-);
+const NEGATIVE: &str =
+    include_str!("../../../research/demography-controls-v1/negative-growth-control.json");
+const REPLACEMENT: &str =
+    include_str!("../../../research/demography-controls-v1/replacement-control.json");
+const POSITIVE: &str =
+    include_str!("../../../research/demography-controls-v1/positive-growth-control.json");
 
 fn parse_control(source: &str) -> DemographyConfig {
     serde_json::from_str(source).expect("committed demographic control must deserialize")
@@ -35,9 +32,7 @@ fn null_demographic_config(
 
     ExperimentConfig::new(seed, years)
         .with_world(WorldConfig::new(world_side, world_side))
-        .with_population(
-            PopulationConfig::new(initial_population).with_max_person_records(100_000),
-        )
+        .with_population(PopulationConfig::new(initial_population).with_max_person_records(100_000))
         .with_demography(demography)
         .with_resources(resources)
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
@@ -70,7 +65,10 @@ fn mean_late_log_growth(control: &str) -> f64 {
             .expect("control fixture must complete");
         let start = living_at_year(&recorded.checkpoint, START_YEAR) as f64;
         let end = living_at_year(&recorded.checkpoint, END_YEAR) as f64;
-        assert!(start > 0.0 && end > 0.0, "control fixture unexpectedly went extinct");
+        assert!(
+            start > 0.0 && end > 0.0,
+            "control fixture unexpectedly went extinct"
+        );
         total += (end / start).ln() / (END_YEAR - START_YEAR) as f64;
     }
     total / SEEDS.len() as f64
@@ -122,7 +120,11 @@ fn local_male_availability_is_visible_as_a_structural_fertility_suppressor() {
         .expect("concentrated fixture must initialize")
         .run_recorded()
         .expect("concentrated fixture must complete");
-        concentrated_births += concentrated.checkpoint.population.summary().births_since_start;
+        concentrated_births += concentrated
+            .checkpoint
+            .population
+            .summary()
+            .births_since_start;
 
         let dispersed = Simulation::new(null_demographic_config(
             seed,
