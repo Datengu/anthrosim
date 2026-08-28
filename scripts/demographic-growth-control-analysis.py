@@ -71,6 +71,40 @@ def dominant_growth_factor(schedule: dict) -> float:
     raise RuntimeError("growth-factor iteration did not converge")
 
 
+def net_reproduction_daughters(schedule: dict) -> float:
+    """Expected lifetime daughters per newborn female under the intrinsic schedule.
+
+    This follows one female cohort through mortality and the same post-birth spacing state used by
+    the dominant-growth calculation. It is a generation-replacement diagnostic (R0-like quantity),
+    not an annual growth rate and not a realized spatial-simulation statistic.
+    """
+
+    width = SKIPPED_ANNUAL_BOUNDARIES_AFTER_BIRTH + 1
+    cohort = [0.0] * width
+    cohort[0] = 1.0
+    expected_daughters = 0.0
+
+    for age in range(MAX_AGE):
+        mortality = probability_at(age, schedule["mortalityBands"])
+        fertility = probability_at(age, schedule["fertilityBands"])
+        survival = 1.0 - mortality
+        next_cohort = [0.0] * width
+
+        for cooldown, mass in enumerate(cohort):
+            surviving_mass = mass * survival
+            if cooldown == 0 and fertility > 0.0:
+                births = surviving_mass * fertility
+                expected_daughters += births * FEMALE_BIRTH_SHARE
+                next_cohort[0] += surviving_mass * (1.0 - fertility)
+                next_cohort[SKIPPED_ANNUAL_BOUNDARIES_AFTER_BIRTH] += births
+            else:
+                next_cohort[max(0, cooldown - 1)] += surviving_mass
+
+        cohort = next_cohort
+
+    return expected_daughters
+
+
 def main() -> None:
     for filename in (
         "negative-growth-control.json",
@@ -79,9 +113,11 @@ def main() -> None:
     ):
         schedule = json.loads((CONTROL_DIR / filename).read_text(encoding="utf-8"))
         factor = dominant_growth_factor(schedule)
+        daughters = net_reproduction_daughters(schedule)
         print(
             f"{schedule['scheduleId']}: lambda={factor:.12f}, "
-            f"r=ln(lambda)={math.log(factor):.12f}/year"
+            f"r=ln(lambda)={math.log(factor):.12f}/year, "
+            f"netDaughtersPerNewbornFemale={daughters:.12f}"
         )
 
 
