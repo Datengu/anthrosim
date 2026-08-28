@@ -22,20 +22,14 @@ jobs:
           from pathlib import Path
           path = Path("crates/anthrosim-core/src/temporary_mobility.rs")
           text = path.read_text(encoding="utf-8")
-          old = """            let Some(departure_day) = trigger_day.checked_sub(u64::from(outbound_travel_days))
-            else {
-                return Ok(0);
-            };"""
-          new = """            let Some(departure_day) = trigger_day.checked_sub(u64::from(outbound_travel_days))
-            else {
-                // A pre-simulation departure is residence-dependent. Keep the trigger pending until
+          needle = "return Ok(0);"
+          if text.count(needle) != 1:
+              raise SystemExit(f"expected exactly one issue-197 source site, found {text.count(needle)}")
+          replacement = """// A pre-simulation departure is residence-dependent. Keep the trigger pending until
                 // the target boundary so an intervening M4 relocation can make a future departure
                 // feasible; if it never does, evaluate_trigger records the explicit pre-start skip.
-                return Ok(trigger_day);
-            };"""
-          if text.count(old) != 1:
-              raise SystemExit(f"expected exactly one issue-197 source site, found {text.count(old)}")
-          path.write_text(text.replace(old, new), encoding="utf-8")
+                return Ok(trigger_day);"""
+          path.write_text(text.replace(needle, replacement), encoding="utf-8")
       - name: Remove temporary patch workflow
         run: git rm .github/workflows/patch-197-source.yml
       - name: Commit repair
