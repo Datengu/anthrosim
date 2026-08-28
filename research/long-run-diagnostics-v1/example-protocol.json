@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "studyId": "candidate-long-run-study",
+  "claimMode": "equilibrium_like",
+  "analysisStartDay": 36500,
+  "windowSnapshots": 20,
+  "requiredConsecutiveStableWindows": 2,
+  "metrics": [
+    {
+      "id": "living_population",
+      "sourcePointer": "/population/livingPopulation",
+      "maxAdjacentWindowMeanShiftPermille": 50,
+      "maxWithinWindowDriftPermille": 50,
+      "regimeBinWidth": 10
+    },
+    {
+      "id": "occupied_cells",
+      "sourcePointer": "/population/livingOccupiedCellCount",
+      "maxAdjacentWindowMeanShiftPermille": 50,
+      "maxWithinWindowDriftPermille": 50,
+      "regimeBinWidth": 2
+    }
+  ],
+  "runLengthSensitivityEndDays": [36500, 73000, 109500],
+  "analysisStartSensitivityDays": [18250, 73000],
+  "initializationCoordinateIds": ["founder_state"],
+  "environmentCoordinateIds": ["spatial_realization_seed"],
+  "rationale": "Example only: thresholds must be justified and frozen for the actual study before interpreting long-run results."
+}
