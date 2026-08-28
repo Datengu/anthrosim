@@ -138,7 +138,7 @@ jobs:
           checkpoint = json.loads((root / 'checkpoint.json').read_text())
           landscape_manifest = json.loads((root / 'landscape-manifest.json').read_text())
 
-          if report['schemaVersion'] != 3 or report['provenance'] != 'derived':
+          if report['schemaVersion'] != 4 or report['provenance'] != 'derived':
               raise SystemExit('spatial observability schema/provenance mismatch')
           semantics = report.get('semantics', {})
           if semantics.get('populationLocationBasis') != 'persistent_residence':
@@ -163,15 +163,21 @@ jobs:
               raise SystemExit('spatial per-cell table shape mismatch')
           if any(row['derived']['provenance'] != 'derived' for row in report['cells']):
               raise SystemExit('spatial per-cell derived provenance missing')
+          periods = report.get('resourcePeriods', [])
+          temporal = report.get('resourceTemporalSummary', {})
+          if temporal.get('preservedPeriods') != len(periods):
+              raise SystemExit('spatial report resource-period count does not reconcile')
+          if temporal.get('historyCompleteFromStart') is not True:
+              raise SystemExit('fresh spatial run unexpectedly reports incomplete resource history')
           unavailable = ' '.join(report['unavailableObservables'])
-          if 'historical per-cell food stock' not in unavailable:
-              raise SystemExit('spatial report failed to declare unavailable resource history')
+          if 'historical per-cell food stock' in unavailable:
+              raise SystemExit('spatial report still declares retained resource history unavailable')
           if 'persistent residence' not in unavailable:
               raise SystemExit('spatial report failed to declare its residence-based location boundary')
           if 'Death.cell' not in unavailable:
               raise SystemExit('spatial report failed to declare residence-based death attribution')
 
-          print('Spatial observability is provenance-bound and explicitly residence-based; M9 physical presence remains a separate companion concept.')
+          print('Spatial observability is provenance-bound and explicitly residence-based; M3 period history is retained and M9 physical presence remains a separate companion concept.')
           PY
 
       - name: Prove explorer serves spatial artifacts read-only

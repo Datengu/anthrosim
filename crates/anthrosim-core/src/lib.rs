@@ -137,7 +137,9 @@ pub use research_readiness::{
     EvidenceClosureStatus, assess_evidence_closure, assess_spatial_evidence_closure,
 };
 pub use resources::{
-    ResourceConfigError, ResourceError, ResourceSummary, ResourceSystem, validate_resource_config,
+    ConditionDistributionObservation, HouseholdSupplyFractionDistribution,
+    ResourceCellPeriodObservation, ResourceConfigError, ResourceError, ResourcePeriodObservation,
+    ResourceSummary, ResourceSystem, validate_resource_config,
 };
 pub use rng::RngStreamPosition;
 pub use simulation::{RecordedRun, Simulation, SimulationError};
@@ -156,11 +158,11 @@ pub use spatial_mechanisms::{
     TransformDirection, transform_landscape,
 };
 pub use spatial_observability::{
-    SpatialCellObservability, SpatialDerivedCell, SpatialLayerDescriptor,
-    SpatialLocationAttribution, SpatialMigrationDistanceBin, SpatialMigrationFlow,
-    SpatialModelFacingCell, SpatialObservabilityError, SpatialObservabilityReport,
-    SpatialObservabilitySemantics, SpatialObservabilitySource, SpatialObservabilitySummary,
-    derive_spatial_observability,
+    ResourceTemporalObservabilitySummary, SpatialCellObservability, SpatialDerivedCell,
+    SpatialLayerDescriptor, SpatialLocationAttribution, SpatialMigrationDistanceBin,
+    SpatialMigrationFlow, SpatialModelFacingCell, SpatialObservabilityError,
+    SpatialObservabilityReport, SpatialObservabilitySemantics, SpatialObservabilitySource,
+    SpatialObservabilitySummary, derive_spatial_observability,
 };
 pub use spatial_realization::{
     SpatialEnvironmentProvenance, SpatialRealizationMode, SpatialResidualSyntheticWorldField,
