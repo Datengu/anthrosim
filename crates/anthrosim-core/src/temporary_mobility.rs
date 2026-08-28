@@ -1809,9 +1809,9 @@ fn trigger_evaluation_day(
             let Some(departure_day) = trigger_day.checked_sub(u64::from(outbound_travel_days))
             else {
                 // A pre-simulation departure is residence-dependent. Keep the trigger pending until
-      // the target boundary so an intervening M4 relocation can make a future departure
-      // feasible; if it never does, evaluate_trigger records the explicit pre-start skip.
-      return Ok(trigger_day);
+                // the target boundary so an intervening M4 relocation can make a future departure
+                // feasible; if it never does, evaluate_trigger records the explicit pre-start skip.
+                return Ok(trigger_day);
             };
             if departure_day < current_day && trigger_day >= current_day {
                 Ok(trigger_day)

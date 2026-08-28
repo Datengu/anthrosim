@@ -99,7 +99,9 @@ fn initially_prestart_then_moved_closer_gets_valid_future_departure() {
     assert_eq!(state.next_boundary_day(0, 99, &population).unwrap(), None);
     relocate(&mut population, &world, near);
     assert_eq!(
-        state.next_boundary_day(91, TARGET_DAY, &population).unwrap(),
+        state
+            .next_boundary_day(91, TARGET_DAY, &population)
+            .unwrap(),
         Some(95)
     );
     let outcome = state
@@ -149,10 +151,15 @@ fn feasible_then_moved_farther_reports_missed_window() {
     let mut state = TemporaryMobilityState::with_program(&population, program, &world).unwrap();
     let mut events = EventLog::new();
 
-    assert_eq!(state.next_boundary_day(0, 100, &population).unwrap(), Some(95));
+    assert_eq!(
+        state.next_boundary_day(0, 100, &population).unwrap(),
+        Some(95)
+    );
     relocate(&mut population, &world, far);
     assert_eq!(
-        state.next_boundary_day(91, TARGET_DAY, &population).unwrap(),
+        state
+            .next_boundary_day(91, TARGET_DAY, &population)
+            .unwrap(),
         Some(TARGET_DAY)
     );
     let outcome = state
@@ -182,7 +189,9 @@ fn initially_unreachable_then_moved_reachable_gets_valid_departure() {
     assert_eq!(state.next_boundary_day(0, 99, &population).unwrap(), None);
     relocate(&mut population, &world, near);
     assert_eq!(
-        state.next_boundary_day(91, TARGET_DAY, &population).unwrap(),
+        state
+            .next_boundary_day(91, TARGET_DAY, &population)
+            .unwrap(),
         Some(95)
     );
     let outcome = state
