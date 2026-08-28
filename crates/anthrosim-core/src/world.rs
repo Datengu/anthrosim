@@ -15,7 +15,7 @@ pub const INITIAL_FOOD_STOCK_MULTIPLIER: u32 = 10;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cell {
-    /// Synthetic relative elevation in the range -500..=500.
+    /// Synthetic signed elevation offset from the M1 midpoint, -500..=500.
     pub elevation: i16,
     /// Relative traversal cost where 1000 is the cheapest baseline.
     pub movement_cost: u16,
@@ -73,21 +73,11 @@ impl World {
                 let elevation_raw = coherent_field(elevation_seed, x, y);
                 let elevation = i16::try_from(i32::from(elevation_raw) - 500)
                     .expect("coherent field is constrained to 0..=1000");
-                let abs_elevation = i32::from(elevation).unsigned_abs();
-                let lowland_favourability = 1_000_u32.saturating_sub(abs_elevation * 2);
-
                 let wetness = u32::from(coherent_field(wetness_seed, x, y));
-                let water_access = ((wetness * 3 + lowland_favourability) / 4) as u16;
-
                 let fertility = u32::from(coherent_field(fertility_seed, x, y));
-                let productivity = ((u32::from(water_access) * 5
-                    + fertility * 3
-                    + lowland_favourability * 2)
-                    / 10) as u16;
-
                 let ruggedness = u32::from(coherent_field(ruggedness_seed, x, y));
-                let movement_cost = (u32::from(BASE_MOVEMENT_COST) + ruggedness * 2 + abs_elevation)
-                    .min(u32::from(u16::MAX)) as u16;
+                let (water_access, productivity, movement_cost) =
+                    synthetic_environment_from_elevation(elevation, wetness, fertility, ruggedness);
 
                 let climate = u32::from(coherent_field(climate_seed, x, y));
                 let latitude = synthetic_latitude_permille(y, config.height);
@@ -393,6 +383,27 @@ fn validate_config(config: WorldConfig) -> Result<(), WorldError> {
     Ok(())
 }
 
+fn synthetic_mid_elevation_favourability(elevation: i16) -> u32 {
+    let elevation_extremeness = i32::from(elevation).unsigned_abs();
+    1_000_u32.saturating_sub(elevation_extremeness * 2)
+}
+
+fn synthetic_environment_from_elevation(
+    elevation: i16,
+    wetness: u32,
+    fertility: u32,
+    ruggedness: u32,
+) -> (u16, u16, u16) {
+    let elevation_extremeness = i32::from(elevation).unsigned_abs();
+    let midpoint_favourability = synthetic_mid_elevation_favourability(elevation);
+    let water_access = ((wetness * 3 + midpoint_favourability) / 4) as u16;
+    let productivity =
+        ((u32::from(water_access) * 5 + fertility * 3 + midpoint_favourability * 2) / 10) as u16;
+    let movement_cost = (u32::from(BASE_MOVEMENT_COST) + ruggedness * 2 + elevation_extremeness)
+        .min(u32::from(u16::MAX)) as u16;
+    (water_access, productivity, movement_cost)
+}
+
 fn coherent_field(seed: u64, x: u32, y: u32) -> u16 {
     let large = u32::from(value_noise(seed ^ 0x4f1b_bcdd_19a2_41d7, x, y, 32));
     let medium = u32::from(value_noise(seed ^ 0x8c67_8f31_c8aa_52f1, x, y, 12));
@@ -511,6 +522,37 @@ mod tests {
         let a = world(42, 64, 48);
         let b = world(43, 64, 48);
         assert_ne!(a.digest64(), b.digest64());
+    }
+
+    #[test]
+    fn synthetic_elevation_uses_a_declared_midpoint_optimum() {
+        let expected = [
+            (-500, 0, (300, 330, 1_700)),
+            (-250, 500, (425, 492, 1_450)),
+            (0, 1_000, (550, 655, 1_200)),
+            (250, 500, (425, 492, 1_450)),
+            (500, 0, (300, 330, 1_700)),
+        ];
+
+        for (elevation, favourability, fields) in expected {
+            assert_eq!(
+                synthetic_mid_elevation_favourability(elevation),
+                favourability
+            );
+            assert_eq!(
+                synthetic_environment_from_elevation(elevation, 400, 600, 100),
+                fields
+            );
+        }
+    }
+
+    #[test]
+    fn synthetic_elevation_sign_reflection_is_intentionally_symmetric() {
+        for elevation in [0, 1, 125, 250, 499, 500] {
+            let positive = synthetic_environment_from_elevation(elevation, 400, 600, 100);
+            let negative = synthetic_environment_from_elevation(-elevation, 400, 600, 100);
+            assert_eq!(positive, negative);
+        }
     }
 
     #[test]
