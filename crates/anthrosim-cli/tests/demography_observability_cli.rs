@@ -47,9 +47,11 @@ fn demographic_observability_derives_and_checks_normal_run_bundle() {
     let report: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&report_path).expect("report should be written"))
             .expect("report should be valid JSON");
-    assert_eq!(report["schemaVersion"], 1);
+    assert_eq!(report["schemaVersion"], 2);
     assert_eq!(report["requestedBirthSpacingDays"], 1_278);
     assert_eq!(report["effectiveBirthSpacingDays"], 1_460);
+    assert_eq!(report["mortalityRiskIntervalsPerYear"], 4);
+    assert_eq!(report["mortalityIsOrderInvariantCompetingRisk"], true);
     assert_eq!(
         report["fertilityProbabilityIsConditionalOnM2Survival"],
         true
