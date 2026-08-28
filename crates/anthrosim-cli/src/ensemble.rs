@@ -1783,8 +1783,8 @@ mod tests {
                 Some(&definition)
             );
             let expected = definition
-                .derive_program(&world)
-                .expect("program from this run world");
+                .derive_program_with_seed(&world, seed)
+                .expect("program from this run world and seed");
             assert_eq!(checkpoint.temporary_mobility.program(), Some(&expected));
         }
 
