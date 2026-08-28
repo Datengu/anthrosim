@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use thiserror::Error;
 
 use crate::{
@@ -165,7 +167,7 @@ fn validate_checkpoint_invariants_for_world(
         &checkpoint.experiment.migration,
         world,
         population.household_count,
-        resources.periods_processed,
+        checkpoint.time.days(),
     )?;
     let counts = validate_events(
         &checkpoint.events,
@@ -183,6 +185,7 @@ fn validate_checkpoint_invariants_for_world(
     })?;
     validate_metrics(
         &checkpoint.metrics,
+        &checkpoint.events,
         checkpoint.time.days(),
         checkpoint.state_digest64,
         &population,
@@ -382,7 +385,7 @@ fn validate_migration_accounting(
     config: &crate::MigrationConfig,
     world: &World,
     household_count: u64,
-    resource_periods: u64,
+    day: u64,
 ) -> Result<(), InvariantError> {
     if state.schema_version != MigrationCheckpointState::CURRENT_SCHEMA_VERSION
         || state.model_id != config.model_id
@@ -391,10 +394,22 @@ fn validate_migration_accounting(
     }
     if state.households_under_pressure > state.households_evaluated
         || state.moves_completed > state.households_under_pressure
-        || state.decision_boundaries > resource_periods
         || state.households_evaluated > state.decision_boundaries.saturating_mul(household_count)
     {
         return violation("migration counters have an impossible ordering");
+    }
+
+    let periods = u64::from(config.decision_periods_per_year);
+    let full_years = day / DAYS_PER_YEAR;
+    let remainder = day % DAYS_PER_YEAR;
+    let partial_periods = (1..=periods)
+        .filter(|period| period.saturating_mul(DAYS_PER_YEAR) / periods <= remainder)
+        .count() as u64;
+    let elapsed_boundaries = full_years
+        .saturating_mul(periods)
+        .saturating_add(partial_periods);
+    if state.decision_boundaries > elapsed_boundaries {
+        return violation("migration decisions exceed elapsed scheduled boundaries");
     }
 
     let directional_distance = u128::from(state.northward_steps)
@@ -512,6 +527,9 @@ fn validate_events(
 
     let mut counts = EventCounts::default();
     let mut previous_day = None;
+    let mut birth_people = BTreeSet::new();
+    let mut death_people = BTreeSet::new();
+    let mut migration_household_days = BTreeSet::new();
     for (index, record) in events.events.iter().enumerate() {
         let expected_sequence = u64::try_from(index).unwrap_or(u64::MAX).saturating_add(1);
         if record.sequence != expected_sequence
@@ -532,6 +550,9 @@ fn validate_events(
                 cell,
                 reproductive_sex,
             } => {
+                if !birth_people.insert(*person) {
+                    return violation("duplicate authoritative birth event for one person");
+                }
                 counts.births = counts.births.saturating_add(1);
                 let snapshot = population_state.person(*person).ok_or_else(|| {
                     InvariantError::Violation("birth event references a missing person".into())
@@ -558,6 +579,9 @@ fn validate_events(
                 condition_permille,
                 probability_per_million,
             } => {
+                if !death_people.insert(*person) {
+                    return violation("duplicate authoritative death event for one person");
+                }
                 counts.deaths = counts.deaths.saturating_add(1);
                 if matches!(cause, crate::DeathCause::ResourceScarcity) {
                     counts.scarcity_deaths = counts.scarcity_deaths.saturating_add(1);
@@ -591,6 +615,11 @@ fn validate_events(
                 realized_travel_condition_loss_total,
                 ..
             } => {
+                if !migration_household_days.insert((record.day, *household)) {
+                    return violation(
+                        "household has duplicate completed migration events at one decision day",
+                    );
+                }
                 counts.migrations = counts.migrations.saturating_add(1);
                 counts.people_moved = counts.people_moved.saturating_add(u64::from(*people_moved));
                 counts.migration_distance = counts
@@ -747,6 +776,87 @@ fn validate_events(
         }
     }
 
+    let expected_birth_people = (u64::from(population.initial_population).saturating_add(1)
+        ..=population.person_records)
+        .map(crate::ids::PersonId::new)
+        .collect::<BTreeSet<_>>();
+    if birth_people != expected_birth_people {
+        return violation(
+            "authoritative birth events are not a bijection with post-founder person records",
+        );
+    }
+
+    let mut expected_death_people = BTreeSet::new();
+    for raw_person in 1..=population.person_records {
+        let person = crate::ids::PersonId::new(raw_person);
+        let snapshot = population_state.person(person).ok_or_else(|| {
+            InvariantError::Violation(
+                "population summary references a missing persistent person record".into(),
+            )
+        })?;
+        if snapshot.death_day.is_some() {
+            expected_death_people.insert(person);
+        }
+    }
+    if death_people != expected_death_people {
+        return violation(
+            "authoritative death events are not a bijection with dead person records",
+        );
+    }
+
+    for trace in &migration.recorded_decision_traces {
+        let matching = events.events.iter().find(|record| {
+            record.day == trace.completed_day
+                && matches!(
+                    &record.event,
+                    EventKind::HouseholdMigration { household, .. } if *household == trace.household
+                )
+        });
+        let Some(record) = matching else {
+            return violation("retained migration trace has no matching authoritative move event");
+        };
+        let EventKind::HouseholdMigration {
+            people_moved,
+            origin,
+            destination,
+            distance_cells,
+            pressure_permille,
+            origin_utility,
+            destination_utility,
+            best_candidate,
+            best_candidate_utility,
+            selected_weight,
+            total_move_weight,
+            choice_draw,
+            nominal_travel_condition_cost_per_person,
+            realized_travel_condition_loss_total,
+            ..
+        } = &record.event
+        else {
+            unreachable!("matching predicate accepted only migration events");
+        };
+        if *people_moved != trace.people_moved
+            || *origin != trace.origin
+            || *destination != trace.destination
+            || *distance_cells != trace.distance_cells
+            || *pressure_permille != trace.pressure_permille
+            || *origin_utility != trace.origin_utility
+            || *destination_utility != trace.destination_utility
+            || *best_candidate != trace.best_candidate
+            || *best_candidate_utility != trace.best_candidate_utility
+            || *selected_weight != trace.selected_weight
+            || *total_move_weight != trace.total_move_weight
+            || *choice_draw != trace.choice_draw
+            || *nominal_travel_condition_cost_per_person
+                != trace.nominal_travel_condition_cost_per_person
+            || *realized_travel_condition_loss_total != trace.realized_travel_condition_loss_total
+        {
+            return violation(
+                "retained migration trace does not reconcile with its authoritative move event",
+            );
+        }
+    }
+
     if counts.births != population.births_since_start
         || counts.deaths != population.deaths_since_start
         || counts.scarcity_deaths != resources.scarcity_deaths
@@ -762,6 +872,7 @@ fn validate_events(
 
 fn validate_metrics(
     metrics: &MetricSeries,
+    events: &EventLog,
     day: u64,
     state_digest: u64,
     population: &PopulationSummary,
@@ -769,21 +880,149 @@ fn validate_metrics(
     migration: &MigrationSummary,
 ) -> Result<(), InvariantError> {
     if metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION
+        || metrics.cadence != "annual_boundary_plus_terminal"
         || metrics.snapshots.is_empty()
     {
-        return violation("metric series schema is invalid or terminal snapshot is missing");
+        return violation(
+            "metric series schema/cadence is invalid or terminal snapshot is missing",
+        );
     }
-    let mut previous_day = None;
+
+    let mut previous: Option<&MetricSnapshot> = None;
+    let mut event_cursor = 0_usize;
+    let mut births = 0_u64;
+    let mut deaths = 0_u64;
+    let mut condition_deaths = 0_u64;
+    let mut migrations = 0_u64;
+    let mut people_moved = 0_u64;
+    let mut migration_distance = 0_u64;
     for snapshot in &metrics.snapshots {
         if snapshot.schema_version != MetricSnapshot::CURRENT_SCHEMA_VERSION
             || snapshot.provenance != MetricProvenance::Derived
             || snapshot.day > day
-            || previous_day.is_some_and(|prior| snapshot.day <= prior)
+            || previous.is_some_and(|prior| snapshot.day <= prior.day)
         {
             return violation("metric snapshot schema, provenance, or ordering is invalid");
         }
-        previous_day = Some(snapshot.day);
+
+        while event_cursor < events.events.len() && events.events[event_cursor].day <= snapshot.day
+        {
+            let record = &events.events[event_cursor];
+            match &record.event {
+                EventKind::Birth { .. } => births = births.saturating_add(1),
+                EventKind::Death { cause, .. } => {
+                    deaths = deaths.saturating_add(1);
+                    if matches!(cause, crate::DeathCause::ResourceScarcity) {
+                        condition_deaths = condition_deaths.saturating_add(1);
+                    }
+                }
+                EventKind::HouseholdMigration {
+                    people_moved: moved,
+                    distance_cells,
+                    ..
+                } => {
+                    migrations = migrations.saturating_add(1);
+                    people_moved = people_moved.saturating_add(u64::from(*moved));
+                    migration_distance =
+                        migration_distance.saturating_add(u64::from(*distance_cells));
+                }
+                EventKind::TemporaryJourneyNotStarted { .. }
+                | EventKind::TemporaryJourneyDeparted { .. }
+                | EventKind::TemporaryJourneyArrived { .. }
+                | EventKind::TemporaryReturnDeparted { .. }
+                | EventKind::TemporaryJourneyCompleted { .. } => {}
+            }
+            event_cursor += 1;
+        }
+
+        let expected_records = u64::from(population.initial_population)
+            .checked_add(births)
+            .ok_or_else(|| {
+                InvariantError::Violation("intermediate population accounting overflowed".into())
+            })?;
+        let expected_living = expected_records.checked_sub(deaths).ok_or_else(|| {
+            InvariantError::Violation("intermediate population accounting underflowed".into())
+        })?;
+        let mean_condition_valid = match (
+            expected_living,
+            snapshot.population.mean_living_condition_permille,
+        ) {
+            (0, None) => true,
+            (0, Some(_)) | (_, None) => false,
+            (_, Some(value)) => value <= PERMILLE_MAX,
+        };
+        if snapshot.population.births_since_start != births
+            || snapshot.population.deaths_since_start != deaths
+            || snapshot.population.person_records != expected_records
+            || snapshot.population.living_population != expected_living
+            || snapshot.population.living_occupied_cell_count > expected_living
+            || snapshot.population.living_below_half_condition > expected_living
+            || !mean_condition_valid
+        {
+            return violation(
+                "intermediate population metrics do not reconcile with authoritative event history",
+            );
+        }
+
+        let available_food = u128::from(resources.initial_food_stock)
+            + u128::from(snapshot.resources.regenerated_food);
+        let accounted_food = u128::from(snapshot.resources.harvested_food)
+            + u128::from(snapshot.resources.final_food_stock);
+        let household_period_ceiling = u128::from(snapshot.resources.periods_processed)
+            * u128::from(population.household_count);
+        if available_food != accounted_food
+            || snapshot.resources.scarcity_deaths != condition_deaths
+            || u128::from(snapshot.resources.household_periods_with_unmet_need)
+                > household_period_ceiling
+        {
+            return violation(
+                "intermediate resource metrics do not reconcile with authoritative accounting/history",
+            );
+        }
+
+        let evaluated_ceiling = u128::from(snapshot.migration.decision_boundaries)
+            * u128::from(population.household_count);
+        if snapshot.migration.moves_completed != migrations
+            || snapshot.migration.people_moved != people_moved
+            || snapshot.migration.total_distance_cells != migration_distance
+            || snapshot.migration.households_under_pressure
+                > snapshot.migration.households_evaluated
+            || snapshot.migration.moves_completed > snapshot.migration.households_under_pressure
+            || u128::from(snapshot.migration.households_evaluated) > evaluated_ceiling
+        {
+            return violation(
+                "intermediate migration metrics do not reconcile with authoritative event history/accounting",
+            );
+        }
+
+        if let Some(prior) = previous {
+            let population_monotonic = snapshot.population.person_records
+                >= prior.population.person_records
+                && snapshot.population.births_since_start >= prior.population.births_since_start
+                && snapshot.population.deaths_since_start >= prior.population.deaths_since_start;
+            let resource_monotonic = snapshot.resources.periods_processed
+                >= prior.resources.periods_processed
+                && snapshot.resources.regenerated_food >= prior.resources.regenerated_food
+                && snapshot.resources.harvested_food >= prior.resources.harvested_food
+                && snapshot.resources.unmet_need >= prior.resources.unmet_need
+                && snapshot.resources.household_periods_with_unmet_need
+                    >= prior.resources.household_periods_with_unmet_need
+                && snapshot.resources.scarcity_deaths >= prior.resources.scarcity_deaths;
+            let migration_monotonic = snapshot.migration.decision_boundaries
+                >= prior.migration.decision_boundaries
+                && snapshot.migration.households_evaluated >= prior.migration.households_evaluated
+                && snapshot.migration.households_under_pressure
+                    >= prior.migration.households_under_pressure
+                && snapshot.migration.moves_completed >= prior.migration.moves_completed
+                && snapshot.migration.people_moved >= prior.migration.people_moved
+                && snapshot.migration.total_distance_cells >= prior.migration.total_distance_cells;
+            if !population_monotonic || !resource_monotonic || !migration_monotonic {
+                return violation("intermediate cumulative metrics move backwards");
+            }
+        }
+        previous = Some(snapshot);
     }
+
     let final_snapshot = metrics.snapshots.last().expect("non-empty checked above");
     if final_snapshot.day != day
         || final_snapshot.state_digest64 != state_digest
