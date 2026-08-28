@@ -9,6 +9,10 @@ replacements = {
         "if larger_group_count > 0 { 1 } else { 0 }",
     "usize::from(group_index < larger_group_count)":
         "if group_index < larger_group_count { 1 } else { 0 }",
+    '"""        InvalidHousehold {\\n            household: HouseholdId,\\n        },"""':
+        '"""    InvalidHousehold {\\n        household: HouseholdId,\\n    },"""',
+    '"""        InvalidHousehold { household: HouseholdId },"""':
+        '"""    InvalidHousehold { household: HouseholdId },"""',
 }
 for old, new in replacements.items():
     if old not in text:
