@@ -6,6 +6,7 @@ on:
       - fix/190-equal-cost-m9-destinations
     paths:
       - .github/workflows/validate-190-seed-role.yml
+      - crates/anthrosim-core/tests/m9_equal_cost_destinations.rs
 
 permissions:
   contents: write
