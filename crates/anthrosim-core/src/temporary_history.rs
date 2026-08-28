@@ -57,6 +57,28 @@ pub fn validate_temporary_mobility_history(
     .map_err(|error| invalid(format!("could not reconstruct founder population: {error}")))?;
     let report = derive_temporary_mobility_observability(world, &initial_population, checkpoint)
         .map_err(|error| invalid(format!("temporary event replay failed: {error}")))?;
+    let mut household_creation_days = BTreeMap::<u64, u64>::new();
+    let mut first_dynamic_household = None::<u64>;
+    for record in &checkpoint.events.events {
+        if let EventKind::HouseholdFission { new_household, .. } = &record.event {
+            if household_creation_days
+                .insert(new_household.0, record.day)
+                .is_some()
+            {
+                return Err(invalid(format!(
+                    "duplicate household-fission creation event for household {}",
+                    new_household.0
+                )));
+            }
+            first_dynamic_household = Some(
+                first_dynamic_household
+                    .map_or(new_household.0, |current| current.min(new_household.0)),
+            );
+        }
+    }
+    let founder_household_count = first_dynamic_household
+        .map(|raw| raw.saturating_sub(1))
+        .unwrap_or_else(|| initial_population.household_count() as u64);
 
     let mut journeys = BTreeMap::<u64, &TemporaryJourneyObservability>::new();
     let mut next_journey_id = 1_u64;
@@ -174,7 +196,8 @@ pub fn validate_temporary_mobility_history(
             }
             EventKind::Birth { .. }
             | EventKind::Death { .. }
-            | EventKind::HouseholdMigration { .. } => {}
+            | EventKind::HouseholdMigration { .. }
+            | EventKind::HouseholdFission { .. } => {}
         }
     }
 
@@ -185,7 +208,17 @@ pub fn validate_temporary_mobility_history(
         let trigger_index = u32::try_from(trigger_index)
             .map_err(|_| invalid("temporary trigger index exceeds u32"))?;
         for raw in 1..=checkpoint.population.household_count() as u64 {
-            if !trigger_outcomes.contains(&(trigger_index, raw)) {
+            let existed_for_trigger = if raw <= founder_household_count {
+                true
+            } else {
+                let creation_day = household_creation_days.get(&raw).ok_or_else(|| {
+                    invalid(format!(
+                        "dynamic household {raw} has no household-fission creation event"
+                    ))
+                })?;
+                trigger_day > *creation_day
+            };
+            if existed_for_trigger && !trigger_outcomes.contains(&(trigger_index, raw)) {
                 return Err(invalid(format!(
                     "missing temporary trigger outcome for trigger {trigger_index}, household {raw}"
                 )));

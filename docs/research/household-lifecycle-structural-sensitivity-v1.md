@@ -43,19 +43,23 @@ is to ask whether scientific conclusions survive removal of permanent founder-gr
 
 - total and active household records;
 - the living household-size distribution and maximum;
+- active-household age distributions reconstructed from authoritative fission creation events;
 - living genealogical-generation-span distribution and multi-generational household count;
 - exact uniform household age for the fixed-founder baseline.
 
 Existing authoritative/derived reports continue to provide the other #207 comparison targets:
-M3 unmet need and condition, M4 move frequency and people moved, M9 journey/aggregation events,
-terminal population and spatial occupancy. No explorer-only state becomes authoritative.
+M3 unmet need and condition, M4 move frequency and people moved, M9 journey participation plus
+visitor person-days/household-days/peak aggregation, terminal population and spatial occupancy.
+Household-fission events are authoritative solely so ordinary derived M9 replay can reconstruct
+dynamic household topology; no explorer-only state becomes authoritative.
 
 ## First paired comparison
 
 The repository example `household_lifecycle_sensitivity` runs eight paired seeds for 40 years
 with the same founder population, replacement-control demography, M3/M4 assumptions, annual M9
 schedule and synthetic world dimensions in both arms. The only structural treatment is the
-household lifecycle. The machine-readable first result is preserved in
+household lifecycle. The preserved result pools terminal household size/age/generation-span
+distributions and derives M9 aggregation through the standard observability replay. The machine-readable first result is preserved in
 `research/household-lifecycle-sensitivity-v1/reference-result.json`; the generated interpretation
 is in `docs/research/household-lifecycle-structural-sensitivity-result.md`.
 

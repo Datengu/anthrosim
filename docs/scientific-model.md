@@ -95,7 +95,8 @@ Within each model year, the main `Simulation` host and `SpatialLandscapeSimulati
 4. process due M9 temporary transitions/start decisions for that day;
 5. if M4 is due, evaluate permanent migration only for eligible households physically at residence, using the M4 decision interval's resource-support demand;
 6. apply selected permanent moves simultaneously;
-7. after the year's subannual schedules complete, run the annual M2 fertility/parentage stage for survivors.
+7. after the year's subannual schedules complete, run the annual M2 fertility/parentage stage for survivors;
+8. if an explicit household-lifecycle treatment is enabled, apply its annual topology transition after fertility and reconcile dependent M4/M9 state before the annual metric snapshot.
 
 Under the v8 annual resource-accounting contract, M3 uses exact scheduler intervals, cumulative elapsed-day allocation for fixed annual quantities, integrated/normalized seasonal regeneration and zero-demand condition neutrality. Under v9 timing semantics, condition recovery/loss and the condition-mediated mortality probability are converted from declared reference-quarter coefficients to the actual M3 interval. M4 receives its own opportunity count and its own current decision-interval demand share. It no longer maintains the former `ceil(annual/P)` approximation or inherits an opportunity from every M3 boundary. Under v10, the same numerical condition hazard has causal-neutral public semantics rather than a resource-scarcity-specific death cause.
 

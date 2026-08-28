@@ -106,8 +106,8 @@ pub use household_lifecycle::{
     validate_household_lifecycle_config,
 };
 pub use household_observability::{
-    HouseholdGenerationSpanBin, HouseholdObservabilityError, HouseholdObservabilityReport,
-    HouseholdSizeBin, derive_household_observability,
+    HouseholdAgeBin, HouseholdGenerationSpanBin, HouseholdObservabilityError,
+    HouseholdObservabilityReport, HouseholdSizeBin, derive_household_observability,
 };
 pub use invariants::{
     InvariantError, InvariantReport, validate_checkpoint_invariants,
