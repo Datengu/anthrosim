@@ -1,7 +1,7 @@
 use anthrosim_core::{
     config::{
-        DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
-        WorldConfig,
+        AgeProbabilityBand, DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig,
+        ResourceConfig, WorldConfig,
     },
     simulation::Simulation,
     time::DAYS_PER_YEAR,
@@ -13,6 +13,9 @@ const REPLACEMENT: &str =
     include_str!("../../../research/demography-controls-v1/replacement-control.json");
 const POSITIVE: &str =
     include_str!("../../../research/demography-controls-v1/positive-growth-control.json");
+
+const FEMALE_BIRTH_SHARE: f64 = 0.488;
+const SKIPPED_ANNUAL_BOUNDARIES_AFTER_BIRTH: usize = 3;
 
 fn parse_control(source: &str) -> DemographyConfig {
     serde_json::from_str(source).expect("committed demographic control must deserialize")
@@ -74,6 +77,43 @@ fn mean_late_log_growth(control: &str) -> f64 {
     total / SEEDS.len() as f64
 }
 
+fn probability_at(age: u32, bands: &[AgeProbabilityBand]) -> f64 {
+    bands
+        .iter()
+        .find(|band| age >= band.start_age_years && age < band.end_age_years_exclusive)
+        .map_or(0.0, |band| {
+            f64::from(band.annual_probability_per_million) / 1_000_000.0
+        })
+}
+
+fn expected_lifetime_daughters(schedule: &DemographyConfig) -> f64 {
+    let mut cohort = [0.0_f64; SKIPPED_ANNUAL_BOUNDARIES_AFTER_BIRTH + 1];
+    cohort[0] = 1.0;
+    let mut daughters = 0.0;
+
+    for age in 0..100 {
+        let survival = 1.0 - probability_at(age, &schedule.mortality_bands);
+        let fertility = probability_at(age, &schedule.fertility_bands);
+        let mut next = [0.0_f64; SKIPPED_ANNUAL_BOUNDARIES_AFTER_BIRTH + 1];
+
+        for (cooldown, mass) in cohort.into_iter().enumerate() {
+            let surviving_mass = mass * survival;
+            if cooldown == 0 && fertility > 0.0 {
+                let births = surviving_mass * fertility;
+                daughters += births * FEMALE_BIRTH_SHARE;
+                next[0] += surviving_mass * (1.0 - fertility);
+                next[SKIPPED_ANNUAL_BOUNDARIES_AFTER_BIRTH] += births;
+            } else {
+                next[cooldown.saturating_sub(1)] += surviving_mass;
+            }
+        }
+
+        cohort = next;
+    }
+
+    daughters
+}
+
 #[test]
 fn committed_controls_bracket_an_intrinsic_replacement_regime() {
     let negative = mean_late_log_growth(NEGATIVE);
@@ -91,6 +131,27 @@ fn committed_controls_bracket_an_intrinsic_replacement_regime() {
     assert!(
         positive > 0.002,
         "positive control should grow after founder transients, observed r={positive}"
+    );
+    assert!(negative < replacement && replacement < positive);
+}
+
+#[test]
+fn committed_controls_bracket_generation_replacement_by_expected_daughters() {
+    let negative = expected_lifetime_daughters(&parse_control(NEGATIVE));
+    let replacement = expected_lifetime_daughters(&parse_control(REPLACEMENT));
+    let positive = expected_lifetime_daughters(&parse_control(POSITIVE));
+
+    assert!(
+        negative < 0.90,
+        "negative control should replace fewer than one daughter per newborn female, observed {negative}"
+    );
+    assert!(
+        (replacement - 1.0).abs() < 0.005,
+        "replacement control should be mathematically centred on one expected daughter per newborn female, observed {replacement}"
+    );
+    assert!(
+        positive > 1.10,
+        "positive control should replace more than one daughter per newborn female, observed {positive}"
     );
     assert!(negative < replacement && replacement < positive);
 }
