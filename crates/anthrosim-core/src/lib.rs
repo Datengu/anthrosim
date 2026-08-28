@@ -67,6 +67,8 @@ mod m4_stay_utility_acceptance_tests;
 mod m9_integration_tests;
 #[cfg(test)]
 mod newborn_condition_acceptance_tests;
+#[cfg(test)]
+mod target_arrival_reconsideration_tests;
 
 pub use checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64};
 pub use config::{
