@@ -224,6 +224,7 @@ pub(crate) fn process_demographic_year(
     process_demographic_year_recorded(population, world, config, day, rngs, &mut events)
 }
 
+#[cfg(test)]
 pub(crate) fn process_demographic_year_recorded(
     population: &mut Population,
     world: &World,
@@ -237,6 +238,7 @@ pub(crate) fn process_demographic_year_recorded(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn process_demographic_year_recorded_with_founder_history(
     population: &mut Population,
     world: &World,
@@ -292,6 +294,7 @@ pub(crate) fn process_demographic_year_after_competing_mortality_recorded_with_f
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_demographic_year_recorded_internal(
     population: &mut Population,
     world: &World,

@@ -1,6 +1,5 @@
 use std::sync::OnceLock;
 
-use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -370,6 +369,7 @@ impl ResourceSystem {
         self.process_period_recorded_with_presence(population, context, scarcity_rng, events, None)
     }
 
+    #[cfg(test)]
     pub(crate) fn process_period_recorded_with_presence(
         &mut self,
         population: &mut Population,
