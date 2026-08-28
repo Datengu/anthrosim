@@ -23,6 +23,19 @@ Persistent residence is always retained separately as `persistentResidenceCell`.
 
 When the reconstructed phase is `visiting`, `physicalCell` is the authoritative temporary destination. When the phase is `at_residence`, `physicalCell` is the persistent residence. Transit deliberately has `physicalCell = null`; M9 v1 has no within-route cell-level physical state and the analysis must not invent one.
 
+## Standard run-directory integration
+
+For M9 research use, prefer the run-directory integration command:
+
+```text
+python scripts/research-m9-death-observability.py derive --run-dir RUN_DIR
+python scripts/research-m9-death-observability.py verify --run-dir RUN_DIR
+```
+
+This preserves the per-death `death-presence.json` report beside the authoritative run artifacts and also writes `m9-death-observability.json`, which summarizes deaths by persistent residence, physical-presence state, represented physical cell, and provisioning context. Where ordinary spatial/temporary observability files are present, the integration cross-checks them against the same run identity and residence-attributed mortality counts.
+
+The integrated contract is documented in `docs/research/m9-death-observability-integration-v1.md`.
+
 ## Same-day ordering
 
 The derivation processes authoritative records by canonical event sequence, not merely by day.
