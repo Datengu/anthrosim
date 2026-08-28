@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "observationModelId": "synthetic-activity-detection-v1",
+  "comparisonId": "synthetic-observation-model-verification",
+  "simulationSource": {
+    "id": "synthetic-observation-fixture-run",
+    "kind": "derived_anthrosim_observability",
+    "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reference": "fixture://synthetic-observation-run"
+  },
+  "evidenceSource": {
+    "id": "synthetic-observation-fixture-evidence",
+    "kind": "synthetic_verification_fixture",
+    "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "reference": "fixture://synthetic-observation-evidence"
+  },
+  "evidenceRole": "validation",
+  "mappings": [
+    {
+      "mappingId": "activity-to-recovered-count",
+      "simulatedVariable": "activityUnits",
+      "archaeologicalObservable": "recoveredMaterialCount",
+      "relationship": "independent_detection_count",
+      "depositionPerMillion": 500000,
+      "preservationPerMillion": 800000,
+      "samplingPerMillion": 500000,
+      "recoveryPerMillion": 500000,
+      "assumptions": [
+        "Each simulated activity unit is an exchangeable opportunity to deposit one countable item.",
+        "Detection stages act independently for this synthetic verification example."
+      ],
+      "uncertaintyNote": "Synthetic fixture only; these probabilities are not archaeological estimates."
+    },
+    {
+      "mappingId": "condition-has-no-direct-proxy",
+      "simulatedVariable": "meanCondition",
+      "archaeologicalObservable": null,
+      "relationship": "no_direct_observable",
+      "assumptions": [
+        "No direct archaeological measurement of AnthroSim's synthetic condition scalar is asserted."
+      ],
+      "uncertaintyNote": "A real study would need a separately justified proxy model before comparison."
+    }
+  ]
+}
