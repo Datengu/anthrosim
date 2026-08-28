@@ -33,6 +33,7 @@ pub mod spatial_observability;
 pub mod spatial_realization;
 pub mod spatial_scale;
 mod spatial_simulation;
+pub mod study_protocol;
 pub mod temporary_history;
 // M9.3's internal trigger/event helpers intentionally carry the complete causal context at one
 // boundary. Keep the argument-count exception local to this module rather than weakening Clippy
@@ -170,6 +171,13 @@ pub use spatial_scale::{
 pub use spatial_simulation::{
     SpatialLandscapeCheckpoint, SpatialLandscapeError, SpatialLandscapeRecordedRun,
     SpatialLandscapeRunManifest, SpatialLandscapeSimulation, SpatialMechanismBinding,
+};
+pub use study_protocol::{
+    StudyAmendmentTiming, StudyAnalysisWindow, StudyAnalysisWindowSelectionRule, StudyComparison,
+    StudyCorroborationTarget, StudyEnsemblePolicy, StudyEvidenceAssignment, StudyEvidenceRole,
+    StudyHypothesis, StudyHypothesisKind, StudyManipulationCheck, StudyObservable,
+    StudyObservableRole, StudyProtocol, StudyProtocolAmendment, StudyProtocolError,
+    StudyRunHandling, StudyScientificStatus, StudyUncertaintyPlan,
 };
 pub use temporary_history::{TemporaryMobilityHistoryError, validate_temporary_mobility_history};
 pub use temporary_mobility::{

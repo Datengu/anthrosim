@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "protocolRevision": 1,
+  "studyId": "example-resource-confirmatory-study",
+  "status": "confirmatory",
+  "researchQuestion": "Does lower resource productivity increase scarcity mortality in the declared synthetic domain?",
+  "applicabilityDomain": "Synthetic AnthroSim verification landscape; not an empirical archaeological calibration.",
+  "hypotheses": [
+    {
+      "id": "null",
+      "kind": "null_model",
+      "statement": "Changing resource productivity does not change scarcity mortality under the declared configuration."
+    },
+    {
+      "id": "resource_effect",
+      "kind": "alternative",
+      "statement": "Lower resource productivity increases scarcity mortality under the declared configuration."
+    }
+  ],
+  "analysisWindows": [
+    {
+      "id": "primary_window",
+      "analysisStartDay": 3650,
+      "selectionRule": "predeclared_fixed_duration",
+      "rationale": "Exclude the first ten simulated years as a fixed initialization interval before evaluating the primary contrast."
+    }
+  ],
+  "observables": [
+    {
+      "id": "scarcity_deaths",
+      "role": "primary",
+      "source": "metrics.population.resourceScarcityDeaths",
+      "analysisWindowId": "primary_window",
+      "interpretation": "Higher interval-correct scarcity mortality indicates stronger resource stress; cumulative since-start counters must be boundary-corrected under #219."
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "primary_resource_contrast",
+      "hypothesisIds": ["null", "resource_effect"],
+      "observableIds": ["scarcity_deaths"],
+      "prediction": "The lower-productivity arm has higher scarcity mortality than its paired higher-productivity arm.",
+      "decisionCriterion": "Treat the directional paired contrast as support for resource_effect only under the predeclared analysis method and run-handling rules."
+    }
+  ],
+  "evidenceRoles": [],
+  "uncertainty": {
+    "parameterUncertainty": [
+      "Use the exact resource-productivity range declared in the bound ResearchExperimentDefinition."
+    ],
+    "structuralUncertainty": []
+  },
+  "ensemblePolicy": {
+    "seedPolicy": "Use exactly the seeds in the frozen research definition.",
+    "pairingPolicy": "Pair equal seeds across compared parameter points.",
+    "replicationPolicy": "Do not add seeds adaptively after inspecting the confirmatory result."
+  },
+  "runHandling": {
+    "stoppingRules": [
+      "Accept only simulator-declared scientific terminal states as completed scientific outcomes."
+    ],
+    "exclusionRules": [
+      "Do not exclude completed scientific runs post hoc because their outcome is inconvenient."
+    ],
+    "censoringRules": [
+      "Operationally failed/censored runs are reported separately and handled under the declared research policy."
+    ]
+  },
+  "sensitivityPlan": [
+    "Repeat the primary contrast over the declared resource-parameter uncertainty dimensions."
+  ],
+  "equifinalityPlan": [
+    "Report materially different parameter combinations that produce indistinguishable primary outcomes rather than selecting one retrospectively."
+  ],
+  "manipulationChecks": [
+    {
+      "id": "resource_treatment_realized",
+      "mechanism": "M3 resource productivity",
+      "criterion": "The realized resource opportunity differs between the declared treatment arms in the intended direction.",
+      "failureHandling": "If the treatment fails to realize, do not interpret the arm label itself as a causal resource contrast."
+    }
+  ],
+  "analysisMethod": "Paired seed-wise comparison followed by the predeclared aggregate summary.",
+  "multiplicityPolicy": "One primary comparison; any additional inspected outcomes are secondary/exploratory unless separately declared.",
+  "heldOutCorroboration": [],
+  "permittedInterpretations": [
+    "Synthetic mechanism-level comparison under the declared applicability domain."
+  ],
+  "prohibitedInterpretations": [
+    "Independent empirical validation of an archaeological case study."
+  ]
+}
