@@ -152,7 +152,7 @@ pub enum ResumeLineageError {
     #[error("resume-lineage boundary {index} changes package model version across one resume")]
     ModelVersionDiscontinuity { index: usize },
     #[error("resume-lineage boundary {index} changes model-semantics identity across one resume")]
-    ModelSemanticsDiscontinuity { index },
+    ModelSemanticsDiscontinuity { index: usize },
     #[error("resume-lineage boundary {index} precedes the previous boundary")]
     BoundaryOrder { index: usize },
     #[error(
