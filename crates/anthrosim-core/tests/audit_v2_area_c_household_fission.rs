@@ -73,7 +73,11 @@ fn household_birth_days(reverse_labels: bool) -> Vec<Vec<i64>> {
         .unwrap();
     let mut by_household = vec![Vec::new(); run.checkpoint.population.household_count()];
     for raw in 1..=8_u64 {
-        let person = run.checkpoint.population.person(PersonId::new(raw)).unwrap();
+        let person = run
+            .checkpoint
+            .population
+            .person(PersonId::new(raw))
+            .unwrap();
         by_household[(person.household.0 - 1) as usize].push(person.birth_day);
     }
     for days in &mut by_household {
