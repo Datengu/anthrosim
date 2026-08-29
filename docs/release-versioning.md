@@ -46,6 +46,8 @@ The practical release cadence is currently:
 
 - **M8 → `v0.2.0`**: completed, audited and released as the preserved M8 baseline.
 - **M9 → `v0.3.0`**: completed, audited and released as the preserved temporary-mobility / controlled-aggregation baseline.
+- **`v0.3.1`**: post-M9 scientific-audit and research-readiness hardening patch.
+- **`v0.3.2`**: documentation-convergence maintenance patch over the same v15 model semantics; it corrects living-document drift present when v0.3.1 was tagged.
 - **Later major milestones** should normally target the next minor release in sequence unless the repository deliberately records a reason to do otherwise.
 
 These are release targets, not identity equivalences. `M9` does not literally mean `v0.3.0`, and patch releases can exist within an already completed milestone.

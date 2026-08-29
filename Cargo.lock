@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "anthrosim-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anthrosim-core",
  "clap",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "anthrosim-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "criterion",
  "rand",

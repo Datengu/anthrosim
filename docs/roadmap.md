@@ -277,7 +277,11 @@ Those capabilities should be considered only when a later controlled research qu
 
 No fixed M10 feature list is declared yet.
 
-M9 is complete, its post-milestone audit/hardening has been resolved, and the audited capability is preserved as the `v0.3.0` release baseline. The next project step is therefore research-led rather than a predetermined M10 feature package: concrete comparisons using the M8/M9 capabilities should identify which missing mechanism, uncertainty treatment, observation layer or validation target is actually needed next.
+M9 is complete and its capability baseline remains preserved from `v0.3.0`. The first major post-M9 scientific-audit backlog is resolved and preserved in `v0.3.1`, including stronger configuration/provenance coverage, stochastic precision and long-run gates, structural/initialization sensitivity, demographic-baseline analysis, and identifiability/equifinality safeguards. `v0.3.2` is the documentation-convergence maintenance release for that same scientific state: it corrects living documentation that remained on the earlier v0.3.0/pre-audit wording when v0.3.1 was tagged, without changing model semantics or frozen scientific results.
+
+The immediate next step is **audit convergence**, not a predetermined M10 feature package: run another genuinely independent/adversarial scientific audit and resolve any newly discovered P1 scientific-behaviour defects before treating the framework as converged. Focused model interrogation can proceed where it diagnoses existing behaviour without tuning toward a desired outcome. Once audit convergence is stronger, concrete research comparisons should identify which missing mechanism, uncertainty treatment, observation layer or validation target is actually needed next.
+
+The v0.3.1 demographic-baseline study is an example of this rule. It found no defensible universal demographic default: realized growth changed strongly with household lifecycle, and mate limitation was substantially higher under deterministic household fission. Future studies must therefore declare and justify both demographic schedule and household structure rather than treating `replacement_control_v1` as a stationarity guarantee.
 
 Candidate directions remain valid only when justified by experimental need, including:
 
