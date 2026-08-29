@@ -24,6 +24,7 @@ use crate::{
 
 const DAYS_PER_YEAR: u64 = 365;
 const REFERENCE_RESPONSE_PERIODS_PER_YEAR: u16 = 4;
+const CONDITION_RESPONSE_DENOMINATOR: u64 = 1_000;
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 static SEASONAL_PREFIX_BY_AMPLITUDE: OnceLock<Vec<Vec<u64>>> = OnceLock::new();
@@ -396,6 +397,8 @@ impl ResourceSystem {
             harvested_food: self.harvested_food,
             consumed_food: self.harvested_food,
             unmet_need: self.unmet_need,
+            // Summaries are emitted only from internally checked or checkpoint-validated state.
+            // Keep this legacy infallible API while avoiding unchecked aggregate arithmetic.
             final_food_stock: self.total_food_stock().unwrap_or(u64::MAX),
             household_periods_with_unmet_need: self.household_periods_with_unmet_need,
             scarcity_deaths: self.scarcity_deaths,
@@ -513,6 +516,12 @@ impl ResourceSystem {
             )?;
         let interval_recovery = u16::try_from(reference_quarter_quantity_for_interval(
             u64::from(config.condition_recovery_per_period),
+            period_start,
+            period_end,
+        )?)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+        let interval_max_loss = u16::try_from(reference_quarter_quantity_for_interval(
+            u64::from(config.max_condition_loss_per_period),
             period_start,
             period_end,
         )?)
@@ -724,8 +733,13 @@ impl ResourceSystem {
             let current = population.condition_at_index(person_index).ok_or(
                 ResourceError::InternalInvariant("living person has no condition state"),
             )?;
-            let updated = if need == 0 {
-                current
+            let current_remainder = population
+                .condition_loss_remainder_thousandths_at_index(person_index)
+                .ok_or(ResourceError::InternalInvariant(
+                    "living person has no condition-loss remainder state",
+                ))?;
+            let (updated, updated_remainder) = if need == 0 {
+                (current, current_remainder)
             } else {
                 let supplied_permille = harvest
                     .saturating_mul(u64::from(PERMILLE_MAX))
@@ -735,20 +749,31 @@ impl ResourceSystem {
                     ))?
                     .min(u64::from(PERMILLE_MAX));
                 if supplied_permille >= u64::from(PERMILLE_MAX) {
-                    current.saturating_add(interval_recovery).min(PERMILLE_MAX)
+                    let recovered = current.saturating_add(interval_recovery).min(PERMILLE_MAX);
+                    let remainder = if recovered == PERMILLE_MAX {
+                        0
+                    } else {
+                        current_remainder
+                    };
+                    (recovered, remainder)
                 } else {
-                    let loss = partial_supply_condition_loss_for_interval(
-                        config.max_condition_loss_per_period,
+                    let (loss, remainder) = partial_supply_condition_loss_with_remainder(
+                        interval_max_loss,
                         supplied_permille,
-                        period_start,
-                        period_end,
+                        current_remainder,
                     )?;
-                    current.saturating_sub(loss)
+                    let deteriorated = current.saturating_sub(loss);
+                    let remainder = if deteriorated == 0 { 0 } else { remainder };
+                    (deteriorated, remainder)
                 }
             };
-            if !population.set_condition_at_index(person_index, updated) {
+            if !population.set_condition_with_loss_remainder_at_index(
+                person_index,
+                updated,
+                updated_remainder,
+            ) {
                 return Err(ResourceError::InternalInvariant(
-                    "unable to update living person's condition",
+                    "unable to update living person's condition response state",
                 ));
             }
         }
@@ -1001,6 +1026,8 @@ impl ResourceSystem {
             return Err(ResourceError::StateShapeMismatch);
         }
 
+        // Check the aggregate first so an overflowing but individually plausible vector cannot
+        // proceed into downstream cell-capacity validation as though its total were meaningful.
         let _ = self.total_food_stock()?;
         for (cell_index, (&stock, cell)) in self
             .cell_food_stock
@@ -1155,6 +1182,8 @@ impl ResourceRngs {
     #[must_use]
     pub(crate) fn new(factory: RngFactory) -> Self {
         Self {
+            // Keep the historical stream label so v7 only changes the probability time basis, not
+            // which deterministic RNG stream supplies condition-mediated mortality draws.
             scarcity_mortality: factory.stream("resources/scarcity_mortality"),
         }
     }
@@ -1211,6 +1240,7 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
     Ok(())
 }
 
+/// Returns elapsed-day bounds inside the current 365-day model year for one M3 settlement period.
 pub(crate) fn resource_period_day_bounds(
     period_index_in_year: u16,
     periods_per_year: u16,
@@ -1225,6 +1255,7 @@ pub(crate) fn resource_period_day_bounds(
     Some((start, end))
 }
 
+/// Allocates an annual integer quantity by elapsed-day cumulative accounting.
 pub(crate) fn fixed_annual_quantity_for_period(
     annual: u64,
     period_index_in_year: u16,
@@ -1238,6 +1269,7 @@ pub(crate) fn fixed_annual_quantity_for_period(
     after.checked_sub(before)
 }
 
+/// Returns the fixed annual quantity assigned to a day only when the day is an actual M3 boundary.
 pub(crate) fn fixed_annual_quantity_at_resource_boundary(
     annual: u64,
     periods_per_year: u16,
@@ -1264,6 +1296,7 @@ pub(crate) fn fixed_annual_quantity_at_resource_boundary(
     fixed_annual_quantity_for_period(annual, index, periods_per_year)
 }
 
+/// Allocates one historical quarter-period response coefficient across an arbitrary elapsed interval.
 fn reference_quarter_quantity_for_interval(
     reference_quantity: u64,
     start: u64,
@@ -1307,46 +1340,37 @@ fn reference_quarter_quantity_for_interval(
     Ok(total)
 }
 
-fn cumulative_partial_supply_condition_loss(
-    reference_max_loss: u16,
+/// Converts one partial-supply interval into whole condition loss plus a carried fixed-point
+/// remainder. The remainder is measured in thousandths of one condition point, so repeated
+/// boundaries cannot repeatedly round the same sub-unit deterioration upward.
+fn partial_supply_condition_loss_with_remainder(
+    interval_max_loss: u16,
     supplied_permille: u64,
-    boundary: u64,
-) -> Result<u64, ResourceError> {
-    if supplied_permille >= u64::from(PERMILLE_MAX) {
-        return Ok(0);
+    prior_remainder_thousandths: u16,
+) -> Result<(u16, u16), ResourceError> {
+    if supplied_permille >= u64::from(PERMILLE_MAX)
+        || u64::from(prior_remainder_thousandths) >= CONDITION_RESPONSE_DENOMINATOR
+    {
+        return Err(ResourceError::InternalInvariant(
+            "partial-supply condition response inputs are invalid",
+        ));
     }
     let deficit = u64::from(PERMILLE_MAX) - supplied_permille;
-    let cumulative_max_loss = reference_quarter_quantity_for_interval(
-        u64::from(reference_max_loss),
-        0,
-        boundary,
-    )?;
     let numerator = deficit
-        .checked_mul(cumulative_max_loss)
+        .checked_mul(u64::from(interval_max_loss))
+        .and_then(|value| value.checked_add(u64::from(prior_remainder_thousandths)))
         .ok_or(ResourceError::AccountingOverflow)?;
-    Ok(if numerator == 0 {
-        0
-    } else {
-        numerator.div_ceil(u64::from(PERMILLE_MAX))
-    })
+    let whole_loss = u16::try_from(numerator / CONDITION_RESPONSE_DENOMINATOR)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+    let remainder = u16::try_from(numerator % CONDITION_RESPONSE_DENOMINATOR)
+        .map_err(|_| ResourceError::AccountingOverflow)?;
+    Ok((whole_loss, remainder))
 }
 
-fn partial_supply_condition_loss_for_interval(
-    reference_max_loss: u16,
-    supplied_permille: u64,
-    start: u64,
-    end: u64,
-) -> Result<u16, ResourceError> {
-    let before =
-        cumulative_partial_supply_condition_loss(reference_max_loss, supplied_permille, start)?;
-    let after =
-        cumulative_partial_supply_condition_loss(reference_max_loss, supplied_permille, end)?;
-    let loss = after
-        .checked_sub(before)
-        .ok_or(ResourceError::AccountingOverflow)?;
-    u16::try_from(loss).map_err(|_| ResourceError::AccountingOverflow)
-}
-
+/// Converts the historical quarter-period condition-mortality probability to an exact hazard for
+/// the supplied elapsed interval. Within each reference quarter the cumulative survival function
+/// is linear, and interval hazards are survival ratios. Multiplying all sub-interval survival
+/// factors therefore telescopes exactly to the same quarter survival as the original coefficient.
 fn reference_quarter_probability_for_interval(
     reference_probability: u32,
     start: u64,
@@ -1529,6 +1553,7 @@ fn validate_temporary_resource_period(
 }
 
 #[must_use]
+/// Alternates exact 50/50 one-unit duration ties without storing another mutable rounding phase.
 fn duration_rounding_tie_visiting_wins(household_index: usize, period_sequence: u64) -> bool {
     ((period_sequence.count_ones() ^ household_index.count_ones()) & 1) == 1
 }
@@ -1732,7 +1757,13 @@ pub enum ResourceConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{WorldConfig, config::PopulationConfig, rng::RngFactory, world::World};
+    use crate::{
+        WorldConfig,
+        config::{MigrationConfig, PopulationConfig},
+        migration::migration_pressure_permille,
+        rng::RngFactory,
+        world::World,
+    };
 
     #[test]
     fn synthetic_resource_config_is_valid() {
@@ -1930,52 +1961,120 @@ mod tests {
         assert_eq!(quarterly, vec![25, 25, 25, 25]);
     }
 
+    fn accumulated_partial_supply_loss(
+        periods: u16,
+        deficit_permille: u64,
+    ) -> (u64, u16) {
+        let supplied_permille = u64::from(PERMILLE_MAX) - deficit_permille;
+        let mut total_loss = 0_u64;
+        let mut remainder = 0_u16;
+        for index in 0..periods {
+            let (start, end) = resource_period_day_bounds(index, periods).unwrap();
+            let interval_max_loss = u16::try_from(
+                reference_quarter_quantity_for_interval(100, start, end).unwrap(),
+            )
+            .unwrap();
+            let (loss, next_remainder) = partial_supply_condition_loss_with_remainder(
+                interval_max_loss,
+                supplied_permille,
+                remainder,
+            )
+            .unwrap();
+            total_loss += u64::from(loss);
+            remainder = next_remainder;
+        }
+        (total_loss, remainder)
+    }
+
     #[test]
-    fn partial_supply_condition_loss_is_partition_invariant() {
-        for (deficit_permille, expected_annual_loss) in [
-            (1_u64, 1_u64),
-            (10, 4),
-            (100, 40),
-            (500, 200),
-            (1_000, 400),
+    fn partial_supply_condition_loss_is_fixed_point_and_partition_invariant() {
+        for (deficit_permille, expected) in [
+            (1_u64, (0_u64, 400_u16)),
+            (10, (4, 0)),
+            (100, (40, 0)),
+            (500, (200, 0)),
+            (1_000, (400, 0)),
         ] {
-            let supplied_permille = u64::from(PERMILLE_MAX) - deficit_permille;
             for periods in [1_u16, 4, 12, 52, 365] {
-                let total_loss = (0..periods)
-                    .map(|index| {
-                        let (start, end) = resource_period_day_bounds(index, periods).unwrap();
-                        u64::from(
-                            partial_supply_condition_loss_for_interval(
-                                100,
-                                supplied_permille,
-                                start,
-                                end,
-                            )
-                            .unwrap(),
-                        )
-                    })
-                    .sum::<u64>();
                 assert_eq!(
-                    total_loss, expected_annual_loss,
+                    accumulated_partial_supply_loss(periods, deficit_permille),
+                    expected,
                     "deficit={deficit_permille}, periods={periods}"
                 );
             }
         }
     }
 
+    fn accumulated_partial_supply_loss_over_interval(
+        start: u64,
+        end: u64,
+        subdivisions: u16,
+        deficit_permille: u64,
+    ) -> (u64, u16) {
+        let supplied_permille = u64::from(PERMILLE_MAX) - deficit_permille;
+        let mut total_loss = 0_u64;
+        let mut remainder = 0_u16;
+        let width = end - start;
+        for index in 0..subdivisions {
+            let local_start = start + width * u64::from(index) / u64::from(subdivisions);
+            let local_end = start + width * u64::from(index + 1) / u64::from(subdivisions);
+            let interval_max_loss = u16::try_from(
+                reference_quarter_quantity_for_interval(100, local_start, local_end).unwrap(),
+            )
+            .unwrap();
+            let (loss, next_remainder) = partial_supply_condition_loss_with_remainder(
+                interval_max_loss,
+                supplied_permille,
+                remainder,
+            )
+            .unwrap();
+            total_loss += u64::from(loss);
+            remainder = next_remainder;
+        }
+        (total_loss, remainder)
+    }
+
     #[test]
-    fn partial_supply_rounding_is_cumulative_not_repeated_per_boundary() {
-        let supplied_permille = 999_u64;
-        let daily = (0..365_u16)
-            .map(|index| {
-                let (start, end) = resource_period_day_bounds(index, 365).unwrap();
-                partial_supply_condition_loss_for_interval(100, supplied_permille, start, end)
-                    .unwrap()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(daily.iter().map(|&value| u64::from(value)).sum::<u64>(), 1);
-        assert_eq!(daily.iter().filter(|&&value| value == 1).count(), 1);
-        assert!(daily.iter().all(|&value| value <= 1));
+    fn partial_supply_remainder_tracks_actual_exposure_not_calendar_phase() {
+        for subdivisions in [1_u16, 2, 4, 23, 92] {
+            assert_eq!(
+                accumulated_partial_supply_loss_over_interval(273, 365, subdivisions, 1),
+                (0, 100),
+                "subdivisions={subdivisions}"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_supply_preserves_full_maximum_loss_with_existing_fractional_remainder() {
+        assert_eq!(
+            partial_supply_condition_loss_with_remainder(100, 0, 400).unwrap(),
+            (100, 400)
+        );
+    }
+
+    #[test]
+    fn equivalent_partial_supply_histories_feed_same_mortality_and_m4_pressure() {
+        let migration = MigrationConfig::synthetic_validation_v1();
+        let mut baseline = None;
+        for periods in [1_u16, 4, 12, 52, 365] {
+            let (loss, remainder) = accumulated_partial_supply_loss(periods, 10);
+            assert_eq!((loss, remainder), (4, 0));
+            let condition = PERMILLE_MAX - u16::try_from(loss).unwrap();
+            let condition_deficit = u64::from(PERMILLE_MAX - condition);
+            let mortality_reference_probability = u32::try_from(
+                condition_deficit * u64::from(PROBABILITY_PER_MILLION)
+                    / u64::from(PERMILLE_MAX),
+            )
+            .unwrap();
+            let m4_pressure = migration_pressure_permille(condition, PERMILLE_MAX, &migration);
+            let result = (condition, mortality_reference_probability, m4_pressure);
+            if let Some(expected) = baseline {
+                assert_eq!(result, expected, "periods={periods}");
+            } else {
+                baseline = Some(result);
+            }
+        }
     }
 
     fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
