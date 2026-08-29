@@ -1,0 +1,71 @@
+name: Identifiability and equifinality analysis
+
+on:
+  pull_request:
+    paths:
+      - "scripts/research-identifiability.py"
+      - "research/identifiability-benchmark-v1/**"
+      - "docs/research/identifiability-equifinality-v1.md"
+      - ".github/workflows/identifiability-analysis.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  identifiability-gate:
+    name: Synthetic identifiability benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Compile and self-test analyzer
+        run: |
+          python3 -m py_compile scripts/research-identifiability.py
+          python3 scripts/research-identifiability.py --self-test
+      - name: Verify independent second pattern identifies benchmark
+        run: |
+          python3 scripts/research-identifiability.py \
+            research/identifiability-benchmark-v1/plan.json \
+            research/identifiability-benchmark-v1/data.json \
+            /tmp/identifiability-result.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('/tmp/identifiability-result.json').read_text())
+          assert r['researchGate']['passes'] is True
+          assert r['stagedEvidenceDiagnostics'][0]['acceptablePointCount'] == 4
+          assert r['stagedEvidenceDiagnostics'][1]['acceptablePointCount'] == 1
+          assert r['acceptableRegion']['pointIds'] == ['o2-n2']
+          first=r['stagedEvidenceDiagnostics'][0]['parameterDiagnostics']
+          assert all(d['identified'] is False for d in first)
+          assert all(d['identified'] is True for d in r['parameterDiagnostics'])
+          PY
+      - name: Verify ratio-only calibration fails closed with equifinality
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('research/identifiability-benchmark-v1/plan.json').read_text())
+          p['analysisId']='synthetic-ratio-only-nonidentifiable-v1'
+          p['calibrationTargets']=p['calibrationTargets'][:1]
+          Path('/tmp/ratio-only-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n')
+          PY
+          set +e
+          python3 scripts/research-identifiability.py \
+            /tmp/ratio-only-plan.json \
+            research/identifiability-benchmark-v1/data.json \
+            /tmp/ratio-only-result.json
+          status=$?
+          set -e
+          test "$status" -eq 2
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('/tmp/ratio-only-result.json').read_text())
+          assert r['researchGate']['passes'] is False
+          assert r['equifinality']['present'] is True
+          assert r['acceptableRegion']['pointCount'] == 4
+          assert r['equifinality']['reportingPolicy'] == 'report_acceptable_region_not_unique_optimum'
+          PY
