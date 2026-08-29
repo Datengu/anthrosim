@@ -27,11 +27,11 @@ Purpose: durable, repository-authoritative cross-session state for the second in
 | Latest audited protected-main SHA | `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4` |
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
 | Current P1 findings | #326, #334 |
-| Current P2 findings | #314, #315, #320, #324, #327, #329, #332 |
+| Current P2 findings | #314, #315, #320, #324, #327, #329, #332, #336 |
 | Non-scientific audit infrastructure | #317 |
 | Audit state | in progress |
 
-`main` advanced to `fdeb66ed...` through audit documentation only after the Area B executable baseline. The executable v19 tree audited by Areas C–H remained unchanged. Repository-visible stacked recording PRs/branches preserve Areas C–H; do not restart an area merely because its recording PR has not yet merged to protected `main`.
+`main` advanced to `fdeb66ed...` through audit documentation only after the Area B executable baseline. The executable v19 tree audited by Areas C–I remained unchanged. Repository-visible stacked recording PRs/branches preserve Areas C–I; do not restart an area merely because its recording PR has not yet merged to protected `main`.
 
 ## Coverage matrix
 
@@ -46,10 +46,10 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | complete — findings | `area-e-2026-08-29.md`; symmetry/boundary/keyed-tie checks; PR #328 | #327; #214 relevant |
 | F | Aggregation and interaction mechanisms | complete — findings | `area-f-2026-08-29.md`; M9.7 raw-reference recomputation; PR #330 | #329 |
 | G | Initialization, burn-in, path dependence, continuation state | complete — findings | `area-g-2026-08-29.md`; year-zero adversarial PR #331; PR #333 | #332; #168 substantially reverified locally |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | complete — findings | `area-h-2026-08-29.md`; exact binomial quantile-coverage checker | #334 P1; #214/#231 historical contracts reviewed |
-| I | Sensitivity, uncertainty, convergence, robustness | not started | Preserve #326 and #334 as convergence/inference dependencies | #326, #334 dependencies |
-| J | Identifiability, equifinality, calibration, discrimination | not started | Area F already shows total focal person-days alone are non-identifying | — |
-| K | Experiment orchestration, configuration, provenance, reproducibility | not started | #329/#332 already relevant | #329, #332 |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | complete — findings | `area-h-2026-08-29.md`; exact binomial quantile-coverage checker; PR #335 | #334 P1; #214/#231 historical contracts reviewed |
+| I | Sensitivity, uncertainty, convergence, robustness | complete — findings | `area-i-2026-08-29.md`; typed research-design adversarial review; existing convergence/structural results quantified | #336; #324/#326/#334 dependencies |
+| J | Identifiability, equifinality, calibration, discrimination | not started | Area F already shows total focal person-days alone are non-identifying; inspect #217 first | #217 historical requirement |
+| K | Experiment orchestration, configuration, provenance, reproducibility | not started | #329/#332/#336 already relevant | #329, #332, #336 |
 | L | Observability, analysis outputs, statistical summaries | not started | #327/#329/#332/#334 already relevant | #327, #329, #332, #334 |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Earlier areas exposed multiple documentation/result drifts | #314, #315, #327, #329 |
 | N | Cross-system integration | not started | Mandatory dependencies below | #324, #326, #334 |
@@ -66,8 +66,8 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | Initialization × demography | not started | #320 founder chronology defect |
 | Initialization × spatial placement | not started | Area G confirms persistent founder-layout dependence in a no-relaxation control |
 | Stochastic inference × censoring/extinction | partial — local governance positive, tail gate defective | survivor-conditioned/undefined-extinction contract is explicit; #334 invalidates supported quantile/tail confidence claims until repair |
-| Sensitivity × hidden configuration | not started | Area I |
-| Calibration × identifiability | not started | Area J |
+| Sensitivity × hidden configuration | complete — findings | full typed config substantially resolves #205; #336 permits metadata-only pseudo-structural coordinates; #324/#326/#334 constrain specific robustness claims |
+| Calibration × identifiability | not started | Area J; inspect #217 before new findings |
 | Checkpoint/resume × RNG | partial — positive local evidence | v19 continuation identity binds named RNG positions; ordinary year-3 resume exact; #332 is separate year-zero metric-history drift |
 | Observability × scientific interpretation | not started | #327, #329, #332 and #334 all cross into interpretation/analysis |
 
@@ -79,11 +79,12 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | AV2-002 — M2 demographic-time contract retains superseded mortality execution | P2 | A / B / M | issue open | #315 | `area-a-2026-08-29.md` | n/a — open |
 | AV2-003 — declared founder genealogy admits biologically impossible reproductive chronology | P2 | B / G / C | issue open | #320; probe #319 | `area-b-2026-08-29.md` | n/a — open |
 | AV2-004 — deterministic household fission derives social composition from PersonId/birth-append order | P2 | C / N / I | issue open | #324; probe #323; PR #325 | `area-c-2026-08-29.md` | n/a — open |
-| AV2-005 — per-boundary ceiling multiplies partial-supply condition deterioration with M3 resolution | P1 | D / I / N | issue open | #326 | `area-d-2026-08-29.md` | **required after repair** |
+| AV2-005 — per-boundary ceiling multiplies partial-supply condition deterioration with M3 resolution | **P1** | D / I / N | issue open | #326 | `area-d-2026-08-29.md` | **required after repair** |
 | AV2-006 — active M9 travel contract documents superseded lower-CellId equal-cost selection | P2 | E / M / L | issue open | #327; PR #328 | `area-e-2026-08-29.md` | n/a — open |
 | AV2-007 — current M9.7 narrative reports obsolete provenance/statistics relative to checked-in reference | P2 | F / K / L / M | issue open | #329; PR #330 | `area-f-2026-08-29.md` | n/a — open |
 | AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G / K / L | issue open | #332; probe #331; PR #333 | `area-g-2026-08-29.md` | n/a — open |
-| AV2-009 — Monte Carlo quantile gate can certify severely under-covered nominal confidence intervals | **P1** | H / I / L | issue open | #334; Area H recording branch | `area-h-2026-08-29.md`; `area-h-quantile-coverage-audit.py` | **required after repair** |
+| AV2-009 — Monte Carlo quantile gate can certify severely under-covered nominal confidence intervals | **P1** | H / I / L | issue open | #334; PR #335 | `area-h-2026-08-29.md`; `area-h-quantile-coverage-audit.py` | **required after repair** |
+| AV2-010 — metadata-only research coordinates can masquerade as structural sensitivity | P2 | I / K | issue open | #336; Area I recording branch | `area-i-2026-08-29.md` | n/a — open |
 
 ## Condensed session history
 
@@ -94,24 +95,25 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 - **Area E:** M4 reflection candidate sets were symmetric; finite boundaries explicit; 100,000 M9 equal-cost keyed selections split 49,886/50,114 while active documentation still claimed lower-ID always wins; finding #327.
 - **Area F:** independent 8-seed M9.7 recomputation retained capability distinction; current narrative provenance/statistics were stale; finding #329.
 - **Area G:** founder-layout persistence remained visible (1000 vs 500 permille largest-cell share); year-zero resume added metric day 0 while terminal present state stayed equal; finding #332.
+- **Area H:** exact finite-sample quantile coverage showed severe nominal-95% undercoverage (for example p=.95,n=8 → 33.08%); finding #334 P1.
 
-### 2026-08-29 — Area H / stochasticity, RNG, ensembles, and Monte Carlo inference
+### 2026-08-29 — Area I / sensitivity, uncertainty, convergence, robustness
 
 **Live main / semantics:** `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4`; `anthrosim-model-semantics-v19`.
 
-**Overlap check:** newest handoff was PR #333; no pre-existing Area H audit branch. Historical #214 and #231 were closed and reviewed before new issue creation. Existing #326 remains a separate P1 dependency.
+**Overlap check:** repository-visible Area H handoff was PR #335. Open recording PRs for Areas C-H were preserved; no pre-existing Area I audit branch/finding matching the new metadata-coordinate defect was found. Existing #324/#326/#334 were treated as dependencies.
 
-**Implementation/docs inspected:** `crates/anthrosim-core/src/rng.rs`, `scripts/research-monte-carlo-sufficiency.py`, `docs/research/monte-carlo-sufficiency-v1.md`, `docs/research/paired-seed-semantics-v1.md`, `docs/research/survivor-conditioned-estimands-v1.md`, plus Area G continuation evidence.
+**Positive evidence:** #205 now preserves complete typed `ExperimentConfig` plus optional spatial config and validates resolved points through normal simulation construction. #203 explicitly records spatial resolution dependence instead of claiming false convergence. #220 requires run-length/window sensitivity and distinguishes stable/cyclic/drifting/insufficient trajectories. Existing household structural sensitivity showed material differences, e.g. unmet need 962→449 (-53.3%), M4 moves 85→97 (+14.1%), M9 departures 7,336→8,046 (+9.7%), while visitor person-days changed only -0.2%.
 
-**Positive evidence:** deterministic named streams and exact positions are explicit; paired seeds are correctly documented as replicate blocking rather than agent-level common random numbers; fixed/sequential seed batches are frozen and partial-batch peeking rejected; survivor-conditioned condition and extinction undefinedness are explicit.
+**Adversarial result:** `kind: structural` currently accepts any non-numeric path. A dimension varying only `/experiment/demography/scheduleId` can therefore generate `k` nominal structural point identities while leaving exactly **1 executable model structure**. Same-seed causal contrasts are exactly zero because the label is not consumed by M2 dynamics. Equivalent pseudo-variation is possible through provenance/model labels.
 
-**Adversarial quantitative result:** the current nominal 95% quantile rank interval has exact finite-sample coverage far below 95% in supported cases. Examples from the independent checker: p=.90,n=8 → 56.45%; p=.95,n=8 → **33.08%**; p=.95,n=20 → **62.56%**; p=.99,n=20 → **18.11%**; p=.99,n=100 → **61.56%**. The executable gate can nevertheless decide `sufficient_stop` from narrow observed value-space width without testing whether requested rank coverage is attainable.
+**Finding:** AV2-010/#336 P2 — metadata-only coordinates can masquerade as structural sensitivity and support false robustness claims across nominal model structures.
 
-**Finding:** AV2-009/#334 P1 — invalid stochastic inference can be certified as sufficiently precise. This is analysis-layer only; simulation trajectories/model semantics do not change.
+**Dependencies:** #326 blocks resource temporal-resolution convergence under partial supply; #334 blocks supported quantile/tail Monte Carlo convergence claims; #324 means current size-fission structural-effect magnitudes require repeat after the fission rule is repaired.
 
-**Repeat conditions:** independently reverify #334 after repair, including exact finite-sample rank coverage and fail-closed behavior for infeasible confidence/quantile/sample-size combinations. Repeat broader Area H only if RNG derivation/stream consumption, seed-role decomposition, ensemble pairing, Monte Carlo gate methods, stopping rules, or extinction conditioning materially change.
+**Repeat conditions:** independently reverify #326 and #334 after repair because they are P1. Revisit Area I after #336 if structural-coordinate classification changes substantially, and rerun the relevant household structural comparison after #324.
 
-**Handoff:** **Area I — sensitivity, uncertainty, convergence, and robustness.** Do not treat a passing current quantile precision diagnostic as convergence evidence until #334 is repaired/reverified. Preserve #326 as the separate resource-temporal convergence dependency.
+**Handoff:** **Area J — identifiability, equifinality, calibration, and discrimination.** Inspect historical #217 and current analysis support before creating new findings. Distinguish parameter sensitivity from parameter identifiability, test compensating parameter combinations/structural alternatives where feasible, and preserve explicit non-identifiability as a valid result.
 
 ---
 
