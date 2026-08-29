@@ -1,0 +1,53 @@
+name: PR357 apply exact v21 demographic artifact
+on:
+  push:
+    branches: [fix/324-dependency-aware-household-fission]
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/324-dependency-aware-household-fission
+      - name: Download and validate exact completed artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/a304
+          mkdir -p /tmp/a304
+          gh run download 33274511776 -n issue-304-demographic-baseline-confirmatory -D /tmp/a304
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/a304/expected-result.json')
+          d=json.loads(p.read_text())
+          assert d['modelSemanticsId']=='anthrosim-model-semantics-v21'
+          assert d['runCount']==780
+          assert d['recommendation']=='no_universal_demographic_baseline'
+          assert len(d['arms'])==6
+          for arm in d['arms']:
+              assert arm['replicates']==130
+              assert arm['householdLifecycle'] in {'fixed_founder_v1','deterministic_dependency_fission_v2'}
+          assert any(a['householdLifecycle']=='deterministic_dependency_fission_v2' for a in d['arms'])
+          prec=d['monteCarloPrecision']
+          assert len(prec)==3
+          for diag in prec.values():
+              assert diag['replicateCount']==130
+              assert diag['decision']=='sufficient_stop'
+              assert diag['precision']['sufficient'] is True
+              assert diag['seedIdentities']==list(range(3042001,3042131))
+          assert d['longRun']['multipleStableRegimesDetected'] is False
+          PY
+          cp /tmp/a304/expected-result.json research/general-demography-baseline-v1/confirmatory-result.json
+          git diff --check
+          git diff --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/general-demography-baseline-v1/confirmatory-result.json
+          git commit -m 'research: rebaseline demographic confirmation for v21'
+          git push origin HEAD:fix/324-dependency-aware-household-fission
