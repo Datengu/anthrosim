@@ -60,13 +60,18 @@ from pathlib import Path
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", required=True)
 parser.add_argument("--output", required=True)
-parser.add_argument("--scale", type=int, required=True)
+scale_source = parser.add_mutually_exclusive_group(required=True)
+scale_source.add_argument("--scale", type=int)
+scale_source.add_argument("--config")
 parser.add_argument("--mutate-input", action="store_true")
 args = parser.parse_args()
 
 source = Path(args.input)
 rows = json.loads(source.read_text(encoding="utf-8"))["runs"]
-value = sum(row["value"] for row in rows) * args.scale
+scale = args.scale
+if args.config is not None:
+    scale = int(json.loads(Path(args.config).read_text(encoding="utf-8"))["scale"])
+value = sum(row["value"] for row in rows) * scale
 Path(args.output).write_text(
     json.dumps({"schemaVersion": 1, "scaledTotal": value}, sort_keys=True) + "\n",
     encoding="utf-8",
@@ -98,19 +103,17 @@ def definition(*, mode: str = "scripted", mutate_input: bool = False) -> dict:
             "Exported the canonical result to analysis/result.json without further edits.",
         ]
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "definitionType": "anthrosim-analysis-definition",
         "analysisId": "synthetic-total-v1",
         "analysisStatus": "confirmatory",
         "executionMode": mode,
         "workingDirectory": ".",
         "command": command,
-        "arguments": {
+        "annotations": {
             "estimand": "scaled total",
-            "scale": 2,
             "filter": "all completed synthetic rows",
         },
-        "analysisRngSeeds": [9001],
         "runtimeDescription": "Python standard library; fixture lock file records the test environment.",
         "reproductionCriterion": "exact_output_bytes",
         "inputs": [
@@ -126,7 +129,6 @@ def definition(*, mode: str = "scripted", mutate_input: bool = False) -> dict:
             {"path": "analysis/result.json", "role": "canonical-machine-readable-result"}
         ],
         "manualSteps": manual_steps,
-        "observationModelIdentity": None,
     }
 
 
@@ -169,11 +171,11 @@ def test_scripted_run_and_verify() -> None:
         definition_path = make_study(root)
         result = run("run", root, definition_path)
         identity = result.stdout.strip()
-        assert identity.startswith("analysis-provenance-v1-sha256-")
+        assert identity.startswith("analysis-provenance-v2-sha256-")
         assert json.loads((root / "analysis/result.json").read_text())["scaledTotal"] == 10
         record = load_record(root)
         assert record["provenanceIdentity"] == identity
-        assert record["definition"]["analysisRngSeeds"] == [9001]
+        assert "analysisRngSeeds" not in record["definition"]
         assert record["executionStatus"] == "executed_by_wrapper"
         assert record["study"]["protocolIdentity"] == binding()["protocolIdentity"]
         assert record["study"]["artifact"]["sha256"]
@@ -227,17 +229,93 @@ def test_confirmatory_status_requires_eligible_frozen_study() -> None:
         assert not (root / "analysis/result.json").exists()
 
 
-def test_definition_change_changes_identity() -> None:
+def test_executable_argument_change_changes_execution_and_identity() -> None:
     identities = []
+    outputs = []
     for scale in (2, 3):
         with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
             root = Path(directory)
             definition_path = make_study(root)
             current = definition()
-            current["arguments"]["scale"] = scale
+            scale_index = current["command"].index("--scale") + 1
+            current["command"][scale_index] = str(scale)
             definition_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
             identities.append(run("run", root, definition_path).stdout.strip())
+            outputs.append(json.loads((root / "analysis/result.json").read_text())["scaledTotal"])
+    assert outputs == [10, 15]
     assert identities[0] != identities[1]
+
+
+def test_config_file_configuration_is_execution_bound() -> None:
+    with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
+        root = Path(directory)
+        definition_path = make_study(root)
+        config_path = root / "analysis/config.json"
+        config_path.write_text(json.dumps({"scale": 3}) + "\n", encoding="utf-8")
+        current = definition()
+        scale_flag = current["command"].index("--scale")
+        current["command"][scale_flag:scale_flag + 2] = ["--config", "analysis/config.json"]
+        current["implementation"].append({"path": "analysis/config.json", "role": "analysis-configuration"})
+        definition_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+        identity = run("run", root, definition_path).stdout.strip()
+        assert json.loads((root / "analysis/result.json").read_text())["scaledTotal"] == 15
+        assert run("replay", root).stdout.strip() == identity
+        config_path.write_text(json.dumps({"scale": 30}) + "\n", encoding="utf-8")
+        failed = run("verify", root, expect_success=False)
+        assert "digest/size mismatch" in failed.stderr or "differ" in failed.stderr
+
+
+def test_annotations_are_explicitly_nonexecuted_metadata() -> None:
+    identities = []
+    outputs = []
+    for label in ("descriptive-a", "descriptive-b"):
+        with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
+            root = Path(directory)
+            definition_path = make_study(root)
+            current = definition()
+            current["annotations"]["note"] = label
+            definition_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+            identities.append(run("run", root, definition_path).stdout.strip())
+            outputs.append(json.loads((root / "analysis/result.json").read_text())["scaledTotal"])
+    assert outputs == [10, 10]
+    assert identities[0] != identities[1]
+
+
+def test_unbound_observation_model_identity_is_rejected() -> None:
+    with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
+        root = Path(directory)
+        definition_path = make_study(root)
+        current = definition()
+        current["observationModelIdentity"] = "observation-model-that-command-does-not-select"
+        definition_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+        failed = run("run", root, definition_path, expect_success=False)
+        assert "unknown field" in failed.stderr
+        assert not (root / "analysis/result.json").exists()
+
+
+def test_unbound_rng_seed_metadata_is_rejected() -> None:
+    with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
+        root = Path(directory)
+        definition_path = make_study(root)
+        current = definition()
+        current["analysisRngSeeds"] = [9001]
+        definition_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+        failed = run("run", root, definition_path, expect_success=False)
+        assert "unknown field" in failed.stderr
+        assert not (root / "analysis/result.json").exists()
+
+
+def test_legacy_v1_arguments_definition_is_rejected() -> None:
+    with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
+        root = Path(directory)
+        definition_path = make_study(root)
+        current = definition()
+        current["schemaVersion"] = 1
+        current["arguments"] = {"scale": 3}
+        definition_path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+        failed = run("run", root, definition_path, expect_success=False)
+        assert "unsupported analysis definition schema" in failed.stderr or "unknown field" in failed.stderr
+        assert not (root / "analysis/result.json").exists()
 
 
 def test_manual_capture_is_visible_and_verifiable() -> None:
@@ -275,7 +353,8 @@ def test_record_tamper_breaks_identity() -> None:
         run("run", root, definition_path)
         path = root / "analysis/analysis-provenance.json"
         record = json.loads(path.read_text(encoding="utf-8"))
-        record["definition"]["arguments"]["scale"] = 999
+        scale_index = record["definition"]["command"].index("--scale") + 1
+        record["definition"]["command"][scale_index] = "999"
         path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         failed = run("verify", root, expect_success=False)
         assert "definition identity mismatch" in failed.stderr or "provenance identity mismatch" in failed.stderr
@@ -323,7 +402,12 @@ def main() -> None:
         test_output_tamper_is_rejected,
         test_source_mutation_during_execution_fails_closed,
         test_confirmatory_status_requires_eligible_frozen_study,
-        test_definition_change_changes_identity,
+        test_executable_argument_change_changes_execution_and_identity,
+        test_config_file_configuration_is_execution_bound,
+        test_annotations_are_explicitly_nonexecuted_metadata,
+        test_unbound_observation_model_identity_is_rejected,
+        test_unbound_rng_seed_metadata_is_rejected,
+        test_legacy_v1_arguments_definition_is_rejected,
         test_manual_capture_is_visible_and_verifiable,
         test_manual_capture_requires_declared_steps,
         test_record_tamper_breaks_identity,
