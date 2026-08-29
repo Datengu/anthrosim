@@ -17,7 +17,7 @@ permissions:
   contents: read
 jobs:
   confirmatory-analysis:
-    name: 64-seed demographic baseline confirmation
+    name: 130-seed demographic baseline confirmation
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -26,6 +26,23 @@ jobs:
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
+      - name: Validate predeclared precision plans before execution
+        run: |
+          set -euo pipefail
+          for p in research/general-demography-baseline-v1/precision-v2/*-plan.json; do
+            python3 scripts/research-monte-carlo-sufficiency.py validate-plan "$p"
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          expected=list(range(3042001,3042131))
+          plans=list(Path('research/general-demography-baseline-v1/precision-v2').glob('*-plan.json'))
+          assert len(plans)==3
+          for p in plans:
+              d=json.loads(p.read_text())
+              assert d['design']['mode']=='fixed'
+              assert d['design']['seedBatches']==[expected]
+          PY
       - name: Build research binaries
         run: |
           export ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)"
@@ -36,7 +53,7 @@ jobs:
           import json
           from pathlib import Path
           d=json.loads(Path('research/general-demography-baseline-v1/exploratory-definition.json').read_text())
-          seeds=list(range(3041001,3041065)); d['seeds']=seeds; d['base']['experiment']['seed']=seeds[0]
+          seeds=list(range(3042001,3042131)); d['seeds']=seeds; d['base']['experiment']['seed']=seeds[0]
           d['base']['experiment']['population']['syntheticMaxAgeYears']=60
           d['base']['experiment']['resources']['productivityScalePermille']=1000
           for x in d['dimensions']:
@@ -44,22 +61,22 @@ jobs:
               if x['id']=='resource_productivity_scale_permille': x['values']=[1000]
           Path('/tmp/confirm-source.json').write_text(json.dumps(d,separators=(',',':'))+'\n')
           p=json.loads(Path('research/general-demography-baseline-v1/long-run-protocol.json').read_text())
-          p['studyId']='issue-304-general-demography-baseline-confirmatory-v1'
-          p['rationale']='64 new paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille; broad founder/resource sensitivity was tested in the 288-run exploratory factorial. Long-run thresholds/windows are unchanged.'
+          p['studyId']='issue-304-general-demography-baseline-confirmatory-v2'
+          p['rationale']='130 fresh paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille. This v2 confirmatory revision was predeclared after the fixed 64-seed v21 replication failed only the positive-fission extinction Monte Carlo precision gate: n=130 is the minimum fixed count that guarantees a two-sided 95% Wilson probability interval has maximum half-width <= 0.085 even at worst-case p=0.5. No outcomes from seeds 3042001..3042130 were inspected before fixing this count. Long-run thresholds/windows are unchanged.'
           Path('/tmp/confirm-long-run.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n')
           PY
           python3 scripts/prepare-general-demography-baseline-definition.py /tmp/confirm-source.json /tmp/confirm-definition.json
           cmp /tmp/confirm-definition.json research/general-demography-baseline-v1/confirmatory-definition.json
           cmp /tmp/confirm-long-run.json research/general-demography-baseline-v1/confirmatory-long-run-protocol.json
-      - name: Execute and summarize 384 confirmatory runs
+      - name: Execute and summarize 780 confirmatory runs
         run: |
           rm -rf /tmp/c304 /tmp/o304 /tmp/a304
           target/release/anthrosim-research --definition /tmp/confirm-definition.json --run-dir /tmp/c304
-          mkdir -p /tmp/o304 /tmp/a304
+          mkdir -p /tmp/o304 /tmp/a304/precision
           python3 - <<'PY' >/tmp/runs304.tsv
           import json
           from pathlib import Path
-          rows=json.loads(Path('/tmp/c304/analysis/runs.json').read_text())['runs']; assert len(rows)==384
+          rows=json.loads(Path('/tmp/c304/analysis/runs.json').read_text())['runs']; assert len(rows)==780
           for r in rows:
               assert r['state']=='completed'; print(f"{r['runId']}\t{r['relativeDir']}")
           PY
@@ -69,20 +86,19 @@ jobs:
       - name: Apply issue 231 Monte Carlo precision gates
         run: |
           python3 - <<'PY'
-          import hashlib,json
+          import json,shutil
           from pathlib import Path
-          s=json.loads(Path('/tmp/a304/summary.json').read_text()); seeds=list(range(3041001,3041065)); root=Path('/tmp/a304/precision'); root.mkdir()
-          def make_plan(pid,kind,half,pairing):
-              p={'schemaVersion':1,'planIdentity':'','planId':pid,'uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':kind,'confidenceLevel':0.95,'maxHalfWidth':half},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':pairing,'rationale':'Predeclared issue #304 precision target for an estimand defined on every replicate used in the final baseline decision.'}
-              q=dict(p); q['planIdentity']=''; p['planIdentity']='monte-carlo-precision-plan-v1-'+hashlib.sha256(json.dumps(q,sort_keys=True,separators=(',',':')).encode()).hexdigest(); return p
+          s=json.loads(Path('/tmp/a304/summary.json').read_text()); seeds=list(range(3042001,3042131)); root=Path('/tmp/a304/precision')
           def runs(life): return {r['seed']:r for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']==life}
           fixed=runs('fixed_founder_v1'); fiss=runs('deterministic_dependency_fission_v2'); assert set(fixed)==set(seeds)==set(fiss)
-          cases=[
-            ('positive-fixed-growth',make_plan('issue304-positive-fixed-late-growth-v1','mean',0.001,'independent'),{'schemaVersion':1,'groups':[{'id':'positive-fixed','replicates':[{'seed':x,'value':fixed[x]['lateGrowthRatePerYear']} for x in seeds]}]}),
-            ('positive-fission-extinction',make_plan('issue304-positive-fission-extinction-v1','probability',0.085,'independent'),{'schemaVersion':1,'groups':[{'id':'positive-fission-extinction','replicates':[{'seed':x,'value':fiss[x]['extinct']} for x in seeds]}]}),
-            ('positive-household-population-effect',make_plan('issue304-positive-household-terminal-population-effect-v1','paired_mean_difference',15.0,'paired_by_seed'),{'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':x,'value':fiss[x]['terminalPopulation']} for x in seeds]},{'id':'fixed','replicates':[{'seed':x,'value':fixed[x]['terminalPopulation']} for x in seeds]}]})]
-          for name,plan,sample in cases:
-              (root/f'{name}-plan.json').write_text(json.dumps(plan,indent=2,sort_keys=True)+'\n'); (root/f'{name}-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
+          samples={
+            'positive-fixed-growth':{'schemaVersion':1,'groups':[{'id':'positive-fixed','replicates':[{'seed':x,'value':fixed[x]['lateGrowthRatePerYear']} for x in seeds]}]},
+            'positive-fission-extinction':{'schemaVersion':1,'groups':[{'id':'positive-fission-extinction','replicates':[{'seed':x,'value':fiss[x]['extinct']} for x in seeds]}]},
+            'positive-household-population-effect':{'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':x,'value':fiss[x]['terminalPopulation']} for x in seeds]},{'id':'fixed','replicates':[{'seed':x,'value':fixed[x]['terminalPopulation']} for x in seeds]}]},
+          }
+          for name,sample in samples.items():
+              shutil.copyfile(f'research/general-demography-baseline-v1/precision-v2/{name}-plan.json',root/f'{name}-plan.json')
+              (root/f'{name}-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
           PY
           for p in /tmp/a304/precision/*-plan.json; do s="${p%-plan.json}"; python3 scripts/research-monte-carlo-sufficiency.py diagnose "$p" "${s}-samples.json" "${s}-diagnostic.json"; done
       - name: Verify preserved scientific conclusion
@@ -99,10 +115,6 @@ jobs:
           expected={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','modelSemanticsId':model_semantics_id,'recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':prec}
           Path('/tmp/a304/expected-result.json').write_text(json.dumps(expected,indent=2,sort_keys=True)+'\n')
           actual=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
-          # researchId deliberately binds the execution to exact source provenance. PR checks
-          # execute GitHub's synthetic merge commit, so a newly reproduced researchId must
-          # differ from the preserved historical execution whenever the source SHA changes.
-          # Compare every scientific field exactly and validate both identities separately.
           assert re.fullmatch(r'research-execution-v1-[0-9a-f]{16}', actual.get('researchId',''))
           assert re.fullmatch(r'research-execution-v1-[0-9a-f]{16}', expected.get('researchId',''))
           actual_science={k:v for k,v in actual.items() if k!='researchId'}
