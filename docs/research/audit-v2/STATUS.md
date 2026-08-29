@@ -27,10 +27,10 @@ Purpose: durable, repository-authoritative state for the second independent/adve
 | Initial issue state | no open issues at audit initialization |
 | Latest audited protected-main SHA | `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4` |
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
-| Current audit findings | #326 P1; #314, #315, #320, #324, #327, #329 P2; #317 is non-scientific CI infrastructure |
+| Current audit findings | #326 P1; #314, #315, #320, #324, #327, #329, #332 P2; #317 is non-scientific CI infrastructure |
 | Audit state | in progress |
 
-`main` advanced from `06f1a059...` to `fdeb66ed...` only through merged Area B audit documentation. The executable tree audited by Areas C–F remained model semantics v19. Area C recording PR #325, Area D recording branch and Area E recording PR #328 were repository-visible when Area F began; their evidence is incorporated below so later agents do not duplicate those areas.
+`main` advanced from `06f1a059...` to `fdeb66ed...` only through merged Area B audit documentation. The executable tree audited by Areas C–G remained model semantics v19. Area C recording PR #325, Area D recording branch, Area E recording PR #328 and Area F recording PR #330 were repository-visible before Area G; their evidence is incorporated below so later agents do not duplicate those areas.
 
 ## Coverage matrix
 
@@ -44,12 +44,12 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | D | Resources, condition, subsistence, depletion/recovery | complete — findings | `area-d-2026-08-29.md` and `area-d-condition-rounding-audit.py` on `audit-v2/area-d-resources-record` | #326 P1; #324 household-unit interaction relevant |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | complete — findings | `area-e-2026-08-29.md`; `area-e-spatial-audit.py`; source/contracts plus existing spatial-boundary/grid tests | #327; #214 coupling relevant; #324/#326 cross-system dependencies |
 | F | Aggregation and interaction mechanisms | complete — findings | `area-f-2026-08-29.md`; `area-f-aggregation-audit.py`; M9.7 raw-reference recomputation and same-total-use adversarial construction | #329; #327 destination semantics relevant; #324/#326 cross-system dependencies |
-| G | Initialization, burn-in, path dependence, continuation state | not started | — | — |
+| G | Initialization, burn-in, path dependence, continuation state | complete — findings | `area-g-2026-08-29.md`; source/contracts review; controlled founder-layout evidence; adversarial year-zero checkpoint PR #331 | #332; #320 initialization chronology relevant; historical #168 substantially reverified |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | not started | Area B 2,000-seed PersonId relabelling diagnostic; Area E candidate-order reflection diagnostic; full inference audit deferred | #214 historical evidence relevant |
 | I | Sensitivity, uncertainty, convergence, robustness | not started | Area D finite-capacity timing and Area E finite-boundary effects explicitly deferred to convergence testing | #326 repair dependency |
 | J | Identifiability, equifinality, calibration, discrimination | not started | Area F confirms total focal person-days alone are non-identifying but M9 preserves additional temporal/journey structure | — |
-| K | Experiment orchestration, configuration, provenance, reproducibility | not started | Area F exposed stale current M9.7 benchmark narrative relative to machine-readable reference | #329 |
-| L | Observability, analysis outputs, statistical summaries | not started | Area C generation-span lower-bound hypothesis; Area E M9 destination-contract interpretation; Area F aggregation summaries/journey observability carried forward | #327, #329 |
+| K | Experiment orchestration, configuration, provenance, reproducibility | not started | Area F exposed stale current M9.7 benchmark narrative relative to machine-readable reference; Area G exposed year-zero resume output-history drift | #329, #332 |
+| L | Observability, analysis outputs, statistical summaries | not started | Area C generation-span lower-bound hypothesis; Area E M9 destination-contract interpretation; Area F aggregation summaries/journey observability; Area G year-zero metric injection | #327, #329, #332 |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Areas A/E/F exposed current-facing documentation/result drift, but Area M has not been systematically audited | #314, #315, #327, #329 |
 | N | Cross-system integration | not started | Local subsystem passes have identified mandatory dependencies below | #324, #326 |
 
@@ -65,12 +65,12 @@ These checks are mandatory after the corresponding subsystem work is mature enou
 | Movement × resources | not started | #326 changes condition pressure seen by M4; M9 visitors alter destination demand seen by M4; dedicated post-repair pass required |
 | Aggregation × resources | not started | Area F locally verified duration-weighted visitor demand and visitor-aware M4 cue; dedicated integration remains required after #326 repair |
 | Initialization × demography | not started | #320 admits biologically impossible declared-founder reproductive chronology |
-| Initialization × spatial placement | not started | — |
+| Initialization × spatial placement | not started | Area G confirms exact declared placement and a controlled no-relaxation case where founder-layout dependence persists; dedicated empirical/sensitivity integration remains required |
 | Stochastic inference × censoring/extinction | not started | — |
 | Sensitivity × hidden configuration | not started | — |
 | Calibration × identifiability | not started | — |
-| Checkpoint/resume × RNG | not started | — |
-| Observability × scientific interpretation | not started | Area C generation-span hypothesis; #327 stale M9 destination semantics; #329 stale current M9.7 result narrative |
+| Checkpoint/resume × RNG | not started | Area G source review confirms v19 continuation identity binds named RNG positions and ordinary year-3 resume equivalence; dedicated Area H adversarial inference check remains required |
+| Observability × scientific interpretation | not started | Area C generation-span hypothesis; #327 stale M9 destination semantics; #329 stale current M9.7 result narrative; #332 year-zero checkpoint metric injection |
 
 ## Finding register
 
@@ -85,6 +85,7 @@ Add every scientifically substantive finding here, including findings that are l
 | AV2-005 — per-boundary integer ceiling multiplies partial-supply condition deterioration as M3 resolution increases | P1 | D / I / N | issue open | #326; Area D recording branch | `area-d-2026-08-29.md`; `area-d-condition-rounding-audit.py` | required after repair |
 | AV2-006 — active M9.4 travel contract still documents superseded lower-CellId equal-cost destination selection after keyed repair | P2 | E / M / L | issue open | #327; Area E recording PR #328 | `area-e-2026-08-29.md`; `area-e-spatial-audit.py` | n/a — open |
 | AV2-007 — current M9.7 aggregation benchmark narrative reports obsolete v10 provenance/statistics relative to checked-in v18 reference | P2 | F / K / L / M | issue open | #329; Area F recording branch | `area-f-2026-08-29.md`; `area-f-aggregation-audit.py` | n/a — open |
+| AV2-008 — year-zero checkpoint/resume injects a derived day-zero metric snapshot absent from uninterrupted execution | P2 | G / K / L | issue open | #332; adversarial harness PR #331 | `area-g-2026-08-29.md` | n/a — open |
 
 Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in progress`, `fixed`, `reverified`, `not a defect`, `accepted limitation`.
 
@@ -198,6 +199,34 @@ Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in 
 **Does evidence need repeating after main changes?** Repeat if M9 trigger/presence timing, duration-aware M3 claims, visitor-aware M4 resource cues, temporary observability or M9.7 reference machinery changes. Recheck #329 after repair and perform dedicated aggregation/resource integration after #326 repair.
 
 **Recommended next step:** Area G — initialization, burn-in, path dependence and continuation state. Do not duplicate any newer repository-visible branch that has already claimed it.
+
+---
+
+### 2026-08-29 — Area G / initialization, burn-in, path dependence and continuation state
+
+**Date / agent:** 2026-08-29 / ChatGPT scientific-audit agent
+
+**Live main SHA:** `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4`; model semantics v19.
+
+**Repository-visible audit state:** Area F PR #330 was the latest audit handoff and explicitly assigned Area G. Historical checkpoint-integrity issue #168 was closed; no overlapping Area G branch or duplicate year-zero checkpoint issue was found before the adversarial probe.
+
+**Implementation/docs inspected:** `simulation.rs`, `checkpoint.rs`, `metrics.rs`, checkpoint persistence tests, spatial founder initialization tests, founder/resource/spatial initialization contracts, long-run-regime diagnostics, and historical #168.
+
+**Tests/experiments performed:** controlled founder-layout persistence evidence plus temporary adversarial PR #331 comparing an uninterrupted two-year run with the same run checkpointed/resumed at year 0. The probe required equal terminal `stateDigest64`, equal metric-snapshot days and complete final-checkpoint equality after removing only resume lineage. Formatting and Clippy passed; workspace tests failed on the adversarial equivalence probe.
+
+**Quantitative results:** controlled no-relaxation spatial founders remain materially distinct after two years: concentrated terminal largest-cell share `1000` permille vs split-layout `500` permille. For the checkpoint probe, source control flow gives uninterrupted metric days `[365, 730]` versus year-zero-resumed `[0, 365, 730]`; the extra observation is introduced by `checkpoint_at_year(0)` calling `ensure_terminal_metric_snapshot()` before any model time elapses.
+
+**Finding:** AV2-008/#332 P2. A valid year-zero checkpoint/resume changes retained authoritative metric history despite preserving the terminal scientific present state. This is output/observability continuation drift, not a demonstrated dynamics divergence.
+
+**Positive continuation evidence:** the #168 continuation-identity repair is present and binds experiment, time/stop boundary, population/world/resources/migration/M9 state, all named RNG positions, retained events/metrics, state digest and lineage. Ordinary year-3 checkpoint persistence requires exact uninterrupted/resumed manifest/checkpoint equivalence after removing lineage.
+
+**Initialization/burn-in disposition:** founder/resource/spatial contracts correctly expose initialization as causal uncertainty, and the long-run contract rejects duration alone as equilibrium evidence. Existing #320 remains the founder chronology defect; no second initialization/burn-in mechanism defect was demonstrated.
+
+**Cross-system dependency:** #320 affects initialization×demography; #326 can alter resource-mediated initialization sensitivity; #332 crosses into Areas K/L. Checkpoint/resume×RNG receives positive local evidence but systematic stochastic-inference testing remains Area H.
+
+**Does evidence need repeating after main changes?** Repeat if founder chronology/materialization, resource initialization, spatial founder binding, checkpoint metric cadence, continuation identity/resume validation or long-run diagnostic semantics change. Recheck #332 after repair and resource-mediated initialization claims after #326 repair.
+
+**Recommended next step:** Area H — stochasticity, RNG, ensembles and Monte Carlo inference. Do not duplicate historical #168; attack current seed/stream semantics, paired designs, ensemble estimands and stochastic inference directly.
 
 ---
 
