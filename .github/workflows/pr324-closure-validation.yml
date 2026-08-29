@@ -1,4 +1,5 @@
 name: PR324 closure validation
+# Retrigger after exact rustfmt correction; acceptance logic unchanged.
 
 on:
   push:
