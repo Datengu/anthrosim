@@ -76,7 +76,7 @@ jobs:
               p={'schemaVersion':1,'planIdentity':'','planId':pid,'uncertaintyCategory':'process_stochastic_monte_carlo','estimand':{'kind':kind,'confidenceLevel':0.95,'maxHalfWidth':half},'design':{'mode':'fixed','seedBatches':[seeds]},'pairing':pairing,'rationale':'Predeclared issue #304 precision target for an estimand defined on every replicate used in the final baseline decision.'}
               q=dict(p); q['planIdentity']=''; p['planIdentity']='monte-carlo-precision-plan-v1-'+hashlib.sha256(json.dumps(q,sort_keys=True,separators=(',',':')).encode()).hexdigest(); return p
           def runs(life): return {r['seed']:r for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']==life}
-          fixed=runs('fixed_founder_v1'); fiss=runs('deterministic_size_fission_v1'); assert set(fixed)==set(seeds)==set(fiss)
+          fixed=runs('fixed_founder_v1'); fiss=runs('deterministic_dependency_fission_v2'); assert set(fixed)==set(seeds)==set(fiss)
           cases=[
             ('positive-fixed-growth',make_plan('issue304-positive-fixed-late-growth-v1','mean',0.001,'independent'),{'schemaVersion':1,'groups':[{'id':'positive-fixed','replicates':[{'seed':x,'value':fixed[x]['lateGrowthRatePerYear']} for x in seeds]}]}),
             ('positive-fission-extinction',make_plan('issue304-positive-fission-extinction-v1','probability',0.085,'independent'),{'schemaVersion':1,'groups':[{'id':'positive-fission-extinction','replicates':[{'seed':x,'value':fiss[x]['extinct']} for x in seeds]}]}),
