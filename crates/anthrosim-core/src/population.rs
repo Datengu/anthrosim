@@ -14,6 +14,7 @@ use crate::{
 const NO_EVENT_DAY: u64 = u64::MAX;
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+const CONDITION_RESPONSE_DENOMINATOR: u16 = 1_000;
 
 /// Biological state used by the v0.1 reproduction mechanism.
 ///
@@ -189,12 +190,16 @@ pub struct Population {
     female_parents: Vec<PersonId>,
     male_parents: Vec<PersonId>,
     condition_permille: Vec<u16>,
+    /// Unmaterialized M3 under-supply deterioration in thousandths of one condition point.
+    /// This causal remainder is carried across resource boundaries and bound into checkpoints.
+    condition_loss_remainder_thousandths: Vec<u16>,
     household_locations: Vec<CellId>,
     occupancy: CellOccupancy,
 }
 
 impl Population {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    /// v4 binds per-person fractional M3 condition-loss remainder into causal population state.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
     /// Initialize the frozen synthetic-validation founder preset.
     ///
@@ -253,6 +258,7 @@ impl Population {
         let mut female_parents = Vec::with_capacity(person_count);
         let mut male_parents = Vec::with_capacity(person_count);
         let mut condition_permille = Vec::with_capacity(person_count);
+        let condition_loss_remainder_thousandths = vec![0; person_count];
         let household_locations: Vec<_> = definition
             .households
             .iter()
@@ -288,6 +294,7 @@ impl Population {
             female_parents,
             male_parents,
             condition_permille,
+            condition_loss_remainder_thousandths,
             household_locations,
             occupancy,
         };
@@ -332,6 +339,7 @@ impl Population {
         let mut female_parents = Vec::with_capacity(person_count);
         let mut male_parents = Vec::with_capacity(person_count);
         let mut condition_permille = Vec::with_capacity(person_count);
+        let mut condition_loss_remainder_thousandths = Vec::with_capacity(person_count);
 
         let max_age_days = u64::from(config.synthetic_max_age_years) * DAYS_PER_YEAR;
         for index in 0..person_count {
@@ -364,6 +372,7 @@ impl Population {
             female_parents.push(PersonId::INVALID);
             male_parents.push(PersonId::INVALID);
             condition_permille.push(PERMILLE_MAX);
+            condition_loss_remainder_thousandths.push(0);
         }
 
         let occupancy = CellOccupancy::build(&locations, world.cell_count())?;
@@ -382,6 +391,7 @@ impl Population {
             female_parents,
             male_parents,
             condition_permille,
+            condition_loss_remainder_thousandths,
             household_locations,
             occupancy,
         };
@@ -497,15 +507,39 @@ impl Population {
         self.condition_permille.get(index).copied()
     }
 
-    pub(crate) fn set_condition_at_index(&mut self, index: usize, condition: u16) -> bool {
-        if condition > PERMILLE_MAX {
+    #[must_use]
+    pub(crate) fn condition_loss_remainder_thousandths_at_index(
+        &self,
+        index: usize,
+    ) -> Option<u16> {
+        self.condition_loss_remainder_thousandths.get(index).copied()
+    }
+
+    pub(crate) fn set_condition_with_loss_remainder_at_index(
+        &mut self,
+        index: usize,
+        condition: u16,
+        remainder_thousandths: u16,
+    ) -> bool {
+        if condition > PERMILLE_MAX
+            || remainder_thousandths >= CONDITION_RESPONSE_DENOMINATOR
+            || (condition == 0 && remainder_thousandths != 0)
+        {
             return false;
         }
-        let Some(slot) = self.condition_permille.get_mut(index) else {
+        let Some(condition_slot) = self.condition_permille.get_mut(index) else {
             return false;
         };
-        *slot = condition;
+        let Some(remainder_slot) = self.condition_loss_remainder_thousandths.get_mut(index) else {
+            return false;
+        };
+        *condition_slot = condition;
+        *remainder_slot = remainder_thousandths;
         true
+    }
+
+    pub(crate) fn set_condition_at_index(&mut self, index: usize, condition: u16) -> bool {
+        self.set_condition_with_loss_remainder_at_index(index, condition, 0)
     }
 
     #[must_use]
@@ -567,6 +601,7 @@ impl Population {
         self.female_parents.push(female_parent);
         self.male_parents.push(male_parent);
         self.condition_permille.push(PERMILLE_MAX);
+        self.condition_loss_remainder_thousandths.push(0);
         self.births_since_start = self.births_since_start.saturating_add(1);
         Ok(id)
     }
@@ -695,6 +730,9 @@ impl Population {
             let before = self.condition_permille[index];
             let after = before.saturating_sub(condition_costs[household_index]);
             self.condition_permille[index] = after;
+            if after == 0 {
+                self.condition_loss_remainder_thousandths[index] = 0;
+            }
             people_moved = people_moved.saturating_add(1);
             condition_loss_total =
                 condition_loss_total.saturating_add(u64::from(before.saturating_sub(after)));
@@ -729,6 +767,7 @@ impl Population {
             self.female_parents.len(),
             self.male_parents.len(),
             self.condition_permille.len(),
+            self.condition_loss_remainder_thousandths.len(),
         ];
         if lengths.iter().any(|&length| length != person_count) {
             return Err(PopulationValidationError::ColumnLengthMismatch);
@@ -787,6 +826,16 @@ impl Population {
                 return Err(PopulationValidationError::InvalidCondition {
                     person,
                     condition: self.condition_permille[index],
+                });
+            }
+            let remainder = self.condition_loss_remainder_thousandths[index];
+            if remainder >= CONDITION_RESPONSE_DENOMINATOR
+                || (self.condition_permille[index] == 0 && remainder != 0)
+            {
+                return Err(PopulationValidationError::InvalidConditionLossRemainder {
+                    person,
+                    condition: self.condition_permille[index],
+                    remainder_thousandths: remainder,
                 });
             }
 
@@ -1037,6 +1086,10 @@ impl Population {
             digest_u64(&mut hash, self.female_parents[index].0);
             digest_u64(&mut hash, self.male_parents[index].0);
             digest_u64(&mut hash, u64::from(self.condition_permille[index]));
+            digest_u64(
+                &mut hash,
+                u64::from(self.condition_loss_remainder_thousandths[index]),
+            );
         }
         digest_u64(&mut hash, self.household_count() as u64);
         for &location in &self.household_locations {
@@ -1186,6 +1239,14 @@ pub enum PopulationValidationError {
     },
     #[error("person {person:?} has invalid condition {condition} permille")]
     InvalidCondition { person: PersonId, condition: u16 },
+    #[error(
+        "person {person:?} has invalid M3 condition-loss remainder {remainder_thousandths}/1000 at condition {condition}"
+    )]
+    InvalidConditionLossRemainder {
+        person: PersonId,
+        condition: u16,
+        remainder_thousandths: u16,
+    },
     #[error("person {person:?} is their own parent")]
     SelfParent { person: PersonId },
     #[error("person {person:?} has the same non-null parent in both parent roles")]
@@ -1479,6 +1540,7 @@ mod tests {
         assert_eq!(population.living_count(), 10);
         assert_eq!(population.births_since_start, 1);
         assert_eq!(population.deaths_since_start, 1);
+        assert_eq!(population.condition_loss_remainder_thousandths.last(), Some(&0));
     }
 
     #[test]
@@ -1496,6 +1558,33 @@ mod tests {
         );
         assert_eq!(population.living_below_condition(500), 1);
         assert_ne!(before, population.digest64());
+    }
+
+    #[test]
+    fn fractional_condition_loss_remainder_is_causal_and_validated() {
+        let world = test_world(42);
+        let mut population =
+            Population::initialize(PopulationConfig::new(1), &world, RngFactory::new(42)).unwrap();
+        let baseline = population.digest64();
+        assert!(population.set_condition_with_loss_remainder_at_index(0, 900, 400));
+        assert_eq!(
+            population.condition_loss_remainder_thousandths_at_index(0),
+            Some(400)
+        );
+        assert_ne!(population.digest64(), baseline);
+        population.validate(&world).unwrap();
+
+        assert!(population.set_condition_at_index(0, 900));
+        assert_eq!(
+            population.condition_loss_remainder_thousandths_at_index(0),
+            Some(0)
+        );
+
+        population.condition_loss_remainder_thousandths[0] = 1_000;
+        assert!(matches!(
+            population.validate(&world),
+            Err(PopulationValidationError::InvalidConditionLossRemainder { .. })
+        ));
     }
 
     #[test]
