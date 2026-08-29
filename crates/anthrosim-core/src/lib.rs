@@ -74,7 +74,7 @@ mod target_arrival_reconsideration_tests;
 
 pub use checkpoint::{RngCheckpoint, SimulationCheckpoint, state_digest64};
 pub use config::{
-    AgeProbabilityBand, DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID, DemographyConfig,
+    AgeProbabilityBand, DETERMINISTIC_DEPENDENCY_FISSION_HOUSEHOLD_LIFECYCLE_ID, DemographyConfig,
     ExperimentConfig, FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID, HouseholdLifecycleConfig,
     MigrationConfig, ParameterProvenance, PopulationConfig, PopulationInitialization,
     ResourceConfig, WorldConfig,
