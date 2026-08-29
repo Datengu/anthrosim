@@ -25,12 +25,12 @@ Purpose: durable, repository-authoritative state for the second independent/adve
 | Initial protected-main SHA | `eb240ab482d9683b64081d3d1ea8e151592927ee` |
 | Initial model semantics | `anthrosim-model-semantics-v19` — corrected from the ledger's erroneous initial v15 label after exact-tag verification; see #314 |
 | Initial issue state | no open issues at audit initialization |
-| Latest audited protected-main SHA | `06f1a059b23b46f6bab79672de7f9685529058e0` |
+| Latest audited protected-main SHA | `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4` |
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
-| Current audit findings | #314, #315, #320 open (all P2); #317 is non-scientific CI infrastructure |
+| Current audit findings | #326 P1; #314, #315, #320, #324, #327 P2; #317 is non-scientific CI infrastructure |
 | Audit state | in progress |
 
-If `main` advances during the audit, add the new SHA to the session log and state whether earlier evidence remains applicable.
+`main` advanced from `06f1a059...` to `fdeb66ed...` only through merged Area B audit documentation. The executable tree audited by Areas C–E remained model semantics v19. Area C recording PR #325 and the Area D recording branch were still repository-visible and unmerged when Area E began; their evidence is incorporated below so later agents do not duplicate those areas.
 
 ## Coverage matrix
 
@@ -39,19 +39,19 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | ID | Audit area | Status | Evidence / notes | Findings / issues |
 |---|---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | complete — findings | `area-a-2026-08-29.md`; exact source/docs review plus `area-a-scheduler-audit.py` | #314, #315 |
-| B | Demography, fertility, mortality, ageing, population structure | complete — findings | `area-b-2026-08-29.md`; existing integrated acceptance suite plus adversarial PR #319 CI probes | #320; #315 documentation-relevant; #214 additional coupling evidence |
-| C | Households, kinship, social links, lifecycle structure | not started | — | — |
-| D | Resources, condition, subsistence, depletion/recovery | not started | — | — |
-| E | Spatial landscape, movement, migration, temporary mobility, boundaries | not started | — | — |
+| B | Demography, fertility, mortality, ageing, population structure | complete — findings | `area-b-2026-08-29.md`; integrated acceptance suite plus adversarial PR #319 CI probes | #320; #315 documentation-relevant; #214 coupling evidence |
+| C | Households, kinship, social links, lifecycle structure | complete — findings | `area-c-2026-08-29.md` on recording PR #325; adversarial PR #323 probes | #324; #320 founder-to-kin relevant |
+| D | Resources, condition, subsistence, depletion/recovery | complete — findings | `area-d-2026-08-29.md` and `area-d-condition-rounding-audit.py` on `audit-v2/area-d-resources-record` | #326 P1; #324 household-unit interaction relevant |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | complete — findings | `area-e-2026-08-29.md`; `area-e-spatial-audit.py`; source/contracts plus existing spatial-boundary/grid tests | #327; #214 coupling relevant; #324/#326 cross-system dependencies |
 | F | Aggregation and interaction mechanisms | not started | — | — |
 | G | Initialization, burn-in, path dependence, continuation state | not started | — | — |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | not started | Area B produced a 2,000-seed PersonId relabelling coupling experiment; full RNG/inference audit remains deferred | #214 historical evidence relevant |
-| I | Sensitivity, uncertainty, convergence, robustness | not started | — | — |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | not started | Area B 2,000-seed PersonId relabelling diagnostic; Area E candidate-order reflection diagnostic; full inference audit deferred | #214 historical evidence relevant |
+| I | Sensitivity, uncertainty, convergence, robustness | not started | Area D finite-capacity timing and Area E finite-boundary effects explicitly deferred to convergence testing | #326 repair dependency |
 | J | Identifiability, equifinality, calibration, discrimination | not started | — | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | not started | — | — |
-| L | Observability, analysis outputs, statistical summaries | not started | — | — |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Area A exposed two documentation/provenance findings, but Area M has not been systematically audited | #314, #315 relevant |
-| N | Cross-system integration | not started | — | — |
+| L | Observability, analysis outputs, statistical summaries | not started | Area C generation-span lower-bound hypothesis and Area E M9 destination-contract interpretation carried forward | #327 documentation relevant |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Areas A/E exposed current-facing documentation drift, but Area M has not been systematically audited | #314, #315, #327 |
+| N | Cross-system integration | not started | Local subsystem passes have identified mandatory dependencies below | #324, #326 |
 
 ## Cross-system integration checklist
 
@@ -59,18 +59,18 @@ These checks are mandatory after the corresponding subsystem work is mature enou
 
 | Interaction | Status | Evidence / findings |
 |---|---|---|
-| Demography × households | not started | Area B reviewed prior demographic/household structural evidence; dedicated integration pass remains required |
-| Demography × resources | not started | — |
-| Households × movement | not started | — |
-| Movement × resources | not started | — |
+| Demography × households | not started | Areas B/C locally verified ordering and exposed #324; dedicated integration pass remains required |
+| Demography × resources | not started | #326 can alter condition-mediated mortality trajectories; repeat after repair |
+| Households × movement | not started | #324 can create cohort/newborn-sorted autonomous M4/M9 household units; away-at-annual-boundary fission deferral remains relevant |
+| Movement × resources | not started | #326 changes condition pressure seen by M4; M9 visitors alter destination demand seen by M4; dedicated post-repair pass required |
 | Aggregation × resources | not started | — |
-| Initialization × demography | not started | Area B finding #320 shows declared founder reproductive chronology can be biologically impossible; full Area G integration remains required |
+| Initialization × demography | not started | #320 admits biologically impossible declared-founder reproductive chronology |
 | Initialization × spatial placement | not started | — |
 | Stochastic inference × censoring/extinction | not started | — |
 | Sensitivity × hidden configuration | not started | — |
 | Calibration × identifiability | not started | — |
 | Checkpoint/resume × RNG | not started | — |
-| Observability × scientific interpretation | not started | — |
+| Observability × scientific interpretation | not started | Area C generation-span hypothesis; #327 shows current M9 destination semantics can be misread from stale contract text |
 
 ## Finding register
 
@@ -81,107 +81,96 @@ Add every scientifically substantive finding here, including findings that are l
 | AV2-001 — current-facing model-semantics identity drift (v15 documented vs executable/tagged v19) | P2 | A / M / K | issue open | #314; audit ledger PR #316 | `area-a-2026-08-29.md` | n/a — open |
 | AV2-002 — M2 demographic-time contract retains superseded annual-boundary mortality execution | P2 | A / B / M | issue open | #315; audit ledger PR #316 | `area-a-2026-08-29.md` | n/a — open |
 | AV2-003 — declared founder reproductive chronology checks ordering but admits biologically impossible event ages | P2 | B / G / C | issue open | #320; adversarial harness #319 | `area-b-2026-08-29.md` | n/a — open |
+| AV2-004 — deterministic household fission derives social composition from PersonId/birth-append order | P2 | C / N / I | issue open | #324; adversarial harness #323; recording PR #325 | `area-c-2026-08-29.md` | n/a — open |
+| AV2-005 — per-boundary integer ceiling multiplies partial-supply condition deterioration as M3 resolution increases | P1 | D / I / N | issue open | #326; Area D recording branch | `area-d-2026-08-29.md`; `area-d-condition-rounding-audit.py` | required after repair |
+| AV2-006 — active M9.4 travel contract still documents superseded lower-CellId equal-cost destination selection after keyed repair | P2 | E / M / L | issue open | #327; Area E recording branch | `area-e-2026-08-29.md`; `area-e-spatial-audit.py` | n/a — open |
 
 Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in progress`, `fixed`, `reverified`, `not a defect`, `accepted limitation`.
 
 ## Session log
 
-Each audit session must append an entry using the template below. Keep entries concise but sufficient for a fresh agent to reconstruct the audit state.
-
 ### 2026-08-29 — Area A / authoritative semantics and scheduler behaviour
 
-**Date / agent:** 2026-08-29 / ChatGPT scientific-audit agent
+**Live main:** `698b0f79827ef9ea11d9eac2fe3ec23b7125e180`; model semantics v19.
 
-**Live main SHA:** `698b0f79827ef9ea11d9eac2fe3ec23b7125e180` (rechecked before ledger branch work; unchanged from session start)
+**Evidence:** source/parity review plus independent `area-a-scheduler-audit.py`. All 365 allowed resource-clock partitions were valid; all `365 x 365 = 133,225` resource/migration clock pairs had correct merged scheduling; 2,555 exact annual-background-mortality partition compositions matched complete-year survival. Findings: AV2-001/#314 and AV2-002/#315; no executable scheduler defect demonstrated. Repeat if scheduler/mortality/M9 boundary semantics change.
 
-**Release / model semantics:** `v0.3.2` tag -> `eb240ab482d9683b64081d3d1ea8e151592927ee`; executable semantics at both tag and audited main = `anthrosim-model-semantics-v19`
-
-**Audit area / sub-area:** Area A — authoritative fixed scheduler, M2/M3 mortality timing/attribution, M9 same-day boundaries, core/spatial host parity, scheduler-facing documentation
-
-**Overlap check:**
-- open issues at session start: none;
-- open PRs at session start and immediately before ledger work: none;
-- repository-visible `audit`/`scientific` branches were historical branches with no open PR or active v2-ledger ownership;
-- parallel-agent overlap: none visible in repository state;
-- findings created during this session: #314 and #315;
-- audit evidence/ledger PR created during this session: #316.
-
-**Implementation/docs inspected:** `simulation.rs`, `spatial_simulation.rs`, `demography.rs`, `mortality.rs`, `rng.rs`, `temporary_mobility.rs`, `provenance.rs`, `founder_initialization.rs`, `docs/scientific-model.md`, M2 demographic-time contract, M3 resource/response-time contracts, competing-mortality contract, audit protocol and this ledger.
-
-**Tests/experiments performed:** independent exact-arithmetic adversarial scheduler/mortality checker at `docs/research/audit-v2/area-a-scheduler-audit.py`; live-head GitHub check-run state inspected (25 checks exposed; no failing conclusion found); source parity reviewed across both authoritative hosts. A fresh local Rust checkout could not be executed because the audit runtime could not resolve GitHub DNS, so the independent checker plus live CI/source evidence is recorded explicitly rather than implying a local build occurred.
-
-**Quantitative results:**
-- all 365 allowed fixed resource-clock partitions: 0 invalid/duplicate/non-increasing boundary schedules;
-- all `365 x 365 = 133,225` resource/migration clock pairs: 0 merge/count/order/collision failures;
-- same-day collisions ranged from 1 to 365; 128,400 clock pairs had more than one shared boundary, so collision handling was exercised broadly rather than only at year end;
-- annual M2 background probabilities `[0, 1, 50000, 200000, 500000, 999999, 1000000]` across every `P=1..365`: 2,555 exact rational partition compositions, 0 complete-year survival mismatches.
-
-**Findings:**
-- AV2-001 / P2: current-facing scientific/audit documentation labels v0.3.2/current semantics v15 although executable/tagged semantics are v19 — #314;
-- AV2-002 / P2: `m2-demographic-time-contract-v1.md` still presents superseded annual-boundary M2 mortality execution after #208/PR #283 introduced elapsed competing risks — #315;
-- no new executable scheduler defect demonstrated on the audited SHA.
-
-**Issues/PRs created or relevant:** #314, #315, #316; historical #208 / PR #283 is relevant evidence for the superseded mortality contract but is already closed/merged.
-
-**Unresolved hypotheses:** sequential named RNG streams consume variates conditionally; whether scientifically irrelevant entity-ID/record permutations can alter materially interpreted demographic outcomes should be attacked explicitly in Areas B/H. Internal household-lifecycle semantics were not audited beyond their scheduler position.
-
-**Explicitly not examined:** systematic Areas B–N; detailed demographic distributions/structure; household topology semantics; resource depletion/recovery science; movement choice surfaces; aggregation; burn-in/path dependence; Monte Carlo sufficiency; sensitivity/convergence; identifiability; full orchestration/provenance; complete observability/statistical weighting; comprehensive documentation convergence; mandatory cross-system integration passes.
-
-**Does evidence need repeating after main changes?** Repeat the Area A source/parity/adversarial checks if authoritative scheduler, mortality arithmetic, M9 boundary code, or host scheduling changes. Purely unrelated changes do not invalidate the exact arithmetic result, but the ledger must still record the new main SHA. #314/#315 remain open until separately repaired/dispositioned.
-
-**Recommended next step:** Area B — demography, fertility, mortality, ageing and population structure. Begin by verifying live main/issues/PRs/overlap, then attack entity-ID/record permutation sensitivity, annual age-band boundaries, fertility/parentage conditioning and demographic structure under adversarial founder states.
+**Handoff:** Area B.
 
 ---
 
 ### 2026-08-29 — Area B / demography, fertility, mortality, ageing and population structure
 
+**Live main:** `06f1a059b23b46f6bab79672de7f9685529058e0`; model semantics v19.
+
+**Evidence:** integrated workspace/core suite on temporary audit PR #319; one-day impossible-parent-age founder counterexample; 2,000-seed PersonId relabelling experiment. Impossible founder genealogy with a one-day-old parent was accepted. Relabelling produced `976/2000 = 48.8%` paired terminal-count disagreement against a 48% sequential-stream expectation, additional evidence for historical #214 rather than marginal bias. Finding AV2-003/#320. No additional age-band, competing-mortality, spacing, newborn, locality, extinction or growth-control defect demonstrated.
+
+**Handoff:** Area C.
+
+---
+
+### 2026-08-29 — Area C / households, kinship, social links and lifecycle structure
+
+**Repository-visible recording state:** PR #325, head `a2a6128d6b5178dbdf9c9e8b2489041b84875717`, based on executable v19 main. Temporary adversarial PR #323 was closed without merge after its CI evidence was preserved.
+
+**Evidence:** fission composition relabelling and same-boundary birth/fission probes plus all 260 pre-existing core tests and 3 household-lifecycle sensitivity tests on the audit harness. Finding AV2-004/#324: `deterministic_size_fission_v1` slices stable PersonId/birth-append order, making supposedly neutral fission cohort/generation dependent and permitting same-day newborn-only households. Existing #304 structural-sensitivity magnitude must be reverified after repair. No second Area C mechanism defect demonstrated.
+
+**Handoff:** Area D. If PR #325 has not merged, do not duplicate Area C; rebase/preserve its documentation instead.
+
+---
+
+### 2026-08-29 — Area D / resources, condition, depletion and recovery
+
+**Repository-visible recording state:** branch `audit-v2/area-d-resources-record`, report head `20f8ca1c3d9429b0ac19e440a55ce0218fa45dbd`; executable baseline `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4`, model semantics v19.
+
+**Evidence:** source/contracts review plus independent integer checker `area-d-condition-rounding-audit.py`. The annual maximum condition-loss budget for reference-quarter max 100 remains exactly 400 under all `P=1..365`, but a constant 1-permille supply deficit realizes losses `1..365` as P increases because every interval independently ceilings a positive fractional loss. Representative deficit/P tables are preserved in `area-d-2026-08-29.md`.
+
+**Finding:** AV2-005/#326, P1. This violates the declared temporal-response contract and can propagate to condition-mediated mortality and M4 pressure. No second Area D mechanism defect demonstrated.
+
+**Handoff:** #326 requires an independent post-fix re-verification. Do not duplicate Area D while its recording branch remains active; proceed to Area E/F or non-overlapping work.
+
+---
+
+### 2026-08-29 — Area E / spatial landscape, permanent movement, temporary mobility and boundaries
+
 **Date / agent:** 2026-08-29 / ChatGPT scientific-audit agent
 
-**Live main SHA:** `06f1a059b23b46f6bab79672de7f9685529058e0`; rechecked after adversarial work and unchanged.
+**Live main SHA:** `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4`; rechecked before recording work and unchanged.
 
 **Release / model semantics:** `v0.3.2`; `anthrosim-model-semantics-v19`.
 
-**Audit area / sub-area:** Area B — age-band execution, competing/background mortality, fertility conditioning, spacing, newborn state, parentage locality, founder reproductive chronology/genealogy, extinction/growth controls and demographic RNG assignment under identity relabelling.
+**Audit area / sub-area:** Area E — grid/CRS geometry, movement cell-size contract, M4 candidate/utility/choice geometry, M9 edge/routing/tie/presence semantics, finite boundaries and extent sensitivity.
 
 **Overlap check:**
-- open issues at session start: #314, #315 and non-scientific CI issue #317;
-- open PRs at session start: none;
-- parallel-agent overlap: none visible;
-- temporary audit-only draft PR #319 was created for adversarial execution and closed without merge after evidence preservation;
-- new scientific finding issue #320 created;
-- final overlap recheck before ledger work: main unchanged, open scientific findings #314/#315/#320, no open PRs.
+- open scientific issues before Area E included #314/#315/#320/#324/#326; #317 non-scientific CI;
+- PR #325 was active Area C documentation-only work;
+- `audit-v2/area-d-resources-record` actively owned Area D and contained #326 evidence;
+- no open executable Area E product PR was found;
+- historical #190/#211/#214 were checked before dispositioning possible rediscoveries.
 
-**Implementation/docs inspected:** `demography.rs`, `founder_initialization.rs`, `config.rs`, `population.rs` behaviour through tests, `m2_demographic_acceptance_tests.rs`, current core regression output, prior #239/PR #303 growth-control evidence, prior #304/PR #307/#308 demographic-baseline evidence, #214/PR #302 paired-seed semantics, and relevant historical M2 findings/repairs.
+**Implementation/docs inspected:** `landscape.rs`, `migration.rs`, `temporary_travel.rs`, `temporary_mobility.rs`, `spatial_boundary.rs`, `spatial_grid_geometry.rs`, `spatial_boundary_dependence.rs`, `migration-v0.1.md`, `m9-temporary-travel-semantics-v1.md`, and relevant historical issue contracts.
 
-**Tests/experiments performed:**
-- reviewed and re-executed the current integrated workspace/core acceptance surface on the PR #319 merge head; all 260 pre-existing core tests passed before the deliberately failing audit assertion;
-- constructed an executable one-day parent/child founder-genealogy counterexample and confirmed current `Simulation::new` accepts it;
-- ran a 2,000-seed PersonId relabelling metamorphic experiment under isolated one-year background mortality, with an exact analytical sequential-stream expectation;
-- searched existing issues/PRs before dispositioning both results.
+**Tests/experiments performed:** independent `area-e-spatial-audit.py` candidate/reflection and keyed-tie checker; source-level adversarial review against existing grid/boundary regression fixtures; existing issue search before #327 creation.
 
 **Quantitative results:**
-- impossible founder genealogy: parent born day -101 and child day -100 accepted; one-day parent age at childbirth;
-- PersonId relabelling experiment: seeds `1..=2000`, 2 founders, 1 year, 1 cell, one M3 period, mortality risks 0.2 and 0.8, fertility/condition mortality/M4 disabled;
-- exact sequential-stream prediction for paired terminal-count disagreement: `2 * 0.6 * 0.4 = 48%`;
-- observed paired disagreement: `976/2000 = 48.8%`; first mismatch seed 2 (`1` survivor vs `0`); binomial Monte Carlo SE around the 48% reference is about 1.12 percentage points, so observed excess is about 0.7 SE;
-- paired population-difference expectation is zero by exchange symmetry, so the result diagnoses common-random-number/identity coupling rather than marginal ensemble bias;
-- prior demographic control evidence reviewed: #239 controls bracket intrinsic replacement; #304 preserved 288-run exploratory plus independent 384-run confirmation showing strong household-lifecycle dependence of realized growth/mate limitation.
+- M4 radii `1..=32`: exact interior count `2r(r+1)` in every case; 0 reflected candidate-set failures;
+- corner/interior counts at r=1/2/3/4/8/16/32: `2/4`, `5/12`, `9/24`, `14/40`, `44/144`, `152/544`, `560/2112`;
+- stable M4 candidate-order X-reflection mismatches at the same radii: `2/4`, `8/12`, `18/24`, `32/40`, `128/144`, `512/544`, `2048/2112`; this is recorded as #214-style common-random-number coupling evidence, not a marginal spatial-bias finding;
+- M9 flat 3x1 two-way equal-minimum keyed selection across tie seeds `1..=100000`: `49,886` vs `50,114` selections (49.886% / 50.114%), versus the stale contract's implied 100% smaller-CellId choice.
 
 **Findings:**
-- AV2-003 / P2: declared founder reproductive chronology validates ordering but not biological plausibility; impossible parent age at child birth and analogous implausible pre-run `lastBirthDay` can pass — #320;
-- #315 remains a current documentation defect but executable M2 mortality/fertility ordering reviewed here agrees with the later competing-risk implementation;
-- no new defect demonstrated in age-band execution, mortality competition, spacing normalization, newborn condition, parentage locality, extinction accounting or explicit demographic growth-control policy;
-- the 48.8% PersonId relabelling effect is additional evidence for historical #214/PR #302 sequential-stream coupling, not a separate demographic finding.
+- AV2-006 / P2 / #327: `m9-temporary-travel-semantics-v1.md` still presents the superseded smaller-CellId equal-cost winner although current v19 code preserves all equal minima and resolves destination by keyed seed+origin+household+trigger policy;
+- no new executable movement/routing defect demonstrated in the audited surfaces.
 
-**Issues/PRs created or relevant:** #320; closed-unmerged audit harness #319; #214 received quantitative relabelling evidence; #315 remains relevant documentation drift. #239/PR #303 and #304/PR #307/#308 provide existing growth/structural evidence.
+**Issues/PRs created or relevant:** #327 created. Historical #190 is the repaired executable antecedent; #211 covers explicit finite-boundary dependence; #214 covers sequential-stream paired-seed interpretation. #324 and #326 remain mandatory cross-system dependencies rather than duplicate Area E findings.
 
-**Unresolved hypotheses:** whether sequential draw assignment plus state-dependent eligibility can create marginal estimator bias or invalid paired uncertainty in realistic multi-agent comparisons remains for Area H; whether founder chronology validation and household/kin lifecycle interactions create further structural constraints belongs to Areas C/G.
+**Unresolved hypotheses:** whether M4/M9 conclusions converge under empirical landscape buffers/resolutions belongs to Area I; candidate-order common-random-number consequences belong to Area H; household/movement and movement/resource feedback require post-#324/#326 integration tests in Area N.
 
-**Explicitly not examined:** empirical calibration of fertility/mortality/parent ages; full household lifecycle and kin graph semantics; burn-in/initialization sensitivity; RNG/Monte Carlo inference beyond the controlled relabelling diagnostic; global sensitivity; identifiability; archaeological demographic validity.
+**Explicitly not examined:** empirical validity/calibration of movement-cost transforms, M4 radius/frequency/weights, M9 travel capacity, historical routes/entrances, real focal-region definition, or real landscape boundary placement; systematic Areas F–N remain incomplete.
 
-**Does evidence need repeating after main changes?** Repeat the founder counterexample if founder/demography validation changes, and repeat the relabelling experiment if RNG draw assignment or mortality iteration semantics change. Purely documentation-only changes do not invalidate the executable evidence. #320 requires independent re-verification after repair if its eventual severity/scope warrants it; Area H should independently revisit #214 coupling evidence under its own inference questions.
+**Does evidence need repeating after main changes?** Repeat if grid geometry, M8 movement binding, M4 candidate/choice mechanics, M9 travel/tie/presence semantics, or spatial-boundary machinery changes. After #327 repair, recheck all current-facing M9/ODD/TRACE statements. After #324/#326 repair, rerun affected cross-system movement checks.
 
-**Recommended next step:** Area C — households, kinship, social links and lifecycle structure. Attack household fission/dissolution invariants, reciprocal kin graph consistency, irrelevant relationship/person-order invariance, and whether household lifecycle changes reproduction/mobility through hidden structural constraints. Keep #320 visible as a founder-to-kin integration dependency without double-counting it.
+**Recommended next step:** Area F — aggregation and interaction mechanisms. Attack aggregation trigger/occupancy semantics, duration/exposure accounting, resource feedback, equality/boundary cases and whether the controlled aggregation benchmark distinguishes continuous residence from intermittent aggregation without hidden weighting/timing artifacts.
 
 ---
 
