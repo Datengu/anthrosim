@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** v0.3.0 / completed M9  
+**AnthroSim baseline:** v0.3.2 / completed M9 plus first major post-M9 scientific-audit backlog  
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
@@ -21,12 +21,12 @@ A green software build, deterministic replay, an ODD description or a completed 
 | TRACE element | Current status | Main reason |
 |---|---|---|
 | 1. Problem formulation | Partial / study-specific | Framework purposes are explicit, but real research questions require their own frozen hypotheses, observables and applicability domain. |
-| 2. Model description | Established for v0.3.0 baseline | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification now exist. |
+| 2. Model description | Established for v0.3.2 baseline | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification now exist. |
 | 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty and evidence-role separation remain to be completed. |
-| 4. Conceptual model evaluation | In progress | Assumptions are increasingly explicit, but adversarial scientific audits continue to identify causal/semantic defects and untested structural assumptions. |
-| 5. Implementation verification | In progress / blocking | Strong deterministic/invariant testing exists, but open P1 scientific-behaviour issues mean verification is not yet converged. |
+| 4. Conceptual model evaluation | In progress / audit convergence | The first major audit backlog is resolved, but additional independent audit passes are still required and structural assumptions remain study-sensitive. |
+| 5. Implementation verification | In progress / audit convergence | The first major audit closed its known P1 scientific-behaviour backlog with regression/invariant evidence, but one clean backlog does not establish convergence; further independent audit passes are required. |
 | 6. Model output verification | Not established empirically | Existing M8/M9 benchmarks are capability/synthetic verification, not validation against empirical target patterns. |
-| 7. Model analysis | Partial / blocking | Ensembles/sweeps exist, but global sensitivity, uncertainty propagation, temporal/spatial convergence, identifiability and structural sensitivity are incomplete. |
+| 7. Model analysis | Substantially strengthened / study-specific | v0.3.1 adds complete scientific-configuration exposure, replicate-precision gates, long-run diagnostics, structural/initialization sensitivity and identifiability/equifinality analysis; empirical uncertainty propagation and adequacy remain study-specific. |
 | 8. Model output corroboration | Not established | No held-out independent archaeological/anthropological corroboration has yet been completed for a real inferential study. |
 
 This status must not be upgraded merely because documentation becomes more complete. The evidence described by each section must actually be generated and reviewed.
@@ -84,7 +84,7 @@ Provide a detailed, understandable description of what the model is, how it work
 
 ## Current assessment
 
-**Established for description of the v0.3.0 baseline**, subject to normal documentation/code consistency review.
+**Established for description of the v0.3.2 baseline**, subject to normal documentation/code consistency review.
 
 This status means the model is described; it does not mean the described model is empirically valid.
 
@@ -227,7 +227,7 @@ A practical gate for moving from foundational verification to empirical calibrat
 
 This is not proof that no defect exists; it is evidence of audit convergence.
 
-**Current assessment:** In progress / blocking.
+**Current assessment:** In progress / audit convergence. The first major audit backlog is closed; additional independent audit passes remain required before claiming convergence.
 
 ---
 
@@ -274,9 +274,11 @@ Understand how model behaviour depends on parameters, uncertainty, stochasticity
 
 ## Existing capability
 
-M7 supports deterministic ensembles and Cartesian sweeps with immutable provenance and explicit failed/incomplete run states. Derived analysis outputs retain contributing run identities.
+M7 supports deterministic ensembles and Cartesian sweeps with immutable provenance and explicit failed/incomplete run states. Derived analysis outputs retain contributing run identities. The v0.3.1 hardening line extends that foundation with complete scientific-configuration exposure to reproducible ensemble/sensitivity experiments, explicit stochastic-replicate precision/sufficiency checks, long-run drift/regime diagnostics, initialization and structural-sensitivity treatments, and fail-closed identifiability/equifinality analysis.
 
-This is necessary infrastructure, but a sweep engine is not itself sensitivity analysis.
+The #304 demographic study also provides a concrete structural-sensitivity result: no universal demographic baseline is justified because realized growth depends strongly on household lifecycle. Under the positive intrinsic schedule, fixed-founder households were approximately stationary while deterministic fission produced materially negative realized growth and much higher mate limitation. This is a model-form result, not empirical prehistoric calibration. See [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md).
+
+The #217 analysis gate distinguishes fit from identification. When declared evidence leaves multiple parameter combinations or structural hypotheses acceptable, AnthroSim reports the acceptable region/equifinality and preserves held-out discriminating predictions instead of selecting a false unique optimum. See [`identifiability-equifinality-v1.md`](identifiability-equifinality-v1.md).
 
 ## Required analysis programme
 
@@ -321,7 +323,7 @@ Check whether a conclusion survives reasonable paired/unpaired stochastic design
 
 A reported conclusion should state which uncertainties/parameters/model structures it is robust to and which it is sensitive to.
 
-**Current assessment:** Partial / blocking for strong inference.
+**Current assessment:** Substantially strengthened at framework level, but still study-specific for strong inference. A real study must demonstrate adequate uncertainty propagation, design coverage, stochastic precision, structural sensitivity and identification for its own claim.
 
 ---
 
