@@ -1,10 +1,10 @@
+use anthrosim_core::ids::{CellId, HouseholdId, PersonId};
 use anthrosim_core::{
     AgeProbabilityBand, DemographyConfig, ExperimentConfig, FounderGenealogyStatus,
     FounderHousehold, FounderPerson, FounderPopulationDefinition, MigrationConfig,
     ParameterProvenance, PopulationConfig, ReproductiveSex, ResourceConfig, Simulation,
     WorldConfig,
 };
-use anthrosim_core::ids::{CellId, HouseholdId, PersonId};
 
 const DAYS_PER_YEAR_I64: i64 = 365;
 
@@ -29,12 +29,23 @@ fn founder_definition(swapped: bool) -> FounderPopulationDefinition {
         last_birth_day: None,
         condition_permille: 1_000,
     };
-    let people = if swapped { vec![old, young] } else { vec![young, old] };
+    let people = if swapped {
+        vec![old, young]
+    } else {
+        vec![young, old]
+    };
     FounderPopulationDefinition::new(
-        if swapped { "audit-v2-relabel-b" } else { "audit-v2-relabel-a" },
+        if swapped {
+            "audit-v2-relabel-b"
+        } else {
+            "audit-v2-relabel-a"
+        },
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::CompleteLivingDirectParents,
-        vec![FounderHousehold { id: HouseholdId::new(1), location: CellId::new(1) }],
+        vec![FounderHousehold {
+            id: HouseholdId::new(1),
+            location: CellId::new(1),
+        }],
         people,
     )
 }
@@ -81,7 +92,11 @@ fn audit_probe_consistent_person_id_relabelling_changes_demographic_aggregate_fo
             differing_seeds.push((seed, a, b));
         }
     }
-    eprintln!("audit-v2 Area B relabel probe: differing_seeds={} of 2000; first={:?}", differing_seeds.len(), differing_seeds.first());
+    eprintln!(
+        "audit-v2 Area B relabel probe: differing_seeds={} of 2000; first={:?}",
+        differing_seeds.len(),
+        differing_seeds.first()
+    );
     assert!(
         !differing_seeds.is_empty(),
         "expected at least one seed where pure PersonId relabelling changes final living population"
@@ -94,7 +109,10 @@ fn audit_probe_declared_founder_accepts_one_day_parent_child_age_gap() {
         "audit-v2-one-day-parent-gap",
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::CompleteLivingDirectParents,
-        vec![FounderHousehold { id: HouseholdId::new(1), location: CellId::new(1) }],
+        vec![FounderHousehold {
+            id: HouseholdId::new(1),
+            location: CellId::new(1),
+        }],
         vec![
             FounderPerson {
                 id: PersonId::new(1),
