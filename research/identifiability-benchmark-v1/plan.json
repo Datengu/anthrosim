@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "analysisId": "synthetic-ratio-sum-identifiability-v1",
+  "schemaVersion": 2,
+  "analysisId": "synthetic-ratio-sum-identifiability-v2",
   "calibrationTargets": [
     {
       "observable": "ratio_pattern",
