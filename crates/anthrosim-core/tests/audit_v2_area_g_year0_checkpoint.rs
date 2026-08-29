@@ -19,8 +19,7 @@ fn year_zero_checkpoint_resume_preserves_exact_authoritative_output() {
 
     assert_eq!(
         resumed.manifest.state_digest64,
-        uninterrupted.manifest.state_digest64,
-        "the scientific terminal state must remain identical"
+        uninterrupted.manifest.state_digest64
     );
 
     let uninterrupted_days: Vec<_> = uninterrupted
@@ -35,16 +34,10 @@ fn year_zero_checkpoint_resume_preserves_exact_authoritative_output() {
         .iter()
         .map(|snapshot| snapshot.day)
         .collect();
-    assert_eq!(
-        resumed_days, uninterrupted_days,
-        "checkpoint/resume from the initial boundary must not inject an extra scientific observation"
-    );
+    assert_eq!(resumed_days, uninterrupted_days);
 
     let mut resumed_checkpoint = resumed.checkpoint.clone();
     resumed_checkpoint.resume_lineage = ResumeLineage::new();
     resumed_checkpoint = resumed_checkpoint.seal_continuation_identity();
-    assert_eq!(
-        resumed_checkpoint, uninterrupted.checkpoint,
-        "apart from declared resume lineage, exact authoritative output should be identical"
-    );
+    assert_eq!(resumed_checkpoint, uninterrupted.checkpoint);
 }
