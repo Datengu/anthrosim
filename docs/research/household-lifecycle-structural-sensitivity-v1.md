@@ -1,5 +1,7 @@
 # Household lifecycle structural sensitivity v1
 
+> **Superseded historical contract.** Audit-v2 issue #324 demonstrated that the v1 stable-`PersonId` partition rule makes packed record/birth order an unintended cohort-composition rule. Current executable treatment semantics are defined in `household-lifecycle-structural-sensitivity-v2.md`. This file and its v1 reference result are retained only to preserve the provenance of the original #207 comparison.
+
 ## Status
 
 This is a **synthetic structural-sensitivity contract**, not an ethnographic or archaeological
