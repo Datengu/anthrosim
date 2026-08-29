@@ -6,6 +6,7 @@ on:
       - "scripts/research-identifiability.py"
       - "research/identifiability-benchmark-v1/**"
       - "docs/research/identifiability-equifinality-v1.md"
+      - "docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py"
       - ".github/workflows/identifiability-analysis.yml"
   workflow_dispatch:
 
@@ -24,6 +25,8 @@ jobs:
         run: |
           python3 -m py_compile scripts/research-identifiability.py
           python3 scripts/research-identifiability.py --self-test
+      - name: Run independent audit-v2 Area J uncertainty checker
+        run: python3 docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py
       - name: Verify independent second pattern identifies benchmark
         run: |
           python3 scripts/research-identifiability.py \
@@ -34,10 +37,13 @@ jobs:
           import json
           from pathlib import Path
           r=json.loads(Path('/tmp/identifiability-result.json').read_text())
+          assert r['schemaVersion'] == 2
           assert r['researchGate']['passes'] is True
-          assert r['stagedEvidenceDiagnostics'][0]['acceptablePointCount'] == 4
-          assert r['stagedEvidenceDiagnostics'][1]['acceptablePointCount'] == 1
-          assert r['acceptableRegion']['pointIds'] == ['o2-n2']
+          assert r['researchGate']['simulationUncertaintyResolved'] is True
+          assert r['stagedEvidenceDiagnostics'][0]['compatiblePointCount'] == 4
+          assert r['stagedEvidenceDiagnostics'][1]['compatiblePointCount'] == 1
+          assert r['compatibleRegion']['pointIds'] == ['o2-n2']
+          assert r['unresolvedRegion']['pointCount'] == 0
           first=r['stagedEvidenceDiagnostics'][0]['parameterDiagnostics']
           assert all(d['identified'] is False for d in first)
           assert all(d['identified'] is True for d in r['parameterDiagnostics'])
@@ -48,7 +54,7 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path('research/identifiability-benchmark-v1/plan.json').read_text())
-          p['analysisId']='synthetic-ratio-only-nonidentifiable-v1'
+          p['analysisId']='synthetic-ratio-only-nonidentifiable-v2'
           p['calibrationTargets']=p['calibrationTargets'][:1]
           Path('/tmp/ratio-only-plan.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n')
           PY
@@ -66,8 +72,9 @@ jobs:
           r=json.loads(Path('/tmp/ratio-only-result.json').read_text())
           assert r['researchGate']['passes'] is False
           assert r['equifinality']['present'] is True
-          assert r['acceptableRegion']['pointCount'] == 4
-          assert r['equifinality']['reportingPolicy'] == 'report_acceptable_region_not_unique_optimum'
+          assert r['compatibleRegion']['pointCount'] == 4
+          assert r['unresolvedRegion']['pointCount'] == 0
+          assert r['equifinality']['reportingPolicy'] == 'report_compatible_region_not_unique_optimum'
           PY
       - name: Verify structural equifinality preserves held-out discriminator
         run: |
@@ -75,19 +82,25 @@ jobs:
           import json
           from pathlib import Path
           plan={
-            'schemaVersion':1,
-            'analysisId':'structural-equifinality-self-test-v1',
+            'schemaVersion':2,
+            'analysisId':'structural-equifinality-self-test-v2',
             'calibrationTargets':[{'observable':'calibration_pattern','target':10.0,'tolerance':0.0}],
             'corroborationObservables':['heldout_pattern'],
             'corroborationDiscriminationTolerance':1.0,
             'claim':{'parameterIds':['x'],'structuralHypothesis':True},
             'maxNormalizedAcceptableWidth':0.25,
           }
-          data={'schemaVersion':1,'points':[
+          raw_points=[
             {'id':'a','parameters':{'x':1},'structure':'model_a','outputs':{'calibration_pattern':10.0,'heldout_pattern':2.0}},
             {'id':'b','parameters':{'x':1},'structure':'model_b','outputs':{'calibration_pattern':10.0,'heldout_pattern':8.0}},
             {'id':'c','parameters':{'x':2},'structure':'model_a','outputs':{'calibration_pattern':12.0,'heldout_pattern':4.0}},
-          ]}
+          ]
+          points=[]
+          for point in raw_points:
+            point=dict(point)
+            point['outputEvidence']={key:{'kind':'deterministic'} for key in point['outputs']}
+            points.append(point)
+          data={'schemaVersion':2,'monteCarloDiagnostics':{},'points':points}
           Path('/tmp/structural-plan.json').write_text(json.dumps(plan,indent=2,sort_keys=True)+'\n')
           Path('/tmp/structural-data.json').write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
           PY
@@ -102,7 +115,7 @@ jobs:
           r=json.loads(Path('/tmp/structural-result.json').read_text())
           assert r['researchGate']['passes'] is False
           assert r['structuralDiagnostic']['equifinal'] is True
-          assert r['structuralDiagnostic']['acceptableStructures'] == ['model_a','model_b']
+          assert r['structuralDiagnostic']['compatibleStructures'] == ['model_a','model_b']
           assert any(x['observable']=='heldout_pattern' and x['discriminating'] is True for x in r['discriminatingPredictions'])
           assert all(x['role']=='held_out_corroboration_prediction' for x in r['discriminatingPredictions'])
           PY
