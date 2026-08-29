@@ -41,7 +41,10 @@ jobs:
               assert diag['decision']=='sufficient_stop'
               assert diag['precision']['sufficient'] is True
               assert diag['seedIdentities']==list(range(3042001,3042131))
-          assert d['longRun']['multipleStableRegimesDetected'] is False
+          lr=d['longRun']
+          assert lr['researchGateStatus']=='failed'
+          assert lr['primaryClassificationCounts']=={'drifting':738,'insufficient_data':38,'stable':4}
+          assert lr['multipleStableRegimesDetected'] is True
           PY
           cp /tmp/a304/expected-result.json research/general-demography-baseline-v1/confirmatory-result.json
           git diff --check
