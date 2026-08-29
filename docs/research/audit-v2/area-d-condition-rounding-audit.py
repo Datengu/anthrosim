@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """Independent exact-arithmetic checker for audit-v2 Area D / AV2-005.
 
-This mirrors only the integer equations used by the current M3 condition-loss path:
-1. divide each model year into exact half-open M3 intervals;
-2. allocate a reference-quarter maximum-loss quantity cumulatively across those intervals;
-3. apply the current per-boundary ceiling to a fixed supply deficit.
-
-It is intentionally independent of the Rust implementation and uses integer arithmetic only.
+This script does not import or call AnthroSim. It preserves the legacy
+per-boundary-ceiling reproduction and independently verifies the repaired v20
+fixed-point carry rule using integer arithmetic only.
 """
 
 DAYS_PER_YEAR = 365
@@ -35,7 +32,7 @@ def reference_quarter_quantity_for_interval(reference: int, start: int, end: int
     return total
 
 
-def current_year_loss(periods: int, deficit_permille: int, reference_max_loss: int = 100) -> tuple[int, int]:
+def legacy_year_loss(periods: int, deficit_permille: int, reference_max_loss: int = 100) -> tuple[int, int]:
     max_budget = 0
     realized = 0
     for index in range(periods):
@@ -48,27 +45,63 @@ def current_year_loss(periods: int, deficit_permille: int, reference_max_loss: i
     return max_budget, realized
 
 
-def main() -> None:
-    expected_annual_max = 4 * 100
-    for periods in range(1, 366):
-        budget, _ = current_year_loss(periods, 1)
-        assert budget == expected_annual_max, (periods, budget)
+def repaired_year_loss(periods: int, deficit_permille: int, reference_max_loss: int = 100) -> tuple[int, int, int]:
+    max_budget = 0
+    whole_loss = 0
+    remainder = 0
+    for index in range(periods):
+        start, end = bounds(index, periods)
+        interval_max = reference_quarter_quantity_for_interval(reference_max_loss, start, end)
+        max_budget += interval_max
+        numerator = deficit_permille * interval_max + remainder
+        whole_loss += numerator // PERMILLE
+        remainder = numerator % PERMILLE
+    return max_budget, whole_loss, remainder
 
-    one_permille = [current_year_loss(periods, 1)[1] for periods in range(1, 366)]
-    assert one_permille == list(range(1, 366))
+
+def main() -> None:
+    expected_annual_max = 400
+    for periods in range(1, 366):
+        legacy_budget, _ = legacy_year_loss(periods, 1)
+        repaired_budget, _, _ = repaired_year_loss(periods, 1)
+        assert legacy_budget == repaired_budget == expected_annual_max, (periods, legacy_budget, repaired_budget)
+
+    legacy_one_permille = [legacy_year_loss(periods, 1)[1] for periods in range(1, 366)]
+    assert legacy_one_permille == list(range(1, 366))
+
+    # v20 must be exactly subdivision-invariant for representative complete-year exposures.
+    deficits = [1, 10, 100, 500, 1000]
+    for deficit in deficits:
+        expected_numerator = deficit * expected_annual_max
+        expected = (expected_numerator // PERMILLE, expected_numerator % PERMILLE)
+        for periods in range(1, 366):
+            budget, whole, remainder = repaired_year_loss(periods, deficit)
+            assert budget == expected_annual_max
+            assert (whole, remainder) == expected, (deficit, periods, whole, remainder, expected)
 
     checkpoints = [1, 4, 12, 52, 365]
-    deficits = [1, 10, 50, 100, 500, 999, 1000]
+    expected_rows = {
+        1: (0, 400),
+        10: (4, 0),
+        100: (40, 0),
+        500: (200, 0),
+        1000: (400, 0),
+    }
+
     print("referenceQuarterMaxLoss=100; annualMaxLossBudget=400")
     print("deficit_permille," + ",".join(f"P{p}" for p in checkpoints))
     for deficit in deficits:
-        values = [current_year_loss(periods, deficit)[1] for periods in checkpoints]
-        print(f"{deficit}," + ",".join(map(str, values)))
+        values = [repaired_year_loss(periods, deficit)[1:] for periods in checkpoints]
+        assert all(value == expected_rows[deficit] for value in values)
+        rendered = [f"{whole}+{remainder}/1000" for whole, remainder in values]
+        print(f"{deficit}," + ",".join(rendered))
 
     print(
-        "one_permille_all_partitions: "
-        f"min={min(one_permille)}@P1 max={max(one_permille)}@P365 unique={len(set(one_permille))}"
+        "legacy_one_permille_all_partitions: "
+        f"min={min(legacy_one_permille)}@P1 max={max(legacy_one_permille)}@P365 "
+        f"unique={len(set(legacy_one_permille))}"
     )
+    print("repaired_representative_deficits_all_partitions: exact subdivision invariance verified for deficits 1,10,100,500,1000 and P=1..365")
 
 
 if __name__ == "__main__":
