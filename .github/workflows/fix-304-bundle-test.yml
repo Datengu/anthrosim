@@ -1,0 +1,33 @@
+name: Repair issue 304 bundle regression test
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fix-304-bundle-test.yml"
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.head_ref == 'feat/304-general-demographic-baseline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: feat/304-general-demographic-baseline
+          persist-credentials: true
+      - name: Patch stale helper call and remove this temporary workflow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('crates/anthrosim-cli/src/bundle.rs')
+          s=p.read_text()
+          old='let reconstructed = reconstruct_initial_population(&checkpoint, &world).unwrap();'
+          new='let reconstructed = reconstruct_initial_population(Path::new("."), &checkpoint, &world).unwrap();'
+          assert s.count(old) == 1, f'expected exactly one stale helper call, found {s.count(old)}'
+          p.write_text(s.replace(old,new))
+          Path('.github/workflows/fix-304-bundle-test.yml').unlink()
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add crates/anthrosim-cli/src/bundle.rs .github/workflows/fix-304-bundle-test.yml
+          git commit -m 'test: pass run directory to founder reconstruction regression'
+          git push origin HEAD:feat/304-general-demographic-baseline
