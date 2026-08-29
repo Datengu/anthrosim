@@ -16,7 +16,9 @@ jobs:
         with:
           ref: fix/324-dependency-aware-household-fission
       - name: Apply dependency-aware lifecycle v2
-        run: python3 .github/pr324_apply.py
+        run: |
+          python3 .github/pr324_apply.py
+          python3 .github/pr324_clippy_fix.py
       - name: Format and focused tests
         run: |
           rustup set profile minimal
@@ -43,7 +45,7 @@ jobs:
           PY
       - name: Remove helpers and commit durable core repair
         run: |
-          git rm .github/workflows/pr324-core-repair.yml .github/pr324_apply.py
+          git rm .github/workflows/pr324-core-repair.yml .github/pr324_apply.py .github/pr324_clippy_fix.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
