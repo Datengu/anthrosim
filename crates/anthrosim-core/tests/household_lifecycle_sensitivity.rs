@@ -38,8 +38,9 @@ fn base_config(seed: u64, duration_years: u64) -> ExperimentConfig {
 
 #[test]
 fn deterministic_size_fission_balances_caps_and_records_household_ages() {
-    let config = base_config(20701, 1)
-        .with_household_lifecycle(HouseholdLifecycleConfig::deterministic_size_fission_v1(5));
+    let config = base_config(20701, 1).with_household_lifecycle(
+        HouseholdLifecycleConfig::deterministic_dependency_fission_v2(5, 18),
+    );
     let run = Simulation::new(config).unwrap().run_recorded().unwrap();
     let report = derive_household_observability(
         &run.checkpoint.population,
@@ -82,8 +83,9 @@ fn deterministic_size_fission_balances_caps_and_records_household_ages() {
 
 #[test]
 fn lifecycle_is_exactly_deterministic_and_checkpoint_resumable() {
-    let config = base_config(20702, 3)
-        .with_household_lifecycle(HouseholdLifecycleConfig::deterministic_size_fission_v1(5));
+    let config = base_config(20702, 3).with_household_lifecycle(
+        HouseholdLifecycleConfig::deterministic_dependency_fission_v2(5, 18),
+    );
     let first = Simulation::new(config.clone())
         .unwrap()
         .run_recorded()
@@ -153,7 +155,9 @@ fn fissioned_households_are_auditable_independent_future_m9_participants() {
         .unwrap();
     let fission = Simulation::new(
         base.with_temporary_mobility(mobility)
-            .with_household_lifecycle(HouseholdLifecycleConfig::deterministic_size_fission_v1(5)),
+            .with_household_lifecycle(
+                HouseholdLifecycleConfig::deterministic_dependency_fission_v2(5, 18),
+            ),
     )
     .unwrap()
     .run_recorded()

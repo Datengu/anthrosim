@@ -170,10 +170,7 @@ fn insufficient_independent_anchors_defer_target_ceiling_instead_of_orphaning_de
     let run = run_declared(definition("one-anchor", &ages), quiet_demography(), 5);
     assert_eq!(run.checkpoint.population.household_count(), 1);
     assert_eq!(
-        household_age_composition(&run)
-            .iter()
-            .map(Vec::len)
-            .max(),
+        household_age_composition(&run).iter().map(Vec::len).max(),
         Some(9)
     );
 }

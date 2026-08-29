@@ -611,18 +611,25 @@ impl Population {
     pub(crate) fn fission_oversized_households(
         &mut self,
         max_living_members: u16,
+        minimum_independent_age_years: u16,
+        current_day: u64,
         eligible_households: &[bool],
     ) -> Result<HouseholdFissionOutcome, PopulationError> {
         if max_living_members == 0 {
             return Err(PopulationError::ZeroLifecycleHouseholdSize);
         }
+        if minimum_independent_age_years == 0 {
+            return Err(PopulationError::ZeroLifecycleIndependentAge);
+        }
         let original_household_count = self.household_count();
         if eligible_households.len() != original_household_count {
             return Err(PopulationError::HouseholdLifecycleShapeMismatch);
         }
-
+        let minimum_independent_age_days =
+            u64::from(minimum_independent_age_years).saturating_mul(365);
         let ceiling = usize::from(max_living_members);
         let mut outcome = HouseholdFissionOutcome::default();
+
         for (household_index, &is_eligible) in eligible_households.iter().enumerate() {
             if !is_eligible {
                 continue;
@@ -642,33 +649,117 @@ impl Population {
                 continue;
             }
 
-            // Use the minimum number of groups needed to obey the configured ceiling, then
-            // balance group sizes so deterministic fission does not manufacture avoidable
-            // singleton households. Stable PersonId order is the explicit neutral partition rule.
-            let group_count = living_members.len().div_ceil(ceiling);
+            let required_groups = living_members.len().div_ceil(ceiling);
+            let mut independent = living_members
+                .iter()
+                .copied()
+                .filter(|&person_index| {
+                    self.age_days_at_index(person_index, current_day)
+                        .is_some_and(|age| age >= minimum_independent_age_days)
+                })
+                .collect::<Vec<_>>();
+            independent.sort_by_key(|&index| {
+                (
+                    self.birth_days[index],
+                    match self.reproductive_sexes[index] {
+                        ReproductiveSex::Female => 0_u8,
+                        ReproductiveSex::Male => 1_u8,
+                    },
+                    person_id_from_index(index).0,
+                )
+            });
+            let group_count = required_groups.min(independent.len());
+            if group_count < 2 {
+                continue;
+            }
+
             let base_group_size = living_members.len() / group_count;
             let larger_group_count = living_members.len() % group_count;
-            let source_group_size = base_group_size + if larger_group_count > 0 { 1 } else { 0 };
-            let residence = self.household_locations[household_index];
-            let mut cursor = source_group_size;
+            let target_sizes = (0..group_count)
+                .map(|group_index| base_group_size + usize::from(group_index < larger_group_count))
+                .collect::<Vec<_>>();
+            let mut groups = vec![Vec::<usize>::new(); group_count];
+            let mut assigned_group = vec![None; self.person_count()];
 
-            for group_index in 1..group_count {
-                let group_size = base_group_size
-                    + if group_index < larger_group_count {
-                        1
-                    } else {
-                        0
-                    };
+            for (ordinal, &person_index) in independent.iter().enumerate() {
+                let group_index = ordinal % group_count;
+                groups[group_index].push(person_index);
+                assigned_group[person_index] = Some(group_index);
+            }
+
+            let mut dependents = living_members
+                .iter()
+                .copied()
+                .filter(|&index| assigned_group[index].is_none())
+                .collect::<Vec<_>>();
+            dependents.sort_by_key(|&index| {
+                (
+                    self.birth_days[index],
+                    match self.reproductive_sexes[index] {
+                        ReproductiveSex::Female => 0_u8,
+                        ReproductiveSex::Male => 1_u8,
+                    },
+                    person_id_from_index(index).0,
+                )
+            });
+
+            for member_index in dependents {
+                let mut parent_groups = Vec::with_capacity(2);
+                for parent in [
+                    self.female_parents[member_index],
+                    self.male_parents[member_index],
+                ] {
+                    if parent == PersonId::INVALID {
+                        continue;
+                    }
+                    if let Some(parent_index_value) = person_index(parent, self.person_count())
+                        && self.is_alive_index(parent_index_value)
+                        && self.households[parent_index_value] == household
+                        && let Some(group_index) = assigned_group[parent_index_value]
+                        && !parent_groups.contains(&group_index)
+                    {
+                        parent_groups.push(group_index);
+                    }
+                }
+                let candidates = if parent_groups.is_empty() {
+                    (0..group_count).collect::<Vec<_>>()
+                } else {
+                    parent_groups
+                };
+                let group_index = candidates
+                    .into_iter()
+                    .max_by_key(|&candidate| {
+                        (
+                            target_sizes[candidate].saturating_sub(groups[candidate].len()),
+                            std::cmp::Reverse(candidate),
+                        )
+                    })
+                    .expect("dependency-safe fission must have at least one anchored group");
+                groups[group_index].push(member_index);
+                assigned_group[member_index] = Some(group_index);
+            }
+
+            debug_assert_eq!(
+                groups.iter().map(Vec::len).sum::<usize>(),
+                living_members.len()
+            );
+            debug_assert!(groups.iter().all(|group| group.iter().any(|&member_index| {
+                self.age_days_at_index(member_index, current_day)
+                    .is_some_and(|age| age >= minimum_independent_age_days)
+            })));
+
+            let residence = self.household_locations[household_index];
+            for group in groups.iter().skip(1) {
                 let new_household_raw = u64::try_from(self.household_locations.len())
                     .map_err(|_| PopulationError::HouseholdIdSpaceExhausted)?
                     .checked_add(1)
                     .ok_or(PopulationError::HouseholdIdSpaceExhausted)?;
                 let new_household = HouseholdId::new(new_household_raw);
                 self.household_locations.push(residence);
-                let mut reassigned = Vec::with_capacity(group_size);
-                for &person_index in &living_members[cursor..cursor + group_size] {
-                    self.households[person_index] = new_household;
-                    reassigned.push(person_id_from_index(person_index));
+                let mut reassigned = Vec::with_capacity(group.len());
+                for &member_index in group {
+                    self.households[member_index] = new_household;
+                    reassigned.push(person_id_from_index(member_index));
                     outcome.people_reassigned = outcome.people_reassigned.saturating_add(1);
                 }
                 outcome.households_created = outcome.households_created.saturating_add(1);
@@ -678,10 +769,7 @@ impl Population {
                     residence,
                     people_reassigned: reassigned,
                 });
-                cursor += group_size;
             }
-
-            debug_assert_eq!(cursor, living_members.len());
         }
         Ok(outcome)
     }
@@ -1193,6 +1281,8 @@ pub enum PopulationError {
     HouseholdLifecycleShapeMismatch,
     #[error("household lifecycle maximum living size must be greater than zero")]
     ZeroLifecycleHouseholdSize,
+    #[error("household lifecycle minimum independent age must be greater than zero")]
+    ZeroLifecycleIndependentAge,
     #[error("household identity space is exhausted")]
     HouseholdIdSpaceExhausted,
     #[error("household relocation destination {destination:?} is outside the world")]

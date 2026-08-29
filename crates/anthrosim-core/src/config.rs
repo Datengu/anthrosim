@@ -259,9 +259,10 @@ pub enum ParameterProvenance {
 /// lifecycle field so pre-#207 synthetic experiment serialization is unchanged.
 pub const FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID: &str = "fixed_founder_v1";
 
-/// Stable identity for the deliberately neutral structural-sensitivity alternative introduced by
-/// #207. It is a stress-test mechanism, not a calibrated household-formation model.
-pub const DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID: &str = "deterministic_size_fission_v1";
+/// Stable identity for the dependency-aware structural-sensitivity alternative introduced by
+/// #324. It is an explicit synthetic stress-test, not a calibrated household-formation model.
+pub const DETERMINISTIC_DEPENDENCY_FISSION_HOUSEHOLD_LIFECYCLE_ID: &str =
+    "deterministic_dependency_fission_v2";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -269,22 +270,30 @@ pub struct HouseholdLifecycleConfig {
     pub schema_version: u32,
     pub model_id: String,
     pub provenance: ParameterProvenance,
-    /// Maximum number of living members retained in one household after an annual lifecycle
-    /// boundary. Oversized at-residence households are partitioned deterministically into the
-    /// minimum number of balanced co-resident groups needed to satisfy this ceiling.
+    /// Target maximum living size after an annual lifecycle boundary. The model will not satisfy
+    /// this target by manufacturing a household without an independent-age anchor; if too few
+    /// anchors exist, the smallest dependency-safe number of groups is used and a group may remain
+    /// above this target.
     pub max_living_members: u16,
+    /// Minimum age used by this synthetic treatment to define an independent household anchor.
+    /// This is a declared structural assumption, not an archaeological universal.
+    pub minimum_independent_age_years: u16,
 }
 
 impl HouseholdLifecycleConfig {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
     #[must_use]
-    pub fn deterministic_size_fission_v1(max_living_members: u16) -> Self {
+    pub fn deterministic_dependency_fission_v2(
+        max_living_members: u16,
+        minimum_independent_age_years: u16,
+    ) -> Self {
         Self {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
-            model_id: DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID.to_owned(),
+            model_id: DETERMINISTIC_DEPENDENCY_FISSION_HOUSEHOLD_LIFECYCLE_ID.to_owned(),
             provenance: ParameterProvenance::SyntheticValidation,
             max_living_members,
+            minimum_independent_age_years,
         }
     }
 }
