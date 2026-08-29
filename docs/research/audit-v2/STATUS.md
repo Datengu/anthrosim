@@ -27,10 +27,10 @@ Purpose: durable, repository-authoritative state for the second independent/adve
 | Initial issue state | no open issues at audit initialization |
 | Latest audited protected-main SHA | `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4` |
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
-| Current audit findings | #326 P1; #314, #315, #320, #324, #327 P2; #317 is non-scientific CI infrastructure |
+| Current audit findings | #326 P1; #314, #315, #320, #324, #327, #329 P2; #317 is non-scientific CI infrastructure |
 | Audit state | in progress |
 
-`main` advanced from `06f1a059...` to `fdeb66ed...` only through merged Area B audit documentation. The executable tree audited by Areas C–E remained model semantics v19. Area C recording PR #325 and the Area D recording branch were still repository-visible and unmerged when Area E began; their evidence is incorporated below so later agents do not duplicate those areas.
+`main` advanced from `06f1a059...` to `fdeb66ed...` only through merged Area B audit documentation. The executable tree audited by Areas C–F remained model semantics v19. Area C recording PR #325, Area D recording branch and Area E recording PR #328 were repository-visible when Area F began; their evidence is incorporated below so later agents do not duplicate those areas.
 
 ## Coverage matrix
 
@@ -43,14 +43,14 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | C | Households, kinship, social links, lifecycle structure | complete — findings | `area-c-2026-08-29.md` on recording PR #325; adversarial PR #323 probes | #324; #320 founder-to-kin relevant |
 | D | Resources, condition, subsistence, depletion/recovery | complete — findings | `area-d-2026-08-29.md` and `area-d-condition-rounding-audit.py` on `audit-v2/area-d-resources-record` | #326 P1; #324 household-unit interaction relevant |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | complete — findings | `area-e-2026-08-29.md`; `area-e-spatial-audit.py`; source/contracts plus existing spatial-boundary/grid tests | #327; #214 coupling relevant; #324/#326 cross-system dependencies |
-| F | Aggregation and interaction mechanisms | not started | — | — |
+| F | Aggregation and interaction mechanisms | complete — findings | `area-f-2026-08-29.md`; `area-f-aggregation-audit.py`; M9.7 raw-reference recomputation and same-total-use adversarial construction | #329; #327 destination semantics relevant; #324/#326 cross-system dependencies |
 | G | Initialization, burn-in, path dependence, continuation state | not started | — | — |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | not started | Area B 2,000-seed PersonId relabelling diagnostic; Area E candidate-order reflection diagnostic; full inference audit deferred | #214 historical evidence relevant |
 | I | Sensitivity, uncertainty, convergence, robustness | not started | Area D finite-capacity timing and Area E finite-boundary effects explicitly deferred to convergence testing | #326 repair dependency |
-| J | Identifiability, equifinality, calibration, discrimination | not started | — | — |
-| K | Experiment orchestration, configuration, provenance, reproducibility | not started | — | — |
-| L | Observability, analysis outputs, statistical summaries | not started | Area C generation-span lower-bound hypothesis and Area E M9 destination-contract interpretation carried forward | #327 documentation relevant |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Areas A/E exposed current-facing documentation drift, but Area M has not been systematically audited | #314, #315, #327 |
+| J | Identifiability, equifinality, calibration, discrimination | not started | Area F confirms total focal person-days alone are non-identifying but M9 preserves additional temporal/journey structure | — |
+| K | Experiment orchestration, configuration, provenance, reproducibility | not started | Area F exposed stale current M9.7 benchmark narrative relative to machine-readable reference | #329 |
+| L | Observability, analysis outputs, statistical summaries | not started | Area C generation-span lower-bound hypothesis; Area E M9 destination-contract interpretation; Area F aggregation summaries/journey observability carried forward | #327, #329 |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Areas A/E/F exposed current-facing documentation/result drift, but Area M has not been systematically audited | #314, #315, #327, #329 |
 | N | Cross-system integration | not started | Local subsystem passes have identified mandatory dependencies below | #324, #326 |
 
 ## Cross-system integration checklist
@@ -63,14 +63,14 @@ These checks are mandatory after the corresponding subsystem work is mature enou
 | Demography × resources | not started | #326 can alter condition-mediated mortality trajectories; repeat after repair |
 | Households × movement | not started | #324 can create cohort/newborn-sorted autonomous M4/M9 household units; away-at-annual-boundary fission deferral remains relevant |
 | Movement × resources | not started | #326 changes condition pressure seen by M4; M9 visitors alter destination demand seen by M4; dedicated post-repair pass required |
-| Aggregation × resources | not started | — |
+| Aggregation × resources | not started | Area F locally verified duration-weighted visitor demand and visitor-aware M4 cue; dedicated integration remains required after #326 repair |
 | Initialization × demography | not started | #320 admits biologically impossible declared-founder reproductive chronology |
 | Initialization × spatial placement | not started | — |
 | Stochastic inference × censoring/extinction | not started | — |
 | Sensitivity × hidden configuration | not started | — |
 | Calibration × identifiability | not started | — |
 | Checkpoint/resume × RNG | not started | — |
-| Observability × scientific interpretation | not started | Area C generation-span hypothesis; #327 shows current M9 destination semantics can be misread from stale contract text |
+| Observability × scientific interpretation | not started | Area C generation-span hypothesis; #327 stale M9 destination semantics; #329 stale current M9.7 result narrative |
 
 ## Finding register
 
@@ -83,7 +83,8 @@ Add every scientifically substantive finding here, including findings that are l
 | AV2-003 — declared founder reproductive chronology checks ordering but admits biologically impossible event ages | P2 | B / G / C | issue open | #320; adversarial harness #319 | `area-b-2026-08-29.md` | n/a — open |
 | AV2-004 — deterministic household fission derives social composition from PersonId/birth-append order | P2 | C / N / I | issue open | #324; adversarial harness #323; recording PR #325 | `area-c-2026-08-29.md` | n/a — open |
 | AV2-005 — per-boundary integer ceiling multiplies partial-supply condition deterioration as M3 resolution increases | P1 | D / I / N | issue open | #326; Area D recording branch | `area-d-2026-08-29.md`; `area-d-condition-rounding-audit.py` | required after repair |
-| AV2-006 — active M9.4 travel contract still documents superseded lower-CellId equal-cost destination selection after keyed repair | P2 | E / M / L | issue open | #327; Area E recording branch | `area-e-2026-08-29.md`; `area-e-spatial-audit.py` | n/a — open |
+| AV2-006 — active M9.4 travel contract still documents superseded lower-CellId equal-cost destination selection after keyed repair | P2 | E / M / L | issue open | #327; Area E recording PR #328 | `area-e-2026-08-29.md`; `area-e-spatial-audit.py` | n/a — open |
+| AV2-007 — current M9.7 aggregation benchmark narrative reports obsolete v10 provenance/statistics relative to checked-in v18 reference | P2 | F / K / L / M | issue open | #329; Area F recording branch | `area-f-2026-08-29.md`; `area-f-aggregation-audit.py` | n/a — open |
 
 Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in progress`, `fixed`, `reverified`, `not a defect`, `accepted limitation`.
 
@@ -171,6 +172,32 @@ Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in 
 **Does evidence need repeating after main changes?** Repeat if grid geometry, M8 movement binding, M4 candidate/choice mechanics, M9 travel/tie/presence semantics, or spatial-boundary machinery changes. After #327 repair, recheck all current-facing M9/ODD/TRACE statements. After #324/#326 repair, rerun affected cross-system movement checks.
 
 **Recommended next step:** Area F — aggregation and interaction mechanisms. Attack aggregation trigger/occupancy semantics, duration/exposure accounting, resource feedback, equality/boundary cases and whether the controlled aggregation benchmark distinguishes continuous residence from intermittent aggregation without hidden weighting/timing artifacts.
+
+---
+
+### 2026-08-29 — Area F / aggregation and interaction mechanisms
+
+**Date / agent:** 2026-08-29 / ChatGPT scientific-audit agent
+
+**Live main SHA:** `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4`; model semantics v19.
+
+**Repository-visible audit state:** Area C PR #325 and Area E PR #328 open; Area D recording branch active; no overlapping Area F branch/PR found before work began.
+
+**Implementation/docs inspected:** M9 temporary mobility, observability and resource ledgers; M9.5 resource acceptance fixture; temporary-mobility and M9 duration-aware resource contracts; visitor-aware M4 demand contract; frozen M9.7 benchmark contract, human-readable result, machine-readable reference and regression verifier.
+
+**Tests/experiments performed:** independent `area-f-aggregation-audit.py` raw-reference recomputation plus an adversarial same-total-use construction (`20 x 30 days = 10 x 60 days = 600 visitor-person-days`). Existing historical #190/#194/#196 were checked before filing new work.
+
+**Quantitative results:** for 8 paired seeds `9701..9708`, 3650-day horizon, independent recomputation gives median added focal exposure `31.260722` permille, maximum `36.572557`; median peak-visitor share `432.332993` permille and minimum `404.507517`. All preserved pairs retain equal resident person-days, zero control visitor use, exactly 270 treatment visitor-presence days, positive completed journeys and zero permanent migration/condition-mediated deaths. The frozen <=50 permille exposure and >=250 permille peak thresholds remain satisfied.
+
+**Finding:** AV2-007/#329 P2. `m9-controlled-aggregation-benchmark-result.md` presents a v10 run as the current reference and reports 36/426/387 permille max/median/min summary values, while the checked-in machine reference is v18 and reports 37/432/405 after rounding. The capability classification remains supported; the defect is current-facing TRACE/result provenance and quantitative narrative drift.
+
+**Accepted capability boundary:** M9 models temporary presence, travel and resource consequences, not social motive, encounter networks or interaction effects. Journey-level household timing is preserved so co-presence can be reconstructed externally; no defect was filed solely for intentionally absent social interaction semantics.
+
+**Cross-system dependency:** local Aggregation x resources behaviour is internally coherent, but the mandatory integration check remains not started until #326 is repaired because resource-resolution dependence can change crowded-period condition consequences. #324 can also change the household units participating in M9.
+
+**Does evidence need repeating after main changes?** Repeat if M9 trigger/presence timing, duration-aware M3 claims, visitor-aware M4 resource cues, temporary observability or M9.7 reference machinery changes. Recheck #329 after repair and perform dedicated aggregation/resource integration after #326 repair.
+
+**Recommended next step:** Area G — initialization, burn-in, path dependence and continuation state. Do not duplicate any newer repository-visible branch that has already claimed it.
 
 ---
 
