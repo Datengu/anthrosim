@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "points": [
+    {"id":"o1-n1","parameters":{"opportunity_scale":1,"need_scale":1},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.0,"independent_sum_pattern":2.0,"heldout_difference_pattern":0.0}},
+    {"id":"o1-n2","parameters":{"opportunity_scale":1,"need_scale":2},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.5,"independent_sum_pattern":3.0,"heldout_difference_pattern":-1.0}},
+    {"id":"o1-n3","parameters":{"opportunity_scale":1,"need_scale":3},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.3333333333333333,"independent_sum_pattern":4.0,"heldout_difference_pattern":-2.0}},
+    {"id":"o1-n4","parameters":{"opportunity_scale":1,"need_scale":4},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.25,"independent_sum_pattern":5.0,"heldout_difference_pattern":-3.0}},
+    {"id":"o2-n1","parameters":{"opportunity_scale":2,"need_scale":1},"structure":"ratio_model_v1","outputs":{"ratio_pattern":2.0,"independent_sum_pattern":3.0,"heldout_difference_pattern":1.0}},
+    {"id":"o2-n2","parameters":{"opportunity_scale":2,"need_scale":2},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.0,"independent_sum_pattern":4.0,"heldout_difference_pattern":0.0}},
+    {"id":"o2-n3","parameters":{"opportunity_scale":2,"need_scale":3},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.6666666666666666,"independent_sum_pattern":5.0,"heldout_difference_pattern":-1.0}},
+    {"id":"o2-n4","parameters":{"opportunity_scale":2,"need_scale":4},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.5,"independent_sum_pattern":6.0,"heldout_difference_pattern":-2.0}},
+    {"id":"o3-n1","parameters":{"opportunity_scale":3,"need_scale":1},"structure":"ratio_model_v1","outputs":{"ratio_pattern":3.0,"independent_sum_pattern":4.0,"heldout_difference_pattern":2.0}},
+    {"id":"o3-n2","parameters":{"opportunity_scale":3,"need_scale":2},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.5,"independent_sum_pattern":5.0,"heldout_difference_pattern":1.0}},
+    {"id":"o3-n3","parameters":{"opportunity_scale":3,"need_scale":3},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.0,"independent_sum_pattern":6.0,"heldout_difference_pattern":0.0}},
+    {"id":"o3-n4","parameters":{"opportunity_scale":3,"need_scale":4},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.75,"independent_sum_pattern":7.0,"heldout_difference_pattern":-1.0}},
+    {"id":"o4-n1","parameters":{"opportunity_scale":4,"need_scale":1},"structure":"ratio_model_v1","outputs":{"ratio_pattern":4.0,"independent_sum_pattern":5.0,"heldout_difference_pattern":3.0}},
+    {"id":"o4-n2","parameters":{"opportunity_scale":4,"need_scale":2},"structure":"ratio_model_v1","outputs":{"ratio_pattern":2.0,"independent_sum_pattern":6.0,"heldout_difference_pattern":2.0}},
+    {"id":"o4-n3","parameters":{"opportunity_scale":4,"need_scale":3},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.3333333333333333,"independent_sum_pattern":7.0,"heldout_difference_pattern":1.0}},
+    {"id":"o4-n4","parameters":{"opportunity_scale":4,"need_scale":4},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.0,"independent_sum_pattern":8.0,"heldout_difference_pattern":0.0}}
+  ]
+}
