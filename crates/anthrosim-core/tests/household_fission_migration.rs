@@ -1,7 +1,6 @@
 use anthrosim_core::{
-    DemographyConfig, ExperimentConfig, HouseholdLifecycleConfig, MigrationConfig, PopulationConfig,
-    ResourceConfig, Simulation, WorldConfig,
-    ids::HouseholdId,
+    DemographyConfig, ExperimentConfig, HouseholdLifecycleConfig, MigrationConfig,
+    PopulationConfig, ResourceConfig, Simulation, WorldConfig, ids::HouseholdId,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -43,9 +42,9 @@ fn migration_pressure_config() -> ExperimentConfig {
         .with_demography(no_event_demography())
         .with_resources(resources)
         .with_migration(migration)
-        .with_household_lifecycle(HouseholdLifecycleConfig::deterministic_dependency_fission_v2(
-            5, 18,
-        ))
+        .with_household_lifecycle(
+            HouseholdLifecycleConfig::deterministic_dependency_fission_v2(5, 18),
+        )
 }
 
 #[test]
