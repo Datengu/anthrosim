@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "definitionType": "anthrosim-analysis-definition",
   "analysisId": "resource-variability-primary-v1",
   "analysisStatus": "confirmatory",
@@ -15,14 +15,11 @@
     "--output",
     "analysis/resource-variability-result.json"
   ],
-  "arguments": {
+  "annotations": {
     "analysisWindowId": "primary",
     "estimand": "predeclared paired mean difference",
     "extinctionHandling": "report separately; do not drop silently"
   },
-  "analysisRngSeeds": [
-    314159
-  ],
   "runtimeDescription": "Python environment reconstructed from analysis/requirements.lock.",
   "reproductionCriterion": "exact_output_bytes",
   "inputs": [
@@ -57,6 +54,5 @@
       "role": "canonical-machine-readable-result"
     }
   ],
-  "manualSteps": [],
-  "observationModelIdentity": null
+  "manualSteps": []
 }

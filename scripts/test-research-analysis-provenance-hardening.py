@@ -51,11 +51,19 @@ def test_record_exposes_preexecution_binding_flag() -> None:
         base.run("verify", root)
 
 
+
+def test_independent_area_k_argument_binding_audit() -> None:
+    audit = Path(__file__).parent.parent / "docs/research/audit-v2/area-k-analysis-argument-binding-audit.py"
+    result = __import__("subprocess").run([__import__("sys").executable, str(audit)], text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert "v2_executed_scale_3=15" in result.stdout
+
 def main() -> None:
     tests = [
         test_scripted_run_rejects_preexisting_output,
         test_confirmatory_requires_environment_artifact,
         test_record_exposes_preexecution_binding_flag,
+        test_independent_area_k_argument_binding_audit,
     ]
     for test in tests:
         test()
