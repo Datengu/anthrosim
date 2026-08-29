@@ -24,13 +24,13 @@
       "sourcePointer": "/population/livingPopulation"
     }
   ],
-  "rationale": "64 new paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille; broad founder/resource sensitivity was tested in the 288-run exploratory factorial. Long-run thresholds/windows are unchanged.",
+  "rationale": "130 fresh paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille. This v2 confirmatory revision was predeclared after the fixed 64-seed v21 replication failed only the positive-fission extinction Monte Carlo precision gate: n=130 is the minimum fixed count that guarantees a two-sided 95% Wilson probability interval has maximum half-width <= 0.085 even at worst-case p=0.5. No outcomes from seeds 3042001..3042130 were inspected before fixing this count. Long-run thresholds/windows are unchanged.",
   "requiredConsecutiveStableWindows": 2,
   "runLengthSensitivityEndDays": [
     65700,
     76650
   ],
   "schemaVersion": 1,
-  "studyId": "issue-304-general-demography-baseline-confirmatory-v1",
+  "studyId": "issue-304-general-demography-baseline-confirmatory-v2",
   "windowSnapshots": 20
 }
