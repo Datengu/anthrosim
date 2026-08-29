@@ -1,0 +1,27 @@
+name: Format issue 304 bundle regression test
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fmt-304-bundle-test.yml"
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.head_ref == 'feat/304-general-demographic-baseline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: feat/304-general-demographic-baseline
+          persist-credentials: true
+      - run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+          cargo fmt --all
+          rm .github/workflows/fmt-304-bundle-test.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add crates/anthrosim-cli/src/bundle.rs .github/workflows/fmt-304-bundle-test.yml
+          git commit -m 'style: format founder reconstruction regression'
+          git push origin HEAD:feat/304-general-demographic-baseline
