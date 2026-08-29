@@ -26,3 +26,5 @@ A future focused model-interrogation study should decompose missed reproductive 
 ## Scientific scope
 
 The result demonstrates model-form dependence, not prehistoric calibration: deterministic fission is a structural sensitivity treatment, and none of these schedules is empirically calibrated. Historical `synthetic_validation_v1` and all three #239 controls remain unchanged; no target-population feedback is introduced.
+
+The recommendation is therefore a **study-design constraint**, not a new calibrated demographic preset: future confirmatory studies must name and justify the demographic and household structure they use.
