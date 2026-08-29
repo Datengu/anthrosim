@@ -1,0 +1,36 @@
+name: PR324 closure validation
+
+on:
+  push:
+    branches:
+      - fix/324-dependency-aware-household-fission
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/324-dependency-aware-household-fission
+      - name: Independent audit
+        run: python3 docs/research/audit-v2/area-c-household-fission-composition-audit.py
+      - name: Rust focused validation
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+          cargo fmt --all -- --check
+          cargo test --locked -p anthrosim-core --test household_fission_dependency -- --nocapture
+          cargo test --locked -p anthrosim-core --test household_fission_migration -- --nocapture
+          cargo test --locked -p anthrosim-core --test household_lifecycle_sensitivity -- --nocapture
+          cargo clippy --locked -p anthrosim-core --all-targets -- -D warnings
+      - name: Remove validation helper
+        run: |
+          git rm .github/workflows/pr324-closure-validation.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: close #324 dependency-aware fission evidence'
+          git push origin HEAD:fix/324-dependency-aware-household-fission
