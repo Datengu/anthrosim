@@ -92,11 +92,19 @@ jobs:
           s=json.loads(Path('/tmp/a304/summary.json').read_text())
           prec={p.stem:json.loads(p.read_text()) for p in Path('/tmp/a304/precision').glob('*-diagnostic.json')}
           expected={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':prec}
+          Path('/tmp/a304/expected-result.json').write_text(json.dumps(expected,indent=2,sort_keys=True)+'\n')
           actual=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
+          mismatches=[k for k in sorted(set(actual)|set(expected)) if actual.get(k)!=expected.get(k)]
+          if mismatches:
+              print('preserved result mismatched top-level fields: '+', '.join(mismatches))
+              for key in mismatches:
+                  if key not in {'arms','pairedHouseholdEffects','monteCarloPrecision','longRun'}:
+                      print(f'{key}: committed={actual.get(key)!r} reproduced={expected.get(key)!r}')
           assert actual == expected, 'preserved issue #304 result no longer matches reproducible confirmatory analysis'
           assert actual['recommendation']=='no_universal_demographic_baseline'
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: issue-304-demographic-baseline-confirmatory
           retention-days: 14
