@@ -35,11 +35,7 @@ fn founder_definition(swapped: bool) -> FounderPopulationDefinition {
         vec![young, old]
     };
     FounderPopulationDefinition::new(
-        if swapped {
-            "audit-v2-relabel-b"
-        } else {
-            "audit-v2-relabel-a"
-        },
+        "audit-v2-relabel",
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::CompleteLivingDirectParents,
         vec![FounderHousehold {
@@ -60,6 +56,7 @@ fn config(seed: u64, swapped: bool) -> ExperimentConfig {
     demography.fertility_bands = vec![AgeProbabilityBand::new(0, u32::MAX, 0)];
 
     let mut resources = ResourceConfig::synthetic_validation_v1();
+    resources.periods_per_year = 1;
     resources.annual_need_units_per_person = 0;
     resources.max_scarcity_mortality_probability_per_million = 0;
 
@@ -92,14 +89,11 @@ fn audit_probe_consistent_person_id_relabelling_changes_demographic_aggregate_fo
             differing_seeds.push((seed, a, b));
         }
     }
-    eprintln!(
-        "audit-v2 Area B relabel probe: differing_seeds={} of 2000; first={:?}",
+    assert_eq!(
         differing_seeds.len(),
+        0,
+        "AUDIT DEMONSTRATION: pure PersonId relabelling changed final living population; first={:?}",
         differing_seeds.first()
-    );
-    assert!(
-        !differing_seeds.is_empty(),
-        "expected at least one seed where pure PersonId relabelling changes final living population"
     );
 }
 
