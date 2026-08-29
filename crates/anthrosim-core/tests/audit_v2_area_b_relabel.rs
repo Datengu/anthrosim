@@ -87,3 +87,46 @@ fn audit_probe_consistent_person_id_relabelling_changes_demographic_aggregate_fo
         "expected at least one seed where pure PersonId relabelling changes final living population"
     );
 }
+
+#[test]
+fn audit_probe_declared_founder_accepts_one_day_parent_child_age_gap() {
+    let definition = FounderPopulationDefinition::new(
+        "audit-v2-one-day-parent-gap",
+        ParameterProvenance::SyntheticValidation,
+        FounderGenealogyStatus::CompleteLivingDirectParents,
+        vec![FounderHousehold { id: HouseholdId::new(1), location: CellId::new(1) }],
+        vec![
+            FounderPerson {
+                id: PersonId::new(1),
+                birth_day: -101,
+                reproductive_sex: ReproductiveSex::Female,
+                household: HouseholdId::new(1),
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+            FounderPerson {
+                id: PersonId::new(2),
+                birth_day: -100,
+                reproductive_sex: ReproductiveSex::Female,
+                household: HouseholdId::new(1),
+                female_parent: Some(PersonId::new(1)),
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+        ],
+    );
+
+    let config = ExperimentConfig::new(1, 1)
+        .with_world(WorldConfig::new(1, 1))
+        .with_population(PopulationConfig::new(2))
+        .with_founder_population(definition)
+        .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
+
+    assert!(
+        Simulation::new(config).is_ok(),
+        "current declared-founder validation accepts a biologically impossible one-day parent-child age gap"
+    );
+}
