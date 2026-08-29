@@ -552,7 +552,7 @@
         "sufficient": true
       },
       "replicateCount": 64,
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "scientificInterpretation": {
         "doesNotRepresent": [
           "parameter uncertainty",
@@ -655,7 +655,7 @@
         "sufficient": true
       },
       "replicateCount": 64,
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "scientificInterpretation": {
         "doesNotRepresent": [
           "parameter uncertainty",
@@ -759,7 +759,7 @@
         "sufficient": true
       },
       "replicateCount": 64,
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "scientificInterpretation": {
         "doesNotRepresent": [
           "parameter uncertainty",

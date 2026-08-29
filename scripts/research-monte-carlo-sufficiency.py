@@ -7,6 +7,7 @@ This is analysis-layer tooling. It never changes simulation state, RNG streams, 
 from __future__ import annotations
 
 import argparse
+from bisect import bisect_left
 import hashlib
 import json
 import math
@@ -17,7 +18,7 @@ from typing import Any
 
 PLAN_SCHEMA = 1
 SAMPLE_SCHEMA = 1
-DIAGNOSTIC_SCHEMA = 1
+DIAGNOSTIC_SCHEMA = 2
 PLAN_PREFIX = "monte-carlo-precision-plan-v1:"
 UNCERTAINTY_CATEGORY = "process_stochastic_monte_carlo"
 SUPPORTED_KINDS = {
@@ -287,6 +288,81 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
 
 
+def exact_quantile_rank_interval(n: int, probability: float, confidence: float) -> dict[str, Any]:
+    """Return deterministic finite-sample order-statistic bounds.
+
+    For a continuous distribution and true p-quantile q, K = # {X_i < q}
+    follows Binomial(n, p). A 0-based interval [l, u] covers q exactly when
+    l + 1 <= K <= u. Rank selection depends only on n, p, and confidence,
+    never on the observed values.
+    """
+    log_n_factorial = math.lgamma(n + 1)
+    log_p = math.log(probability)
+    log_one_minus_p = math.log1p(-probability)
+    probabilities = [
+        math.exp(
+            log_n_factorial
+            - math.lgamma(k + 1)
+            - math.lgamma(n - k + 1)
+            + k * log_p
+            + (n - k) * log_one_minus_p
+        )
+        for k in range(n + 1)
+    ]
+    cumulative: list[float] = []
+    running = 0.0
+    for mass in probabilities:
+        running += mass
+        cumulative.append(running)
+
+    maximum_coverage = math.fsum(probabilities[1:n])
+    tolerance = 1e-12
+    if maximum_coverage + tolerance < confidence:
+        return {
+            "feasible": False,
+            "lowerIndex": None,
+            "upperIndex": None,
+            "achievedCoverage": None,
+            "maximumAchievableCoverage": maximum_coverage,
+        }
+
+    estimate_position = probability * (n - 1)
+    estimate_lower = int(math.floor(estimate_position))
+    estimate_upper = int(math.ceil(estimate_position))
+    best: tuple[tuple[float, ...], int, int, float] | None = None
+    for lower_index in range(n - 1):
+        if lower_index > estimate_lower:
+            break
+        first_upper = max(lower_index + 1, estimate_upper)
+        target_cdf = cumulative[lower_index] + confidence - tolerance
+        upper_index = bisect_left(cumulative, target_cdf, lo=first_upper)
+        if upper_index >= n:
+            continue
+        coverage = cumulative[upper_index] - cumulative[lower_index]
+        if coverage + tolerance < confidence:
+            continue
+        lower_tail = cumulative[lower_index]
+        upper_tail = max(0.0, 1.0 - cumulative[upper_index])
+        key = (
+            float(upper_index - lower_index),
+            abs(lower_tail - upper_tail),
+            float(lower_index),
+        )
+        if best is None or key < best[0]:
+            best = (key, lower_index, upper_index, coverage)
+
+    if best is None:
+        raise AssertionError("feasible exact quantile interval was not found")
+    _, lower_index, upper_index, coverage = best
+    return {
+        "feasible": True,
+        "lowerIndex": lower_index,
+        "upperIndex": upper_index,
+        "achievedCoverage": coverage,
+        "maximumAchievableCoverage": maximum_coverage,
+    }
+
+
 def diagnostic(groups: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, Any]:
     estimand = plan["estimand"]
     kind = estimand["kind"]
@@ -329,17 +405,20 @@ def diagnostic(groups: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, 
         probability = float(estimand["quantileProbability"])
         ordered = sorted(values)
         estimate = quantile(values, probability)
-        rank_center = probability * (n - 1)
-        rank_half = z * math.sqrt(max(n * probability * (1.0 - probability), 1e-12))
-        lower_index = max(0, int(math.floor(rank_center - rank_half)))
-        upper_index = min(n - 1, int(math.ceil(rank_center + rank_half)))
-        lower, upper = ordered[lower_index], ordered[upper_index]
-        half = max(estimate - lower, upper - estimate)
-        method = "distribution_free_order_statistic_rank_interval_normal_approximation"
+        rank_support = exact_quantile_rank_interval(n, probability, confidence)
+        method = "distribution_free_exact_binomial_order_statistic_interval"
+        if rank_support["feasible"]:
+            lower_index = rank_support["lowerIndex"]
+            upper_index = rank_support["upperIndex"]
+            assert isinstance(lower_index, int) and isinstance(upper_index, int)
+            lower, upper = ordered[lower_index], ordered[upper_index]
+            half = max(estimate - lower, upper - estimate)
+        else:
+            lower = upper = half = None
     else:
         raise AssertionError(kind)
 
-    return {
+    precision = {
         "estimate": estimate,
         "intervalLower": lower,
         "intervalUpper": upper,
@@ -347,8 +426,24 @@ def diagnostic(groups: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, 
         "confidenceLevel": confidence,
         "precisionMethod": method,
         "declaredMaxHalfWidth": threshold,
-        "sufficient": half <= threshold,
+        "sufficient": half is not None and half <= threshold,
     }
+    if kind == "quantile":
+        precision.update(
+            {
+                "coverageFeasible": rank_support["feasible"],
+                "achievedCoverage": rank_support["achievedCoverage"],
+                "maximumAchievableCoverage": rank_support["maximumAchievableCoverage"],
+                "lowerOrderStatisticRank": None
+                if rank_support["lowerIndex"] is None
+                else rank_support["lowerIndex"] + 1,
+                "upperOrderStatisticRank": None
+                if rank_support["upperIndex"] is None
+                else rank_support["upperIndex"] + 1,
+                "coverageAssumption": "continuous_distribution_true_quantile",
+            }
+        )
+    return precision
 
 
 def derive(plan: dict[str, Any], samples: dict[str, Any], study_dir: Path | None) -> dict[str, Any]:
@@ -362,6 +457,11 @@ def derive(plan: dict[str, Any], samples: dict[str, Any], study_dir: Path | None
     mode = plan["design"]["mode"]
     if precision["sufficient"]:
         decision = "sufficient_stop"
+    elif plan["estimand"]["kind"] == "quantile" and not precision["coverageFeasible"]:
+        if mode == "sequential" and has_next:
+            decision = "insufficient_quantile_coverage_continue_with_declared_next_batch"
+        else:
+            decision = "insufficient_quantile_coverage_no_predeclared_additional_batch"
     elif mode == "sequential" and has_next:
         decision = "insufficient_continue_with_declared_next_batch"
     else:
