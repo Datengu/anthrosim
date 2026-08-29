@@ -1,0 +1,53 @@
+name: PR357 regenerate demographic definition
+on:
+  push:
+    branches: [fix/324-dependency-aware-household-fission]
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/324-dependency-aware-household-fission
+      - name: Update source household treatment and regenerate frozen definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('research/general-demography-baseline-v1/exploratory-definition.json')
+          d=json.loads(p.read_text())
+          treatment={
+            'schemaVersion':2,
+            'modelId':'deterministic_dependency_fission_v2',
+            'provenance':'synthetic_validation',
+            'maxLivingMembers':8,
+            'minimumIndependentAgeYears':18,
+          }
+          d['base']['experiment']['householdLifecycle']=treatment
+          dim=next(x for x in d['dimensions'] if x['id']=='household_lifecycle')
+          dim['values']=[None,treatment]
+          p.write_text(json.dumps(d,separators=(',',':'))+'\n')
+          PY
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('research/general-demography-baseline-v1/exploratory-definition.json').read_text())
+          seeds=list(range(3041001,3041065)); d['seeds']=seeds; d['base']['experiment']['seed']=seeds[0]
+          d['base']['experiment']['population']['syntheticMaxAgeYears']=60
+          d['base']['experiment']['resources']['productivityScalePermille']=1000
+          for x in d['dimensions']:
+              if x['id']=='founder_age_ceiling_years': x['values']=[60]
+              if x['id']=='resource_productivity_scale_permille': x['values']=[1000]
+          Path('/tmp/confirm-source.json').write_text(json.dumps(d,separators=(',',':'))+'\n')
+          PY
+          python3 scripts/prepare-general-demography-baseline-definition.py /tmp/confirm-source.json research/general-demography-baseline-v1/confirmatory-definition.json
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/general-demography-baseline-v1/exploratory-definition.json research/general-demography-baseline-v1/confirmatory-definition.json
+          git commit -m 'research: migrate demographic household contrast to fission v2'
+          git push origin HEAD:fix/324-dependency-aware-household-fission
