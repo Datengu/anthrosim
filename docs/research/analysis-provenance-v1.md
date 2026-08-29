@@ -1,5 +1,7 @@
 # Downstream analysis provenance v1
 
+> **Historical contract — superseded by v2.** Audit-v2 issue #340 demonstrated that v1's separate `arguments` object was hashed into provenance but not consumed by execution. Current canonical tooling rejects v1 definitions. Use `analysis-provenance-v2.md`; v1 remains here only to document historical artifacts and the defect that motivated the schema break.
+
 Status: normative research contract for GitHub issue #232.
 
 AnthroSim simulation provenance answers **which model execution produced the preserved run data**. This contract answers the separate question **which executable analysis produced a reported scientific result from those data**.
