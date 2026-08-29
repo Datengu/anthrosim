@@ -27,7 +27,7 @@ Purpose: durable, repository-authoritative cross-session state for the second in
 | Latest audited protected-main SHA | `17c28357d44d838b7dcc0e74279373767d4d66f6` |
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
 | Current P1 findings | #326, #334, #338, #340 |
-| Current P2 findings | #314, #315, #320, #324, #327, #329, #332, #336 |
+| Current P2 findings | #314, #315, #320, #324, #327, #329, #332, #336, #342 |
 | Non-scientific audit infrastructure | #317 |
 | Audit state | in progress |
 
@@ -48,7 +48,7 @@ Protected `main` has advanced through audit-recording merges while executable v1
 | I | Sensitivity, uncertainty, convergence, robustness | complete — findings | `area-i-2026-08-29.md`; #336 |
 | J | Identifiability, equifinality, calibration, discrimination | complete — findings | `area-j-2026-08-29.md`; #338 P1 |
 | K | Experiment orchestration, configuration, provenance, reproducibility | complete — findings | `area-k-2026-08-29.md`; #340 P1 |
-| L | Observability, analysis outputs, statistical summaries | not started | #327/#329/#332/#334/#338/#340 already relevant |
+| L | Observability, analysis outputs, statistical summaries | complete — findings | `area-l-2026-08-29.md`; #342; earlier #183/#184/#222/#226/#229 substantially rechecked |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | #314/#315/#327/#329 already relevant |
 | N | Cross-system integration | not started | mandatory dependencies below |
 
@@ -67,7 +67,7 @@ Protected `main` has advanced through audit-recording merges while executable v1
 | Sensitivity × hidden configuration | complete — findings | #336 metadata-only pseudo-structural coordinates; #324/#326/#334 dependencies |
 | Calibration × identifiability | complete — findings | #338 shows stochastic precision invisible to hard acceptable-region decisions |
 | Checkpoint/resume × RNG | partial — positive local evidence | v19 continuation identity binds named RNG positions; #332 is year-zero metric-history drift |
-| Observability × scientific interpretation | not started | #327/#329/#332/#334/#338/#340 relevant |
+| Observability × scientific interpretation | complete — findings | #342 run-vs-move weighting ambiguity; #327/#329/#332/#334/#338/#340 remain interpretation dependencies |
 
 ## Finding register
 
@@ -85,6 +85,7 @@ Protected `main` has advanced through audit-recording merges while executable v1
 | AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K | open | #336 | Area I | n/a |
 | AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | open | #338 | Area J | **required after repair** |
 | AV2-012 — downstream analysis arguments are not bound to executed analysis | **P1** | K/L | open | #340 | Area K | **required after repair** |
+| AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L | open | #342 | Area L | n/a |
 
 ## Condensed quantitative evidence
 
@@ -96,26 +97,23 @@ Protected `main` has advanced through audit-recording merges while executable v1
 - Area H: exact nominal-95% quantile coverage can be only 33.08% for p=.95,n=8.
 - Area I: `k` metadata-only structural labels can create `k` nominal structures while executable structures remain exactly 1.
 - Area J: changing unrepresented Monte Carlo SE from 0.001 to 1.0 leaves the hard identifiability verdict unchanged for fixed point estimates.
-- Area K: existing #232 test changes only declared `arguments.scale` 2→3 while command remains `--scale 2`; output remains the scale-2 `scaledTotal=10`, replay passes, and only provenance identity changes.
+- Area K: existing #232 test changes only declared `arguments.scale` 2→3 while command remains `--scale 2`; output remains scale-2 `scaledTotal=10`, replay passes, and only provenance identity changes.
+- Area L: with run move counts 1/99 and run quality means 0/1000, current run-weighted point mean is 500 while pooled move-weighted mean is 990; a comparator at 600 reverses ranking between the two estimands.
 
-## 2026-08-29 — Area K handoff
+## 2026-08-29 — Area L handoff
 
-**Live main / semantics:** `17c28357d44d838b7dcc0e74279373767d4d66f6`; `anthrosim-model-semantics-v19`.
+**Live executable baseline / semantics:** `17c28357d44d838b7dcc0e74279373767d4d66f6`; `anthrosim-model-semantics-v19`. Area K PR #341 is documentation-only and pending branch-protection completion.
 
-**Overlap:** Area J PR #339 merged first. No Area K audit branch/PR existed at entry.
+**Positive evidence:** historical censoring, self-describing point design, undefined empty-set means, realized exposure and survivor-conditioning work was substantially rechecked in current `sweep.rs`. Operationally censored runs are excluded from default scientific means, extinction remains an explicit scientific outcome, achieved duration is exposed, and undefined denominator-based means remain null.
 
-**Positive evidence:** historical run/checkpoint/source/retry/protocol/analysis-provenance hardening is substantial. Exact Git provenance, model-semantics compatibility, resume lineage, canonical child-bundle validation, crash-recoverable orchestration metadata, typed research definitions, frozen study protocols, artifact hashing and exact downstream replay were all rechecked as meaningful safeguards.
+**Finding:** AV2-013/#342 P2. Migration-quality point fields are equal-weight means of per-run move means, but names/docs do not state run weighting. A 1-vs-99 move construction gives 500 run-weighted versus 990 move-weighted and reverses ranking against a 600 comparator.
 
-**Finding:** AV2-012/#340 P1. `research-analysis-provenance.py` cryptographically preserves a machine-readable `arguments` object but executes only the independent `command` argv. The repository's own test demonstrates an accepted mismatch (`arguments.scale=3`, command `--scale 2`, output still 10). Canonical provenance can therefore misstate the scientific analysis configuration while verify/replay still pass.
+**Repeat:** after #342 repair, preserve the 1/99 unequal-event fixture and make the estimator/weighting unit explicit. If both run- and move-weighted summaries exist, they should return 500 and 990 respectively.
 
-**Repeat:** independently reverify #340 after repair using deliberate argument/argv mismatch and a file-based config case if supported.
-
-**Secondary hypothesis:** `run-versioned-sweep.py` publishes `source-definition.json` only after sweep completion, leaving a narrow interruption/retry binding window. Record for future hardening review; not promoted to a separate v2 finding in this pass.
-
-**Next:** **Area L — observability, analysis outputs, statistical summaries.** Reconstruct live `main`, open issues/PRs and ownership first. Inspect denominator definitions, time aggregation, per-run/per-agent weighting, censoring/missingness, uncertainty, multimodality, compatible-run grouping, and the existing #327/#329/#332/#334/#338/#340 dependencies.
+**Next:** **Area M — documentation, TRACE/ODD/ODD+D, and claim consistency.** Reconstruct live repository state and inspect current-facing docs against executable v19 semantics and checked-in evidence. Treat #314, #315, #327 and #329 as known findings rather than duplicates.
 
 ---
 
 ## Final audit synthesis
 
-Do not fill until Areas L–N and mandatory integration checks are complete. Final synthesis must state final audited SHA/semantics, finding counts, independent P0/P1 reverification state, unresolved uncertainties, audit convergence, unsupported empirical claims, and recommended next scientific phase.
+Do not fill until Areas M–N and mandatory integration checks are complete. Final synthesis must state final audited SHA/semantics, finding counts, independent P0/P1 reverification state, unresolved uncertainties, audit convergence, unsupported empirical claims, and recommended next scientific phase.
