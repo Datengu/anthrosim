@@ -744,7 +744,7 @@ mod tests {
         let expected = simulation.population().clone();
         let checkpoint = simulation.run_recorded().unwrap().checkpoint;
 
-        let reconstructed = reconstruct_initial_population(&checkpoint, &world).unwrap();
+        let reconstructed = reconstruct_initial_population(Path::new("."), &checkpoint, &world).unwrap();
         assert_eq!(reconstructed, expected);
     }
 
