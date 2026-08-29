@@ -69,3 +69,40 @@ jobs:
           assert r['acceptableRegion']['pointCount'] == 4
           assert r['equifinality']['reportingPolicy'] == 'report_acceptable_region_not_unique_optimum'
           PY
+      - name: Verify structural equifinality preserves held-out discriminator
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          plan={
+            'schemaVersion':1,
+            'analysisId':'structural-equifinality-self-test-v1',
+            'calibrationTargets':[{'observable':'calibration_pattern','target':10.0,'tolerance':0.0}],
+            'corroborationObservables':['heldout_pattern'],
+            'corroborationDiscriminationTolerance':1.0,
+            'claim':{'parameterIds':['x'],'structuralHypothesis':True},
+            'maxNormalizedAcceptableWidth':0.25,
+          }
+          data={'schemaVersion':1,'points':[
+            {'id':'a','parameters':{'x':1},'structure':'model_a','outputs':{'calibration_pattern':10.0,'heldout_pattern':2.0}},
+            {'id':'b','parameters':{'x':1},'structure':'model_b','outputs':{'calibration_pattern':10.0,'heldout_pattern':8.0}},
+            {'id':'c','parameters':{'x':2},'structure':'model_a','outputs':{'calibration_pattern':12.0,'heldout_pattern':4.0}},
+          ]}
+          Path('/tmp/structural-plan.json').write_text(json.dumps(plan,indent=2,sort_keys=True)+'\n')
+          Path('/tmp/structural-data.json').write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
+          PY
+          set +e
+          python3 scripts/research-identifiability.py /tmp/structural-plan.json /tmp/structural-data.json /tmp/structural-result.json
+          status=$?
+          set -e
+          test "$status" -eq 2
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('/tmp/structural-result.json').read_text())
+          assert r['researchGate']['passes'] is False
+          assert r['structuralDiagnostic']['equifinal'] is True
+          assert r['structuralDiagnostic']['acceptableStructures'] == ['model_a','model_b']
+          assert any(x['observable']=='heldout_pattern' and x['discriminating'] is True for x in r['discriminatingPredictions'])
+          assert all(x['role']=='held_out_corroboration_prediction' for x in r['discriminatingPredictions'])
+          PY
