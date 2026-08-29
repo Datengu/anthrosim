@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "analysisId": "synthetic-ratio-sum-identifiability-v1",
+  "calibrationTargets": [
+    {
+      "observable": "ratio_pattern",
+      "target": 1.0,
+      "tolerance": 0.0
+    },
+    {
+      "observable": "independent_sum_pattern",
+      "target": 4.0,
+      "tolerance": 0.0
+    }
+  ],
+  "corroborationObservables": [
+    "heldout_difference_pattern"
+  ],
+  "corroborationDiscriminationTolerance": 0.5,
+  "claim": {
+    "parameterIds": [
+      "opportunity_scale",
+      "need_scale"
+    ],
+    "structuralHypothesis": false
+  },
+  "maxNormalizedAcceptableWidth": 0.25
+}
