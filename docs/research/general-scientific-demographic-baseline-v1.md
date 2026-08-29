@@ -23,6 +23,10 @@ This does not by itself prove that deterministic household fission is scientific
 
 A future focused model-interrogation study should decompose missed reproductive opportunities by gate (age/sex composition, household membership, local male availability, kin restrictions, spacing and geographic separation) before deciding whether any of the structural rules should be changed. The purpose of that follow-up is diagnosis, not tuning the simulator toward a desired flat population curve.
 
+## Integration findings exposed by the analysis
+
+Running the larger factorial and confirmatory studies also exposed integration defects that smaller tests had not exercised. The #304 implementation repairs split population/process seed reconstruction in run bundles, legitimate mid-year population-extinction checkpoint validation, authoritative spatial-world reconstruction from the bound environment seed, and demographic-observability replay across household-fission events. These are correctness repairs discovered by the analysis; they do not change the frozen #239 demographic control definitions.
+
 ## Scientific scope
 
 The result demonstrates model-form dependence, not prehistoric calibration: deterministic fission is a structural sensitivity treatment, and none of these schedules is empirically calibrated. Historical `synthetic_validation_v1` and all three #239 controls remain unchanged; no target-population feedback is introduced.
