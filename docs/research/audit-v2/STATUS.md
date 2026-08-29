@@ -80,7 +80,7 @@ Add every scientifically substantive finding here, including findings that are l
 |---|---|---|---|---|---|---|
 | AV2-001 — current-facing model-semantics identity drift (v15 documented vs executable/tagged v19) | P2 | A / M / K | issue open | #314; audit ledger PR #316 | `area-a-2026-08-29.md` | n/a — open |
 | AV2-002 — M2 demographic-time contract retains superseded annual-boundary mortality execution | P2 | A / B / M | issue open | #315; audit ledger PR #316 | `area-a-2026-08-29.md` | n/a — open |
-| AV2-003 — declared founder genealogy accepts biologically impossible parent-child age gaps | P2 | B / C / G | issue open | #320; adversarial evidence PR #319; Area B ledger PR pending | `area-b-2026-08-29.md` | n/a — open |
+| AV2-003 — declared founder genealogy accepts biologically impossible parent-child age gaps | P2 | B / C / G | issue open | #320; adversarial evidence PR #319; audit ledger PR #322 | `area-b-2026-08-29.md` | n/a — open |
 
 Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in progress`, `fixed`, `reverified`, `not a defect`, `accepted limitation`.
 
@@ -165,7 +165,7 @@ Each audit session must append an entry using the template below. Keep entries c
 - #315 remains relevant documentation drift for Area B but no new executable mortality-timing defect was demonstrated;
 - no new P0/P1 Area B finding.
 
-**Issues/PRs created or relevant:** #320; closed-unmerged adversarial PR #319; #315 relevant; historical #214 supplies the existing paired-seed/RNG interpretation. #318 is discarded accidental tooling noise, not evidence.
+**Issues/PRs created or relevant:** #320; closed-unmerged adversarial PR #319; audit ledger PR #322; #315 relevant; historical #214 supplies the existing paired-seed/RNG interpretation. #318 is discarded accidental tooling noise, not evidence.
 
 **Unresolved hypotheses:** empirical calibration/realism of mortality, fertility, age structure and parent-age distributions remains outside this synthetic mechanism audit. Agent-level keyed stochastic coupling should be reconsidered only if a future study requires stronger common-random-number counterfactuals.
 
