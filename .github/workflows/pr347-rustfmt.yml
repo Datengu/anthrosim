@@ -1,0 +1,33 @@
+name: PR347 rustfmt helper
+
+on:
+  push:
+    branches:
+      - fix/326-partial-supply-condition-rounding
+
+permissions:
+  contents: write
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: true
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Format and commit
+        run: |
+          cargo fmt --all
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/population.rs crates/anthrosim-core/src/resources.rs
+          git commit -m "style: apply rustfmt for #326"
+          git push origin HEAD:fix/326-partial-supply-condition-rounding
