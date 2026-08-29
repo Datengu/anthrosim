@@ -110,3 +110,117 @@ fn audit_probe_fission_household_composition_depends_on_person_id_relabelling() 
         ]
     );
 }
+
+fn newborn_fission_config() -> ExperimentConfig {
+    let household = HouseholdId::new(1);
+    let founder_population = FounderPopulationDefinition::new(
+        "audit-v2-area-c-newborn-fission",
+        ParameterProvenance::SyntheticValidation,
+        FounderGenealogyStatus::CompleteLivingDirectParents,
+        vec![FounderHousehold {
+            id: household,
+            location: CellId::new(1),
+        }],
+        vec![
+            FounderPerson {
+                id: PersonId::new(1),
+                birth_day: -(25 * DAYS_PER_YEAR),
+                reproductive_sex: ReproductiveSex::Female,
+                household,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+            FounderPerson {
+                id: PersonId::new(2),
+                birth_day: -(25 * DAYS_PER_YEAR),
+                reproductive_sex: ReproductiveSex::Female,
+                household,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+            FounderPerson {
+                id: PersonId::new(3),
+                birth_day: -(25 * DAYS_PER_YEAR),
+                reproductive_sex: ReproductiveSex::Female,
+                household,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+            FounderPerson {
+                id: PersonId::new(4),
+                birth_day: -(25 * DAYS_PER_YEAR),
+                reproductive_sex: ReproductiveSex::Female,
+                household,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+            FounderPerson {
+                id: PersonId::new(5),
+                birth_day: -(30 * DAYS_PER_YEAR),
+                reproductive_sex: ReproductiveSex::Male,
+                household,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+        ],
+    );
+
+    let mut demography = DemographyConfig::synthetic_validation_v1();
+    demography.schedule_id = "audit-v2-area-c-certain-fertility".to_owned();
+    demography.mortality_bands = vec![AgeProbabilityBand::new(0, u32::MAX, 0)];
+    demography.fertility_bands = vec![AgeProbabilityBand::new(0, u32::MAX, 1_000_000)];
+    demography.minimum_birth_spacing_days = 0;
+
+    let mut resources = ResourceConfig::synthetic_validation_v1();
+    resources.annual_need_units_per_person = 0;
+    resources.max_scarcity_mortality_probability_per_million = 0;
+
+    ExperimentConfig::new(32302, 1)
+        .with_world(WorldConfig::new(1, 1))
+        .with_population(PopulationConfig::new(5))
+        .with_founder_population(founder_population)
+        .with_demography(demography)
+        .with_resources(resources)
+        .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
+        .with_household_lifecycle(HouseholdLifecycleConfig::deterministic_size_fission_v1(5))
+}
+
+#[test]
+fn audit_probe_same_day_fission_puts_all_newborns_in_new_household() {
+    let run = Simulation::new(newborn_fission_config())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+
+    assert_eq!(run.checkpoint.population.person_count(), 9);
+    assert_eq!(run.checkpoint.population.household_count(), 2);
+
+    for raw in 1..=5_u64 {
+        let person = run
+            .checkpoint
+            .population
+            .person(PersonId::new(raw))
+            .unwrap();
+        assert_eq!(person.household, HouseholdId::new(1));
+        assert!(person.birth_day < 0);
+    }
+    for raw in 6..=9_u64 {
+        let person = run
+            .checkpoint
+            .population
+            .person(PersonId::new(raw))
+            .unwrap();
+        assert_eq!(person.household, HouseholdId::new(2));
+        assert_eq!(person.birth_day, DAYS_PER_YEAR);
+    }
+}
