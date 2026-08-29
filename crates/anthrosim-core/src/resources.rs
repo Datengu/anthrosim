@@ -396,8 +396,6 @@ impl ResourceSystem {
             harvested_food: self.harvested_food,
             consumed_food: self.harvested_food,
             unmet_need: self.unmet_need,
-            // Summaries are emitted only from internally checked or checkpoint-validated state.
-            // Keep this legacy infallible API while avoiding unchecked aggregate arithmetic.
             final_food_stock: self.total_food_stock().unwrap_or(u64::MAX),
             household_periods_with_unmet_need: self.household_periods_with_unmet_need,
             scarcity_deaths: self.scarcity_deaths,
@@ -515,12 +513,6 @@ impl ResourceSystem {
             )?;
         let interval_recovery = u16::try_from(reference_quarter_quantity_for_interval(
             u64::from(config.condition_recovery_per_period),
-            period_start,
-            period_end,
-        )?)
-        .map_err(|_| ResourceError::AccountingOverflow)?;
-        let interval_max_loss = u16::try_from(reference_quarter_quantity_for_interval(
-            u64::from(config.max_condition_loss_per_period),
             period_start,
             period_end,
         )?)
@@ -745,14 +737,13 @@ impl ResourceSystem {
                 if supplied_permille >= u64::from(PERMILLE_MAX) {
                     current.saturating_add(interval_recovery).min(PERMILLE_MAX)
                 } else {
-                    let deficit = u64::from(PERMILLE_MAX) - supplied_permille;
-                    let loss_numerator = deficit * u64::from(interval_max_loss);
-                    let loss = if loss_numerator == 0 {
-                        0
-                    } else {
-                        loss_numerator.div_ceil(u64::from(PERMILLE_MAX))
-                    };
-                    current.saturating_sub(u16::try_from(loss).unwrap_or(u16::MAX))
+                    let loss = partial_supply_condition_loss_for_interval(
+                        config.max_condition_loss_per_period,
+                        supplied_permille,
+                        period_start,
+                        period_end,
+                    )?;
+                    current.saturating_sub(loss)
                 }
             };
             if !population.set_condition_at_index(person_index, updated) {
@@ -1010,8 +1001,6 @@ impl ResourceSystem {
             return Err(ResourceError::StateShapeMismatch);
         }
 
-        // Aggregate first so malformed restored state fails deterministically before any
-        // capacity/accounting comparison can observe a wrapped total.
         let _ = self.total_food_stock()?;
         for (cell_index, (&stock, cell)) in self
             .cell_food_stock
@@ -1166,8 +1155,6 @@ impl ResourceRngs {
     #[must_use]
     pub(crate) fn new(factory: RngFactory) -> Self {
         Self {
-            // Preserve the historical stream label so v10 changes cause semantics/observability,
-            // not the deterministic random sequence used by otherwise-equivalent runs.
             scarcity_mortality: factory.stream("resources/scarcity_mortality"),
         }
     }
@@ -1224,7 +1211,6 @@ pub fn validate_resource_config(config: &ResourceConfig) -> Result<(), ResourceC
     Ok(())
 }
 
-/// Exact half-open day offsets for one resource period within a 365-day model year.
 pub(crate) fn resource_period_day_bounds(
     period_index_in_year: u16,
     periods_per_year: u16,
@@ -1239,7 +1225,6 @@ pub(crate) fn resource_period_day_bounds(
     Some((start, end))
 }
 
-/// Allocate a fixed annual integer quantity over the scheduler's actual elapsed-day periods.
 pub(crate) fn fixed_annual_quantity_for_period(
     annual: u64,
     period_index_in_year: u16,
@@ -1253,7 +1238,6 @@ pub(crate) fn fixed_annual_quantity_for_period(
     after.checked_sub(before)
 }
 
-/// Resolve the fixed annual share corresponding to an actual resource boundary day.
 pub(crate) fn fixed_annual_quantity_at_resource_boundary(
     annual: u64,
     periods_per_year: u16,
@@ -1280,11 +1264,6 @@ pub(crate) fn fixed_annual_quantity_at_resource_boundary(
     fixed_annual_quantity_for_period(annual, index, periods_per_year)
 }
 
-/// Convert one reference-quarter response quantity into the amount attributable to any half-open
-/// interval in the model year. The four reference intervals are exactly the canonical scheduler
-/// quarters [0,91), [91,182), [182,273), [273,365). Linear cumulative allocation inside each
-/// reference quarter preserves the configured amount at every quarter boundary and conserves four
-/// times the reference quantity over a complete year, regardless of M3 partitioning.
 fn reference_quarter_quantity_for_interval(
     reference_quantity: u64,
     start: u64,
@@ -1328,13 +1307,46 @@ fn reference_quarter_quantity_for_interval(
     Ok(total)
 }
 
-/// Exact conditional death probability for an arbitrary interval when `reference_probability` is
-/// the conditional probability over each canonical reference quarter at fixed condition.
-///
-/// Within a reference quarter, cumulative incidence is linear in elapsed days. Conditional
-/// survival over a sub-interval is therefore an exact rational ratio. Multiplying at most four
-/// overlapping quarter ratios makes the complete-year survival `(1-q)^4` independent of how M3
-/// partitions the year, while P=4 reproduces q exactly at every reference-quarter boundary.
+fn cumulative_partial_supply_condition_loss(
+    reference_max_loss: u16,
+    supplied_permille: u64,
+    boundary: u64,
+) -> Result<u64, ResourceError> {
+    if supplied_permille >= u64::from(PERMILLE_MAX) {
+        return Ok(0);
+    }
+    let deficit = u64::from(PERMILLE_MAX) - supplied_permille;
+    let cumulative_max_loss = reference_quarter_quantity_for_interval(
+        u64::from(reference_max_loss),
+        0,
+        boundary,
+    )?;
+    let numerator = deficit
+        .checked_mul(cumulative_max_loss)
+        .ok_or(ResourceError::AccountingOverflow)?;
+    Ok(if numerator == 0 {
+        0
+    } else {
+        numerator.div_ceil(u64::from(PERMILLE_MAX))
+    })
+}
+
+fn partial_supply_condition_loss_for_interval(
+    reference_max_loss: u16,
+    supplied_permille: u64,
+    start: u64,
+    end: u64,
+) -> Result<u16, ResourceError> {
+    let before =
+        cumulative_partial_supply_condition_loss(reference_max_loss, supplied_permille, start)?;
+    let after =
+        cumulative_partial_supply_condition_loss(reference_max_loss, supplied_permille, end)?;
+    let loss = after
+        .checked_sub(before)
+        .ok_or(ResourceError::AccountingOverflow)?;
+    u16::try_from(loss).map_err(|_| ResourceError::AccountingOverflow)
+}
+
 fn reference_quarter_probability_for_interval(
     reference_probability: u32,
     start: u64,
@@ -1516,13 +1528,6 @@ fn validate_temporary_resource_period(
     Ok(())
 }
 
-/// Resolve an exact home/visitor fractional tie without assigning semantic priority to either side.
-///
-/// The resource-period sequence follows the Thue-Morse binary-parity phase. A household's stable
-/// zero-based index only complements that phase, so it spreads simultaneous ties without ranking
-/// households or changing any household's long-run 50/50 share. In particular, a tie recurring in
-/// the same seasonal slot every 2^k resource periods still traverses the same balanced sequence
-/// rather than aliasing onto one side as a simple odd/even-period rule would.
 #[must_use]
 fn duration_rounding_tie_visiting_wins(household_index: usize, period_sequence: u64) -> bool {
     ((period_sequence.count_ones() ^ household_index.count_ones()) & 1) == 1
@@ -1923,6 +1928,54 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(quarterly, vec![25, 25, 25, 25]);
+    }
+
+    #[test]
+    fn partial_supply_condition_loss_is_partition_invariant() {
+        for (deficit_permille, expected_annual_loss) in [
+            (1_u64, 1_u64),
+            (10, 4),
+            (100, 40),
+            (500, 200),
+            (1_000, 400),
+        ] {
+            let supplied_permille = u64::from(PERMILLE_MAX) - deficit_permille;
+            for periods in [1_u16, 4, 12, 52, 365] {
+                let total_loss = (0..periods)
+                    .map(|index| {
+                        let (start, end) = resource_period_day_bounds(index, periods).unwrap();
+                        u64::from(
+                            partial_supply_condition_loss_for_interval(
+                                100,
+                                supplied_permille,
+                                start,
+                                end,
+                            )
+                            .unwrap(),
+                        )
+                    })
+                    .sum::<u64>();
+                assert_eq!(
+                    total_loss, expected_annual_loss,
+                    "deficit={deficit_permille}, periods={periods}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn partial_supply_rounding_is_cumulative_not_repeated_per_boundary() {
+        let supplied_permille = 999_u64;
+        let daily = (0..365_u16)
+            .map(|index| {
+                let (start, end) = resource_period_day_bounds(index, 365).unwrap();
+                partial_supply_condition_loss_for_interval(100, supplied_permille, start, end)
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(daily.iter().map(|&value| u64::from(value)).sum::<u64>(), 1);
+        assert_eq!(daily.iter().filter(|&&value| value == 1).count(), 1);
+        assert!(daily.iter().all(|&value| value <= 1));
     }
 
     fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
