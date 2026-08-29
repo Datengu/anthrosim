@@ -44,11 +44,20 @@ fn reconstruct_authoritative_world(
         .config
         .validate_evidence_links(config.evidence.as_ref())?;
     let overlay = transform_landscape(landscape, &run.checkpoint.spatial.config)?;
-    let world = World::generate(config.world, RngFactory::new(config.seed))?
-        .with_model_field_overlay(
-            overlay.movement_cost.as_deref(),
-            overlay.water_access.as_deref(),
-            overlay.base_productivity.as_deref(),
-        )?;
+    let world = World::generate(
+        config.world,
+        RngFactory::new(
+            run.checkpoint
+                .spatial
+                .environment
+                .realization
+                .environment_seed,
+        ),
+    )?
+    .with_model_field_overlay(
+        overlay.movement_cost.as_deref(),
+        overlay.water_access.as_deref(),
+        overlay.base_productivity.as_deref(),
+    )?;
     Ok(world)
 }
