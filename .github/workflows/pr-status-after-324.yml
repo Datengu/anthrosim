@@ -1,0 +1,46 @@
+name: Audit v2 STATUS after #324
+on:
+  push:
+    branches: [audit-v2/status-after-324]
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit-v2/status-after-324
+      - name: Update authoritative audit ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('docs/research/audit-v2/STATUS.md')
+          s=p.read_text()
+          s=s.replace('| Latest protected-main closure baseline examined | `4b6a1ac1e239f262d960a6f063bd8f4288978c6a` |', '| Latest protected-main closure baseline examined | `d00b603a134a6b7d920fa7a2a9783a9604effff2` |')
+          s=s.replace('| Model semantics | `anthrosim-model-semantics-v20` |', '| Model semantics | `anthrosim-model-semantics-v21` |')
+          s=s.replace('| Current P2 findings | #314, #315, #320, #324, #327, #329, #332, #336, #342 |', '| Current P2 findings | #314, #315, #320, #327, #329, #332, #336, #342 |')
+          s=s.replace('Repair of #326 intentionally advanced authoritative causal semantics to v20; subsequent P1 inference/provenance repairs did not change model semantics.', 'Repair of #326 intentionally advanced authoritative causal semantics to v20. Repair of #324 then advanced authoritative household-assignment semantics to v21; subsequent inference/provenance contracts remain explicitly versioned.')
+          s=s.replace('| C | Households, kinship, social links, lifecycle structure | complete — findings | `area-c-2026-08-29.md`; #324 |', '| C | Households, kinship, social links, lifecycle structure | complete — P2 repaired/reverified | `area-c-2026-08-29.md`; #324 / PR #358; independent composition checker + #207/#304 reruns |')
+          s=s.replace('| AV2-004 — household fission derives social composition from PersonId/birth order | P2 | C/N/I | open | #324 | n/a |', '| AV2-004 — household fission derives social composition from PersonId/birth order | P2 | C/N/I | **fixed + independently reverified** | #324 | PR #358; relabelling/newborn/dependency adversaries; M4/M9/checkpoint; #207 + 130-seed #304 evidence |')
+          marker='## Cross-system integration matrix\n'
+          section='''### #324 / PR #358 — dependency-aware household fission\n\n- `MODEL_SEMANTICS_ID` advanced v20 → v21 and the opt-in structural-sensitivity treatment is now `deterministic_dependency_fission_v2`.\n- Household composition no longer comes from contiguous PersonId/storage-order slices: daughter households require independent-age anchors when feasible, dependents preferentially remain with living parents, and fission defers instead of manufacturing child-only autonomous units when there are too few independent anchors.\n- Adversarial tests cover scientifically equivalent PersonId relabelling, a 5-adult + 4-newborn threshold crossing, a 1-adult + 8-child defer case, deterministic replay/checkpoint, explicit M4 daughter-household participation and downstream M9 behavior. An independent Area C arithmetic checker reproduces the legacy cohort-sorting failure and repaired invariants without importing AnthroSim.\n- The frozen #207 structural-sensitivity design reran 8 paired seeds × 2 arms × 40 years: 16/16 completed, zero extinctions. The qualitative household-structure sensitivity survived, while historical fission-v1 total M3 unmet need 449 fell to 118 under dependency-aware v2 (−73.7%), demonstrating that the old membership artifact materially distorted at least one mechanism-level outcome.\n- The first v21 #304 64-seed confirmation completed 384/384 runs but correctly failed its fixed Monte Carlo extinction-precision gate (4/64; Wilson half-width 0.08747 > predeclared 0.085). It was not extended post hoc.\n- A new confirmation prospectively froze 130 entirely fresh seeds (`3042001..3042130`), with 130 chosen from the worst-case Wilson precision bound. All three exact precision plans were checked in before execution. The resulting 780/780 arm-runs completed and all three gates returned `sufficient_stop`.\n- Under the v21 positive-growth comparison, fixed-founder households ended at mean N=107.31 with late growth −0.0817%/yr and 0/130 extinctions; dependency-aware fission ended at mean N=20.92 with late growth −1.029%/yr and 4/130 extinctions. The paired terminal-population effect was −86.38 people with 95% Monte Carlo half-width 7.04 (<15). The high-level #304 recommendation remains `no_universal_demographic_baseline`.\n\n'''
+          if section not in s:
+              s=s.replace(marker, section+marker)
+          s=s.replace('| Demography × households | still repeat/resolve with #324; fission partition rule is not neutral |', '| Demography × households | #324 repaired/reverified under v21; #207 and fresh 130-seed #304 reruns confirm strong structural sensitivity without PersonId cohort slicing |')
+          s=s.replace('| Households × movement | still repeat/resolve with #324 |', '| Households × movement | #324 repaired/reverified; explicit M4 daughter-household participation plus existing M9/checkpoint lifecycle integration pass under dependency-aware fission |')
+          s=s.replace('1. Triage/repair the remaining P2 findings #314, #315, #320, #324, #327, #329, #332, #336 and #342.', '1. Triage/repair the remaining P2 findings #314, #315, #320, #327, #329, #332, #336 and #342.')
+          s=s.replace('3. Prioritize #324 because household-fission structure propagated strongly into demography/movement evidence and several integration conclusions explicitly depend on it.\n4. Repeat any integration/scientific references whose interpretation changes under those repairs.\n5. Perform one short final closure/reverification pass against then-current protected main; do **not** restart A–N from scratch unless causal executable semantics materially change.', '3. Repeat any integration/scientific references whose interpretation changes under the remaining repairs.\n4. Perform one short final closure/reverification pass against then-current protected main; do **not** restart A–N from scratch unless causal executable semantics materially change.')
+          s=s.replace('Audit v2 remains **coverage-complete but not yet backlog-closed**. No P0 finding is open. All P1 findings discovered so far are repaired and independently reverified on the v20 line, including the closure-discovered stale-reference defect #350.', 'Audit v2 remains **coverage-complete but not yet backlog-closed**. No P0 finding is open. All P1 findings discovered so far are repaired and independently reverified. The highest-impact remaining P2 household finding #324 is also repaired/reverified on the v21 line, including fresh structural and confirmatory stochastic evidence.')
+          s=s.replace('The remaining work is now P2/P3 scientific robustness, interpretation, documentation, initialization, household structure, sensitivity, metric semantics and continuation-observability cleanup. The recommended next issue is **#324**, because its household partition rule produced the strongest remaining demonstrated cross-system effect and is explicitly upstream of demography × households and households × movement closure evidence.', 'The remaining work is now P2/P3 scientific robustness, interpretation, documentation, initialization, sensitivity, metric semantics and continuation-observability cleanup. #324 is closed; the next issue should be selected from the remaining P2 backlog only after checking live overlap and dependencies.')
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- docs/research/audit-v2/STATUS.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/research/audit-v2/STATUS.md
+          git commit -m 'docs: record #324 audit-v2 closure state'
+          git push origin HEAD:audit-v2/status-after-324
