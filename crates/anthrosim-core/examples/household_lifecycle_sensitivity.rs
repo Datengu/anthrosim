@@ -95,8 +95,9 @@ fn config(seed: u64, fission: bool) -> ExperimentConfig {
         .with_migration(MigrationConfig::synthetic_validation_v1())
         .with_temporary_mobility(temporary_mobility);
     if fission {
-        config = config
-            .with_household_lifecycle(HouseholdLifecycleConfig::deterministic_size_fission_v1(8));
+        config = config.with_household_lifecycle(
+            HouseholdLifecycleConfig::deterministic_dependency_fission_v2(8, 18),
+        );
     }
     config
 }
