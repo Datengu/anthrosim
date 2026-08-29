@@ -21,11 +21,7 @@ fn founder_definition(reverse_labels: bool) -> FounderPopulationDefinition {
         .map(|(index, age_years)| FounderPerson {
             id: PersonId::new(index as u64 + 1),
             birth_day: -(age_years * DAYS_PER_YEAR),
-            reproductive_sex: if index.is_multiple_of(2) {
-                ReproductiveSex::Female
-            } else {
-                ReproductiveSex::Male
-            },
+            reproductive_sex: ReproductiveSex::Female,
             household: HouseholdId::new(1),
             female_parent: None,
             male_parent: None,
