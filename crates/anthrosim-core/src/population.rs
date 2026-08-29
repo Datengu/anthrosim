@@ -512,7 +512,9 @@ impl Population {
         &self,
         index: usize,
     ) -> Option<u16> {
-        self.condition_loss_remainder_thousandths.get(index).copied()
+        self.condition_loss_remainder_thousandths
+            .get(index)
+            .copied()
     }
 
     pub(crate) fn set_condition_with_loss_remainder_at_index(
@@ -1540,7 +1542,10 @@ mod tests {
         assert_eq!(population.living_count(), 10);
         assert_eq!(population.births_since_start, 1);
         assert_eq!(population.deaths_since_start, 1);
-        assert_eq!(population.condition_loss_remainder_thousandths.last(), Some(&0));
+        assert_eq!(
+            population.condition_loss_remainder_thousandths.last(),
+            Some(&0)
+        );
     }
 
     #[test]

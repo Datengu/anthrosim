@@ -1961,19 +1961,15 @@ mod tests {
         assert_eq!(quarterly, vec![25, 25, 25, 25]);
     }
 
-    fn accumulated_partial_supply_loss(
-        periods: u16,
-        deficit_permille: u64,
-    ) -> (u64, u16) {
+    fn accumulated_partial_supply_loss(periods: u16, deficit_permille: u64) -> (u64, u16) {
         let supplied_permille = u64::from(PERMILLE_MAX) - deficit_permille;
         let mut total_loss = 0_u64;
         let mut remainder = 0_u16;
         for index in 0..periods {
             let (start, end) = resource_period_day_bounds(index, periods).unwrap();
-            let interval_max_loss = u16::try_from(
-                reference_quarter_quantity_for_interval(100, start, end).unwrap(),
-            )
-            .unwrap();
+            let interval_max_loss =
+                u16::try_from(reference_quarter_quantity_for_interval(100, start, end).unwrap())
+                    .unwrap();
             let (loss, next_remainder) = partial_supply_condition_loss_with_remainder(
                 interval_max_loss,
                 supplied_permille,
@@ -2063,8 +2059,7 @@ mod tests {
             let condition = PERMILLE_MAX - u16::try_from(loss).unwrap();
             let condition_deficit = u64::from(PERMILLE_MAX - condition);
             let mortality_reference_probability = u32::try_from(
-                condition_deficit * u64::from(PROBABILITY_PER_MILLION)
-                    / u64::from(PERMILLE_MAX),
+                condition_deficit * u64::from(PROBABILITY_PER_MILLION) / u64::from(PERMILLE_MAX),
             )
             .unwrap();
             let m4_pressure = migration_pressure_permille(condition, PERMILLE_MAX, &migration);
