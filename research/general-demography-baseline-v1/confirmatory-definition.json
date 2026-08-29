@@ -955,9 +955,10 @@
         null,
         {
           "maxLivingMembers": 8,
-          "modelId": "deterministic_size_fission_v1",
+          "minimumIndependentAgeYears": 18,
+          "modelId": "deterministic_dependency_fission_v2",
           "provenance": "synthetic_validation",
-          "schemaVersion": 1
+          "schemaVersion": 2
         }
       ]
     },
