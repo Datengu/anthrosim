@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import tempfile
 from pathlib import Path
 
@@ -138,12 +139,68 @@ def paired_demo():
     assert result["precision"]["sufficient"] is True
 
 
+def independent_quantile_coverage(n, probability, lower_rank, upper_rank):
+    lower_index = lower_rank - 1
+    upper_index = upper_rank - 1
+    return math.fsum(
+        math.comb(n, k) * probability**k * (1.0 - probability) ** (n - k)
+        for k in range(lower_index + 1, upper_index + 1)
+    )
+
+
 def quantile_demo():
-    plan = make_plan("quantile", [list(range(301, 321))], 10.0, quantile=0.9)
+    plan = make_plan("quantile", [list(range(301, 321))], 10.0, quantile=0.5)
     rows = [(seed, float(seed - 300)) for seed in range(301, 321)]
-    result = mc.derive(plan, sample([("tail", rows)]), None)
-    assert result["precision"]["precisionMethod"].startswith("distribution_free_order_statistic")
-    assert result["precision"]["intervalLower"] <= result["precision"]["estimate"] <= result["precision"]["intervalUpper"]
+    result = mc.derive(plan, sample([("median", rows)]), None)
+    precision = result["precision"]
+    assert precision["precisionMethod"] == "distribution_free_exact_binomial_order_statistic_interval"
+    assert precision["coverageFeasible"] is True
+    assert precision["achievedCoverage"] >= 0.95
+    assert precision["intervalLower"] <= precision["estimate"] <= precision["intervalUpper"]
+    exact = independent_quantile_coverage(
+        20, 0.5, precision["lowerOrderStatisticRank"], precision["upperOrderStatisticRank"]
+    )
+    assert abs(exact - precision["achievedCoverage"]) < 1e-12
+
+
+def quantile_coverage_adversarial_demo():
+    infeasible = [(0.50, 2), (0.90, 8), (0.95, 8), (0.95, 20), (0.99, 20), (0.99, 100)]
+    for probability, n in infeasible:
+        seeds = list(range(10_000, 10_000 + n))
+        plan = make_plan("quantile", [seeds], 1_000_000.0, quantile=probability)
+        rows = [(seed, 7.0) for seed in seeds]
+        result = mc.derive(plan, sample([("tail", rows)]), None)
+        precision = result["precision"]
+        assert precision["coverageFeasible"] is False
+        assert precision["sufficient"] is False
+        assert precision["intervalLower"] is None
+        assert precision["intervalUpper"] is None
+        assert precision["halfWidth"] is None
+        assert precision["maximumAchievableCoverage"] < 0.95
+        assert result["decision"] == "insufficient_quantile_coverage_no_predeclared_additional_batch"
+
+    minimum_feasible = [(0.50, 6), (0.90, 29), (0.95, 59), (0.99, 299)]
+    for probability, n in minimum_feasible:
+        seeds = list(range(20_000, 20_000 + n))
+        plan = make_plan("quantile", [seeds], 0.1, quantile=probability)
+        rows = [(seed, 7.0) for seed in seeds]
+        result = mc.derive(plan, sample([("tail", rows)]), None)
+        precision = result["precision"]
+        assert precision["coverageFeasible"] is True
+        assert precision["achievedCoverage"] >= 0.95
+        assert precision["sufficient"] is True
+        exact = independent_quantile_coverage(
+            n, probability, precision["lowerOrderStatisticRank"], precision["upperOrderStatisticRank"]
+        )
+        assert abs(exact - precision["achievedCoverage"]) < 1e-12
+
+
+def quantile_large_n_numeric_stability_demo():
+    # The former direct comb(n,k)*float evaluation overflows around this scale.
+    support = mc.exact_quantile_rank_interval(1500, 0.5, 0.95)
+    assert support["feasible"] is True
+    assert support["achievedCoverage"] >= 0.95
+    assert support["maximumAchievableCoverage"] > 0.999
 
 
 def frozen_study_binding_demo(plan, larger):
@@ -223,6 +280,8 @@ def main():
     changed_seed_provenance_demo(plan, larger)
     paired_demo()
     quantile_demo()
+    quantile_coverage_adversarial_demo()
+    quantile_large_n_numeric_stability_demo()
     frozen_study_binding_demo(plan, larger)
     fixed_failure_has_no_posthoc_escape()
     print("research Monte Carlo sufficiency regression suite passed")

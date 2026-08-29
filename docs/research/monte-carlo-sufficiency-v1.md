@@ -120,9 +120,11 @@ Supported estimands are:
 | `difference_in_means` | independent two-sample CLT standard error |
 | `paired_mean_difference` | CLT interval on exact per-seed paired differences |
 | `probability` | Wilson score interval for a Bernoulli probability such as extinction/persistence |
-| `quantile` | order-statistic rank interval using a binomial-rank normal approximation |
+| `quantile` | exact finite-sample binomial/order-statistic rank interval; infeasible confidence/quantile/sample-size combinations fail closed |
 
-The diagnostic records the exact method name. The methods are analysis contracts, not universal guarantees. In particular, very small samples, extreme tails, heavy-tailed outputs or rare events may demand a more conservative/specialized predeclared method in a future schema rather than pretending a generic interval is adequate.
+The diagnostic records the exact method name. For `quantile`, diagnostic schema v2 replaces the former normal rank approximation with an exact finite-sample order-statistic coverage contract. Under a continuous population, if `K ~ Binomial(n, p)` is the number of observations below the true `p`-quantile, an emitted 0-based rank interval `[l, u]` is accepted only when `P(l + 1 <= K <= u)` is at least the declared confidence level. Rank selection depends only on `n`, `p`, and the confidence level, never on observed sample values. If no sample-only order-statistic interval can attain the declared coverage, interval bounds and half-width are null, `coverageFeasible=false`, and the gate cannot return `sufficient_stop`. At 95% confidence the minimum feasible replicate counts for `p=0.50, 0.90, 0.95, 0.99` are respectively 6, 29, 59, and 299. This contract assumes a continuous distribution for the true quantile; discrete/tied-output quantiles require separately reviewed interpretation.
+
+The remaining methods are analysis contracts rather than universal guarantees. Very small samples, heavy-tailed outputs or rare events may require a separately predeclared method rather than pretending a generic interval is adequate.
 
 `paired_mean_difference` means paired **replicate-level seed contrasts** when scientifically justified. It does not claim per-agent common-random-number counterfactual coupling and does not alter simulator RNG semantics.
 
@@ -131,6 +133,8 @@ The diagnostic records the exact method name. The methods are analysis contracts
 The input sample is intentionally downstream of simulation execution. It contains one or two named groups and exact `(seed, value)` rows. The exact seed order must equal one declared cumulative seed-batch prefix.
 
 For `probability`, values are boolean or `0/1`. Other v1 estimands use finite numeric values.
+
+The emitted diagnostic uses schema v2 while retaining precision-plan schema/identity v1. The v2 change is analysis-layer only and does not change `MODEL_SEMANTICS_ID`.
 
 The emitted diagnostic preserves:
 
@@ -176,7 +180,7 @@ The suite also verifies:
 - rejection of an undeclared partial sequential batch;
 - a fixed design that fails precision and has no post-hoc continuation escape;
 - paired-seed mean contrasts;
-- a quantile/tail estimand with an order-statistic method;
+- central and tail quantile estimands with exact binomial coverage assertions, including fail-closed under-supported samples at `p = 0.5, 0.9, 0.95, 0.99`;
 - confirmatory frozen-study binding and rejection of a post-result replacement precision plan.
 
 A Rust integration-test wrapper executes the Python regression suite in the repository test matrix.
