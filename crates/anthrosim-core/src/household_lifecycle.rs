@@ -2,8 +2,8 @@ use thiserror::Error;
 
 use crate::{
     config::{
-        DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID, FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID,
-        HouseholdLifecycleConfig,
+        DETERMINISTIC_DEPENDENCY_FISSION_HOUSEHOLD_LIFECYCLE_ID,
+        FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID, HouseholdLifecycleConfig,
     },
     events::{EventKind, EventLog, HOUSEHOLD_FISSION_EVENT_SCHEMA_VERSION},
     ids::HouseholdId,
@@ -26,13 +26,16 @@ pub fn validate_household_lifecycle_config(
             supported: HouseholdLifecycleConfig::CURRENT_SCHEMA_VERSION,
         });
     }
-    if config.model_id != DETERMINISTIC_SIZE_FISSION_HOUSEHOLD_LIFECYCLE_ID {
+    if config.model_id != DETERMINISTIC_DEPENDENCY_FISSION_HOUSEHOLD_LIFECYCLE_ID {
         return Err(HouseholdLifecycleError::UnsupportedModel {
             model_id: config.model_id.clone(),
         });
     }
     if config.max_living_members == 0 {
         return Err(HouseholdLifecycleError::ZeroMaximumLivingMembers);
+    }
+    if config.minimum_independent_age_years == 0 {
+        return Err(HouseholdLifecycleError::ZeroMinimumIndependentAgeYears);
     }
     Ok(())
 }
@@ -71,7 +74,12 @@ pub(crate) fn apply_household_lifecycle_at_annual_boundary(
         households_created,
         people_reassigned,
         fissions,
-    } = population.fission_oversized_households(config.max_living_members, &eligible)?;
+    } = population.fission_oversized_households(
+        config.max_living_members,
+        config.minimum_independent_age_years,
+        day,
+        &eligible,
+    )?;
     temporary_mobility.reconcile_household_topology_at_boundary(population, day)?;
     for fission in fissions {
         events.push_authoritative(
@@ -99,6 +107,8 @@ pub enum HouseholdLifecycleError {
     UnsupportedModel { model_id: String },
     #[error("household lifecycle maximum living members must be greater than zero")]
     ZeroMaximumLivingMembers,
+    #[error("household lifecycle minimum independent age must be greater than zero")]
+    ZeroMinimumIndependentAgeYears,
     #[error("household identity does not fit supported u64 space")]
     HouseholdIdOverflow,
     #[error("temporary mobility has no presence state for household {household:?}")]
