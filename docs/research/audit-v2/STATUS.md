@@ -13,17 +13,17 @@ Purpose: durable repository-authoritative state for the second independent/adver
 | Audit generation | v2 / second independent scientific audit |
 | Initial release | `v0.3.2` |
 | Initial protected-main SHA | `eb240ab482d9683b64081d3d1ea8e151592927ee` |
-| Latest executable protected-main baseline audited | `17c28357d44d838b7dcc0e74279373767d4d66f6` |
-| Model semantics | `anthrosim-model-semantics-v19` |
+| Latest executable protected-main baseline audited | `4b6a1ac1e239f262d960a6f063bd8f4288978c6a` |
+| Model semantics | `anthrosim-model-semantics-v20` |
 | Current P0 findings | none |
-| Current P1 findings | #326, #334, #338, #340 |
+| Current P1 findings | none — #326, #334, #338, #340 closed and independently reverified |
 | Current P2 findings | #314, #315, #320, #324, #327, #329, #332, #336, #342 |
 | Current P3 findings | #344 |
 | Non-scientific audit infrastructure | #317 |
 | Coverage state | **A–N complete** |
-| Closure state | **not closed/passed — P1 repair + independent reverification required** |
+| Closure state | **not closed/passed — remaining P2/P3 disposition + short closure pass required** |
 
-The executable v19 simulator tree remained unchanged through the late audit-recording branches; numerical evidence remains tied to the exact SHA in each area report.
+P1 closure work advanced authoritative simulator semantics to v20 through #326. The #334, #338 and #340 repairs are analysis/provenance-layer changes and do not alter simulator trajectories. The latest P1-reverified protected main is `4b6a1ac1e239f262d960a6f063bd8f4288978c6a`; original discovery evidence remains tied to the exact SHA recorded in each area report.
 
 ## Coverage matrix
 
@@ -52,14 +52,14 @@ The executable v19 simulator tree remained unchanged through the late audit-reco
 | AV2-002 — demographic-time contract retains superseded mortality execution | P2 | A/B/M | open | #315 | n/a |
 | AV2-003 — founder genealogy admits impossible reproductive chronology | P2 | B/G/C | open | #320 | n/a |
 | AV2-004 — household fission derives social composition from PersonId/birth order | P2 | C/N/I | open | #324 | n/a |
-| AV2-005 — per-boundary ceiling multiplies partial-supply condition deterioration with resolution | **P1** | D/I/N | open | #326 | **required after repair** |
+| AV2-005 — per-boundary ceiling multiplies partial-supply condition deterioration with resolution | **P1** | D/I/N | closed — PR #347 | #326 | **reverified on v20: cadence metamorphics + coupled mortality/M4 checks; #304 v20 confirmation via #350/#351** |
 | AV2-006 — M9 travel contract documents superseded lower-CellId equal-cost selection | P2 | E/M/L | open | #327 | n/a |
 | AV2-007 — M9.7 narrative provenance/statistics stale relative to reference | P2 | F/K/L/M | open | #329 | n/a |
 | AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | open | #332 | n/a |
-| AV2-009 — Monte Carlo quantile gate can certify under-covered intervals | **P1** | H/I/L/N | open | #334 | **required after repair** |
+| AV2-009 — Monte Carlo quantile gate can certify under-covered intervals | **P1** | H/I/L/N | closed — PR #352 | #334 | **reverified: exact finite-sample coverage adversarial cases + full CI + fresh 384-run #304 confirmation** |
 | AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K/N | open | #336 | n/a |
-| AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | open | #338 | **required after repair** |
-| AV2-012 — downstream analysis arguments are not bound to executed analysis | **P1** | K/L/N | open | #340 | **required after repair** |
+| AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | closed — PR #353 | #338 | **reverified: fixed-estimate low/high-precision adversarial checker + dedicated workflow/full CI** |
+| AV2-012 — downstream analysis arguments are not bound to executed analysis | **P1** | K/L/N | closed — PR #354 | #340 | **reverified: argv/config/RNG/observation-model binding + independent Area K + Rust E2E + M8.6/M9.7 gates** |
 | AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L/N | open | #342 | n/a |
 | AV2-014 — documented sweep derived-analysis schema versions lag executable contracts | P3 | M | open | #344 | n/a |
 
@@ -68,17 +68,17 @@ The executable v19 simulator tree remained unchanged through the late audit-reco
 | Interaction | Disposition |
 |---|---|
 | Demography × households | repeat after #324; current fission contrast strongly changes growth/mate limitation but partition rule is not neutral |
-| Demography × resources | **blocked by #326 P1**; resolution artifact changes condition path and condition-mediated mortality exposure |
+| Demography × resources | #326 repaired/reverified; fixed-point partial-supply response is subdivision-invariant and equivalent histories feed equivalent condition-mediated mortality inputs |
 | Households × movement | repeat after #324; child/newborn-only fission units become autonomous M4/M9 units |
-| Movement × resources | **blocked by #326 P1**; 1-permille deficit gives condition 999 vs 635 and flips default M4 900-pressure threshold |
-| Aggregation × resources | local accounting coherent; repeat after #326 because aggregation-induced partial supply uses defective condition response |
+| Movement × resources | #326 repaired/reverified; equivalent partial-supply histories now feed equivalent M4 condition pressure instead of cadence-dependent threshold flips |
+| Aggregation × resources | #326 condition-response defect repaired; #340 applicable-gate rerun also preserved the canonical M9.7 aggregation benchmark |
 | Initialization × demography | #320 founder reproductive chronology remains open |
 | Initialization × spatial placement | explicit path dependence demonstrated; no new defect |
-| Stochastic inference × censoring/extinction | censoring/nullability governance positive; **tail inference blocked by #334** |
+| Stochastic inference × censoring/extinction | censoring/nullability governance remains positive; #334 repaired/reverified and quantile inference now fails closed when exact rank coverage is infeasible |
 | Sensitivity × hidden configuration | complete — #336 metadata-only pseudo-structures remain open |
-| Calibration × identifiability | **blocked by #338 P1** for stochastic calibration |
+| Calibration × identifiability | #338 repaired/reverified; unresolved Monte Carlo precision blocks identification and adequate bound precision can legitimately resolve the compatible region |
 | Checkpoint/resume × RNG | positive authoritative continuation evidence; #332 metric-history caveat at year zero |
-| Observability × scientific interpretation | complete with #327/#329/#332/#334/#338/#340/#342/#344 dependencies |
+| Observability × scientific interpretation | P1 dependencies #334/#338/#340 resolved; remaining interpretation dependencies are #327/#329/#332/#342/#344 plus other open P2 findings |
 
 ## High-value quantitative evidence
 
@@ -96,23 +96,27 @@ The executable v19 simulator tree remained unchanged through the late audit-reco
 - Area M: current source emits derived-analysis schemas 5/6 while current docs state 4/5.
 - Area N: composing #326 with default M4 threshold 900 gives condition 999 (pressure off) at P=1 versus 635 (pressure on) at P=365 under the same 1-permille annual deficit.
 
+### P1 closure / independent reverification evidence
+
+- #326 / PR #347 / main `83878a82bf68049af6389ffc1cb477bf035345c8`: under a 1-permille deficit and annual maximum-loss budget 400, P=1/4/12/52/365 all resolve to 0 whole condition loss plus a 400/1000 carried residual; representative 1/10/100/500/1000-permille cadence metamorphics and coupled mortality/M4 checks pass. #350 / PR #351 independently reran the affected #304 confirmatory baseline on v20.
+- #334 / PR #352 / main `57fada3b5a5c666302132e274dfc1316bd1a5c4c`: nominal 95% exact distribution-free order-statistic support requires at least n=6/29/59/299 for p=.50/.90/.95/.99; infeasible cases fail closed. The fresh #304 confirmation completed 384/384 runs and preserved the v20 scientific result, with only three independently proven diagnostic schema-version changes.
+- #338 / PR #353 / main `cf6759ebd3f45f66eb4bf2ef7703246f18fd6207`: holding estimates 0.00 and 0.10 fixed against target 0.00 ± 0.05, ±0.20 Monte Carlo intervals leave both points unresolved/compatible and block identification, while ±0.01 makes the first acceptable, the second rejected and the parameter identified. The independent Area J checker and protected identifiability workflow pass.
+- #340 / PR #354 / main `4b6a1ac1e239f262d960a6f063bd8f4288978c6a`: authoritative `--scale 2` → `--scale 3` changes output 10 → 15; content-bound config scale 3 also yields 15 and later config mutation fails verification. Independent executed-configuration aliases are rejected, and focused/Area K/Rust E2E plus protected M8.6 and M9.7 neighboring scientific gates all pass.
+
 ## Required closure work
 
-Before audit v2 can be declared closed/passed:
+All four P1 closure requirements are complete and independently reverified. Before audit v2 can be declared closed/passed:
 
-1. Repair #326 and independently repeat its partial-supply arithmetic across representative deficits/partitions, then rerun coupled condition-mortality, M4 pressure and aggregation-resource checks.
-2. Repair #334 and independently verify exact/valid coverage for supported quantile/tail intervals.
-3. Repair #338 and independently show stochastic identifiability responds appropriately to insufficient versus adequate Monte Carlo precision.
-4. Repair #340 and independently prove machine-readable downstream analysis configuration is bound to execution/replay.
-5. Triage/repair the remaining P2/P3 findings and rerun any scientific reference whose interpretation depends on them, especially #324.
-6. Perform a short audit-v2 closure/reverification pass; do **not** restart A–N from scratch unless executable semantics materially change.
+1. Triage/repair the remaining P2/P3 findings and rerun any scientific reference whose interpretation depends on them, especially #324 and its #304 structural-sensitivity implications.
+2. Reconcile remaining current-facing documentation/provenance findings and any affected historical/current reference narratives.
+3. Perform a short audit-v2 closure/reverification pass on the latest protected main; do **not** restart A–N from scratch unless executable semantics materially change.
 
 ## Final audit synthesis
 
-The second comprehensive audit has completed coverage of every required surface A–N on executable semantics v19. No P0 defect was found. Four P1 defects remain open, so the audit is **coverage-complete but not scientifically closed**.
+The second comprehensive audit has completed coverage of every required surface A–N. No P0 defect was found. All four P1 defects (#326, #334, #338 and #340) are now repaired and independently reverified on the v20/post-repair line. The audit is **coverage-complete and P1-clear, but not yet scientifically closed** because the remaining P2/P3 backlog still requires disposition and a final closure pass.
 
 The strongest positive result is that AnthroSim now has substantial deterministic/provenance/research-governance infrastructure: scheduler arithmetic, explicit scientific configuration, checkpoint identity, typed censoring/nullability, research protocol binding, acceptable-region/equifinality machinery and downstream artifact lineage all survived meaningful adversarial reinspection in substantial part.
 
-The strongest negative result is that correctness is not yet compositional in four research-critical places: resource temporal discretization can activate different downstream mechanisms (#326), one Monte Carlo tail gate can assert invalid precision (#334), stochastic identifiability can ignore that precision altogether (#338), and downstream analysis provenance can preserve configuration metadata that was not actually executed (#340).
+The strongest remaining negative result is now concentrated in the P2/P3 backlog rather than an open P1: especially the #324 household-fission partition rule and its dependence with #304 structural-sensitivity interpretation, alongside unresolved founder-genealogy, checkpoint-observability, sensitivity-classification, weighting and documentation/provenance findings.
 
-Accordingly, no current audit statement should be presented as empirical validation of a prehistoric reconstruction. After the P1 repair/reverification cycle and remaining backlog triage, the appropriate next scientific phase is a bounded empirical case-study workflow with explicit evidence roles, sensitivity, identifiability, Monte Carlo precision and held-out corroboration rather than another immediate whole-repository audit.
+Accordingly, no current audit statement should be presented as empirical validation of a prehistoric reconstruction. After the remaining P2/P3 backlog is disposed and the short closure pass is complete, the appropriate next scientific phase is a bounded empirical case-study workflow with explicit evidence roles, sensitivity, identifiability, Monte Carlo precision and held-out corroboration rather than another immediate whole-repository audit.
