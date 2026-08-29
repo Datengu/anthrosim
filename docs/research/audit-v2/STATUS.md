@@ -25,9 +25,9 @@ Purpose: durable, repository-authoritative state for the second independent/adve
 | Initial protected-main SHA | `eb240ab482d9683b64081d3d1ea8e151592927ee` |
 | Initial model semantics | `anthrosim-model-semantics-v19` — corrected from the ledger's erroneous initial v15 label after exact-tag verification; see #314 |
 | Initial issue state | no open issues at audit initialization |
-| Latest audited protected-main SHA | `06f1a059b23b46f6bab79672de7f9685529058e0` |
+| Latest audited protected-main SHA | `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4` |
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
-| Current audit findings | #314, #315, #320 open (all P2); #317 is non-scientific CI infrastructure |
+| Current audit findings | #314, #315, #320, #324 open (all P2); #317 is non-scientific CI infrastructure |
 | Audit state | in progress |
 
 If `main` advances during the audit, add the new SHA to the session log and state whether earlier evidence remains applicable.
@@ -40,7 +40,7 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 |---|---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | complete — findings | `area-a-2026-08-29.md`; exact source/docs review plus `area-a-scheduler-audit.py` | #314, #315 |
 | B | Demography, fertility, mortality, ageing, population structure | complete — findings | `area-b-2026-08-29.md`; existing integrated acceptance suite plus adversarial PR #319 CI probes | #320; #315 documentation-relevant; #214 additional coupling evidence |
-| C | Households, kinship, social links, lifecycle structure | not started | — | — |
+| C | Households, kinship, social links, lifecycle structure | complete — findings | `area-c-2026-08-29.md`; source/integration review plus adversarial PR #323 CI probes | #324; #320 founder-to-kin relevant |
 | D | Resources, condition, subsistence, depletion/recovery | not started | — | — |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | not started | — | — |
 | F | Aggregation and interaction mechanisms | not started | — | — |
@@ -49,9 +49,9 @@ Statuses: `not started`, `in progress`, `complete — no finding`, `complete —
 | I | Sensitivity, uncertainty, convergence, robustness | not started | — | — |
 | J | Identifiability, equifinality, calibration, discrimination | not started | — | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | not started | — | — |
-| L | Observability, analysis outputs, statistical summaries | not started | — | — |
+| L | Observability, analysis outputs, statistical summaries | not started | Area C exposed a hypothesis that recorded-genealogy generation span may be a lower bound when founder genealogy is unspecified | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | Area A exposed two documentation/provenance findings, but Area M has not been systematically audited | #314, #315 relevant |
-| N | Cross-system integration | not started | — | — |
+| N | Cross-system integration | not started | Area C exposed an households × M9 timing hypothesis when an oversized household is away exactly at the annual fission boundary | — |
 
 ## Cross-system integration checklist
 
@@ -59,9 +59,9 @@ These checks are mandatory after the corresponding subsystem work is mature enou
 
 | Interaction | Status | Evidence / findings |
 |---|---|---|
-| Demography × households | not started | Area B reviewed prior demographic/household structural evidence; dedicated integration pass remains required |
+| Demography × households | not started | Areas B/C locally verified birth/fission ordering and exposed #324; dedicated integration pass remains required |
 | Demography × resources | not started | — |
-| Households × movement | not started | — |
+| Households × movement | not started | Area C showed child/newborn-only fission households are eligible future household units; away-at-annual-boundary fission deferral remains for dedicated integration |
 | Movement × resources | not started | — |
 | Aggregation × resources | not started | — |
 | Initialization × demography | not started | Area B finding #320 shows declared founder reproductive chronology can be biologically impossible; full Area G integration remains required |
@@ -70,7 +70,7 @@ These checks are mandatory after the corresponding subsystem work is mature enou
 | Sensitivity × hidden configuration | not started | — |
 | Calibration × identifiability | not started | — |
 | Checkpoint/resume × RNG | not started | — |
-| Observability × scientific interpretation | not started | — |
+| Observability × scientific interpretation | not started | Area C generation-span lower-bound hypothesis carried to Area L |
 
 ## Finding register
 
@@ -81,6 +81,7 @@ Add every scientifically substantive finding here, including findings that are l
 | AV2-001 — current-facing model-semantics identity drift (v15 documented vs executable/tagged v19) | P2 | A / M / K | issue open | #314; audit ledger PR #316 | `area-a-2026-08-29.md` | n/a — open |
 | AV2-002 — M2 demographic-time contract retains superseded annual-boundary mortality execution | P2 | A / B / M | issue open | #315; audit ledger PR #316 | `area-a-2026-08-29.md` | n/a — open |
 | AV2-003 — declared founder reproductive chronology checks ordering but admits biologically impossible event ages | P2 | B / G / C | issue open | #320; adversarial harness #319 | `area-b-2026-08-29.md` | n/a — open |
+| AV2-004 — deterministic household fission derives social composition from PersonId/birth-append order | P2 | C / N / I | issue open | #324; adversarial harness #323 | `area-c-2026-08-29.md` | n/a — open |
 
 Suggested finding statuses: `hypothesis`, `demonstrated`, `issue open`, `fix in progress`, `fixed`, `reverified`, `not a defect`, `accepted limitation`.
 
@@ -182,6 +183,57 @@ Each audit session must append an entry using the template below. Keep entries c
 **Does evidence need repeating after main changes?** Repeat the founder counterexample if founder/demography validation changes, and repeat the relabelling experiment if RNG draw assignment or mortality iteration semantics change. Purely documentation-only changes do not invalidate the executable evidence. #320 requires independent re-verification after repair if its eventual severity/scope warrants it; Area H should independently revisit #214 coupling evidence under its own inference questions.
 
 **Recommended next step:** Area C — households, kinship, social links and lifecycle structure. Attack household fission/dissolution invariants, reciprocal kin graph consistency, irrelevant relationship/person-order invariance, and whether household lifecycle changes reproduction/mobility through hidden structural constraints. Keep #320 visible as a founder-to-kin integration dependency without double-counting it.
+
+---
+
+### 2026-08-29 — Area C / households, kinship, social links and lifecycle structure
+
+**Date / agent:** 2026-08-29 / ChatGPT scientific-audit agent
+
+**Live main SHA:** Area C executable audit began on `06f1a059b23b46f6bab79672de7f9685529058e0`; during the session Area B documentation-only PR #321 merged, advancing protected main to `fdeb66ed0e05683fd5092f3e1ec8407df1bbcfe4`. The executable household/kin/lifecycle tree remained unchanged, so prior Area C evidence remains applicable to the latest audited main.
+
+**Release / model semantics:** `v0.3.2`; `anthrosim-model-semantics-v19`.
+
+**Audit area / sub-area:** Area C — household lifecycle partition semantics, fission state/events/topology, reciprocal first-degree kin anchors, M4/M9 household-unit implications, lifecycle observability and structural-sensitivity interpretation.
+
+**Overlap check:**
+- open scientific findings entering Area C: #314, #315, #320; #317 was CI infrastructure only;
+- no parallel product PR overlapped the household lifecycle surface;
+- disposable audit-only PR #323 was created for adversarial execution and closed without merge after evidence preservation;
+- new Area C scientific finding #324 created;
+- main advance during session was Area B audit documentation only.
+
+**Implementation/docs inspected:** `household_lifecycle.rs`, `population.rs` fission implementation, `migration.rs` reciprocal kin-anchor construction, `temporary_mobility.rs` household trigger/topology semantics, `events.rs` fission record, `household_observability.rs`, `simulation.rs` annual lifecycle scheduling, `household_lifecycle_sensitivity.rs`, historical #188 kin repair, #207/PR #305 lifecycle structural sensitivity, and #304/PR #307/#308 replicated demographic-baseline analysis.
+
+**Tests/experiments performed:**
+- inspected existing balanced-cap, checkpoint/resume and future-M9 household-lifecycle acceptance;
+- verified reciprocal parent/child kin anchors retain all unique locations independent of person-record order;
+- ran a pure PersonId relabelling metamorphic test on an eight-person one-household founder population with all substantive state held fixed;
+- ran a controlled same-boundary birth/fission test with four certain births into a five-adult household and fission cap 5;
+- strengthened audit head `d298ffe1cf4c3f623458672315774f8fcc531546` passed format, Clippy and complete workspace tests in CI run `33235309035`, quality job `99055150212`.
+
+**Quantitative results:**
+- PersonId relabelling: same eight ages `[60, 50, 40, 30, 20, 15, 10, 5]`, same reproductive sex/residence/condition, zero mortality/fertility/resource mortality/M4; under cap 4, reversing only age-to-ID assignment changed the source household from the four oldest records to the four youngest — probe passed;
+- same-day birth/fission: 5 adults + 4 certain births = 9 living people; cap 5 yields balanced `5 + 4`; IDs 1–5 founders remained source household while newborn IDs 6–9 all became the new household — probe passed;
+- audit harness: 2/2 adversarial tests passed; all 260 pre-existing core tests and 3/3 existing household-lifecycle sensitivity tests also passed;
+- prior #304 confirmation context: positive-schedule late growth about `-0.002%/yr` fixed vs `-0.994%/yr` fission; mate limitation `11.3%` vs `38.7%`; mean year-240 population `108.2` vs `28.9`.
+
+**Findings:**
+- AV2-004 / P2: `deterministic_size_fission_v1` treats stable PersonId order as a “neutral” household partition, but PersonId is birth-append order for model-born people, producing arbitrary cohort/generation sorting and potentially newborn-only autonomous household units — #324;
+- #320 remains relevant founder-to-kin validity evidence from Area B but is not double-counted as a second Area C finding;
+- no separate defect demonstrated in reciprocal kin anchoring, exact fission event membership, balanced cap enforcement, M9 topology extension or checkpoint/resume determinism.
+
+**Issues/PRs created or relevant:** #324; closed-unmerged adversarial PR #323; #320 cross-area relevant; historical #188, #207/PR #305 and #304/PR #307/#308 supply comparison/interpretation evidence.
+
+**Unresolved hypotheses:**
+- an oversized household temporarily away on the exact annual lifecycle boundary is deliberately skipped and may defer fission until a later year; assess under households × movement integration rather than treating as a subsystem defect here;
+- household generation-span observability follows recorded genealogy and may be a lower bound when founder genealogy is `Unspecified`; assess under Area L.
+
+**Explicitly not examined:** empirical/culturally specific household formation, marriage/residence systems, archaeological validation of household size/composition, dedicated demography × household and households × movement integration counterfactuals beyond the controlled #324 probes.
+
+**Does evidence need repeating after main changes?** Repeat if household partition membership, annual lifecycle timing, kin-anchor construction, M4/M9 household eligibility, fission event replay, or household topology continuation changes. After #324 repair, rerun #207 structural sensitivity and relevant #304 replicated comparisons; prior fission-arm effect sizes should not be assumed to survive unchanged.
+
+**Recommended next step:** Area D — resources, condition, subsistence, depletion and recovery. Start from current live main, verify overlap, then attack exact stock/need conservation, remainder/tie allocation, initialization and storage capacity, seasonal/elapsed-time integration, condition response and recovery, condition-mediated mortality, and temporal observability under adversarial scarcity/recovery regimes.
 
 ---
 
