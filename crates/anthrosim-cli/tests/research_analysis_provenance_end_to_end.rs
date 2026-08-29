@@ -293,7 +293,7 @@ fn immutable_sweep_to_downstream_result_to_integrity_archive_is_replayable() {
     write_json(
         &analysis_definition_path,
         &json!({
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "definitionType": "anthrosim-analysis-definition",
             "analysisId": "real-sweep-run-count-v1",
             "analysisStatus": "confirmatory",
@@ -307,11 +307,10 @@ fn immutable_sweep_to_downstream_result_to_integrity_archive_is_replayable() {
                 "--output",
                 "analysis/result.json"
             ],
-            "arguments": {
+            "annotations": {
                 "estimand": "completed immutable research-run count",
                 "expectedArms": [4, 12]
             },
-            "analysisRngSeeds": [],
             "runtimeDescription": "Python standard library; exact interpreter command is preserved in command and environment.lock.",
             "reproductionCriterion": "exact_output_bytes",
             "inputs": [
@@ -326,8 +325,7 @@ fn immutable_sweep_to_downstream_result_to_integrity_archive_is_replayable() {
             "outputs": [
                 {"path": "analysis/result.json", "role": "canonical-machine-readable-result"}
             ],
-            "manualSteps": [],
-            "observationModelIdentity": null
+            "manualSteps": []
         }),
     );
 
@@ -350,7 +348,7 @@ fn immutable_sweep_to_downstream_result_to_integrity_archive_is_replayable() {
     let provenance_identity = String::from_utf8_lossy(&run_output.stdout)
         .trim()
         .to_owned();
-    assert!(provenance_identity.starts_with("analysis-provenance-v1-sha256-"));
+    assert!(provenance_identity.starts_with("analysis-provenance-v2-sha256-"));
 
     let result: Value = serde_json::from_slice(
         &fs::read(analysis_dir.join("result.json")).expect("read analysis result"),

@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFINITION_TYPE = "anthrosim-analysis-definition"
 RECORD_TYPE = "anthrosim-analysis-provenance"
 DEFAULT_RECORD = "analysis/analysis-provenance.json"
@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run or capture a downstream AnthroSim analysis and bind the exact study, "
-            "inputs, implementation, environment, configuration, RNG seeds and outputs."
+            "inputs, implementation, environment, executable configuration and outputs."
         )
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -146,12 +146,6 @@ def validate_relative_path(value: Any, role: str) -> str:
     return raw
 
 
-def validate_optional_identity(value: Any, role: str) -> str | None:
-    if value is None:
-        return None
-    return require_nonempty_string(value, role)
-
-
 def validate_artifact_specs(
     raw: Any, role: str, *, require_nonempty: bool
 ) -> list[dict[str, str]]:
@@ -186,8 +180,6 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
             "executionMode",
             "workingDirectory",
             "command",
-            "arguments",
-            "analysisRngSeeds",
             "runtimeDescription",
             "reproductionCriterion",
             "inputs",
@@ -196,7 +188,7 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
             "outputs",
             "manualSteps",
         },
-        {"observationModelIdentity"},
+        {"annotations"},
         "analysis definition",
     )
     if raw["schemaVersion"] != SCHEMA_VERSION:
@@ -237,16 +229,9 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
             "external_or_manual analysis must use an empty command; preserve the external/manual process in manualSteps"
         )
 
-    arguments = raw["arguments"]
-    if not isinstance(arguments, dict):
-        raise AnalysisProvenanceError("arguments must be a JSON object")
-
-    seeds_raw = raw["analysisRngSeeds"]
-    if not isinstance(seeds_raw, list):
-        raise AnalysisProvenanceError("analysisRngSeeds must be an array")
-    seeds = [require_uint(seed, f"analysisRngSeeds[{i}]") for i, seed in enumerate(seeds_raw)]
-    if len(set(seeds)) != len(seeds):
-        raise AnalysisProvenanceError("analysisRngSeeds must not contain duplicates")
+    annotations = raw.get("annotations", {})
+    if not isinstance(annotations, dict):
+        raise AnalysisProvenanceError("annotations must be a JSON object when supplied")
 
     runtime_description = require_nonempty_string(
         raw["runtimeDescription"], "runtimeDescription"
@@ -256,7 +241,7 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
     )
     if reproduction_criterion not in ALLOWED_REPRODUCTION_CRITERIA:
         raise AnalysisProvenanceError(
-            "unsupported reproductionCriterion; schema v1 supports exact_output_bytes"
+            "unsupported reproductionCriterion; schema v2 supports exact_output_bytes"
         )
     inputs = validate_artifact_specs(raw["inputs"], "inputs", require_nonempty=True)
     implementation = validate_artifact_specs(
@@ -308,8 +293,7 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
         "executionMode": mode,
         "workingDirectory": working_directory,
         "command": command,
-        "arguments": arguments,
-        "analysisRngSeeds": seeds,
+        "annotations": annotations,
         "runtimeDescription": runtime_description,
         "reproductionCriterion": reproduction_criterion,
         "inputs": inputs,
@@ -317,15 +301,12 @@ def validate_definition(raw: dict[str, Any]) -> dict[str, Any]:
         "environment": environment,
         "outputs": outputs,
         "manualSteps": manual_steps,
-        "observationModelIdentity": validate_optional_identity(
-            raw.get("observationModelIdentity"), "observationModelIdentity"
-        ),
     }
 
 
 def definition_identity(definition: dict[str, Any]) -> str:
     digest = hashlib.sha256(canonical_bytes(definition)).hexdigest()
-    return f"analysis-definition-v1-sha256-{digest}"
+    return f"analysis-definition-v2-sha256-{digest}"
 
 
 def require_root(root: Path) -> Path:
@@ -586,7 +567,7 @@ def build_record(
     identity_payload = dict(record)
     identity_payload["provenanceIdentity"] = ""
     digest = hashlib.sha256(canonical_bytes(identity_payload)).hexdigest()
-    record["provenanceIdentity"] = f"analysis-provenance-v1-sha256-{digest}"
+    record["provenanceIdentity"] = f"analysis-provenance-v2-sha256-{digest}"
     return record
 
 
@@ -727,7 +708,7 @@ def verify_record(study_root: Path, record_path: Path | None) -> dict[str, Any]:
     identity_payload = dict(record)
     identity_payload["provenanceIdentity"] = ""
     digest = hashlib.sha256(canonical_bytes(identity_payload)).hexdigest()
-    expected_identity = f"analysis-provenance-v1-sha256-{digest}"
+    expected_identity = f"analysis-provenance-v2-sha256-{digest}"
     if record["provenanceIdentity"] != expected_identity:
         raise AnalysisProvenanceError("analysis provenance identity mismatch")
 
