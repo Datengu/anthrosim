@@ -7,6 +7,7 @@ on:
       - "scripts/research-general-demography-baseline.py"
       - "scripts/research-monte-carlo-sufficiency.py"
       - "crates/anthrosim-cli/src/bundle.rs"
+      - "crates/anthrosim-core/src/**"
       - "crates/anthrosim-core/src/demography_observability.rs"
       - "crates/anthrosim-core/src/spatial_invariants.rs"
       - "crates/anthrosim-core/src/spatial_simulation.rs"
@@ -91,7 +92,11 @@ jobs:
           from pathlib import Path
           s=json.loads(Path('/tmp/a304/summary.json').read_text())
           prec={p.stem:json.loads(p.read_text()) for p in Path('/tmp/a304/precision').glob('*-diagnostic.json')}
-          expected={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':prec}
+          provenance=Path('crates/anthrosim-core/src/provenance.rs').read_text()
+          match=re.search(r'pub const MODEL_SEMANTICS_ID: &str = "([^"]+)"', provenance)
+          assert match, 'could not derive authoritative MODEL_SEMANTICS_ID'
+          model_semantics_id=match.group(1)
+          expected={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','modelSemanticsId':model_semantics_id,'recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':prec}
           Path('/tmp/a304/expected-result.json').write_text(json.dumps(expected,indent=2,sort_keys=True)+'\n')
           actual=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
           # researchId deliberately binds the execution to exact source provenance. PR checks
@@ -102,7 +107,7 @@ jobs:
           assert re.fullmatch(r'research-execution-v1-[0-9a-f]{16}', expected.get('researchId',''))
           actual_science={k:v for k,v in actual.items() if k!='researchId'}
           expected_science={k:v for k,v in expected.items() if k!='researchId'}
-          assert actual_science == expected_science, 'preserved issue #304 scientific result no longer matches reproducible confirmatory analysis'
+          assert actual_science == expected_science, 'preserved issue #304 scientific result no longer matches reproducible confirmatory analysis/model semantics'
           assert actual['recommendation']=='no_universal_demographic_baseline'
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
