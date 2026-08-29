@@ -28,6 +28,7 @@ Purpose: durable, repository-authoritative cross-session state for the second in
 | Latest audited model semantics | `anthrosim-model-semantics-v19` |
 | Current P1 findings | #326, #334, #338, #340 |
 | Current P2 findings | #314, #315, #320, #324, #327, #329, #332, #336, #342 |
+| Current P3 findings | #344 |
 | Non-scientific audit infrastructure | #317 |
 | Audit state | in progress |
 
@@ -49,7 +50,7 @@ Protected `main` has advanced through audit-recording merges while executable v1
 | J | Identifiability, equifinality, calibration, discrimination | complete — findings | `area-j-2026-08-29.md`; #338 P1 |
 | K | Experiment orchestration, configuration, provenance, reproducibility | complete — findings | `area-k-2026-08-29.md`; #340 P1 |
 | L | Observability, analysis outputs, statistical summaries | complete — findings | `area-l-2026-08-29.md`; #342; earlier #183/#184/#222/#226/#229 substantially rechecked |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | not started | #314/#315/#327/#329 already relevant |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | complete — findings | `area-m-2026-08-29.md`; #344 plus known #314/#315/#327/#329 |
 | N | Cross-system integration | not started | mandatory dependencies below |
 
 ## Cross-system integration checklist
@@ -86,6 +87,7 @@ Protected `main` has advanced through audit-recording merges while executable v1
 | AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | open | #338 | Area J | **required after repair** |
 | AV2-012 — downstream analysis arguments are not bound to executed analysis | **P1** | K/L | open | #340 | Area K | **required after repair** |
 | AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L | open | #342 | Area L | n/a |
+| AV2-014 — documented sweep derived-analysis schema versions lag executable contracts | P3 | M | open | #344 | Area M | n/a |
 
 ## Condensed quantitative evidence
 
@@ -99,21 +101,22 @@ Protected `main` has advanced through audit-recording merges while executable v1
 - Area J: changing unrepresented Monte Carlo SE from 0.001 to 1.0 leaves the hard identifiability verdict unchanged for fixed point estimates.
 - Area K: existing #232 test changes only declared `arguments.scale` 2→3 while command remains `--scale 2`; output remains scale-2 `scaledTotal=10`, replay passes, and only provenance identity changes.
 - Area L: with run move counts 1/99 and run quality means 0/1000, current run-weighted point mean is 500 while pooled move-weighted mean is 990; a comparator at 600 reverses ranking between the two estimands.
+- Area M: current source emits derived-analysis schemas 5/6 while the current-facing experiment contract says 4/5.
 
-## 2026-08-29 — Area L handoff
+## 2026-08-29 — Area M handoff
 
-**Live executable baseline / semantics:** `17c28357d44d838b7dcc0e74279373767d4d66f6`; `anthrosim-model-semantics-v19`. Area K PR #341 is documentation-only and pending branch-protection completion.
+**Executable baseline / semantics:** `17c28357d44d838b7dcc0e74279373767d4d66f6`; `anthrosim-model-semantics-v19`.
 
-**Positive evidence:** historical censoring, self-describing point design, undefined empty-set means, realized exposure and survivor-conditioning work was substantially rechecked in current `sweep.rs`. Operationally censored runs are excluded from default scientific means, extinction remains an explicit scientific outcome, achieved duration is exposed, and undefined denominator-based means remain null.
+**Known findings:** #314/#315/#327/#329 remain documentation/claim dependencies and were not duplicated.
 
-**Finding:** AV2-013/#342 P2. Migration-quality point fields are equal-weight means of per-run move means, but names/docs do not state run weighting. A 1-vs-99 move construction gives 500 run-weighted versus 990 move-weighted and reverses ranking against a 600 comparator.
+**New finding:** AV2-014/#344 P3. Current `sweep.rs` emits run/summary schema v5 and point schema v6 while `docs/experiments-v0.1.md` still documents v4/v5. This can mislead version-aware downstream consumers even though simulation results are unaffected.
 
-**Repeat:** after #342 repair, preserve the 1/99 unequal-event fixture and make the estimator/weighting unit explicit. If both run- and move-weighted summaries exist, they should return 500 and 990 respectively.
+**Claim boundary:** no inspected current research-standard text was treated as empirical archaeological validation merely because synthetic/software gates pass. Existing #334/#338/#340/#342 constrain how statistical/reproducibility language may be stated.
 
-**Next:** **Area M — documentation, TRACE/ODD/ODD+D, and claim consistency.** Reconstruct live repository state and inspect current-facing docs against executable v19 semantics and checked-in evidence. Treat #314, #315, #327 and #329 as known findings rather than duplicates.
+**Next:** **Area N — cross-system integration.** Explicitly complete the mandatory interaction matrix, preserve blocked dependencies on open P1s, and distinguish local subsystem correctness from coupled scientific validity.
 
 ---
 
 ## Final audit synthesis
 
-Do not fill until Areas M–N and mandatory integration checks are complete. Final synthesis must state final audited SHA/semantics, finding counts, independent P0/P1 reverification state, unresolved uncertainties, audit convergence, unsupported empirical claims, and recommended next scientific phase.
+Do not fill until Area N and mandatory integration checks are complete. Final synthesis must state final audited SHA/semantics, finding counts, independent P0/P1 reverification state, unresolved uncertainties, audit convergence, unsupported empirical claims, and recommended next scientific phase.
