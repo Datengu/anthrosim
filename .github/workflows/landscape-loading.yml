@@ -7,10 +7,18 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  scope:
+    uses: ./.github/workflows/pr-ci-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   landscape-golden:
     name: Landscape golden run (${{ matrix.os }})
+    needs: scope
     strategy:
       fail-fast: false
       matrix:
@@ -19,30 +27,41 @@ jobs:
     timeout-minutes: 12
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.scope.outputs.full_required != 'true' }}
+        run: echo "${{ needs.scope.outputs.scope }} change; landscape simulation is not applicable."
+
       - name: Checkout
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Install pinned Rust toolchain
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
       - name: Run uninterrupted landscape fixture
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --seed 8301 --years 4 --population 40 --max-person-records 10000 --run-dir landscape-uninterrupted
 
       - name: Run checkpointed landscape fixture
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --seed 8301 --years 4 --population 40 --max-person-records 10000 --run-dir landscape-resumed --checkpoint-year 2
 
       - name: Resume with exact same landscape
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- resume --checkpoint landscape-resumed/landscape-checkpoint.json --landscape examples/landscape-loading/landscape.json --run-dir landscape-resumed
 
       - name: Validate resume equivalence and emit canonical golden
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: python scripts/validate-landscape-loading.py --uninterrupted landscape-uninterrupted --resumed landscape-resumed --output landscape-cross-platform-golden.json
 
       - name: Upload normalized M8.3 output
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: landscape-cross-platform-${{ matrix.os }}
@@ -52,18 +71,24 @@ jobs:
 
   compare-landscape-golden:
     name: Compare landscape golden runs
-    needs: landscape-golden
+    needs: [scope, landscape-golden]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.scope.outputs.full_required != 'true' }}
+        run: echo "${{ needs.scope.outputs.scope }} change; landscape comparison is not applicable."
+
       - name: Download platform outputs
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: landscape-artifacts
           pattern: landscape-cross-platform-*
 
       - name: Require byte-identical landscape-bound outputs
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
