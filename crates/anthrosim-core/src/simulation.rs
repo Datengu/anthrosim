@@ -244,6 +244,7 @@ impl Simulation {
             .resources
             .validate_checkpoint_state(&world, &checkpoint.experiment.resources)?;
         validate_terminal_checkpoint_state(&checkpoint)?;
+        validate_initial_checkpoint_metric_history(&checkpoint)?;
 
         let boundary_day = checkpoint.time.days();
         let boundary_completed_years = checkpoint.completed_years;
@@ -395,7 +396,6 @@ impl Simulation {
                 });
             }
         }
-        self.ensure_terminal_metric_snapshot();
         self.validate_state()?;
         Ok(self.into_checkpoint())
     }
@@ -829,6 +829,20 @@ fn validate_configured_temporary_mobility(
     Ok(())
 }
 
+fn validate_initial_checkpoint_metric_history(
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), SimulationError> {
+    if checkpoint.time.days() == 0
+        && checkpoint.terminal_stop_reason.is_none()
+        && !checkpoint.metrics.snapshots.is_empty()
+    {
+        return Err(SimulationError::CheckpointInitialMetricHistoryNotEmpty {
+            snapshot_count: checkpoint.metrics.snapshots.len(),
+        });
+    }
+    Ok(())
+}
+
 fn validate_terminal_checkpoint_state(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<(), SimulationError> {
@@ -896,6 +910,10 @@ pub enum SimulationError {
     },
     #[error("checkpoint terminal stop reason {stop_reason:?} does not match checkpoint state")]
     CheckpointTerminalStateMismatch { stop_reason: StopReason },
+    #[error(
+        "non-terminal initial checkpoint contains {snapshot_count} metric snapshot(s); checkpoint serialization must not create day-zero observations"
+    )]
+    CheckpointInitialMetricHistoryNotEmpty { snapshot_count: usize },
     #[error("checkpoint world digest mismatch: expected {expected}, reconstructed {actual}")]
     CheckpointWorldDigestMismatch { expected: u64, actual: u64 },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]

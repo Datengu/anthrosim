@@ -517,7 +517,6 @@ impl SpatialLandscapeSimulation {
                 });
             }
         }
-        self.ensure_terminal_metric_snapshot();
         self.validate_state()?;
         let landscape = self.landscape_binding.clone();
         let spatial = self.spatial_binding.clone();
@@ -1166,6 +1165,16 @@ fn validate_core_checkpoint_header(
             artifact: "metrics",
         });
     }
+    if checkpoint.time.days() == 0
+        && checkpoint.terminal_stop_reason.is_none()
+        && !checkpoint.metrics.snapshots.is_empty()
+    {
+        return Err(
+            SpatialLandscapeError::CheckpointInitialMetricHistoryNotEmpty {
+                snapshot_count: checkpoint.metrics.snapshots.len(),
+            },
+        );
+    }
     if (!checkpoint.time.days().is_multiple_of(DAYS_PER_YEAR)
         && !matches!(
             checkpoint.terminal_stop_reason,
@@ -1360,6 +1369,10 @@ pub enum SpatialLandscapeError {
     TemporaryMobilityExecution(#[from] TemporaryMobilityExecutionError),
     #[error("checkpoint terminal stop reason {stop_reason:?} does not match checkpoint state")]
     CheckpointTerminalStateMismatch { stop_reason: StopReason },
+    #[error(
+        "non-terminal initial core checkpoint contains {snapshot_count} metric snapshot(s); checkpoint serialization must not create day-zero observations"
+    )]
+    CheckpointInitialMetricHistoryNotEmpty { snapshot_count: usize },
     #[error("checkpoint state digest mismatch: expected {expected}, reconstructed {actual}")]
     CheckpointStateDigestMismatch { expected: u64, actual: u64 },
     #[error(
