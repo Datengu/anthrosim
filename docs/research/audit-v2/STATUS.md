@@ -14,15 +14,15 @@ Purpose: durable repository-authoritative state for the second independent/adver
 | Initial release | `v0.3.2` |
 | Initial protected-main SHA | `eb240ab482d9683b64081d3d1ea8e151592927ee` |
 | Initial v0.3.2 model semantics | `anthrosim-model-semantics-v19` |
-| Latest protected-main closure baseline examined before #314 repair | `b50ce8e2a0d86ea7520cd9560eff5c2ff565a855` |
+| Latest protected-main closure baseline examined | `ece56b285604a64b83fc9d2f0a3c5dafa430888d` (#314 / PR #367 merged) |
 | Current model semantics | `anthrosim-model-semantics-v21` |
 | Current P0 findings | none |
 | Current P1 findings | none — #326, #334, #338, #340 and closure-discovered #350 repaired and reverified |
-| Current P2 findings | #336, #342; #314 corrected by PR #367 in this ledger update |
+| Current P2 findings | #336; #342 repaired by PR #368 and undergoing final protected verification |
 | Current P3 findings | none — #344 repaired by PR #363 |
 | Non-scientific audit infrastructure | #317 |
 | Coverage state | **A–N complete** |
-| Closure state | **P1 closure complete; remaining scientific backlog is #336 and #342 after #314/PR #367, followed by a short final closure pass** |
+| Closure state | **P1 closure complete; after #342/PR #368 the only remaining scientific finding is #336, followed by a short final closure pass** |
 
 The v2 audit originally completed A–N coverage on the immutable `v0.3.2` baseline, whose tag points to `eb240ab482d9683b64081d3d1ea8e151592927ee` and whose executable `MODEL_SEMANTICS_ID` is v19. Repair of #326 intentionally advanced authoritative causal semantics to v20. Repair of #324 then advanced authoritative household-assignment semantics to v21; subsequent inference/provenance and fail-closed input-validity contracts remain explicitly versioned. Living current-facing documentation follows current v21, while historical v0.3.2 identity remains v19.
 
@@ -30,7 +30,7 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 
 | ID | Audit area | Status | Evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | complete — documentation findings repaired | `area-a-2026-08-29.md`; #315 / PR #364 repaired mortality-contract drift; #314 / PR #367 reconciles current v21 versus immutable v0.3.2 v19 identity |
+| A | Authoritative semantics and scheduler behaviour | complete — documentation findings repaired | `area-a-2026-08-29.md`; #315 / PR #364 repaired mortality-contract drift; #314 / PR #367 reconciled current v21 versus immutable v0.3.2 v19 identity |
 | B | Demography, fertility, mortality, ageing, population structure | complete — P2 repaired/reverified | `area-b-2026-08-29.md`; #320 / PR #360; schedule-relative reproductive-age boundaries + independent checker; #214 coupling evidence |
 | C | Households, kinship, social links, lifecycle structure | complete — P2 repaired/reverified | `area-c-2026-08-29.md`; #324 / PR #358; independent composition checker + #207/#304 reruns |
 | D | Resources, condition, subsistence, depletion/recovery | complete — P1 reverified | `area-d-2026-08-29.md`; #326 / PR #347; independent Area D arithmetic checker |
@@ -41,15 +41,15 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 | I | Sensitivity, uncertainty, convergence, robustness | complete — finding remains | `area-i-2026-08-29.md`; #336 metadata-only pseudo-structures remains open |
 | J | Identifiability, equifinality, calibration, discrimination | complete — P1 reverified | `area-j-2026-08-29.md`; #338 / PR #353; independent Area J checker |
 | K | Experiment orchestration, configuration, provenance, reproducibility | complete — P1 reverified | `area-k-2026-08-29.md`; #340 / PR #354; independent Area K checker + real end-to-end replay |
-| L | Observability, analysis outputs, statistical summaries | complete — finding remains | `area-l-2026-08-29.md`; #342 run-versus-move migration-quality weighting remains open; earlier #183/#184/#222/#226/#229 rechecked |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | complete — documentation backlog repaired except #314 PR verification | `area-m-2026-08-29.md`; #344 / PR #363, #315 / PR #364, #329 / PR #365, #327 / PR #366, #314 / PR #367 |
-| N | Cross-system integration | complete — remaining dependencies | `area-n-2026-08-29.md`; P1 propagation repaired/rechecked; #320 initialization/demography boundary repaired; remaining scientific dependencies are #336 and #342 |
+| L | Observability, analysis outputs, statistical summaries | complete — P2 repaired/reverified on PR head | `area-l-2026-08-29.md`; #342 / PR #368 separates run-weighted and exact pooled per-move migration-quality estimands; earlier #183/#184/#222/#226/#229 rechecked |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | complete — documentation backlog repaired | `area-m-2026-08-29.md`; #344 / PR #363, #315 / PR #364, #329 / PR #365, #327 / PR #366, #314 / PR #367; #342 / PR #368 updates current v6/v7 derived-analysis contract |
+| N | Cross-system integration | complete — one remaining scientific dependency | `area-n-2026-08-29.md`; P1 propagation repaired/rechecked; #320 initialization/demography boundary repaired; #342 weighting ambiguity repaired on PR #368; remaining scientific dependency is #336 |
 
 ## Finding register
 
 | Finding | Severity | Area | Status | Issue | Reverification / repair evidence |
 |---|---|---|---|---|---|
-| AV2-001 — current-facing model-semantics identity drift | P2 | A/M/K | **fixed by PR #367; protected verification required before merge** | #314 | immutable `v0.3.2` tag independently verified as v19; living executable v21; source-derived documentation guard added |
+| AV2-001 — current-facing model-semantics identity drift | P2 | A/M/K | **fixed + protected verified** | #314 | PR #367 merged as `ece56b285604a64b83fc9d2f0a3c5dafa430888d`; immutable `v0.3.2` verified v19, living executable v21, source-derived documentation guard passed protected CI |
 | AV2-002 — demographic-time contract retains superseded mortality execution | P2 | A/B/M | **fixed** | #315 | PR #364; current M2 contract now describes elapsed M2/M3 competing-risk execution and year-end fertility-only stage |
 | AV2-003 — founder genealogy admits impossible reproductive chronology | P2 | B/G/C | **fixed + independently reverified** | #320 | PR #360; one-day parent rejection; exact female/male boundaries; custom schedule; resealed-checkpoint resume adversary |
 | AV2-004 — household fission derives social composition from PersonId/birth order | P2 | C/N/I | **fixed + independently reverified** | #324 | PR #358; relabelling/newborn/dependency adversaries; M4/M9/checkpoint; #207 + 130-seed #304 evidence |
@@ -58,11 +58,11 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 | AV2-007 — M9.7 narrative provenance/statistics stale relative to reference | P2 | F/K/L/M | **fixed** | #329 | PR #365; narrative synchronized to reviewed current machine-readable reference while historical values remain labelled historical |
 | AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | **fixed + regression verified** | #332 | PR #362; ordinary and transformed-spatial year-zero resume equivalence plus resealed nonconforming-checkpoint rejection |
 | AV2-009 — Monte Carlo quantile gate can certify under-covered intervals | **P1** | H/I/L/N | **fixed + independently reverified** | #334 | PR #352; exact binomial/order-statistic coverage; infeasible tails fail closed |
-| AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K/N | **open** | #336 | active branch `fix/336-structural-sensitivity-metadata` observed during #314 session; avoid overlapping work |
+| AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K/N | **open / overlapping work observed** | #336 | active branch `fix/336-structural-sensitivity-metadata`; reconcile that live work rather than duplicate it |
 | AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | **fixed + independently reverified** | #338 | PR #353; ±0.20 unresolved vs identical estimates at ±0.01 identified |
 | AV2-012 — downstream analysis arguments are not bound to executed analysis | **P1** | K/L/N | **fixed + independently reverified** | #340 | PR #354; single authoritative argv/config binding; CLI/config/RNG/observation selectors rechecked |
-| AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L/N | **open** | #342 | unequal-move-count/ranking-reversal acceptance remains outstanding |
-| AV2-014 — documented sweep derived-analysis schema versions lag executable contracts | P3 | M | **fixed** | #344 | PR #363; current v5/v6 documentation plus source-constant regression guard |
+| AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L/N | **fixed + adversarially reverified on PR #368; final protected tail pending** | #342 | run/summary schema v6 + point schema v7; 1-vs-99 move construction proves run-weighted 500 versus pooled per-move 990 and ranking reversal against point B=600; exact checkpoint score totals/move denominator exposed; workspace tests and M8.6/M9.7 passed |
+| AV2-014 — documented sweep derived-analysis schema versions lag executable contracts | P3 | M | **fixed** | #344 | PR #363; source-constant regression guard retained and advanced by #342 to current v6/v7 documentation |
 | AV2-015 — model-semantics changes can leave #304 confirmatory reference stale | **P1** | B/D/H/K/L/N | **fixed + independently reverified** | #350 | PR #351; clean v20 384-run rebaseline + semantics-aware workflow trigger |
 
 ## P1 closure evidence
@@ -134,8 +134,8 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 
 ### #344 / PR #363 — derived-analysis schema documentation
 
-- Current experiment documentation now states run/summary derived-analysis schema v5 and point schema v6.
-- A source-constant-backed regression prevents the living documentation from silently falling behind the executable schema constants.
+- Current experiment documentation originally converged on run/summary derived-analysis schema v5 and point schema v6.
+- A source-constant-backed regression prevents living documentation from silently falling behind executable schema constants; #342 / PR #368 advances the current contract to v6/v7 while retaining that guard.
 
 ### #315 / PR #364 — M2 mortality contract
 
@@ -155,9 +155,19 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 ### #314 / PR #367 — current versus release model-semantics identity
 
 - The immutable `v0.3.2` tag was independently resolved to `eb240ab482d9683b64081d3d1ea8e151592927ee`; its source declares `anthrosim-model-semantics-v19`.
-- Protected main at the repair baseline `b50ce8e2a0d86ea7520cd9560eff5c2ff565a855` declares `anthrosim-model-semantics-v21`.
-- Living scientific-model/ODD/ODD+D headers now identify current v21 while separately naming immutable v0.3.2 as v19; release/versioning documentation preserves the true v0.3.2 v19 identity.
-- `scripts/test-current-model-semantics-docs.py` plus a Rust integration wrapper derive the living current semantics label from `MODEL_SEMANTICS_ID` and reject the stale current/release v15 phrases. Normal protected verification remains required before PR #367 merges.
+- Protected main at the repair baseline `b50ce8e2a0d86ea7520cd9560eff5c2ff565a855` declared `anthrosim-model-semantics-v21`.
+- Living scientific-model/ODD/ODD+D headers identify current v21 while separately naming immutable v0.3.2 as v19; release/versioning documentation preserves the true v0.3.2 v19 identity.
+- `scripts/test-current-model-semantics-docs.py` plus a Rust integration wrapper derive the living current semantics label from `MODEL_SEMANTICS_ID` and reject stale current/release v15 phrases.
+- Full protected CI, M8.6, M9.7, determinism, source-provenance, bundle, performance/memory and reference gates passed before PR #367 merged as `ece56b285604a64b83fc9d2f0a3c5dafa430888d`.
+
+### #342 / PR #368 — migration-quality weighting estimands
+
+- The historical point fields averaged each move-observed scientifically eligible run's within-run migration-quality mean with equal run weight, but their names did not expose that weighting unit.
+- Current point schema v7 preserves that estimand under explicit `runWeightedMeanOfRunMeanMigration...MoveObservedRunsOnly` names and separately exposes exact `pooledMeanMigration...PerMoveScientificallyEligibleOnly` statistics.
+- Current run/summary schema v6 exposes the exact four M4 score totals copied from completed run checkpoints. Point rows also expose their summed scientifically-eligible totals plus `migrationMovesCompletedScientificallyEligibleOnly`, making every pooled mean reconstructible without event replay or multiplication of rounded run means.
+- Adversarial point A with one move at score 0 plus 99 moves at score 1000 returns **500** under equal run weighting and **990** under pooled move weighting. Point B with both run means 600 returns **600** under both, proving the estimand choice can reverse the treatment ranking: B>A under run weighting but A>B under move weighting.
+- Zero-total-move points preserve both migration-quality estimands as `null`; eligible zero-move runs contribute zero events to the pooled numerator/denominator and are outside the conditional run-weighted mean.
+- Rustfmt, Clippy, full workspace tests, source-provenance checks, cross-platform/spatial checks and both protected M8.6/M9.7 benchmark gates passed on the implementation head before this ledger update. No simulation trajectory, RNG contract, checkpoint continuation meaning or `MODEL_SEMANTICS_ID` changed.
 
 ## Cross-system integration matrix
 
@@ -174,7 +184,7 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 | Sensitivity × hidden configuration | #336 metadata-only pseudo-structures remains open; overlapping repair branch observed |
 | Calibration × identifiability | #338 P1 repaired; stochastic claims now fail closed on inadequate simulation precision |
 | Checkpoint/resume × RNG | positive authoritative continuation evidence; #332 year-zero metric-history defect repaired by PR #362 |
-| Observability × scientific interpretation | #342 weighting estimand ambiguity remains open; #327/#329/#332/#344 documentation/observability findings repaired |
+| Observability × scientific interpretation | #342 weighting ambiguity repaired on PR #368 with explicit run-weighted and exact pooled-per-move estimands; #327/#329/#332/#344 documentation/observability findings repaired |
 
 ## Historical high-value discovery evidence
 
@@ -188,21 +198,21 @@ These values record the original adversarial failures and should not be mistaken
 - Area N: legacy #326 composition could move condition from 999 to 635 and cross default M4 pressure solely through resource-clock subdivision; this specific artefact is repaired under v20.
 - Area G: legacy year-zero resume retained `[0,365,730]` versus uninterrupted `[365,730]`; #332 / PR #362 removed the checkpoint-induced observation.
 - Area E: legacy M9.4 documentation implied lower-CellId selection in 100% of exact ties even though executable keyed resolution was approximately symmetric; #327 / PR #366 synchronized the contract.
+- Area L: legacy point A with 1 move at 0 and 99 moves at 1000 was reported only as 500 under an ambiguously named migration-quality field, while the move-level estimand is 990; #342 / PR #368 makes both estimands explicit and machine-reconstructible.
 
 ## Remaining closure work
 
 Before audit v2 is declared fully closed/passed:
 
-1. Merge and verify #314 / PR #367 so current-facing semantics identity remains source-bound while immutable v0.3.2 remains v19.
-2. Finish #336 without colliding with the already-observed `fix/336-structural-sensitivity-metadata` branch; verify metadata-only coordinates cannot count as structural sensitivity.
-3. Repair/reverify #342 so migration-quality point summaries expose run-weighted versus move-weighted estimands unambiguously, including the unequal-count ranking-reversal adversary.
-4. Perform one short final closure/reverification pass against then-current protected main; do **not** restart A–N from scratch unless causal executable semantics materially change.
-5. Treat #317 as separate CI/infrastructure optimization rather than a scientific finding; it may be completed before or after final scientific closure provided it does not weaken protected scientific gates.
+1. Complete and reconcile #336 without colliding with the observed `fix/336-structural-sensitivity-metadata` branch; verify metadata-only coordinates cannot count as structural sensitivity.
+2. Merge #342 / PR #368 after the final protected verification pass on the ledger-updated head.
+3. Perform one short final closure/reverification pass against then-current protected main; do **not** restart A–N from scratch unless causal executable semantics materially change.
+4. Treat #317 as separate CI/infrastructure optimization rather than a scientific finding; it may be completed before or after final scientific closure provided it does not weaken protected scientific gates.
 
 ## Final audit synthesis — current handoff
 
-Audit v2 remains **coverage-complete and P1-closed**. No P0 finding is open. All P1 findings are repaired and independently reverified. The recent documentation/observability backlog #315, #327, #329, #332 and #344 is repaired; #314 is carried by PR #367 with a source-derived identity guard. The remaining open scientific findings are #336 and #342.
+Audit v2 remains **coverage-complete and P1-closed**. No P0 finding is open. All P1 findings are repaired and independently reverified. The documentation/observability backlog #314, #315, #327, #329, #332 and #344 is repaired. #342 is repaired and adversarially reverified on PR #368; after its final protected verification/merge, #336 is the sole remaining scientific finding.
 
-During the #314 session, protected main was verified at `b50ce8e2a0d86ea7520cd9560eff5c2ff565a855`, current model semantics v21. No open PR existed at session start. An overlapping branch `fix/336-structural-sensitivity-metadata` was found, so #336 must not be duplicated unless that live work is first reconciled. If #336 remains owned elsewhere after #314 merges, #342 is the next non-overlapping scientific issue.
+Protected main at this handoff baseline is `ece56b285604a64b83fc9d2f0a3c5dafa430888d`, current model semantics v21. The `fix/336-structural-sensitivity-metadata` branch remains an overlap signal: reconcile that work before starting an independent #336 implementation. #317 remains explicitly non-scientific infrastructure work.
 
 No audit result should be interpreted as empirical validation of a prehistoric reconstruction. After the remaining backlog and closure pass, the appropriate next phase remains a bounded empirical case study with explicit evidence roles, sensitivity, identifiability, Monte Carlo precision and held-out corroboration.
