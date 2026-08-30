@@ -7,31 +7,47 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  scope:
+    uses: ./.github/workflows/pr-ci-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   resumed-explorer:
     name: New-directory resume Explorer compatibility
+    needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.scope.outputs.full_required != 'true' }}
+        run: echo "${{ needs.scope.outputs.scope }} change; executable resume/Explorer exercise is not applicable."
+
       - name: Checkout
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Install pinned Rust toolchain
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
       - name: Build resume runners
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         env:
           ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
         run: cargo build --locked --release -p anthrosim-cli --bin anthrosim --bin anthrosim-landscape
 
       - name: Verify core new-directory resume opens in Explorer
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rm -rf /tmp/anthrosim-core-resume-source /tmp/anthrosim-core-resumed
           target/release/anthrosim run \
@@ -71,6 +87,7 @@ jobs:
           trap - EXIT
 
       - name: Verify transformed-spatial new-directory resume opens in Explorer
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rm -rf /tmp/anthrosim-spatial-resume-source /tmp/anthrosim-spatial-resumed
           target/release/anthrosim-landscape run \
