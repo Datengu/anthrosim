@@ -2,46 +2,44 @@ from pathlib import Path
 
 p = Path('crates/anthrosim-core/src/founder_initialization.rs')
 s = p.read_text()
-needle = '''        let mut definition = valid_definition();
-        let year = DAYS_PER_YEAR as i64;
-        definition.people[0].birth_day = -80 * year;
 
-        definition.people[0].last_birth_day = Some(definition.people[0].birth_day + 18 * year - 1);'''
-replacement = '''        let mut definition = valid_definition();
-        let year = DAYS_PER_YEAR as i64;
-        // Isolate the founder's own prior-birth history from the separate parent-age rule.
-        definition.people[2].female_parent = None;
-        definition.people[2].male_parent = None;
-        definition.people[0].birth_day = -80 * year;
+def insert_after_in_test(text: str, test_name: str, needle: str, addition: str) -> str:
+    start = text.index(f'fn {test_name}()')
+    next_test = text.find('\n    #[test]', start + 1)
+    end = len(text) if next_test < 0 else next_test
+    body = text[start:end]
+    assert needle in body, (test_name, needle)
+    body = body.replace(needle, needle + addition, 1)
+    return text[:start] + body + text[end:]
 
-        definition.people[0].last_birth_day = Some(definition.people[0].birth_day + 18 * year - 1);'''
-assert needle in s
-s = s.replace(needle, replacement)
-needle = '''        let mut definition = valid_definition();
-        let child_birth = definition.people[2].birth_day;
-        let year = DAYS_PER_YEAR as i64;
-        definition.people[0].birth_day = child_birth - 20 * year;'''
-replacement = '''        let mut definition = valid_definition();
-        let child_birth = definition.people[2].birth_day;
-        let year = DAYS_PER_YEAR as i64;
-        // This test varies the mother's configured reproductive-age support only; the child's
-        // unrelated prior-birth history would otherwise be outside the deliberately narrow band.
-        definition.people[2].last_birth_day = None;
-        definition.people[0].birth_day = child_birth - 20 * year;'''
-assert needle in s
-s = s.replace(needle, replacement)
+s = insert_after_in_test(
+    s,
+    'prior_birth_reproductive_age_support_uses_fertility_schedule_boundaries',
+    '        let mut definition = valid_definition();\n',
+    '        // Isolate prior-birth history from the separate parent-age rule.\n'
+    '        definition.people[2].female_parent = None;\n'
+    '        definition.people[2].male_parent = None;\n',
+)
+s = insert_after_in_test(
+    s,
+    'founder_reproductive_history_tracks_custom_fertility_support',
+    '        let mut definition = valid_definition();\n',
+    '        // Isolate the mother-age rule from the child\'s unrelated prior-birth history.\n'
+    '        definition.people[2].last_birth_day = None;\n',
+)
 p.write_text(s)
 
 p = Path('crates/anthrosim-core/src/simulation.rs')
 s = p.read_text()
-s = s.replace(
-'''        founder_initialization::{
+old_import = '''        founder_initialization::{
             FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
-        },''',
-'''        founder_initialization::{
+        },'''
+new_import = '''        founder_initialization::{
             FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
             FounderPopulationError,
-        },''')
+        },'''
+assert old_import in s
+s = s.replace(old_import, new_import, 1)
 marker = '''    #[test]
     fn malformed_evidence_is_rejected_by_core_construction() {'''
 assert marker in s
@@ -92,8 +90,6 @@ checkpoint_test = r'''    #[test]
         for band in &mut demography.mortality_bands {
             band.annual_probability_per_million = 0;
         }
-        // Retain positive fertility support so the declared reproductive-age envelope remains
-        // explicit while making this test independent of mortality.
         let config = ExperimentConfig::new(58, 2)
             .with_world(WorldConfig::new(1, 1))
             .with_population(
@@ -127,5 +123,5 @@ checkpoint_test = r'''    #[test]
     }
 
 '''
-s = s.replace(marker, checkpoint_test + marker)
+s = s.replace(marker, checkpoint_test + marker, 1)
 p.write_text(s)
