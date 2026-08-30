@@ -93,7 +93,12 @@ fn resolve_initial_population(
                 .founder_population
                 .as_ref()
                 .ok_or("declared founder mode has no founderPopulation definition")?;
-            Population::initialize_declared_founder_state_v1(config, definition, world)?
+            Population::initialize_declared_founder_state_v1(
+                config,
+                definition,
+                world,
+                &checkpoint.experiment.demography,
+            )?
         }
     };
     Ok(population)

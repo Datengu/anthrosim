@@ -55,9 +55,13 @@ fn run_two_cell_case(
     );
     let population_config = PopulationConfig::new(1)
         .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
-    let mut population =
-        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
-            .unwrap();
+    let mut population = Population::initialize_declared_founder_state_v1(
+        population_config,
+        &definition,
+        &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
+    )
+    .unwrap();
 
     let resources_config =
         ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);

@@ -69,3 +69,8 @@ Before a real study relies on large declared-founder ensembles/sweeps, orchestra
 ## Research-use warning
 
 The ability to load a declaration does not establish that its contents are defensible. A research application must document the evidence/generation procedure and test sensitivity to plausible alternatives as required by TRACE.
+
+
+## Reproductive chronology validation
+
+Founder parent ages and declared pre-run `lastBirthDay` are validated against the experiment's `DemographyConfig` before execution. Female events require positive fertility-band support at the declared event age; male parentage uses the configured male-parent age interval. These are experiment-declared assumptions, not universal anthropological constants.

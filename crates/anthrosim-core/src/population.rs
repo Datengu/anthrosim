@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    config::{PopulationConfig, PopulationInitialization},
+    config::{DemographyConfig, PopulationConfig, PopulationInitialization},
     founder_initialization::{FounderPopulationDefinition, FounderPopulationError},
     ids::{CellId, HouseholdId, PersonId},
     rng::RngFactory,
@@ -235,6 +235,7 @@ impl Population {
         config: PopulationConfig,
         definition: &FounderPopulationDefinition,
         world: &World,
+        demography: &DemographyConfig,
     ) -> Result<Self, PopulationError> {
         validate_config(config)?;
         if config.initialization != PopulationInitialization::DeclaredFounderStateV1 {
@@ -243,7 +244,12 @@ impl Population {
         if world.cell_count() == 0 {
             return Err(PopulationError::WorldHasNoCells);
         }
-        definition.validate(config.initial_population, config.max_person_records, world)?;
+        definition.validate(
+            config.initial_population,
+            config.max_person_records,
+            world,
+            demography,
+        )?;
 
         let person_count = definition.people.len();
         let mut birth_days = Vec::with_capacity(person_count);
@@ -1518,8 +1524,13 @@ mod tests {
         let config = PopulationConfig::new(3)
             .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
         let definition = declared_definition();
-        let population =
-            Population::initialize_declared_founder_state_v1(config, &definition, &world).unwrap();
+        let population = Population::initialize_declared_founder_state_v1(
+            config,
+            &definition,
+            &world,
+            &crate::config::DemographyConfig::synthetic_validation_v1(),
+        )
+        .unwrap();
 
         assert_eq!(population.person_count(), 3);
         assert_eq!(population.household_count(), 2);
@@ -1883,8 +1894,13 @@ mod tests {
             .with_initialization(PopulationInitialization::DeclaredFounderStateV1)
             .with_target_household_size(0);
         config.synthetic_male_permille = 1_001;
-        Population::initialize_declared_founder_state_v1(config, &declared_definition(), &world)
-            .unwrap();
+        Population::initialize_declared_founder_state_v1(
+            config,
+            &declared_definition(),
+            &world,
+            &crate::config::DemographyConfig::synthetic_validation_v1(),
+        )
+        .unwrap();
     }
 
     #[test]

@@ -58,9 +58,13 @@ fn declared_founder_kin_is_active_on_first_migration_boundary() {
     );
     let population_config = PopulationConfig::new(2)
         .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
-    let mut population =
-        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
-            .unwrap();
+    let mut population = Population::initialize_declared_founder_state_v1(
+        population_config,
+        &definition,
+        &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
+    )
+    .unwrap();
 
     let resources_config = ResourceConfig::synthetic_validation_v1();
     let resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
