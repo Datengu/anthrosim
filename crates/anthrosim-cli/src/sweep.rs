@@ -2,6 +2,8 @@ use std::{io, path::Path};
 
 use crate::ensemble::EnsembleRunSettings;
 
+#[path = "sweep_distance_preservation.rs"]
+mod sweep_distance_preservation;
 #[path = "sweep_legacy.rs"]
 mod legacy;
 #[path = "sweep_weighting.rs"]
@@ -22,6 +24,7 @@ pub(crate) fn execute_sweep(
     let execution = legacy::execute_sweep(directory, base_settings, seeds, dimensions, retry);
     let upgrade = if directory.join("analysis").is_dir() {
         sweep_weighting::upgrade_analysis_outputs(directory)
+            .and_then(|()| sweep_distance_preservation::restore_existing_pooled_distance(directory))
     } else {
         Ok(())
     };
@@ -31,7 +34,7 @@ pub(crate) fn execute_sweep(
         (Err(error), Ok(())) => Err(error),
         (Ok(()), Err(error)) => Err(error),
         (Err(execution_error), Err(upgrade_error)) => Err(io::Error::other(format!(
-            "sweep execution failed: {execution_error}; derived-analysis weighting upgrade also failed: {upgrade_error}"
+            "sweep execution failed: {execution_error}; derived-analysis upgrade also failed: {upgrade_error}"
         ))
         .into()),
     }
