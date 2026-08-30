@@ -770,7 +770,10 @@ mod tests {
             id: "resource_model_label".to_owned(),
             kind: ResearchDimensionKind::Structural,
             path: "/experiment/resources/modelId".to_owned(),
-            values: vec![Value::from("parameterization_a"), Value::from("parameterization_b")],
+            values: vec![
+                Value::from("parameterization_a"),
+                Value::from("parameterization_b"),
+            ],
         });
         assert!(matches!(
             model_id.expand(),
@@ -815,7 +818,9 @@ mod tests {
             ],
         });
 
-        let points = definition.expand().expect("causal whole-object alternatives");
+        let points = definition
+            .expand()
+            .expect("causal whole-object alternatives");
         assert_eq!(points.len(), 2);
         assert_eq!(
             points[0].run_config.experiment.demography.schedule_id,
