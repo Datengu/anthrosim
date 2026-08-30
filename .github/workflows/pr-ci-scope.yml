@@ -1,0 +1,89 @@
+name: PR CI scope
+
+on:
+  workflow_call:
+    outputs:
+      scope:
+        value: ${{ jobs.classify.outputs.scope }}
+      full_required:
+        value: ${{ jobs.classify.outputs.full_required }}
+      documentation_required:
+        value: ${{ jobs.classify.outputs.documentation_required }}
+      changed_count:
+        value: ${{ jobs.classify.outputs.changed_count }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  classify:
+    name: Classify PR CI scope
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+      full_required: ${{ steps.scope.outputs.full_required }}
+      documentation_required: ${{ steps.scope.outputs.documentation_required }}
+      changed_count: ${{ steps.scope.outputs.changed_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Validate classifier
+        run: |
+          python3 -m py_compile scripts/classify-pr-ci-scope.py
+          python3 scripts/classify-pr-ci-scope.py --self-test
+
+      - name: Classify exact change set
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            {
+              echo "scope=full"
+              echo "full_required=true"
+              echo "documentation_required=false"
+              echo "changed_count=0"
+            } >> "$GITHUB_OUTPUT"
+            echo "non-PR execution: full CI required"
+            exit 0
+          fi
+
+          expected_count="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '.changed_files'
+          )"
+          test "$expected_count" -gt 0
+
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            > changed-file-pages.json
+
+          actual_count="$(jq '[.[][]] | length' changed-file-pages.json)"
+          if [[ "$actual_count" != "$expected_count" ]]; then
+            echo "GitHub changed-file listing is incomplete: expected ${expected_count} file object(s), retrieved ${actual_count}; refusing CI-scope classification" >&2
+            exit 1
+          fi
+
+          # Classify both sides of renames so executable material cannot become lightweight merely
+          # by being renamed into a documentation-looking path.
+          jq -r '.[][] | .filename, (.previous_filename // empty)' \
+            changed-file-pages.json > changed-files.txt
+          test -s changed-files.txt
+          LC_ALL=C sort -u changed-files.txt -o changed-files.txt
+          cat changed-files.txt
+
+          python3 scripts/classify-pr-ci-scope.py \
+            --changed-files changed-files.txt \
+            --github-output "$GITHUB_OUTPUT"
