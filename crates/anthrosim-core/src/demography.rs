@@ -894,6 +894,7 @@ mod tests {
             population_config,
             &definition,
             &world,
+            &config,
         )
         .unwrap();
         let mut recent_rngs = DemographyRngs::new(RngFactory::new(94));
@@ -915,6 +916,7 @@ mod tests {
             population_config,
             &definition,
             &world,
+            &config,
         )
         .unwrap();
         let mut distant_rngs = DemographyRngs::new(RngFactory::new(94));

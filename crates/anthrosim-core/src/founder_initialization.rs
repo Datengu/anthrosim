@@ -2,9 +2,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeStru
 use thiserror::Error;
 
 use crate::{
-    config::ParameterProvenance,
+    config::{DemographyConfig, ParameterProvenance},
     ids::{CellId, HouseholdId, PersonId},
     population::ReproductiveSex,
+    time::DAYS_PER_YEAR,
     world::{PERMILLE_MAX, World},
 };
 
@@ -220,6 +221,7 @@ impl FounderPopulationDefinition {
         expected_initial_population: u32,
         max_person_records: u64,
         world: &World,
+        demography: &DemographyConfig,
     ) -> Result<(), FounderPopulationError> {
         if self.schema_version != Self::CURRENT_SCHEMA_VERSION {
             return Err(FounderPopulationError::UnsupportedSchema {
@@ -304,8 +306,20 @@ impl FounderPopulationDefinition {
             }
             household_used[household_index] = true;
 
-            validate_parent(self, person, person.female_parent, ReproductiveSex::Female)?;
-            validate_parent(self, person, person.male_parent, ReproductiveSex::Male)?;
+            validate_parent(
+                self,
+                person,
+                person.female_parent,
+                ReproductiveSex::Female,
+                demography,
+            )?;
+            validate_parent(
+                self,
+                person,
+                person.male_parent,
+                ReproductiveSex::Male,
+                demography,
+            )?;
             if let (Some(female), Some(male)) = (person.female_parent, person.male_parent)
                 && female == male
             {
@@ -331,6 +345,17 @@ impl FounderPopulationDefinition {
                         last_birth_day,
                     });
                 }
+                let age_days = reproductive_age_days(person.birth_day, last_birth_day)
+                    .expect("validated prior birth must be after founder birth");
+                if !female_reproductive_age_supported(demography, age_days) {
+                    return Err(
+                        FounderPopulationError::PriorBirthOutsideConfiguredFertilityAge {
+                            person: person.id,
+                            last_birth_day,
+                            age_days,
+                        },
+                    );
+                }
             }
         }
 
@@ -355,6 +380,7 @@ fn validate_parent(
     child: &FounderPerson,
     parent: Option<PersonId>,
     expected_sex: ReproductiveSex,
+    demography: &DemographyConfig,
 ) -> Result<(), FounderPopulationError> {
     let Some(parent) = parent else {
         return Ok(());
@@ -382,7 +408,42 @@ fn validate_parent(
             parent,
         });
     }
+    let age_days = reproductive_age_days(parent_person.birth_day, child.birth_day)
+        .expect("validated parent must be older than child");
+    let supported = match expected_sex {
+        ReproductiveSex::Female => female_reproductive_age_supported(demography, age_days),
+        ReproductiveSex::Male => male_reproductive_age_supported(demography, age_days),
+    };
+    if !supported {
+        return Err(
+            FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                person: child.id,
+                parent,
+                parent_sex: expected_sex,
+                age_days,
+            },
+        );
+    }
     Ok(())
+}
+
+fn reproductive_age_days(birth_day: i64, event_day: i64) -> Option<u64> {
+    u64::try_from(event_day.checked_sub(birth_day)?).ok()
+}
+
+fn female_reproductive_age_supported(demography: &DemographyConfig, age_days: u64) -> bool {
+    let age_years = age_days / DAYS_PER_YEAR;
+    demography.fertility_bands.iter().any(|band| {
+        age_years >= u64::from(band.start_age_years)
+            && age_years < u64::from(band.end_age_years_exclusive)
+            && band.annual_probability_per_million > 0
+    })
+}
+
+fn male_reproductive_age_supported(demography: &DemographyConfig, age_days: u64) -> bool {
+    let age_years = age_days / DAYS_PER_YEAR;
+    age_years >= u64::from(demography.male_parent_min_age_years)
+        && age_years < u64::from(demography.male_parent_max_age_years_exclusive)
 }
 
 fn provenance_code(provenance: ParameterProvenance) -> u8 {
@@ -524,6 +585,15 @@ pub enum FounderPopulationError {
     },
     #[error("founder {person:?} parent {parent:?} is not older than the child")]
     ParentNotOlder { person: PersonId, parent: PersonId },
+    #[error(
+        "founder {person:?} parent {parent:?} ({parent_sex:?}) was age {age_days} days at the child's birth, outside the configured reproductive-age support"
+    )]
+    ParentOutsideConfiguredReproductiveAge {
+        person: PersonId,
+        parent: PersonId,
+        parent_sex: ReproductiveSex,
+        age_days: u64,
+    },
     #[error("founder {person:?} has birth-history timing despite non-female reproductive sex")]
     BirthHistoryOnNonFemale { person: PersonId },
     #[error("founder {person:?} prior birth day {last_birth_day} is not before epoch day 0")]
@@ -538,6 +608,14 @@ pub enum FounderPopulationError {
         person: PersonId,
         birth_day: i64,
         last_birth_day: i64,
+    },
+    #[error(
+        "founder {person:?} prior birth day {last_birth_day} occurred at age {age_days} days, outside the configured female fertility-age support"
+    )]
+    PriorBirthOutsideConfiguredFertilityAge {
+        person: PersonId,
+        last_birth_day: i64,
+        age_days: u64,
     },
     #[error(
         "founder population content identity mismatch: stored {expected}, reconstructed {actual}"
@@ -607,7 +685,14 @@ mod tests {
     #[test]
     fn valid_declared_founder_state_accepts_pre_run_history_and_living_parents() {
         let definition = valid_definition();
-        definition.validate(3, 10, &world()).unwrap();
+        definition
+            .validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1(),
+            )
+            .unwrap();
         assert_eq!(definition.last_birth_day(PersonId::new(3)), Some(-100));
     }
 
@@ -616,7 +701,12 @@ mod tests {
         let mut definition = valid_definition();
         definition.people[1].id = PersonId::new(9);
         assert!(matches!(
-            definition.validate(3, 10, &world()),
+            definition.validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1()
+            ),
             Err(FounderPopulationError::NonCanonicalPersonId { index: 1, .. })
         ));
     }
@@ -626,13 +716,23 @@ mod tests {
         let mut definition = valid_definition();
         definition.people[2].last_birth_day = Some(0);
         assert!(matches!(
-            definition.validate(3, 10, &world()),
+            definition.validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1()
+            ),
             Err(FounderPopulationError::PriorBirthNotBeforeEpoch { .. })
         ));
 
         definition.people[2].last_birth_day = Some(-10_000);
         assert!(matches!(
-            definition.validate(3, 10, &world()),
+            definition.validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1()
+            ),
             Err(FounderPopulationError::PriorBirthNotAfterOwnBirth { .. })
         ));
     }
@@ -642,9 +742,143 @@ mod tests {
         let mut definition = valid_definition();
         definition.people[2].female_parent = Some(PersonId::new(2));
         assert!(matches!(
-            definition.validate(3, 10, &world()),
+            definition.validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1()
+            ),
             Err(FounderPopulationError::ParentSexMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn parent_reproductive_age_support_follows_declared_demography_boundaries() {
+        let demography = DemographyConfig::synthetic_validation_v1();
+        let mut definition = valid_definition();
+        let child_birth = definition.people[2].birth_day;
+        let year = DAYS_PER_YEAR as i64;
+
+        definition.people[0].birth_day = child_birth - (18 * year - 1);
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(
+                FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                    parent_sex: ReproductiveSex::Female,
+                    ..
+                }
+            )
+        ));
+        definition.people[0].birth_day = child_birth - 18 * year;
+        definition.validate(3, 10, &world(), &demography).unwrap();
+        definition.people[0].birth_day = child_birth - (45 * year - 1);
+        definition.validate(3, 10, &world(), &demography).unwrap();
+        definition.people[0].birth_day = child_birth - 45 * year;
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(
+                FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                    parent_sex: ReproductiveSex::Female,
+                    ..
+                }
+            )
+        ));
+
+        definition = valid_definition();
+        let child_birth = definition.people[2].birth_day;
+        definition.people[1].birth_day = child_birth - (18 * year - 1);
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(
+                FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                    parent_sex: ReproductiveSex::Male,
+                    ..
+                }
+            )
+        ));
+        definition.people[1].birth_day = child_birth - 18 * year;
+        definition.validate(3, 10, &world(), &demography).unwrap();
+        definition.people[1].birth_day = child_birth - (70 * year - 1);
+        definition.validate(3, 10, &world(), &demography).unwrap();
+        definition.people[1].birth_day = child_birth - 70 * year;
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(
+                FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                    parent_sex: ReproductiveSex::Male,
+                    ..
+                }
+            )
+        ));
+    }
+
+    #[test]
+    fn one_day_old_parent_is_rejected() {
+        let demography = DemographyConfig::synthetic_validation_v1();
+        let mut definition = valid_definition();
+        definition.people[0].birth_day = definition.people[2].birth_day - 1;
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(
+                FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                    parent_sex: ReproductiveSex::Female,
+                    age_days: 1,
+                    ..
+                }
+            )
+        ));
+    }
+
+    #[test]
+    fn prior_birth_reproductive_age_support_uses_fertility_schedule_boundaries() {
+        let demography = DemographyConfig::synthetic_validation_v1();
+        let mut definition = valid_definition();
+        // Isolate prior-birth history from the separate parent-age rule.
+        definition.people[2].female_parent = None;
+        definition.people[2].male_parent = None;
+        let year = DAYS_PER_YEAR as i64;
+        definition.people[0].birth_day = -80 * year;
+        definition.people[0].last_birth_day = Some(definition.people[0].birth_day + 18 * year - 1);
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(FounderPopulationError::PriorBirthOutsideConfiguredFertilityAge { .. })
+        ));
+        definition.people[0].last_birth_day = Some(definition.people[0].birth_day + 18 * year);
+        definition.validate(3, 10, &world(), &demography).unwrap();
+        definition.people[0].last_birth_day = Some(definition.people[0].birth_day + 45 * year - 1);
+        definition.validate(3, 10, &world(), &demography).unwrap();
+        definition.people[0].last_birth_day = Some(definition.people[0].birth_day + 45 * year);
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(FounderPopulationError::PriorBirthOutsideConfiguredFertilityAge { .. })
+        ));
+    }
+
+    #[test]
+    fn founder_reproductive_history_tracks_custom_fertility_support() {
+        let mut demography = DemographyConfig::synthetic_validation_v1();
+        demography.fertility_bands = vec![
+            crate::config::AgeProbabilityBand::new(0, 21, 0),
+            crate::config::AgeProbabilityBand::new(21, 22, 1),
+            crate::config::AgeProbabilityBand::new(22, u32::MAX, 0),
+        ];
+        let mut definition = valid_definition();
+        // Isolate the mother-age rule from the child's unrelated prior-birth history.
+        definition.people[2].last_birth_day = None;
+        let child_birth = definition.people[2].birth_day;
+        let year = DAYS_PER_YEAR as i64;
+        definition.people[0].birth_day = child_birth - 20 * year;
+        assert!(matches!(
+            definition.validate(3, 10, &world(), &demography),
+            Err(
+                FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                    parent_sex: ReproductiveSex::Female,
+                    ..
+                }
+            )
+        ));
+        definition.people[0].birth_day = child_birth - 21 * year;
+        definition.validate(3, 10, &world(), &demography).unwrap();
     }
 
     #[test]
@@ -656,7 +890,12 @@ mod tests {
         let mut loaded: FounderPopulationDefinition = serde_json::from_str(&json).unwrap();
         loaded.people[2].last_birth_day = Some(-200);
         assert!(matches!(
-            loaded.validate(3, 10, &world()),
+            loaded.validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1()
+            ),
             Err(FounderPopulationError::ContentIdentityMismatch { .. })
         ));
     }
@@ -670,7 +909,14 @@ mod tests {
             .unwrap()
             .remove("contentDigest64");
         let loaded: FounderPopulationDefinition = serde_json::from_value(json_value).unwrap();
-        loaded.validate(3, 10, &world()).unwrap();
+        loaded
+            .validate(
+                3,
+                10,
+                &world(),
+                &DemographyConfig::synthetic_validation_v1(),
+            )
+            .unwrap();
 
         let round_trip = serde_json::to_value(&loaded).unwrap();
         assert!(round_trip.get("contentDigest64").is_some());

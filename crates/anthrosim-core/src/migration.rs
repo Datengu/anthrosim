@@ -1790,6 +1790,7 @@ mod tests {
                 .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
             &definition,
             world,
+            &crate::config::DemographyConfig::synthetic_validation_v1(),
         )
         .unwrap()
     }
@@ -1883,6 +1884,7 @@ mod tests {
                 .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
             &definition,
             world,
+            &crate::config::DemographyConfig::synthetic_validation_v1(),
         )
         .unwrap()
     }
@@ -1970,6 +1972,7 @@ mod tests {
                 .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
             &definition,
             &world,
+            &crate::config::DemographyConfig::synthetic_validation_v1(),
         )
         .unwrap();
         let resources =

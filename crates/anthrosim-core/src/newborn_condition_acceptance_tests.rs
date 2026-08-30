@@ -63,9 +63,13 @@ fn birth_population(
     let population_config = PopulationConfig::new(2)
         .with_initialization(PopulationInitialization::DeclaredFounderStateV1)
         .with_max_person_records(16);
-    let mut population =
-        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
-            .unwrap();
+    let mut population = Population::initialize_declared_founder_state_v1(
+        population_config,
+        &definition,
+        &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
+    )
+    .unwrap();
 
     let mut demography = DemographyConfig::synthetic_validation_v1();
     demography.schedule_id = "certain-birth-newborn-condition-v1".to_owned();
