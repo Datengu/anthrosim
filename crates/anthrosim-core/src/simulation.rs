@@ -115,6 +115,7 @@ impl Simulation {
                     config.population,
                     definition,
                     &world,
+                    &config.demography,
                 )?
             }
         };
@@ -794,6 +795,7 @@ fn validate_founder_population_against_world(
                 config.population.initial_population,
                 config.population.max_person_records,
                 world,
+                &config.demography,
             )
             .map_err(PopulationError::from)?;
     }
@@ -967,6 +969,7 @@ mod tests {
         events::EventProvenance,
         founder_initialization::{
             FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+            FounderPopulationError,
         },
         ids::{CellId, HouseholdId, PersonId},
         population::ReproductiveSex,
@@ -1213,6 +1216,87 @@ mod tests {
             resumed.checkpoint.state_digest64,
             uninterrupted.checkpoint.state_digest64
         );
+    }
+
+    #[test]
+    fn checkpoint_resume_rejects_impossible_embedded_founder_parent_age_after_reseal() {
+        let definition = FounderPopulationDefinition::new(
+            "checkpoint-founder-age-test-v1",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::CompleteLivingDirectParents,
+            vec![FounderHousehold {
+                id: HouseholdId::new(1),
+                location: CellId::new(1),
+            }],
+            vec![
+                FounderPerson {
+                    id: PersonId::new(1),
+                    birth_day: -(25 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+                FounderPerson {
+                    id: PersonId::new(2),
+                    birth_day: -(30 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: HouseholdId::new(1),
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+                FounderPerson {
+                    id: PersonId::new(3),
+                    birth_day: -(5 * DAYS_PER_YEAR as i64),
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: HouseholdId::new(1),
+                    female_parent: Some(PersonId::new(1)),
+                    male_parent: Some(PersonId::new(2)),
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+            ],
+        );
+        let mut demography = DemographyConfig::synthetic_validation_v1();
+        for band in &mut demography.mortality_bands {
+            band.annual_probability_per_million = 0;
+        }
+        let config = ExperimentConfig::new(58, 2)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(
+                PopulationConfig::new(3)
+                    .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+            )
+            .with_founder_population(definition)
+            .with_demography(demography)
+            .with_resources(no_pressure_resources())
+            .with_migration(disabled_migration());
+
+        let mut checkpoint = Simulation::new(config)
+            .unwrap()
+            .checkpoint_at_year(1)
+            .unwrap();
+        let founder = checkpoint.experiment.founder_population.as_mut().unwrap();
+        let child_birth = founder.people[2].birth_day;
+        founder.people[0].birth_day = child_birth - 1;
+        checkpoint = checkpoint.seal_continuation_identity();
+
+        assert!(matches!(
+            Simulation::from_checkpoint(checkpoint),
+            Err(SimulationError::Population(
+                PopulationError::FounderPopulation(
+                    FounderPopulationError::ParentOutsideConfiguredReproductiveAge {
+                        parent_sex: ReproductiveSex::Female,
+                        age_days: 1,
+                        ..
+                    }
+                )
+            ))
+        ));
     }
 
     #[test]

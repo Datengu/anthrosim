@@ -89,9 +89,13 @@ fn founder_age_band_boundary_uses_interval_start_age_exactly() {
         ],
     );
     let population_config = declared_population_config(2);
-    let mut population =
-        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
-            .unwrap();
+    let mut population = Population::initialize_declared_founder_state_v1(
+        population_config,
+        &definition,
+        &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
+    )
+    .unwrap();
     let config = DemographyConfig {
         schema_version: DemographyConfig::CURRENT_SCHEMA_VERSION,
         schedule_id: "founder-age-boundary".to_owned(),
@@ -154,6 +158,7 @@ fn fertility_band_boundary_uses_interval_start_age_exactly() {
         declared_population_config(3),
         &definition,
         &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
     )
     .unwrap();
     let config = DemographyConfig {
@@ -308,6 +313,7 @@ fn two_adult_population(
         declared_population_config(2),
         &definition,
         &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
     )
     .unwrap();
     (world, definition, population)

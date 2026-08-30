@@ -273,7 +273,12 @@ fn reconstruct_initial_population(
                         "declared founder initialization is missing founderPopulation in checkpoint experiment",
                     )
                 })?;
-            Population::initialize_declared_founder_state_v1(config, definition, world)
+            Population::initialize_declared_founder_state_v1(
+                config,
+                definition,
+                world,
+                &checkpoint.experiment.demography,
+            )
         }
     }
     .map_err(|error| {
