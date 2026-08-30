@@ -4,6 +4,7 @@ use crate::ensemble::EnsembleRunSettings;
 
 #[path = "sweep_legacy.rs"]
 mod legacy;
+#[path = "sweep_weighting.rs"]
 mod sweep_weighting;
 
 pub(crate) use legacy::SweepDimensions;
