@@ -108,12 +108,7 @@ fn is_noncausal_metadata_path(path: &[String]) -> bool {
         || path_is(path, &["experiment", "migration", "modelId"])
         || path_is(
             path,
-            &[
-                "experiment",
-                "temporaryMobility",
-                "travelModel",
-                "modelId",
-            ],
+            &["experiment", "temporaryMobility", "travelModel", "modelId"],
         )
         || path_is(path, &["spatial", "mechanisms", "modelId"])
 }
