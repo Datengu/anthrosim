@@ -59,7 +59,8 @@ fn metadata_only_structure_fails_before_manifest_or_analysis_publication() {
     fs::create_dir_all(&root).expect("create fixture root");
     let definition_path = root.join("definition.json");
     let run_dir = root.join("research");
-    let mut bytes = serde_json::to_vec_pretty(&metadata_only_definition()).expect("serialize fixture");
+    let mut bytes =
+        serde_json::to_vec_pretty(&metadata_only_definition()).expect("serialize fixture");
     bytes.push(b'\n');
     fs::write(&definition_path, bytes).expect("write definition");
 
@@ -71,7 +72,10 @@ fn metadata_only_structure_fails_before_manifest_or_analysis_publication() {
         .output()
         .expect("launch anthrosim-research");
 
-    assert!(!output.status.success(), "metadata-only structure was accepted");
+    assert!(
+        !output.status.success(),
+        "metadata-only structure was accepted"
+    );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains("does not provide distinct executable alternatives"),
