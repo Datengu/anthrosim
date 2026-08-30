@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** v0.3.2 package / post-M9 scientific-hardening line / model semantics v15  
+**AnthroSim baseline:** post-v0.3.2 scientific-hardening line / current model semantics v21 (immutable v0.3.2 release baseline: v19)  
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
