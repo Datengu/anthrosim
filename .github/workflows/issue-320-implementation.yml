@@ -18,11 +18,13 @@ jobs:
           set -euo pipefail
           python3 .github/scripts/issue-320.py
           python3 .github/scripts/issue-320-callsites-v3.py
+          python3 .github/scripts/issue-320-test-fixes.py
           python3 docs/research/audit-v2/area-b-founder-reproductive-chronology-audit.py
           cargo fmt --all
           cargo check --workspace --all-targets
           cargo test -p anthrosim-core founder_initialization -- --nocapture
           cargo test -p anthrosim-core declared_founder -- --nocapture
+          cargo test -p anthrosim-core checkpoint_resume_rejects_impossible_embedded_founder_parent_age_after_reseal -- --nocapture
           cargo clippy --workspace --all-targets -- -D warnings
           git diff --check
           git status --short
