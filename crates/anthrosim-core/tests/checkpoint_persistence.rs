@@ -1,12 +1,17 @@
 use anthrosim_core::{
     EventKind, EventLog, EventProvenance, ExperimentConfig, MetricProvenance, MetricSeries,
-    PopulationConfig, ResumeLineage, Simulation, SimulationCheckpoint, WorldConfig,
+    PopulationConfig, ResumeLineage, Simulation, SimulationCheckpoint, SimulationError,
+    WorldConfig,
 };
 
-fn experiment() -> ExperimentConfig {
-    ExperimentConfig::new(7_777, 8)
+fn experiment_with_duration(duration_years: u64) -> ExperimentConfig {
+    ExperimentConfig::new(7_777, duration_years)
         .with_world(WorldConfig::new(24, 24))
         .with_population(PopulationConfig::new(1_500).with_max_person_records(100_000))
+}
+
+fn experiment() -> ExperimentConfig {
+    experiment_with_duration(8)
 }
 
 #[test]
@@ -132,4 +137,91 @@ fn authoritative_events_and_derived_metrics_are_explicit_and_reconcile() {
         run.manifest.migration.moves_completed
     );
     assert_eq!(final_metrics.state_digest64, run.manifest.state_digest64);
+}
+
+#[test]
+fn year_zero_checkpoint_resume_preserves_exact_authoritative_output() {
+    let config = experiment_with_duration(2);
+    let uninterrupted = Simulation::new(config.clone())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+
+    let checkpoint = Simulation::new(config)
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    assert_eq!(checkpoint.time.days(), 0);
+    assert!(checkpoint.metrics.snapshots.is_empty());
+    checkpoint.validate_invariants().unwrap();
+
+    let resumed = Simulation::from_checkpoint(checkpoint)
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    let uninterrupted_days = uninterrupted
+        .metrics()
+        .snapshots
+        .iter()
+        .map(|snapshot| snapshot.day)
+        .collect::<Vec<_>>();
+    let resumed_days = resumed
+        .metrics()
+        .snapshots
+        .iter()
+        .map(|snapshot| snapshot.day)
+        .collect::<Vec<_>>();
+    assert_eq!(uninterrupted_days, vec![365, 730]);
+    assert_eq!(resumed_days, uninterrupted_days);
+    assert_eq!(resumed.events(), uninterrupted.events());
+
+    let mut resumed_manifest = resumed.manifest.clone();
+    resumed_manifest.resume_lineage = ResumeLineage::new();
+    assert_eq!(resumed_manifest, uninterrupted.manifest);
+
+    let mut resumed_checkpoint = resumed.checkpoint.clone();
+    resumed_checkpoint.resume_lineage = ResumeLineage::new();
+    resumed_checkpoint = resumed_checkpoint.seal_continuation_identity();
+    assert_eq!(resumed_checkpoint, uninterrupted.checkpoint);
+}
+
+#[test]
+fn year_zero_checkpoint_invariants_still_validate_metric_series_identity() {
+    let mut checkpoint = Simulation::new(experiment_with_duration(2))
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    assert!(checkpoint.metrics.snapshots.is_empty());
+    checkpoint.metrics.schema_version += 1;
+    let error = checkpoint.validate_invariants().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("metric series schema/cadence is invalid")
+    );
+}
+
+#[test]
+fn legacy_nonterminal_year_zero_metric_snapshot_is_rejected_after_reseal() {
+    let mut legacy = Simulation::new(experiment_with_duration(2))
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    let terminal_zero = Simulation::new(experiment_with_duration(0))
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    assert_eq!(terminal_zero.metrics().snapshots.len(), 1);
+    assert_eq!(terminal_zero.metrics().snapshots[0].day, 0);
+
+    legacy
+        .metrics
+        .snapshots
+        .push(terminal_zero.metrics().snapshots[0].clone());
+    legacy = legacy.seal_continuation_identity();
+    assert!(legacy.validate_invariants().is_err());
+    assert!(matches!(
+        Simulation::from_checkpoint(legacy),
+        Err(SimulationError::CheckpointInitialMetricHistoryNotEmpty { snapshot_count: 1 })
+    ));
 }
