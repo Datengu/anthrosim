@@ -257,6 +257,7 @@ impl SpatialLandscapeSimulation {
                     config.population,
                     definition,
                     &world,
+                    &config.demography,
                 )?
             }
         };
@@ -1082,6 +1083,7 @@ fn validate_founder_population_against_world(
                 config.population.initial_population,
                 config.population.max_person_records,
                 world,
+                &config.demography,
             )
             .map_err(PopulationError::from)?;
     }

@@ -71,9 +71,23 @@ Founder birth days are signed integers:
 - negative values represent days before the run;
 - positive founder birth days are invalid.
 
-A declared pre-run `lastBirthDay` must be strictly negative and strictly later than the founder's own birth day.
+A declared pre-run `lastBirthDay` must be strictly negative and strictly later than the founder's own birth day. It must also occur at a female age supported by the experiment's declared fertility schedule, as specified below.
 
 This signed chronology exists because pre-simulation events cannot be represented truthfully by the runtime fields that record events occurring during the simulation.
+
+### Schedule-relative reproductive-age validity
+
+Declared pre-run reproductive chronology is validated against the **same `DemographyConfig` carried by the experiment**. AnthroSim does not introduce a separate universal human reproductive-age constant at the founder boundary.
+
+For a declared birth event, age is the exact signed-day difference between the founder birth day and the declared event day, interpreted in completed 365-day model years. The event is structurally valid only when:
+
+- a declared **female parent** is in a configured fertility age band whose `annualProbabilityPerMillion` is greater than zero at the child's birth day;
+- a declared **male parent** is within `[maleParentMinAgeYears, maleParentMaxAgeYearsExclusive)` at the child's birth day; and
+- a female founder's declared pre-run **`lastBirthDay`** is in a configured fertility age band with positive fertility support.
+
+This is a schedule-consistency and biological-plausibility boundary, not a claim that the configured age ranges are universal or empirically correct. A research configuration that changes reproductive-age assumptions changes which founder histories are admissible, and those assumptions retain the provenance of the declared demographic schedule. The check also does not claim that a pre-run event would have been generated on an exact annual M2 scheduler boundary; founder chronology predates model execution and is validated for reproductive-age support at the declared event day.
+
+The default synthetic validation schedule therefore accepts female reproductive events from completed age 18 through the day before completed age 45, and male parentage from completed age 18 through the day before completed age 70. A one-day-old parent is invalid.
 
 ## 5. Reproductive-history semantics
 
@@ -159,6 +173,7 @@ The core rejects the following configuration mismatches:
 - `declared_founder_state_v1` without a founder definition;
 - `synthetic_validation_v1` carrying a founder definition;
 - a founder definition whose counts/IDs/chronology/parent relationships/households/locations/condition are invalid;
+- a declared parent or pre-run birth event whose parent age lies outside the experiment's configured reproductive-age support;
 - a serialized founder definition whose remembered content identity no longer matches its scientifically consequential contents;
 - active non-zero M4 kin weighting with declared genealogy marked `unspecified`.
 
@@ -172,7 +187,9 @@ The implementation must retain regression tests demonstrating at least:
 - declared founders materialize exact declared ages, sexes, households, residences, condition and parent links;
 - changing synthetic-only founder knobs does not change declared state;
 - declared mode cannot silently fall back to synthetic initialization;
-- invalid founder chronology/genealogy is rejected;
+- invalid founder chronology/genealogy is rejected, including female/male parent ages immediately below, at and above configured reproductive-age boundaries;
+- pre-run `lastBirthDay` is rejected below/above configured female fertility support and accepted on supported boundaries;
+- custom fertility schedules change founder reproductive-history acceptance consistently rather than being overridden by a hidden universal age constant;
 - a sufficiently recent pre-run birth blocks an otherwise certain first-boundary fertility opportunity;
 - a sufficiently distant pre-run birth permits that opportunity;
 - no fictitious pre-run birth appears in runtime birth accounting/events;

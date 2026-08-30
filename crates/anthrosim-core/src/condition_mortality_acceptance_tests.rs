@@ -210,9 +210,13 @@ fn run_full_support_migration_case(enabled: bool) -> (u64, CellId, u16) {
     );
     let population_config = PopulationConfig::new(1)
         .with_initialization(PopulationInitialization::DeclaredFounderStateV1);
-    let mut population =
-        Population::initialize_declared_founder_state_v1(population_config, &definition, &world)
-            .unwrap();
+    let mut population = Population::initialize_declared_founder_state_v1(
+        population_config,
+        &definition,
+        &world,
+        &crate::config::DemographyConfig::synthetic_validation_v1(),
+    )
+    .unwrap();
 
     let mut migration_config = MigrationConfig::synthetic_validation_v1();
     migration_config.enabled = enabled;
