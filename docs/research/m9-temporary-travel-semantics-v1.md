@@ -41,9 +41,22 @@ The cost unit is an abstract model-facing traversal-cost unit. It is not metres,
 
 The travel table is derived once per `(world, focal region, travel model)` using a deterministic multi-source minimum-cost search seeded by every focal-region member cell.
 
-For each origin cell, the solver returns the minimum accumulated cost to any focal-region cell. If two focal-region destinations have exactly equal minimum accumulated cost, the destination with the smaller authoritative `CellId` wins.
+For each origin cell, the solver returns the minimum accumulated cost to the focal region. If more than one focal-region destination has exactly that same minimum accumulated cost, M9.4 preserves the complete canonical set of equal-cost destinations instead of collapsing the tie to one `CellId`. The stored candidate set is sorted only to make serialization and replay stable; that ordering is not the causal destination-choice rule.
 
-Internal queue ordering is also fully ordered by accumulated cost, destination `CellId` and current `CellId`; results must not depend on hash-map iteration order.
+When a household actually evaluates a temporary-travel trigger from a tied origin, `TemporaryTravelTable::resolution_for(...)` chooses among the equal minima with the versioned keyed policy `m9/equal-cost-destination-keyed-v1`. The key is composed from:
+
+- the authoritative M9 destination-tie seed stored with the travel table;
+- the origin `CellId`;
+- the household identity;
+- the trigger index.
+
+The keyed value is passed through the fixed integer avalanche defined by that policy and reduced to the candidate count. Core runs use the experiment seed for the tie-seed role; spatial runs use the resolved process seed declared by the spatial-realization provenance contract.
+
+This choice is deterministic and platform-independent, but it does **not** consume a mutable sequential RNG stream. Therefore an added, removed or reordered tied journey cannot shift M2, M3, M4 or other sequential stochastic streams. Replaying the same authoritative tie seed, origin, household and trigger index reproduces the same destination exactly.
+
+The policy is an ambiguity resolver, not an empirical claim that historical households chose equally accessible destinations randomly. If evidence later supports a directional, entrance, social or destination preference, that requires a separately declared model assumption.
+
+Internal minimum-cost-search queue ordering remains fully ordered for reproducibility, but queue/candidate order must not be interpreted as destination preference.
 
 Because the result is precomputed for every world cell, temporary-journey scheduling performs an indexed lookup rather than a global route search per household.
 
@@ -84,9 +97,11 @@ The travel model has a versioned schema, model identifier, provenance classifica
 An M9.4-derived table stores, for every origin:
 
 - reachable/unreachable status;
-- selected focal-region destination when reachable;
+- the canonical equal-minimum focal-region destination set when reachable;
+- the selected destination implied by the keyed household/trigger resolution when a journey is evaluated;
 - outbound and return travel duration;
 - accumulated symmetric travel cost when reachable;
+- the authoritative destination-tie seed needed for exact replay;
 - travel-model identity.
 
 Legacy hand-authored M9.3 validation tables remain constructible for lifecycle tests, but they carry no M9.4 travel-model identity or authoritative accumulated-cost table and must not be presented as M9.4-derived routing output.
@@ -95,7 +110,9 @@ Legacy hand-authored M9.3 validation tables remain constructible for lifecycle t
 
 M9.4 establishes deterministic route-cost semantics, not historical route reconstruction. A low-cost model path does not imply that people used that exact path, that the focal-region destination was an archaeological entrance, or that the configured capacity reflects a real population's daily travel ability.
 
-The scientific value is narrower: otherwise identical experiments can now make travel burden and arrival timing respond reproducibly to declared model-facing landscape cost.
+Equal-cost destination resolution likewise does not imply empirical indifference. Researchers interpreting destination-level visitor concentration or resource pressure should inspect the equal-cost-destination observability described in `m9-equal-cost-destination-choice-v1.md`; a high frequency of tied origins means those destination-level results depend materially on the declared ambiguity policy even when total catchment participation is unchanged.
+
+The scientific value is narrower: otherwise identical experiments can now make travel burden and arrival timing respond reproducibly to declared model-facing landscape cost while avoiding a permanent row-major/low-`CellId` spatial preference in exact ties.
 
 ## Acceptance
 
@@ -103,9 +120,10 @@ M9.4 is accepted when deterministic tests demonstrate:
 
 - the frozen symmetric edge formula;
 - minimum accumulated route cost;
-- deterministic equal-cost destination tie-breaking;
+- preservation of every exactly equal minimum-cost destination;
+- deterministic keyed equal-cost destination resolution using the declared tie seed, origin, household and trigger index without consuming sequential RNG state;
 - integer duration conversion;
 - explicit unreachable origins;
 - different route cost/duration when the authoritative M8 movement-cost overlay changes;
-- identical derived travel tables on supported platforms for identical inputs;
+- identical derived travel tables and keyed resolutions on supported platforms for identical inputs;
 - M9.3 can consume the derived table without changing persistent residence or permanent-migration meaning.
