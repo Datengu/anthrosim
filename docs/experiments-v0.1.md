@@ -204,7 +204,7 @@ analysis/summary.json
 
 These files are explicitly labelled `derived`. They are not checkpoints, run manifests, events, metrics or any other authoritative simulation state.
 
-The run-row and top-level analysis-summary wire contracts remain derived-analysis schema v4. The point-table contract is schema v5 because each point row now directly carries every currently supported sweep dimension. This version split is intentional: the v4 scientific eligibility/censoring contract introduced for run rows and point aggregation is unchanged, while the standalone point design matrix has gained previously missing columns.
+The current run-row and top-level analysis-summary wire contracts use derived-analysis schema v5. The current point-table contract uses schema v6. Run/summary v5 was introduced when undefined denominator-based quantities were preserved as `null` and run rows gained migration-quality observables; point v6 additionally records denominator/support counts, migration occurrence, and the corresponding migration-quality summaries. These are wire-contract changes only: historical artifacts remain identified by the schema version they were originally written with.
 
 `runs.json` and `runs.csv` contain one row for **every planned run**, not just scientifically aggregated outcomes. Each row records:
 
