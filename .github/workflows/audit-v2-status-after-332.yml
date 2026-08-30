@@ -1,0 +1,105 @@
+name: Audit v2 STATUS after 332
+on:
+  push:
+    branches:
+      - audit-v2/status-after-332
+jobs:
+  update-status:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit-v2/status-after-332
+      - name: Update STATUS ledger
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('docs/research/audit-v2/STATUS.md')
+          s = p.read_text()
+
+          replacements = [
+              (
+                  '| Latest protected-main closure baseline examined | `9cb73cc405f76fe3c0d0692f60b4aca2bde377a0` |',
+                  '| Latest protected-main closure baseline examined | `8300fb5ace80a6e8f869cd76c706a0d467cb3f7c` |',
+              ),
+              (
+                  '| Current P2 findings | #314, #315, #327, #329, #332, #336, #342 |',
+                  '| Current P2 findings | #314, #315, #327, #329, #336, #342 |',
+              ),
+              (
+                  '| G | Initialization, burn-in, path dependence, continuation state | complete — findings | `area-g-2026-08-29.md`; #320 repaired/reverified; #332 remains open |',
+                  '| G | Initialization, burn-in, path dependence, continuation state | complete — P2 repaired/reverified | `area-g-2026-08-29.md`; #320 repaired/reverified; #332 / PR #362 year-zero metric-history equivalence + independent checker |',
+              ),
+              (
+                  '| AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | open | #332 | n/a |',
+                  '| AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | **fixed + independently reverified** | #332 | PR #362; exact ordinary/spatial year-zero equivalence; resealed legacy-history rejection; independent +50% observation-count checker |',
+              ),
+              (
+                  '| Checkpoint/resume × RNG | positive authoritative continuation evidence; #332 metric-history caveat remains open |',
+                  '| Checkpoint/resume × RNG | positive authoritative continuation evidence; #332 repaired/reverified so a non-terminal year-zero checkpoint no longer changes retained metric history |',
+              ),
+              (
+                  '| Observability × scientific interpretation | remaining dependencies are #327/#329/#332/#342/#344 plus broader P2 backlog |',
+                  '| Observability × scientific interpretation | #332 repaired/reverified; remaining dependencies are #327/#329/#342/#344 plus broader P2 backlog |',
+              ),
+              (
+                  '1. Triage/repair the remaining P2 findings #314, #315, #327, #329, #332, #336 and #342.',
+                  '1. Triage/repair the remaining P2 findings #314, #315, #327, #329, #336 and #342.',
+              ),
+              (
+                  'Audit v2 remains **coverage-complete but not yet backlog-closed**. No P0 finding is open. All P1 findings discovered so far are repaired and independently reverified. P2 #324 and #320 are also repaired/reverified on the v21 line, with #324 supported by fresh structural/confirmatory stochastic evidence and #320 by schedule-relative reproductive-age and resealed-checkpoint adversaries.',
+                  'Audit v2 remains **coverage-complete but not yet backlog-closed**. No P0 finding is open. All P1 findings discovered so far are repaired and independently reverified. P2 #324, #320 and #332 are also repaired/reverified on the v21 line, with #324 supported by fresh structural/confirmatory stochastic evidence, #320 by schedule-relative reproductive-age and resealed-checkpoint adversaries, and #332 by exact ordinary/spatial year-zero continuation equivalence plus an independent observability checker.',
+              ),
+              (
+                  'The remaining work is now P2/P3 scientific robustness, interpretation, documentation, sensitivity, metric semantics and continuation-observability cleanup. #320 is closed; the next issue should be selected from #314, #315, #327, #329, #332, #336 and #342 only after checking live overlap and dependencies.',
+                  'The remaining work is now P2/P3 scientific robustness, interpretation, documentation, sensitivity and metric semantics cleanup. #320 and #332 are closed; the next issue should be selected from #314, #315, #327, #329, #336 and #342 only after checking live overlap and dependencies.',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = s.count(old)
+              assert count == 1, (old, count)
+              s = s.replace(old, new, 1)
+
+          anchor = '''- `MODEL_SEMANTICS_ID` remains v21 because this is fail-closed input-validity hardening: previously admissible executable trajectories retain their meaning, while scientifically impossible declared initial histories are rejected before execution.
+
+## Cross-system integration matrix
+'''
+          assert s.count(anchor) == 1
+          section = '''- `MODEL_SEMANTICS_ID` remains v21 because this is fail-closed input-validity hardening: previously admissible executable trajectories retain their meaning, while scientifically impossible declared initial histories are rejected before execution.
+
+### #332 / PR #362 — year-zero checkpoint metric-history equivalence
+
+- A non-terminal checkpoint requested at simulation day 0 no longer manufactures a derived day-zero metric observation merely to serialize continuation state. A two-year uninterrupted run and a year-zero checkpoint/resume now both retain metric days `[365, 730]`; the legacy resumed path retained `[0, 365, 730]`.
+- The independent Area G checker reproduces the legacy 3-vs-2 retained-observation discrepancy without importing AnthroSim: the extra day-zero point is a **+50%** observation-count change over the two-year example. It also verifies the repaired `[365, 730]` path, a legitimate year-one checkpoint `[365]`, and a genuinely terminal zero-duration run `[0]`.
+- Ordinary and transformed spatial regressions require exact final authoritative output equivalence after removing only declared resume-lineage provenance. Legacy/nonconforming non-terminal day-zero checkpoints that already contain metric snapshots fail closed even after continuation identity is resealed rather than having history silently rewritten.
+- Empty day-zero metric history remains subject to metric-series identity validation: a dedicated adversary corrupts the metric schema version on an otherwise valid empty year-zero checkpoint and requires `validate_invariants()` to fail.
+- Final PR head `1a9a6777bbb7dfe2c93e1b37ac6489f420571d13` passed the complete protected matrix: full workspace tests/Clippy/release build, core benchmarks, cross-platform and spatial determinism, provenance/bundle/Explorer gates, M7.6 canonical reference, performance/memory acceptance, 1,000-run ensemble soak, applicable M8.6/M9.7 scientific gates, and the guarded 130-seed / **780-run** #304 demographic confirmation.
+- `MODEL_SEMANTICS_ID` and metric schema remain v21/v3: causal dynamics and completed-run cadence are unchanged; the repair makes checkpoint serialization conform to the existing `annual_boundary_plus_terminal` observation contract.
+
+## Cross-system integration matrix
+'''
+          s = s.replace(anchor, section, 1)
+
+          hist_anchor = '- Area B: legacy declared founder genealogy accepted a parent only one day older than the child; #320 now rejects that state against the experiment\'s declared reproductive-age support.\n'
+          assert s.count(hist_anchor) == 1
+          s = s.replace(
+              hist_anchor,
+              hist_anchor + '- Area G: legacy year-zero checkpoint/resume retained `[0, 365, 730]` where uninterrupted execution retained `[365, 730]`, a 3-vs-2 (**+50%**) observation-count discrepancy; #332 now preserves exact metric history while genuine terminal day zero remains observable.\n',
+              1,
+          )
+
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- docs/research/audit-v2/STATUS.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/research/audit-v2/STATUS.md
+          git commit -m 'docs: record #332 audit-v2 closure state'
+          git push origin HEAD:audit-v2/status-after-332
