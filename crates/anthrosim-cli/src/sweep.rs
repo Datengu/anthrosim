@@ -2,10 +2,10 @@ use std::{io, path::Path};
 
 use crate::ensemble::EnsembleRunSettings;
 
-#[path = "sweep_distance_preservation.rs"]
-mod sweep_distance_preservation;
 #[path = "sweep_legacy.rs"]
 mod legacy;
+#[path = "sweep_distance_preservation.rs"]
+mod sweep_distance_preservation;
 #[path = "sweep_weighting.rs"]
 mod sweep_weighting;
 
