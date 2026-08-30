@@ -17,6 +17,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/issue-332.py
+          python3 .github/scripts/issue-332-clippy-fix.py
           python3 docs/research/audit-v2/area-g-year0-checkpoint-observability-audit.py
           cargo fmt --all
           cargo check --workspace --all-targets
