@@ -374,6 +374,78 @@ fn transformed_checkpoint_resume_matches_uninterrupted() {
 }
 
 #[test]
+fn transformed_year_zero_checkpoint_resume_matches_uninterrupted() {
+    let uninterrupted = SpatialLandscapeSimulation::new(config(9013), fixture(), mechanisms())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    let checkpoint = SpatialLandscapeSimulation::new(config(9013), fixture(), mechanisms())
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    assert_eq!(checkpoint.core_checkpoint.time.days(), 0);
+    assert!(checkpoint.core_checkpoint.metrics.snapshots.is_empty());
+
+    let resumed = SpatialLandscapeSimulation::from_checkpoint(checkpoint, fixture())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    let uninterrupted_days = uninterrupted
+        .metrics()
+        .snapshots
+        .iter()
+        .map(|snapshot| snapshot.day)
+        .collect::<Vec<_>>();
+    let resumed_days = resumed
+        .metrics()
+        .snapshots
+        .iter()
+        .map(|snapshot| snapshot.day)
+        .collect::<Vec<_>>();
+    assert_eq!(resumed_days, uninterrupted_days);
+
+    let mut resumed_without_lineage = resumed.clone();
+    resumed_without_lineage
+        .manifest
+        .core_manifest
+        .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage.checkpoint.core_checkpoint = resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .seal_continuation_identity();
+    assert_eq!(resumed_without_lineage, uninterrupted);
+}
+
+#[test]
+fn transformed_resume_rejects_legacy_nonterminal_year_zero_metric_snapshot() {
+    let mut legacy = SpatialLandscapeSimulation::new(config(9014), fixture(), mechanisms())
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    let mut terminal_config = config(9014);
+    terminal_config.duration_years = 0;
+    let terminal_zero = SpatialLandscapeSimulation::new(terminal_config, fixture(), mechanisms())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    legacy
+        .core_checkpoint
+        .metrics
+        .snapshots
+        .push(terminal_zero.metrics().snapshots[0].clone());
+    legacy.core_checkpoint = legacy.core_checkpoint.seal_continuation_identity();
+
+    assert!(matches!(
+        SpatialLandscapeSimulation::from_checkpoint(legacy, fixture()),
+        Err(SpatialLandscapeError::CheckpointInitialMetricHistoryNotEmpty { snapshot_count: 1 })
+    ));
+}
+
+#[test]
 fn transformed_resume_rejects_core_continuation_tampering() {
     let checkpoint = SpatialLandscapeSimulation::new(config(9007), fixture(), mechanisms())
         .unwrap()

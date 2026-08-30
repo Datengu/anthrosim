@@ -183,15 +183,24 @@ fn validate_checkpoint_invariants_for_world(
             "temporary mobility event history is invalid: {error}"
         ))
     })?;
-    validate_metrics(
-        &checkpoint.metrics,
-        &checkpoint.events,
-        checkpoint.time.days(),
-        checkpoint.state_digest64,
-        &population,
-        &resources,
-        &migration_summary,
-    )?;
+    let nonterminal_initial_checkpoint = recorded_stop_reason.is_none()
+        && checkpoint.terminal_stop_reason.is_none()
+        && checkpoint.time.days() == 0;
+    if nonterminal_initial_checkpoint {
+        if !checkpoint.metrics.snapshots.is_empty() {
+            return violation("non-terminal initial checkpoint must not contain metric snapshots");
+        }
+    } else {
+        validate_metrics(
+            &checkpoint.metrics,
+            &checkpoint.events,
+            checkpoint.time.days(),
+            checkpoint.state_digest64,
+            &population,
+            &resources,
+            &migration_summary,
+        )?;
+    }
 
     let actual_digest = state_digest64_with_temporary_mobility(
         checkpoint.time.days(),
@@ -910,11 +919,11 @@ fn validate_metrics(
 ) -> Result<(), InvariantError> {
     if metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION
         || metrics.cadence != "annual_boundary_plus_terminal"
-        || metrics.snapshots.is_empty()
     {
-        return violation(
-            "metric series schema/cadence is invalid or terminal snapshot is missing",
-        );
+        return violation("metric series schema/cadence is invalid");
+    }
+    if metrics.snapshots.is_empty() {
+        return violation("metric series terminal/current-boundary snapshot is missing");
     }
 
     let mut previous: Option<&MetricSnapshot> = None;
