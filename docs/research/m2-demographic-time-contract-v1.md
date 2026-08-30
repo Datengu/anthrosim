@@ -1,65 +1,83 @@
 # M2 demographic-time contract v1
 
-Status: authoritative scientific/model contract for the repaired annual M2 transition semantics.
+Status: authoritative scientific/model contract for the current M2 demographic-time semantics.
 
-This document defines what AnthroSim's current demographic probabilities and annual demographic boundary mean. It is a **verification contract**, not an empirical validation claim. The current M2 implementation remains a deliberately coarse annual discrete-time model; it must not be described as a continuous-time demographic hazard model.
+This document defines what AnthroSim's current demographic probabilities and annual demographic boundary mean. It is a **verification contract**, not an empirical validation claim. Background mortality is parameterized annually but, since the v15 competing-risk repair, it is executed as elapsed subannual risk at M3 mortality boundaries. Fertility and parentage remain annual M2 transitions. The model must not be described as a continuous-time demographic hazard model.
 
-The versioned downstream validation/diagnostic surface for these semantics is defined separately in [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md).
+The versioned downstream validation/diagnostic surface for these semantics is defined separately in [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md). Joint M2/M3 mortality execution is defined normatively in [`competing-mortality-risks-v1.md`](competing-mortality-risks-v1.md).
 
 ## 1. Purpose
 
 The pre-repair M2 implementation allowed several separate-looking defects to arise from one ambiguity: the annual boundary simultaneously acted as an ageing boundary, a mortality draw, a fertility draw, a birth-spacing clock and a parentage-locality snapshot. The resulting behavior could skip the infant mortality interval, silently quantize a day-valued birth-spacing parameter, let a zero-duration same-day M4 relocation redefine the male parent pool, reset newborn condition to 1000, and let implementation order decide whether mortality erased fertility opportunity.
 
-This contract makes those semantics explicit before empirical calibration. Founder demographic/kin prehistory is handled by the separate declared-founder contract rather than hidden inside annual transition code.
+The first M2 repair made those annual semantics explicit. A later repair, introduced at model-semantics v15, removed background-mortality execution from the year-end M2 pass and resolved it instead as elapsed risk jointly with M3 condition-mediated mortality at each M3 mortality boundary. This contract describes that current combined state rather than the superseded annual-boundary mortality implementation.
 
-## 2. Annual interval
+Founder demographic/kin prehistory is handled by the separate declared-founder contract rather than hidden inside annual transition code.
 
-For an M2 boundary at day `t`, the demographic exposure interval is the half-open interval:
+## 2. Annual interval and schedule selection
+
+For a model year ending at day `t`, the annual demographic exposure interval is the half-open interval:
 
 `[t - 365, t)`
 
-M2 is currently evaluated only at completed annual boundaries, so `t` is a positive multiple of 365 days.
+The annual M2 fertility/parentage stage is evaluated only after a completed model year, so `t` is a positive multiple of 365 days.
 
-A person's age-specific mortality and female fertility schedule entries are selected using that person's age at **the start of the exposure interval**, `t - 365`, not age at `t`.
+A person's age-specific M2 background-mortality schedule entry and a female's fertility schedule entry are selected using age at **the start of the model-year interval**, `t - 365`, not age at `t`.
 
 Consequences:
 
-- a model-born child first exposed at the next annual boundary is evaluated in the age-0 `[0, 1)` mortality band rather than skipping directly to age 1;
-- every schedule transition uses the age band that governed the elapsed interval rather than the band entered at its end;
-- a person who crosses a band boundary during an annual interval retains the start-of-interval band's probability for that full discrete transition.
+- a model-born child first exposed during the next model year uses the age-0 `[0, 1)` mortality band rather than skipping directly to age 1;
+- every annual schedule transition uses the age band that governed the model year rather than the band entered at its end;
+- a person who crosses a band boundary during a model year retains the start-of-year band's configured annual probability for that model year's background-risk partitioning and annual fertility opportunity.
 
-The last point is a deliberate discretization assumption. It must not be confused with piecewise continuous exposure within the year.
+The final point is a deliberate discretization assumption. AnthroSim does not switch to a new M2 age band part-way through the same model year merely because M3 mortality is evaluated subannually.
 
-## 3. Mortality probability
+## 3. Background mortality probability and execution
 
-For a person alive at the start of `[t - 365, t)`, let `q_a` be the configured `annual_probability_per_million` selected from the mortality schedule using age at `t - 365`.
+For a person alive at the start of `[t - 365, t)`, let `p_a` be the configured M2 `annual_probability_per_million` selected from the mortality schedule using age at `t - 365`.
 
-The current model interprets `q_a` as the probability that the person undergoes the **annual demographic mortality transition at boundary `t`** after surviving to the start of the interval.
+`p_a` is the configured **annual cumulative background-mortality probability for that model year**. It is not an instantaneous hazard and it is no longer interpreted as a Bernoulli draw performed only at annual boundary `t`.
 
-It is not an instantaneous hazard and no within-year death time is sampled. A successful draw records demographic death on day `t`.
+Current execution partitions that annual probability across the M3 mortality intervals within the year using the elapsed-time rule defined in [`competing-mortality-risks-v1.md`](competing-mortality-risks-v1.md). For elapsed time `x` days since the start of the model year:
+
+```text
+S(x) = 1 - p_a * x / 365
+```
+
+For one M3 mortality interval `[s,e)` measured from the start of that same model year:
+
+```text
+q_background(s,e) = 1 - S(e) / S(s)
+```
+
+The implementation evaluates this with exact integer-rational arithmetic. Multiplying conditional survival over a complete partition of the model year recovers exactly `1 - p_a`, so changing only the number of M3 resource periods does not multiply the configured annual background probability.
+
+At each M3 mortality boundary, this elapsed M2 background risk is resolved jointly with the current M3 condition-mediated risk. No separate M2 background-mortality draw is performed again at year end.
+
+This is a declared discrete elapsed-time approximation. It is **not** a fitted or continuous-time hazard model, and AnthroSim does not sample a biologically meaningful within-interval death time.
 
 ## 4. Fertility probability and competing mortality
 
-For a female record that existed at the start of the interval, let `p_a` be the configured fertility probability selected using her age at `t - 365`.
+For a female record that existed at the start of the model-year interval, let `f_a` be the configured annual fertility probability selected using her age at `t - 365`.
 
-The current model interprets `p_a` as a **conditional annual live-birth opportunity at boundary `t` among females that survive the demographic mortality transition for that interval**, subject additionally to birth-spacing eligibility and an eligible local male parent pool.
+The current model interprets `f_a` as a **conditional annual live-birth opportunity at boundary `t` among females that remain alive through the model year's preceding mortality boundaries**, subject additionally to birth-spacing eligibility and an eligible local male parent pool.
 
-Mortality is therefore a competing transition with explicit priority:
+The causal ordering is therefore expressed in terms of survival state, not an obsolete year-end mortality function-call priority:
 
-1. mortality is drawn for records present at interval start;
-2. females and males that die at `t` are unavailable to fertility/parentage at `t`;
-3. fertility is drawn only for surviving eligible females;
+1. throughout `[t - 365, t)`, elapsed M2 background mortality and M3 condition-mediated mortality are resolved jointly at M3 mortality boundaries;
+2. deaths recorded during those boundaries remove records from subsequent state;
+3. after all subannual mortality/resource boundaries for the model year have completed, the annual M2 stage evaluates fertility and parentage for the surviving eligible records;
 4. successful births are recorded at `t`.
 
-For an otherwise eligible female with mortality probability `q` and conditional fertility probability `p`, ignoring spacing and male availability, the probability of a recorded birth is therefore:
+A female that dies during the model year cannot subsequently give birth at the year-end M2 stage, and a male that dies during the model year cannot be selected as the year-end male parent. There is no additional background-mortality draw at `t` that competes with fertility on that same annual function call.
 
-`P(birth at t) = (1 - q) * p`
+When condition-mediated mortality is absent, complete-year survival under the partitioned M2 background process remains exactly `1 - p_a`. For an otherwise eligible female with configured annual background probability `p_a` and conditional fertility probability `f_a`, ignoring spacing and male availability, the unconditional probability of surviving the model year and then recording a birth therefore remains:
 
-A female parent cannot both give birth and die from M2 demographic mortality on the same annual boundary under this v1 contract, and a male that dies at that boundary cannot be selected as the male parent. This is a declared coarse competing-transition assumption, not an empirical statement about real within-year ordering.
+`P(birth at t) = (1 - p_a) * f_a`
 
-Any empirical schedule intended for this implementation must therefore be transformed or estimated consistently with this conditional-survival meaning. A directly observed unconditional annual live-birth probability must not be inserted without checking that the conditioning matches.
+When condition-mediated mortality is active, the corresponding birth probability is additionally conditioned on surviving that explicit cause-specific process. It must not be reduced to the two-term expression above unless the M3 condition-mediated risk for the year is zero.
 
-A later model may adopt subannual or continuous-time competing hazards, but that would be a new model-semantics identity rather than a silent implementation change.
+Any empirical schedule intended for this implementation must be transformed or estimated consistently with these conditioning rules. In particular, an all-cause empirical mortality schedule must not be inserted unchanged as M2 background mortality while explicit M3 condition-mediated mortality is also active; doing so would double count causes already represented elsewhere.
 
 ## 5. Birth spacing
 
@@ -95,7 +113,7 @@ The implementation reconstructs the pre-M4 residence snapshot from authoritative
 
 Birth state itself is recorded at the mother's current persistent household residence at `t`. Therefore, when an M4 move occurs on the same boundary, parentage exposure can refer to the pre-move residence while the newborn immediately inherits the already-updated household residence. This is intentional: parentage locality represents exposure over the elapsed interval, whereas the newborn's stored residence is boundary state.
 
-`Death.cell` retains its existing event/state meaning: the person's persistent boundary-state residence when the death transition is recorded. M2 mortality is not currently spatially parameterized, so the model does not infer a separate spatial exposure location for the annual mortality probability. If mortality later becomes spatially varying, an explicit exposure-location field/state should be introduced rather than overloading `Death.cell` and breaking event/state reconciliation.
+`Death.cell` retains its existing event/state meaning: the person's persistent residence when the mortality transition is resolved. Current M2 background mortality is partitioned over M3 intervals and can therefore be recorded before the annual boundary. M2 background mortality is not spatially parameterized, so the model does not infer a separate spatial exposure location for that risk. If mortality later becomes spatially varying, an explicit exposure-location field/state should be introduced rather than overloading `Death.cell` and breaking event/state reconciliation.
 
 ## 7. Newborn condition
 
@@ -125,10 +143,11 @@ This removes the previous requirement to pretend every founder has no reproducti
 
 The versioned derived report defined in [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md) reconstructs the M2 opportunity funnel from authoritative day-zero Population, EventLog history, immutable experiment configuration and final checkpoint Population.
 
-It distinguishes at least:
+Under the current competing-risk semantics it distinguishes at least:
 
-- mortality exposures and M2 demographic deaths by interval-start age band;
-- surviving female records entering fertility;
+- M3-aligned M2 background-mortality risk-interval exposures and resulting `demographic_mortality` deaths by interval-start age band;
+- configured mortality-risk intervals per year and the declared order-invariant competing-risk process;
+- surviving female records entering the year-end fertility stage;
 - non-zero fertility-schedule eligibility;
 - spacing eligibility using the explicit requested-to-executable rule;
 - eligible-male availability under the pre-same-day-M4 parentage locality;
@@ -139,7 +158,7 @@ It distinguishes at least:
 - model-period and declared-prehistory-to-first-birth interbirth intervals; and
 - completed-fertility summaries with explicit censoring.
 
-The derivation independently replays the `demography/fertility` RNG stream and reconciles reconstructed demographic history against final Population state. A mismatch is an analysis error rather than a silently estimated denominator.
+The derivation independently replays the relevant deterministic RNG streams and reconciles reconstructed demographic history against final Population state. A mismatch is an analysis error rather than a silently estimated denominator.
 
 These quantities remain separate so later calibration cannot compensate invisibly for male availability, founder history, mortality competition or spacing suppression by inflating the fertility schedule.
 
@@ -147,26 +166,29 @@ These quantities remain separate so later calibration cannot compensate invisibl
 
 The repair suite includes model-contract tests for:
 
-- age-0 mortality exposure of a model-born child at its first later annual boundary;
-- age-1 second-year risk at the following boundary;
+- age-0 background-mortality exposure of a model-born child during its first later model year;
+- age-1 second-year risk during the following model year;
 - founder records immediately below/at an age-band boundary;
 - equivalent fertility age-band boundaries;
+- exact preservation of annual M2 background survival when partitioned over 1, 4, 12 or 365 M3 mortality intervals;
+- zero/certain cause-specific mortality edges and order-invariant joint M2/M3 competing-risk behavior;
+- proof that year-end M2 fertility/parentage does not redraw background mortality;
 - requested-to-executable birth-spacing normalization around 365-day boundaries;
-- high-mortality/high-fertility cases proving the declared conditional-survival equation;
+- survival-conditioned fertility cases consistent with the current mortality process;
 - same-day M4 relocation with origin-only and destination-only eligible males;
 - the corresponding non-annual move after elapsed destination residence;
 - exact newborn maternal-condition inheritance at high, medium and very-low condition;
 - severe-scarcity M2→M3 regression proving no hidden newborn survival advantage;
 - newborn contribution to household mean condition and the resulting M4 condition pressure;
-- deterministic demographic-observability replay and final-state reconciliation; and
+- deterministic demography-observability replay and final-state reconciliation; and
 - end-to-end CLI derivation/checking from a normal run bundle.
 
 Synthetic tests verify that software implements this declared model and that the repaired M2 condition state propagates coherently into M3 and M4. They do not empirically validate the model for any archaeological population.
 
 ## 11. Compatibility and interpretation
 
-The transition-semantics repair changed authoritative demographic meaning relative to the v0.3.0 baseline and therefore advanced `MODEL_SEMANTICS_ID` when it was introduced. Subsequent authoritative repairs have advanced the repository identity further.
+The original M2 transition-semantics repair changed authoritative demographic meaning relative to the v0.3.0 baseline and therefore advanced `MODEL_SEMANTICS_ID` when it was introduced. The later v15 competing-risk repair changed authoritative M2 mortality execution from a year-end annual draw to elapsed M3-boundary background risk resolved jointly with condition-mediated mortality. Subsequent authoritative repairs have advanced the repository identity further.
 
-The newborn-condition acceptance work described here adds verification coverage and documentation only. It does **not** change authoritative simulation trajectories and therefore does not require a new model-semantics identity. Any canonical M7/M8/M9 output change caused by this acceptance-test work must be treated as a regression requiring investigation rather than rebaselining.
+Historical descriptions of the pre-v15 annual-boundary mortality implementation remain useful only when explicitly labelled as superseded behavior. Current-facing interpretation must follow this document together with the normative competing-risk contract.
 
 The repair programme is specifically intended to improve **verification** and interpretability. Empirical **validation** remains study-specific and future work. Exact Git provenance continues to identify the implementation used for every run.
