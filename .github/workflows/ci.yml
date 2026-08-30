@@ -7,10 +7,18 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  scope:
+    uses: ./.github/workflows/pr-ci-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   quality:
     name: Quality and tests
+    needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -20,13 +28,24 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate documentation-only change surface
+        if: ${{ needs.scope.outputs.full_required != 'true' }}
+        run: |
+          python3 -m py_compile scripts/classify-pr-ci-scope.py
+          python3 -m py_compile scripts/validate-audit-documentation.py
+          python3 scripts/classify-pr-ci-scope.py --self-test
+          python3 scripts/validate-audit-documentation.py
+          python3 scripts/test-current-model-semantics-docs.py
+
       - name: Install pinned Rust toolchain
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
       - name: Versions
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rustc --version --verbose
           cargo --version
@@ -34,19 +53,25 @@ jobs:
           python3 --version
 
       - name: Verify locked dependency graph
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
 
       - name: Format
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo fmt --all -- --check
 
       - name: Clippy
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
       - name: Test workspace
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo test --locked --workspace --all-features
 
   explorer:
     name: Explorer and script validation
+    needs: scope
+    if: ${{ needs.scope.outputs.full_required == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
