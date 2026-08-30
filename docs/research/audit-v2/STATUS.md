@@ -13,11 +13,11 @@ Purpose: durable repository-authoritative state for the second independent/adver
 | Audit generation | v2 / second independent scientific audit |
 | Initial release | `v0.3.2` |
 | Initial protected-main SHA | `eb240ab482d9683b64081d3d1ea8e151592927ee` |
-| Latest protected-main closure baseline examined | `9cb73cc405f76fe3c0d0692f60b4aca2bde377a0` |
+| Latest protected-main closure baseline examined | `8300fb5ace80a6e8f869cd76c706a0d467cb3f7c` |
 | Model semantics | `anthrosim-model-semantics-v21` |
 | Current P0 findings | none |
 | Current P1 findings | none — #326, #334, #338, #340 and closure-discovered #350 repaired and reverified |
-| Current P2 findings | #314, #315, #327, #329, #332, #336, #342 |
+| Current P2 findings | #314, #315, #327, #329, #336, #342 |
 | Current P3 findings | #344 |
 | Non-scientific audit infrastructure | #317 |
 | Coverage state | **A–N complete** |
@@ -35,7 +35,7 @@ The v2 audit originally completed A–N coverage on model semantics v19. Repair 
 | D | Resources, condition, subsistence, depletion/recovery | complete — P1 reverified | `area-d-2026-08-29.md`; #326 / PR #347; independent Area D arithmetic checker |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | complete — findings | `area-e-2026-08-29.md`; #327; #214 relevant |
 | F | Aggregation and interaction mechanisms | complete — findings | `area-f-2026-08-29.md`; #329 |
-| G | Initialization, burn-in, path dependence, continuation state | complete — findings | `area-g-2026-08-29.md`; #320 repaired/reverified; #332 remains open |
+| G | Initialization, burn-in, path dependence, continuation state | complete — P2 repaired/reverified | `area-g-2026-08-29.md`; #320 repaired/reverified; #332 / PR #362 year-zero metric-history equivalence + independent checker |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | complete — P1 reverified | `area-h-2026-08-29.md`; #334 / PR #352; independent exact-coverage checker |
 | I | Sensitivity, uncertainty, convergence, robustness | complete — findings | `area-i-2026-08-29.md`; #336 |
 | J | Identifiability, equifinality, calibration, discrimination | complete — P1 reverified | `area-j-2026-08-29.md`; #338 / PR #353; independent Area J checker |
@@ -55,7 +55,7 @@ The v2 audit originally completed A–N coverage on model semantics v19. Repair 
 | AV2-005 — per-boundary ceiling multiplies partial-supply condition deterioration with resolution | **P1** | D/I/N | **fixed + independently reverified** | #326 | PR #347; deficits 1/10/100/500/1000‰ over every P=1..365; mortality/M4 integration checked |
 | AV2-006 — M9 travel contract documents superseded lower-CellId equal-cost selection | P2 | E/M/L | open | #327 | n/a |
 | AV2-007 — M9.7 narrative provenance/statistics stale relative to reference | P2 | F/K/L/M | open | #329 | n/a |
-| AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | open | #332 | n/a |
+| AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | **fixed + independently reverified** | #332 | PR #362; exact ordinary/spatial year-zero equivalence; resealed legacy-history rejection; independent +50% observation-count checker |
 | AV2-009 — Monte Carlo quantile gate can certify under-covered intervals | **P1** | H/I/L/N | **fixed + independently reverified** | #334 | PR #352; exact binomial/order-statistic coverage; infeasible tails fail closed |
 | AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K/N | open | #336 | n/a |
 | AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | **fixed + independently reverified** | #338 | PR #353; ±0.20 unresolved vs identical estimates at ±0.01 identified |
@@ -123,6 +123,15 @@ The v2 audit originally completed A–N coverage on model semantics v19. Repair 
 - The independent Area B checker reproduces the legacy one-day-parent loophole and all repaired age boundaries without importing AnthroSim. Focused tests, full protected CI, cross-platform/spatial determinism, and the guarded 130-seed / **780-run** #304 confirmation all passed on the final PR head.
 - `MODEL_SEMANTICS_ID` remains v21 because this is fail-closed input-validity hardening: previously admissible executable trajectories retain their meaning, while scientifically impossible declared initial histories are rejected before execution.
 
+### #332 / PR #362 — year-zero checkpoint metric-history equivalence
+
+- A non-terminal checkpoint requested at simulation day 0 no longer manufactures a derived day-zero metric observation merely to serialize continuation state. A two-year uninterrupted run and a year-zero checkpoint/resume now both retain metric days `[365, 730]`; the legacy resumed path retained `[0, 365, 730]`.
+- The independent Area G checker reproduces the legacy 3-vs-2 retained-observation discrepancy without importing AnthroSim: the extra day-zero point is a **+50%** observation-count change over the two-year example. It also verifies the repaired `[365, 730]` path, a legitimate year-one checkpoint `[365]`, and a genuinely terminal zero-duration run `[0]`.
+- Ordinary and transformed spatial regressions require exact final authoritative output equivalence after removing only declared resume-lineage provenance. Legacy/nonconforming non-terminal day-zero checkpoints that already contain metric snapshots fail closed even after continuation identity is resealed rather than having history silently rewritten.
+- Empty day-zero metric history remains subject to metric-series identity validation: a dedicated adversary corrupts the metric schema version on an otherwise valid empty year-zero checkpoint and requires `validate_invariants()` to fail.
+- Final PR head `1a9a6777bbb7dfe2c93e1b37ac6489f420571d13` passed the complete protected matrix: full workspace tests/Clippy/release build, core benchmarks, cross-platform and spatial determinism, provenance/bundle/Explorer gates, M7.6 canonical reference, performance/memory acceptance, 1,000-run ensemble soak, applicable M8.6/M9.7 scientific gates, and the guarded 130-seed / **780-run** #304 demographic confirmation.
+- `MODEL_SEMANTICS_ID` and metric schema remain v21/v3: causal dynamics and completed-run cadence are unchanged; the repair makes checkpoint serialization conform to the existing `annual_boundary_plus_terminal` observation contract.
+
 ## Cross-system integration matrix
 
 | Interaction | Current disposition |
@@ -137,14 +146,15 @@ The v2 audit originally completed A–N coverage on model semantics v19. Repair 
 | Stochastic inference × censoring/extinction | #334 P1 repaired; existing censoring/nullability governance remains positive |
 | Sensitivity × hidden configuration | #336 metadata-only pseudo-structures remains open |
 | Calibration × identifiability | #338 P1 repaired; stochastic claims now fail closed on inadequate simulation precision |
-| Checkpoint/resume × RNG | positive authoritative continuation evidence; #332 metric-history caveat remains open |
-| Observability × scientific interpretation | remaining dependencies are #327/#329/#332/#342/#344 plus broader P2 backlog |
+| Checkpoint/resume × RNG | positive authoritative continuation evidence; #332 repaired/reverified so a non-terminal year-zero checkpoint no longer changes retained metric history |
+| Observability × scientific interpretation | #332 repaired/reverified; remaining dependencies are #327/#329/#342/#344 plus broader P2 backlog |
 
 ## Historical high-value discovery evidence
 
 These values record the original adversarial failures and should not be mistaken for current v21 behavior after repair:
 
 - Area B: legacy declared founder genealogy accepted a parent only one day older than the child; #320 now rejects that state against the experiment's declared reproductive-age support.
+- Area G: legacy year-zero checkpoint/resume retained `[0, 365, 730]` where uninterrupted execution retained `[365, 730]`, a 3-vs-2 (**+50%**) observation-count discrepancy; #332 now preserves exact metric history while genuine terminal day zero remains observable.
 - Area D: legacy 1‰ deficit produced annual condition loss 1→365 as M3 settlements/year rose 1→365; #326 removed this partition-induced multiplication.
 - Area H: legacy nominal 95% interval for p=.95,n=8 had only 33.08% exact coverage; #334 now fails such unsupported combinations closed.
 - Area J: legacy fixed point estimates were invariant to unrepresented Monte Carlo SE 0.001→1.0; #338 now makes precision part of the decision.
@@ -155,15 +165,15 @@ These values record the original adversarial failures and should not be mistaken
 
 Before audit v2 is declared fully closed/passed:
 
-1. Triage/repair the remaining P2 findings #314, #315, #327, #329, #332, #336 and #342.
+1. Triage/repair the remaining P2 findings #314, #315, #327, #329, #336 and #342.
 2. Resolve P3 #344 or explicitly disposition it if no longer applicable after intervening schema changes.
 3. Repeat any integration/scientific references whose interpretation changes under the remaining repairs.
 4. Perform one short final closure/reverification pass against then-current protected main; do **not** restart A–N from scratch unless causal executable semantics materially change.
 
 ## Final audit synthesis — current handoff
 
-Audit v2 remains **coverage-complete but not yet backlog-closed**. No P0 finding is open. All P1 findings discovered so far are repaired and independently reverified. P2 #324 and #320 are also repaired/reverified on the v21 line, with #324 supported by fresh structural/confirmatory stochastic evidence and #320 by schedule-relative reproductive-age and resealed-checkpoint adversaries.
+Audit v2 remains **coverage-complete but not yet backlog-closed**. No P0 finding is open. All P1 findings discovered so far are repaired and independently reverified. P2 #324, #320 and #332 are also repaired/reverified on the v21 line, with #324 supported by fresh structural/confirmatory stochastic evidence, #320 by schedule-relative reproductive-age and resealed-checkpoint adversaries, and #332 by exact ordinary/spatial year-zero continuation equivalence plus an independent observability checker.
 
-The remaining work is now P2/P3 scientific robustness, interpretation, documentation, sensitivity, metric semantics and continuation-observability cleanup. #320 is closed; the next issue should be selected from #314, #315, #327, #329, #332, #336 and #342 only after checking live overlap and dependencies.
+The remaining work is now P2/P3 scientific robustness, interpretation, documentation, sensitivity and metric semantics cleanup. #320 and #332 are closed; the next issue should be selected from #314, #315, #327, #329, #336 and #342 only after checking live overlap and dependencies.
 
 No audit result should be interpreted as empirical validation of a prehistoric reconstruction. After the remaining backlog and closure pass, the appropriate next phase remains a bounded empirical case study with explicit evidence roles, sensitivity, identifiability, Monte Carlo precision and held-out corroboration.
