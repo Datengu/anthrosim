@@ -186,6 +186,22 @@ fn year_zero_checkpoint_resume_preserves_exact_authoritative_output() {
 }
 
 #[test]
+fn year_zero_checkpoint_invariants_still_validate_metric_series_identity() {
+    let mut checkpoint = Simulation::new(experiment_with_duration(2))
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    assert!(checkpoint.metrics.snapshots.is_empty());
+    checkpoint.metrics.schema_version += 1;
+    let error = checkpoint.validate_invariants().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("metric series schema/cadence is invalid")
+    );
+}
+
+#[test]
 fn legacy_nonterminal_year_zero_metric_snapshot_is_rejected_after_reseal() {
     let mut legacy = Simulation::new(experiment_with_duration(2))
         .unwrap()

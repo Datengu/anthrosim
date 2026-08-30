@@ -183,6 +183,11 @@ fn validate_checkpoint_invariants_for_world(
             "temporary mobility event history is invalid: {error}"
         ))
     })?;
+    if checkpoint.metrics.schema_version != MetricSeries::CURRENT_SCHEMA_VERSION
+        || checkpoint.metrics.cadence != "annual_boundary_plus_terminal"
+    {
+        return violation("metric series schema/cadence is invalid");
+    }
     let nonterminal_initial_checkpoint = recorded_stop_reason.is_none()
         && checkpoint.terminal_stop_reason.is_none()
         && checkpoint.time.days() == 0;
