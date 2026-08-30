@@ -136,15 +136,11 @@ mod tests {
         restore_point_rows(&mut points, &runs).expect("restore pooled distance");
 
         assert_eq!(
-            points[0]
-                .get(POOLED_DISTANCE_FIELD)
-                .and_then(Value::as_f64),
+            points[0].get(POOLED_DISTANCE_FIELD).and_then(Value::as_f64),
             Some(2.0445276462131434)
         );
         assert_eq!(
-            points[0]
-                .get(POOLED_DISTANCE_FIELD)
-                .and_then(Value::as_f64),
+            points[0].get(POOLED_DISTANCE_FIELD).and_then(Value::as_f64),
             Some(463_613_f64 / 226_758_f64)
         );
     }
