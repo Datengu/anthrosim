@@ -1,8 +1,7 @@
 name: Run bundle pack
 
-# This integration gate intentionally runs on every pull request and main push.
-# Run-bundle validity is a cross-module contract: core schemas, run/resume writers,
-# landscape/spatial artifacts, evidence and observability can all affect packing.
+# Run-bundle validity is a cross-module executable contract. Documentation-only pull requests keep
+# the protected context but do not rebuild and repack simulations.
 on:
   push:
     branches: [main]
@@ -10,29 +9,45 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  scope:
+    uses: ./.github/workflows/pr-ci-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   pack:
     name: Deterministic completed-run ZIP
+    needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.scope.outputs.full_required != 'true' }}
+        run: echo "${{ needs.scope.outputs.scope }} change; executable bundle packing is not applicable."
+
       - name: Checkout
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Install pinned Rust toolchain
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
       - name: Build simulator and packers
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: cargo build --locked --release -p anthrosim-cli --bin anthrosim --bin anthrosim-landscape --bin anthrosim-pack
 
       - name: Generate completed, paused and transformed-spatial bundles
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           rm -rf /tmp/anthrosim-pack-completed /tmp/anthrosim-pack-paused /tmp/anthrosim-pack-spatial
           rm -f /tmp/anthrosim-pack-completed.zip /tmp/anthrosim-pack-second.zip
@@ -64,6 +79,7 @@ jobs:
           printf 'must not be archived\n' >/tmp/anthrosim-pack-spatial/notes.txt
 
       - name: Pack core and spatial bundles twice and require deterministic bytes
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           target/release/anthrosim-pack /tmp/anthrosim-pack-completed
           target/release/anthrosim-pack /tmp/anthrosim-pack-completed \
@@ -76,6 +92,7 @@ jobs:
           cmp /tmp/anthrosim-pack-spatial.zip /tmp/anthrosim-pack-spatial-second.zip
 
       - name: Validate archives with Python standard ZIP reader
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           python3 - <<'PY'
           import json
@@ -115,6 +132,7 @@ jobs:
           PY
 
       - name: Reject paused bundle
+        if: ${{ needs.scope.outputs.full_required == 'true' }}
         run: |
           if target/release/anthrosim-pack /tmp/anthrosim-pack-paused >/tmp/paused-pack.log 2>&1; then
             cat /tmp/paused-pack.log
