@@ -131,9 +131,11 @@ mod tests {
         assert!(points_csv.contains(
             "pooled_mean_migration_destination_resource_score_permille_per_move_scientifically_eligible_only"
         ));
-        assert!(!points_csv.contains(
-            ",mean_migration_destination_resource_score_permille_move_observed_only,"
-        ));
+        assert!(
+            !points_csv.contains(
+                ",mean_migration_destination_resource_score_permille_move_observed_only,"
+            )
+        );
 
         fs::remove_dir_all(root).expect("cleanup");
     }
