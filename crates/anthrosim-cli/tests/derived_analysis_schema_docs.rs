@@ -35,9 +35,14 @@ fn derived_analysis_schema_documentation_matches_source_constants() {
             }
             Ok(_) => continue,
             Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
-            Err(error) => panic!("failed to probe Python interpreter {}: {error}", python.display()),
+            Err(error) => panic!(
+                "failed to probe Python interpreter {}: {error}",
+                python.display()
+            ),
         }
     }
 
-    eprintln!("skipping derived-analysis schema documentation check because no Python interpreter was found");
+    eprintln!(
+        "skipping derived-analysis schema documentation check because no Python interpreter was found"
+    );
 }
