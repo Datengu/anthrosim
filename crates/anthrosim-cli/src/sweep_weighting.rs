@@ -244,7 +244,9 @@ fn upgrade_point_rows(
             .into_iter()
             .filter(|run| {
                 run.get("pointId").and_then(Value::as_str) == Some(point_id.as_str())
-                    && run.get("scientificAggregationStatus").and_then(Value::as_str)
+                    && run
+                        .get("scientificAggregationStatus")
+                        .and_then(Value::as_str)
                         == Some("eligibleScientificOutcome")
             })
             .collect::<Vec<_>>();
@@ -282,12 +284,13 @@ fn upgrade_point_rows(
                 })?;
                 if let Some(mean) = optional_u64_field(run, RUN_MEAN_FIELDS[index])? {
                     run_mean_sums[index] += u128::from(mean);
-                    run_mean_counts[index] = run_mean_counts[index].checked_add(1).ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "run-level migration-quality support count overflow",
-                        )
-                    })?;
+                    run_mean_counts[index] =
+                        run_mean_counts[index].checked_add(1).ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "run-level migration-quality support count overflow",
+                            )
+                        })?;
                 }
             }
         }
@@ -344,9 +347,9 @@ fn upgrade_point_rows(
 fn upgrade_runs_csv(path: &Path, runs: &[Value]) -> Result<(), Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     let mut lines = content.lines();
-    let header = lines.next().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "derived runs CSV is empty")
-    })?;
+    let header = lines
+        .next()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "derived runs CSV is empty"))?;
     let rows = lines.collect::<Vec<_>>();
     if rows.len() != runs.len() {
         return Err(io::Error::new(
@@ -380,9 +383,9 @@ fn upgrade_runs_csv(path: &Path, runs: &[Value]) -> Result<(), Box<dyn std::erro
 fn upgrade_points_csv(path: &Path, points: &[Value]) -> Result<(), Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     let mut lines = content.lines();
-    let header_line = lines.next().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "derived points CSV is empty")
-    })?;
+    let header_line = lines
+        .next()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "derived points CSV is empty"))?;
     let rows = lines.collect::<Vec<_>>();
     if rows.len() != points.len() {
         return Err(io::Error::new(
@@ -392,7 +395,10 @@ fn upgrade_points_csv(path: &Path, points: &[Value]) -> Result<(), Box<dyn std::
         .into());
     }
 
-    let mut headers = header_line.split(',').map(str::to_owned).collect::<Vec<_>>();
+    let mut headers = header_line
+        .split(',')
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
     let mut renamed_indices = [0_usize; 4];
     for index in 0..4 {
         let (_, _, legacy_csv, explicit_csv) = POINT_RUN_WEIGHTED_RENAMES[index];
@@ -408,7 +414,11 @@ fn upgrade_points_csv(path: &Path, points: &[Value]) -> Result<(), Box<dyn std::
         headers[position] = explicit_csv.to_owned();
         renamed_indices[index] = position;
     }
-    headers.extend(POINT_SUPPORT_FIELDS.iter().map(|(_, csv)| (*csv).to_owned()));
+    headers.extend(
+        POINT_SUPPORT_FIELDS
+            .iter()
+            .map(|(_, csv)| (*csv).to_owned()),
+    );
     headers.extend(POINT_POOLED_FIELDS.iter().map(|(_, csv)| (*csv).to_owned()));
 
     let mut output = String::new();
@@ -482,10 +492,7 @@ fn u64_field(object: &Map<String, Value>, key: &str) -> Result<u64, io::Error> {
     })
 }
 
-fn optional_u64_field(
-    object: &Map<String, Value>,
-    key: &str,
-) -> Result<Option<u64>, io::Error> {
+fn optional_u64_field(object: &Map<String, Value>, key: &str) -> Result<Option<u64>, io::Error> {
     match object.get(key) {
         Some(Value::Null) | None => Ok(None),
         Some(value) => value.as_u64().map(Some).ok_or_else(|| {
@@ -629,7 +636,10 @@ mod tests {
         assert_eq!(a_pooled, 990.0);
         assert_eq!(b_run_weighted, 600.0);
         assert_eq!(b_pooled, 600.0);
-        assert!(b_run_weighted > a_run_weighted, "run weighting ranks B above A");
+        assert!(
+            b_run_weighted > a_run_weighted,
+            "run weighting ranks B above A"
+        );
         assert!(a_pooled > b_pooled, "move weighting ranks A above B");
         assert_eq!(
             a.get("migrationMovesCompletedScientificallyEligibleOnly")
@@ -671,16 +681,21 @@ mod tests {
             Some(&Value::from(0))
         );
         assert_eq!(
-            point.get("migrationMoveOccurrenceFractionScientificallyEligibleOnly")
+            point
+                .get("migrationMoveOccurrenceFractionScientificallyEligibleOnly")
                 .and_then(Value::as_f64),
             Some(0.0)
         );
         assert_eq!(
-            point.get("runWeightedMeanOfRunMeanMigrationOriginResourceScorePermilleMoveObservedRunsOnly"),
+            point.get(
+                "runWeightedMeanOfRunMeanMigrationOriginResourceScorePermilleMoveObservedRunsOnly"
+            ),
             Some(&Value::Null)
         );
         assert_eq!(
-            point.get("pooledMeanMigrationOriginResourceScorePermillePerMoveScientificallyEligibleOnly"),
+            point.get(
+                "pooledMeanMigrationOriginResourceScorePermillePerMoveScientificallyEligibleOnly"
+            ),
             Some(&Value::Null)
         );
     }
