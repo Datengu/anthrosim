@@ -17,8 +17,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/issue-320.py
-          python3 .github/scripts/issue-320-callsites.py
-          python3 .github/scripts/issue-320-callsites-v2.py
+          python3 .github/scripts/issue-320-callsites-v3.py
           python3 docs/research/audit-v2/area-b-founder-reproductive-chronology-audit.py
           cargo fmt --all
           cargo check --workspace --all-targets
