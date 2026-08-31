@@ -9,6 +9,9 @@ use crate::{
     SourceRevisionIdentity, SpatialLandscapeSimulation, SpatialMechanismConfig,
 };
 
+#[path = "research_structural_validation.rs"]
+mod structural_validation;
+
 const MAX_RESEARCH_POINTS: usize = 100_000;
 
 /// Versioned research-facing sensitivity/uncertainty definition.
@@ -73,6 +76,9 @@ impl ResearchExperimentDefinition {
         let mut point_count = 1_usize;
         for dimension in &self.dimensions {
             dimension.validate_against(&base)?;
+            if dimension.kind == ResearchDimensionKind::Structural {
+                structural_validation::validate_distinct_executable_alternatives(&base, dimension)?;
+            }
             if !ids.insert(dimension.id.clone()) {
                 return Err(ResearchExperimentError::DuplicateDimensionId(
                     dimension.id.clone(),
@@ -521,6 +527,10 @@ pub enum ResearchExperimentError {
     NumericDimensionHasNonNumericValue { id: String },
     #[error("structural dimension {id} contains a numeric value")]
     StructuralDimensionHasNumericValue { id: String },
+    #[error(
+        "structural dimension {id} at {path} does not provide distinct executable alternatives after non-causal metadata is removed"
+    )]
+    StructuralDimensionDoesNotProvideDistinctExecutableAlternatives { id: String, path: String },
     #[error("dimension {id} at {path} cannot be applied to authoritative configuration: {reason}")]
     InvalidDimensionApplication {
         id: String,
@@ -737,6 +747,102 @@ mod tests {
             misclassified.expand(),
             Err(ResearchExperimentError::StructuralDimensionTargetsNumeric { .. })
         ));
+    }
+
+    #[test]
+    fn metadata_only_structural_dimensions_fail_before_points_are_published() {
+        let mut schedule = base_definition();
+        schedule.dimensions.push(ResearchDimension {
+            id: "demography_schedule_label".to_owned(),
+            kind: ResearchDimensionKind::Structural,
+            path: "/experiment/demography/scheduleId".to_owned(),
+            values: vec![Value::from("alternative_a"), Value::from("alternative_b")],
+        });
+        assert!(matches!(
+            schedule.expand(),
+            Err(
+                ResearchExperimentError::StructuralDimensionDoesNotProvideDistinctExecutableAlternatives { .. }
+            )
+        ));
+
+        let mut model_id = base_definition();
+        model_id.dimensions.push(ResearchDimension {
+            id: "resource_model_label".to_owned(),
+            kind: ResearchDimensionKind::Structural,
+            path: "/experiment/resources/modelId".to_owned(),
+            values: vec![
+                Value::from("parameterization_a"),
+                Value::from("parameterization_b"),
+            ],
+        });
+        assert!(matches!(
+            model_id.expand(),
+            Err(
+                ResearchExperimentError::StructuralDimensionDoesNotProvideDistinctExecutableAlternatives { .. }
+            )
+        ));
+
+        let mut provenance = base_definition();
+        provenance.dimensions.push(ResearchDimension {
+            id: "demography_provenance".to_owned(),
+            kind: ResearchDimensionKind::Structural,
+            path: "/experiment/demography/provenance".to_owned(),
+            values: vec![
+                Value::from("synthetic_validation"),
+                Value::from("unresolved"),
+            ],
+        });
+        assert!(matches!(
+            provenance.expand(),
+            Err(
+                ResearchExperimentError::StructuralDimensionDoesNotProvideDistinctExecutableAlternatives { .. }
+            )
+        ));
+    }
+
+    #[test]
+    fn whole_typed_structural_alternatives_may_change_labels_with_causal_fields() {
+        let mut definition = base_definition();
+        let mut baseline = definition.base.experiment.demography.clone();
+        baseline.schedule_id = "baseline_label".to_owned();
+        let mut alternative = baseline.clone();
+        alternative.schedule_id = "alternative_label".to_owned();
+        alternative.minimum_birth_spacing_days += 1;
+        definition.dimensions.push(ResearchDimension {
+            id: "demography_structure".to_owned(),
+            kind: ResearchDimensionKind::Structural,
+            path: "/experiment/demography".to_owned(),
+            values: vec![
+                serde_json::to_value(&baseline).expect("serialize baseline demography"),
+                serde_json::to_value(&alternative).expect("serialize alternative demography"),
+            ],
+        });
+
+        let points = definition
+            .expand()
+            .expect("causal whole-object alternatives");
+        assert_eq!(points.len(), 2);
+        assert_eq!(
+            points[0].run_config.experiment.demography.schedule_id,
+            "baseline_label"
+        );
+        assert_eq!(
+            points[1].run_config.experiment.demography.schedule_id,
+            "alternative_label"
+        );
+        assert_eq!(
+            points[1]
+                .run_config
+                .experiment
+                .demography
+                .minimum_birth_spacing_days,
+            points[0]
+                .run_config
+                .experiment
+                .demography
+                .minimum_birth_spacing_days
+                + 1
+        );
     }
 
     #[test]

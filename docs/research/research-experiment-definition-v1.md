@@ -1,6 +1,6 @@
 # Exact research experiment definition contract v1
 
-Status: normative infrastructure contract for GitHub issue #205.
+Status: normative infrastructure contract for GitHub issue #205, with the structural-treatment validity rule enforced by #336.
 
 This document defines AnthroSim's versioned research-facing mechanism for declaring sensitivity and uncertainty experiments without editing simulator source code. It supplements the legacy M7 ensemble/sweep interface; it does not reinterpret or replace the preserved `v0.1-resource-variability` experiment.
 
@@ -40,9 +40,26 @@ A dimension replacement is applied to the serialized authoritative configuration
 
 `kind: "numeric"` is for scalar numeric parameter uncertainty. Its target and all proposed values must be JSON numbers.
 
-`kind: "structural"` is for discrete non-numeric executable model/assumption alternatives, including booleans, typed enum alternatives, optional mechanism blocks, or whole typed sub-configurations. A structural dimension may not target an ordinary numeric field, and a numeric dimension may not target a structural field. Free-form provenance labels such as `modelId` or `scheduleId` may accompany a real structural alternative, but changing a label alone does not establish that executable model structure changed.
+`kind: "structural"` is for discrete non-numeric executable model/assumption alternatives, including booleans, typed enum alternatives, optional mechanism blocks, or whole typed sub-configurations. A structural dimension may not target an ordinary numeric field, and a numeric dimension may not target a structural field.
 
-This classification is preserved in point/run analysis rows. Downstream analysis must therefore treat structural alternatives as distinct model structures/categories rather than pooling them as a scalar response axis.
+A value is not a structural treatment merely because its JSON type is non-numeric. Before a research definition can expand, AnthroSim projects every proposed structural level onto executable configuration and removes fields that carry provenance, evidence linkage, realization identity, or descriptive parameterization identity but do not enter the transition rules. Declared structural levels must then remain distinct under that executable projection. A one-level structural override is allowed only when its executable projection differs from the base configuration.
+
+The current non-treatment metadata projection includes:
+
+- parameter `provenance` fields;
+- demography and temporary-mobility `scheduleId` labels;
+- descriptive `modelId` labels for M3 resources, M4 migration, M9 travel and spatial-mechanism parameterizations;
+- evidence catalogues and `evidenceId` / `evidenceInputId` links;
+- spatial `runRealization`, which controls which stochastic environment/founder draw is used rather than which structural mechanism is being tested;
+- M9 focal-region identity/source provenance (`regionId` and `source`) when authoritative membership is otherwise unchanged.
+
+This classification is deliberately path-aware. `HouseholdLifecycleConfig.modelId`, for example, is retained in the executable projection because it is an actual implemented model selector. Likewise booleans, enums, typed mechanism blocks, spatial transform directions and source bindings remain executable structure.
+
+Free-form provenance labels such as `modelId` or `scheduleId` may still accompany a real whole-object structural alternative. A whole typed sub-configuration remains representable when its executable fields differ after metadata is removed. What is rejected is a nominal structural contrast whose proposed levels collapse to the same executable configuration.
+
+Because this check runs during `ResearchExperimentDefinition::validate()`, a metadata-only structural design fails before point expansion, immutable research-plan publication, run execution or `analysis/points.json` / `analysis/runs.json` generation. The analysis surface therefore cannot report metadata relabelling as evidence that multiple structures were tested.
+
+This classification is preserved in point/run analysis rows. Downstream analysis must therefore treat accepted structural alternatives as distinct executable model structures/categories rather than pooling them as a scalar response axis.
 
 ## Deterministic expansion
 
@@ -90,16 +107,16 @@ These files expose the experimental design and execution status. They are not, b
 
 The existing `anthrosim ensemble` and `anthrosim sweep` engineering/synthetic interfaces remain available under their existing contracts. `experiments/v0.1-resource-variability.json` is not migrated or silently reinterpreted by this change.
 
-The research-definition v1 path is additive so validated historical experiment records keep their prior meaning.
+The research-definition v1 path is additive so validated historical experiment records keep their prior meaning. #336 tightens validation only for definitions that previously labelled non-causal metadata variation as `kind: "structural"`; such definitions did not represent valid structural sensitivity under the pre-existing normative contract.
 
 ## Model-semantics boundary
 
 This infrastructure exposes existing configuration and spatial alternatives; it does not alter M2, M3, M4, M8 or M9 transition rules, defaults, RNG algorithms or draw ordering. For an identical effective `ExperimentConfig` and spatial configuration, the normal simulator is invoked without a sensitivity-specific model execution path.
 
-`MODEL_SEMANTICS_ID` is therefore unchanged by #205.
+The #336 validator changes research-design admissibility, not simulation transitions, so `MODEL_SEMANTICS_ID` is unchanged.
 
 ## TRACE boundary
 
-This contract satisfies an infrastructure prerequisite for reproducible sensitivity/uncertainty work: the study's scientific configuration space can now be declared, expanded, identified, preserved and retried without source edits.
+This contract satisfies an infrastructure prerequisite for reproducible sensitivity/uncertainty work: the study's scientific configuration space can now be declared, expanded, identified, preserved and retried without source edits. A coordinate recorded as `kind: "structural"` is machine-checked to represent a distinct executable model assumption rather than a provenance relabel.
 
 It does **not** establish that a study has selected defensible uncertainty ranges, sampled the space adequately, completed global sensitivity analysis, quantified Monte Carlo error, resolved identifiability/equifinality, selected valid analysis windows, or performed empirical validation. Those remain study-specific TRACE obligations and/or separate backlog issues.
