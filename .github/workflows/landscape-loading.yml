@@ -7,10 +7,70 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  classify:
+    name: Classify landscape loading determinism
+    runs-on: ubuntu-latest
+    outputs:
+      change_class: ${{ steps.classify.outputs.change_class }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Validate and classify pull-request risk
+        id: classify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/classify-applicable-pr-gates.py
+          python3 scripts/classify-applicable-pr-gates.py --self-test
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "change_class=full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          expected_count="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '.changed_files'
+          )"
+          test "$expected_count" -gt 0
+
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            > changed-file-pages.json
+
+          actual_count="$(jq '[.[][]] | length' changed-file-pages.json)"
+          if [[ "$actual_count" != "$expected_count" ]]; then
+            echo "GitHub changed-file listing is incomplete: expected ${expected_count} file object(s), retrieved ${actual_count}; refusing CI classification" >&2
+            exit 1
+          fi
+
+          jq -r '.[][] | .filename, (.previous_filename // empty)' \
+            changed-file-pages.json > changed-files.txt
+          test -s changed-files.txt
+          LC_ALL=C sort -u changed-files.txt -o changed-files.txt
+
+          python3 scripts/classify-applicable-pr-gates.py \
+            --changed-files changed-files.txt \
+            --github-output "$GITHUB_OUTPUT"
+
   landscape-golden:
     name: Landscape golden run (${{ matrix.os }})
+    needs: classify
     strategy:
       fail-fast: false
       matrix:
@@ -19,30 +79,42 @@ jobs:
     timeout-minutes: 12
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        shell: bash
+        run: echo "Landscape-loading executable determinism is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
       - name: Checkout
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Install pinned Rust toolchain
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
       - name: Run uninterrupted landscape fixture
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --seed 8301 --years 4 --population 40 --max-person-records 10000 --run-dir landscape-uninterrupted
 
       - name: Run checkpointed landscape fixture
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --seed 8301 --years 4 --population 40 --max-person-records 10000 --run-dir landscape-resumed --checkpoint-year 2
 
       - name: Resume with exact same landscape
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- resume --checkpoint landscape-resumed/landscape-checkpoint.json --landscape examples/landscape-loading/landscape.json --run-dir landscape-resumed
 
       - name: Validate resume equivalence and emit canonical golden
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: python scripts/validate-landscape-loading.py --uninterrupted landscape-uninterrupted --resumed landscape-resumed --output landscape-cross-platform-golden.json
 
       - name: Upload normalized M8.3 output
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: landscape-cross-platform-${{ matrix.os }}
@@ -52,18 +124,24 @@ jobs:
 
   compare-landscape-golden:
     name: Compare landscape golden runs
-    needs: landscape-golden
+    needs: [classify, landscape-golden]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: echo "Landscape-loading executable comparison is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
       - name: Download platform outputs
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: landscape-artifacts
           pattern: landscape-cross-platform-*
 
       - name: Require byte-identical landscape-bound outputs
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
