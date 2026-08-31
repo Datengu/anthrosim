@@ -42,6 +42,17 @@ RUSTSEC_PATTERNS = (
     ".github/workflows/dependency-audit.yml",
 )
 
+AUDIT_STATUS_PATTERNS = (
+    "docs/research/audit-v2/**",
+)
+
+SCIENTIFIC_DOCUMENTATION_PATTERNS = (
+    "docs/scientific-model.md",
+    "docs/research-integrity.md",
+    "docs/research-principles.md",
+    "docs/research/**",
+)
+
 # Changes to the classifier/aggregator can otherwise weaken their own gate policy.
 # Force every expensive gate while this enforcement layer itself is under review.
 SELF_PROTECTING_PATHS = (
@@ -59,7 +70,7 @@ def path_matches(path: str, patterns: tuple[str, ...]) -> bool:
     return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
 
 
-def classify(paths: list[str]) -> dict[str, bool]:
+def normalize_paths(paths: list[str]) -> list[str]:
     require(paths, "changed-file set is empty; refusing ambiguous PR gate classification")
     normalized: list[str] = []
     for raw in paths:
@@ -68,9 +79,28 @@ def classify(paths: list[str]) -> dict[str, bool]:
         require(not value.startswith("/"), f"changed path must be repository-relative: {value}")
         require("/../" not in f"/{value}/", f"changed path may not traverse parents: {value}")
         normalized.append(value)
+    return normalized
 
+
+def classify_change_class(paths: list[str]) -> str:
+    """Return a conservative PR risk class for future path-aware CI decisions.
+
+    This classification is intentionally advisory today: existing required checks still
+    run unchanged. Any mixed or unrecognized path set fails safe to ``full``.
+    """
+
+    if all(path_matches(path, AUDIT_STATUS_PATTERNS) for path in paths):
+        return "audit_status_only"
+    if all(path_matches(path, SCIENTIFIC_DOCUMENTATION_PATTERNS) for path in paths):
+        return "scientific_documentation_only"
+    return "full"
+
+
+def classify(paths: list[str]) -> dict[str, bool | str]:
+    normalized = normalize_paths(paths)
     force_all = any(path in SELF_PROTECTING_PATHS for path in normalized)
     return {
+        "change_class": "full" if force_all else classify_change_class(normalized),
         "m8_required": force_all or any(path_matches(path, M8_PATTERNS) for path in normalized),
         "m9_required": force_all or any(path_matches(path, M9_PATTERNS) for path in normalized),
         "rustsec_required": force_all
@@ -78,15 +108,19 @@ def classify(paths: list[str]) -> dict[str, bool]:
     }
 
 
-def write_outputs(path: Path, result: dict[str, bool], changed: list[str]) -> None:
+def write_outputs(path: Path, result: dict[str, bool | str], changed: list[str]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         for name, value in result.items():
-            handle.write(f"{name}={'true' if value else 'false'}\n")
+            if isinstance(value, bool):
+                rendered = "true" if value else "false"
+            else:
+                rendered = value
+            handle.write(f"{name}={rendered}\n")
         handle.write(f"changed_count={len(changed)}\n")
 
 
 def self_test() -> None:
-    fixtures = (
+    gate_fixtures = (
         (["docs/vision.md"], (False, False, False)),
         (["crates/anthrosim-core/src/world.rs"], (True, True, False)),
         (["crates/anthrosim-cli/src/main.rs"], (True, True, False)),
@@ -102,7 +136,7 @@ def self_test() -> None:
         ([".github/workflows/applicable-scientific-security-gates.yml"], (True, True, True)),
         (["scripts/classify-applicable-pr-gates.py"], (True, True, True)),
     )
-    for paths, expected in fixtures:
+    for paths, expected in gate_fixtures:
         result = classify(paths)
         actual = (
             result["m8_required"],
@@ -110,6 +144,26 @@ def self_test() -> None:
             result["rustsec_required"],
         )
         require(actual == expected, f"classification mismatch for {paths}: {actual} != {expected}")
+
+    class_fixtures = (
+        (["docs/research/audit-v2/STATUS.md"], "audit_status_only"),
+        (
+            ["docs/research/audit-v2/STATUS.md", "docs/research/audit-v2/area-i.md"],
+            "audit_status_only",
+        ),
+        (["docs/scientific-model.md"], "scientific_documentation_only"),
+        (["docs/research/m9-controlled-aggregation-benchmark-result.md"], "scientific_documentation_only"),
+        (
+            ["docs/scientific-model.md", "docs/research/audit-v2/STATUS.md"],
+            "scientific_documentation_only",
+        ),
+        (["docs/vision.md"], "full"),
+        (["docs/research/audit-v2/STATUS.md", "Cargo.toml"], "full"),
+        (["scripts/classify-applicable-pr-gates.py"], "full"),
+    )
+    for paths, expected in class_fixtures:
+        actual = classify(paths)["change_class"]
+        require(actual == expected, f"change-class mismatch for {paths}: {actual} != {expected}")
 
     for bad in ([], [""], ["../Cargo.toml"], ["/Cargo.toml"]):
         try:
@@ -141,7 +195,11 @@ def main() -> None:
 
     print(f"classified {len(changed)} changed file(s)")
     for name, value in result.items():
-        print(f"  {name}: {'required' if value else 'not applicable'}")
+        if isinstance(value, bool):
+            rendered = "required" if value else "not applicable"
+        else:
+            rendered = value
+        print(f"  {name}: {rendered}")
 
 
 if __name__ == "__main__":
