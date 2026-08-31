@@ -15,6 +15,7 @@ jobs:
     name: Classify applicable scientific/security gates
     runs-on: ubuntu-latest
     outputs:
+      change_class: ${{ steps.classify.outputs.change_class }}
       m8_required: ${{ steps.classify.outputs.m8_required }}
       m9_required: ${{ steps.classify.outputs.m9_required }}
       rustsec_required: ${{ steps.classify.outputs.rustsec_required }}
@@ -100,6 +101,7 @@ jobs:
     env:
       EVENT_NAME: ${{ github.event_name }}
       CLASSIFY_RESULT: ${{ needs.classify.result }}
+      CHANGE_CLASS: ${{ needs.classify.outputs.change_class }}
       M8_REQUIRED: ${{ needs.classify.outputs.m8_required }}
       M8_RESULT: ${{ needs.m8.result }}
       M9_REQUIRED: ${{ needs.classify.outputs.m9_required }}
@@ -125,6 +127,11 @@ jobs:
 
           if [[ "$CLASSIFY_RESULT" != "success" ]]; then
             echo "gate classification did not succeed: ${CLASSIFY_RESULT}" >&2
+            exit 1
+          fi
+
+          if [[ "$CHANGE_CLASS" != "audit_status_only" && "$CHANGE_CLASS" != "scientific_documentation_only" && "$CHANGE_CLASS" != "full" ]]; then
+            echo "ambiguous PR change class: ${CHANGE_CLASS}" >&2
             exit 1
           fi
 
@@ -154,6 +161,9 @@ jobs:
             echo "### Applicable scientific/security gates"
             echo
             echo "Changed files classified: ${CHANGED_COUNT}"
+            echo "PR risk class: \`${CHANGE_CLASS}\`"
+            echo
+            echo "> Risk class is advisory groundwork for issue #317. Existing required checks are not bypassed by this classification."
             echo
             echo '| Gate | Disposition |'
             echo '| --- | --- |'
