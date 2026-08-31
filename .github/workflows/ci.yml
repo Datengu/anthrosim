@@ -7,10 +7,70 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  classify:
+    name: Classify central CI
+    runs-on: ubuntu-latest
+    outputs:
+      change_class: ${{ steps.classify.outputs.change_class }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Validate and classify pull-request risk
+        id: classify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/classify-applicable-pr-gates.py
+          python3 scripts/classify-applicable-pr-gates.py --self-test
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "change_class=full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          expected_count="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '.changed_files'
+          )"
+          test "$expected_count" -gt 0
+
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            > changed-file-pages.json
+
+          actual_count="$(jq '[.[][]] | length' changed-file-pages.json)"
+          if [[ "$actual_count" != "$expected_count" ]]; then
+            echo "GitHub changed-file listing is incomplete: expected ${expected_count} file object(s), retrieved ${actual_count}; refusing CI classification" >&2
+            exit 1
+          fi
+
+          jq -r '.[][] | .filename, (.previous_filename // empty)' \
+            changed-file-pages.json > changed-files.txt
+          test -s changed-files.txt
+          LC_ALL=C sort -u changed-files.txt -o changed-files.txt
+
+          python3 scripts/classify-applicable-pr-gates.py \
+            --changed-files changed-files.txt \
+            --github-output "$GITHUB_OUTPUT"
+
   quality:
     name: Quality and tests
+    needs: classify
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -20,13 +80,39 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Documentation consistency
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: |
+          python3 scripts/test-current-model-semantics-docs.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          audit_root = Path("docs/research/audit-v2")
+          documents = sorted(audit_root.glob("*.md"))
+          if not documents:
+              raise SystemExit("audit-v2 documentation surface is unexpectedly empty")
+          for path in documents:
+              text = path.read_text(encoding="utf-8")
+              if not text.strip():
+                  raise SystemExit(f"empty audit-v2 document: {path}")
+              if "<<<<<<<" in text or "=======" in text or ">>>>>>>" in text:
+                  raise SystemExit(f"merge-conflict marker in audit-v2 document: {path}")
+          status = (audit_root / "STATUS.md").read_text(encoding="utf-8")
+          for required in ("## Current baseline and state", "## Coverage matrix", "## Finding register"):
+              if required not in status:
+                  raise SystemExit(f"STATUS.md is missing required section: {required}")
+          print("Documentation-only consistency checks passed.")
+          PY
+
       - name: Install pinned Rust toolchain
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1 --component clippy --component rustfmt
           rustup default 1.97.1
 
       - name: Versions
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rustc --version --verbose
           cargo --version
@@ -34,29 +120,40 @@ jobs:
           python3 --version
 
       - name: Verify locked dependency graph
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo metadata --locked --no-deps --format-version 1 >/dev/null
 
       - name: Format
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo fmt --all -- --check
 
       - name: Clippy
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
       - name: Test workspace
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo test --locked --workspace --all-features
 
   explorer:
     name: Explorer and script validation
+    needs: classify
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: echo "Explorer and script validation is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
       - name: Checkout
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Validate M6/M7 source syntax
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           node --check explorer/model.mjs
           node --check explorer/app.mjs
@@ -66,11 +163,13 @@ jobs:
           python3 -m py_compile scripts/run-versioned-sweep.py
 
       - name: Test M6 explorer artifact model
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: node --test explorer/model.test.mjs
 
   benchmarks:
     name: Core benchmarks
-    needs: [quality, explorer]
+    needs: [classify, quality, explorer]
+    if: ${{ needs.classify.outputs.change_class == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -103,28 +202,36 @@ jobs:
 
   release-build:
     name: Release build
-    needs: [quality, explorer]
+    needs: [classify, quality, explorer]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: echo "Release build is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
       - name: Checkout
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Install pinned Rust toolchain
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
       - name: Build release binaries
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         env:
           ANTHROSIM_GIT_COMMIT: ${{ github.sha }}
         run: cargo build --locked --workspace --release
 
       - name: Archive release binary for downstream gates
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: anthrosim-ci-release-linux
@@ -134,7 +241,8 @@ jobs:
 
   soak-ensemble:
     name: 1000-run ensemble soak
-    needs: release-build
+    needs: [classify, release-build]
+    if: ${{ needs.classify.outputs.change_class == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -182,7 +290,8 @@ jobs:
 
   performance-memory:
     name: Performance and memory acceptance
-    needs: release-build
+    needs: [classify, release-build]
+    if: ${{ needs.classify.outputs.change_class == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -225,26 +334,34 @@ jobs:
 
   reference-experiment:
     name: Canonical M7.6 reference experiment
-    needs: release-build
+    needs: [classify, release-build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: echo "Canonical M7.6 reference experiment is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
       - name: Checkout
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Download release binary
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: anthrosim-ci-release-linux
           path: target/release
 
       - name: Restore executable bit
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: chmod +x target/release/anthrosim
 
       - name: Run M7.6 canonical resource variability experiment
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rm -rf /tmp/anthrosim-m7-6-resource-variability
           python3 scripts/run-versioned-sweep.py \
@@ -316,7 +433,7 @@ jobs:
           PY
 
       - name: Archive M7.6 derived experiment results
-        if: always()
+        if: ${{ always() && needs.classify.outputs.change_class == 'full' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: m7-6-resource-variability-derived
@@ -330,26 +447,34 @@ jobs:
 
   bundle-integration:
     name: M5/M6 bundle integration
-    needs: release-build
+    needs: [classify, release-build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: echo "M5/M6 bundle integration is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
       - name: Checkout
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
       - name: Download release binary
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: anthrosim-ci-release-linux
           path: target/release
 
       - name: Restore executable bit
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: chmod +x target/release/anthrosim
 
       - name: Generate completed M5 sample bundle
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rm -rf /tmp/anthrosim-m6-completed
           target/release/anthrosim run \
@@ -371,6 +496,7 @@ jobs:
           test -f /tmp/anthrosim-m6-completed/checkpoint.json
 
       - name: Generate paused M5 sample bundle
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rm -rf /tmp/anthrosim-m6-paused
           target/release/anthrosim run \
@@ -389,11 +515,13 @@ jobs:
           test -f /tmp/anthrosim-m6-paused/checkpoint.json
 
       - name: Validate M6 explorer against completed and paused sample runs
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-completed
           node scripts/validate-explorer-bundle.mjs /tmp/anthrosim-m6-paused
 
       - name: Smoke-test M6 completed bundle server as read-only
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           sha256sum /tmp/anthrosim-m6-completed/*.json > /tmp/m6-completed-before.sha256
           python3 scripts/serve-explorer.py /tmp/anthrosim-m6-completed --port 8765 --no-browser >/tmp/m6-completed-server.log 2>&1 &
@@ -416,6 +544,7 @@ jobs:
           diff -u /tmp/m6-completed-before.sha256 /tmp/m6-completed-after.sha256
 
       - name: Smoke-test M6 paused bundle server as read-only
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           sha256sum /tmp/anthrosim-m6-paused/*.json > /tmp/m6-paused-before.sha256
           python3 scripts/serve-explorer.py /tmp/anthrosim-m6-paused --port 8766 --no-browser >/tmp/m6-paused-server.log 2>&1 &
