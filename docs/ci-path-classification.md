@@ -1,6 +1,6 @@
 # Pull-request CI path classification
 
-AnthroSim is introducing conservative path-aware CI under issue #317. This document defines the first, **advisory** classification layer. It does not yet suppress any globally required branch-protection check.
+AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the cross-platform determinism workflow while the remaining required workflows continue to run their existing full behavior.
 
 ## Why this exists
 
@@ -35,7 +35,7 @@ This class does **not** mean all scientific gates are irrelevant. Existing gate-
 
 Any mixed, executable, workflow, script, configuration, benchmark/reference, unknown or otherwise unclassified path set receives `full`.
 
-The classifier and its aggregator workflow are self-protecting: changing either forces `full` and forces all currently conditional M8.6, M9.7 and RustSec gates. This prevents the classification policy from weakening its own review surface.
+The classifier and its aggregator workflow are self-protecting: changing either forces `full` and forces all currently conditional M8.6, M9.7 and RustSec gates. This prevents the classification policy from weakening its own review surface. Other workflow files are unclassified paths, so a PR changing them also falls back to `full`.
 
 ## Fail-safe rules
 
@@ -47,8 +47,10 @@ Unknown paths are never guessed into a cheaper class. They fall back to `full`.
 
 ## Current enforcement boundary
 
-The three risk classes are **advisory groundwork only** at this stage. They are surfaced and tested so later #317 work can condition heavy jobs on a reviewed, stable classification without simultaneously inventing classification semantics and changing branch-protection behavior.
+`Cross-platform determinism` is the first required workflow wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, the three required `Golden run (...)` jobs and the required `Compare cross-platform golden runs` job still execute and resolve successfully, but they report an explicit documentation-only N/A disposition instead of installing Rust, running the deterministic simulation fixtures, uploading golden artifacts or comparing those artifacts.
 
-Until a later reviewed change explicitly wires required workflows to these classes, all existing globally required checks continue to run exactly as before. Gate-specific M8.6, M9.7 and RustSec applicability remains enforced independently by the existing protected `Applicable scientific/security gates` context.
+For `full` changes, for every push to protected `main`, and therefore for any PR that changes executable/scientific machinery, an unknown path, or this workflow itself, the existing cross-platform golden execution remains unchanged. The classifier itself is validated before the workflow decides which disposition applies; incomplete GitHub changed-file retrieval fails classification instead of degrading to the cheaper path.
 
-Any future optimization must preserve the exact required context names in `docs/required-status-checks.md`, must make skipped heavy work resolve through an explicit successful/N/A disposition rather than absent checks, and must retain `full` as the fallback for mixed or ambiguous changes.
+All other globally required checks continue to run exactly as before until they receive equivalent reviewed N/A handling. Gate-specific M8.6, M9.7 and RustSec applicability remains enforced independently by the existing protected `Applicable scientific/security gates` context.
+
+Future #317 optimizations must preserve the exact required context names in `docs/required-status-checks.md`, make skipped heavy work resolve through an explicit successful/N/A disposition rather than absent checks, and retain `full` as the fallback for mixed or ambiguous changes.
