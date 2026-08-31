@@ -7,34 +7,103 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  observability:
-    name: Derive and inspect spatial observability
+  classify:
+    name: Classify spatial observability
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    outputs:
+      change_class: ${{ steps.classify.outputs.change_class }}
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
 
+      - name: Validate and classify pull-request risk
+        id: classify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/classify-applicable-pr-gates.py
+          python3 scripts/classify-applicable-pr-gates.py --self-test
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "change_class=full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          expected_count="$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq '.changed_files'
+          )"
+          test "$expected_count" -gt 0
+
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            > changed-file-pages.json
+
+          actual_count="$(jq '[.[][]] | length' changed-file-pages.json)"
+          if [[ "$actual_count" != "$expected_count" ]]; then
+            echo "GitHub changed-file listing is incomplete: expected ${expected_count} file object(s), retrieved ${actual_count}; refusing CI classification" >&2
+            exit 1
+          fi
+
+          jq -r '.[][] | .filename, (.previous_filename // empty)' \
+            changed-file-pages.json > changed-files.txt
+          test -s changed-files.txt
+          LC_ALL=C sort -u changed-files.txt -o changed-files.txt
+
+          python3 scripts/classify-applicable-pr-gates.py \
+            --changed-files changed-files.txt \
+            --github-output "$GITHUB_OUTPUT"
+
+  observability:
+    name: Derive and inspect spatial observability
+    needs: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Documentation-only disposition
+        if: ${{ needs.classify.outputs.change_class != 'full' }}
+        run: echo "Derive and inspect spatial observability is N/A for ${{ needs.classify.outputs.change_class }} changes."
+
+      - name: Checkout
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
       - name: Install pinned Rust toolchain
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
       - name: Run transformed landscape fixture
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --seed 8601 --years 4 --population 40 --max-person-records 10000 --run-dir spatial-observed
 
       - name: Derive and deterministically verify report
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- run --run-dir spatial-observed --check
 
       - name: Reject tampered spatial semantics, identity and mechanism artifacts
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           rm -rf /tmp/spatial-bad-semantics /tmp/spatial-bad-identity /tmp/spatial-bad-mechanisms
           cp -a spatial-observed /tmp/spatial-bad-semantics
@@ -84,6 +153,7 @@ jobs:
           done
 
       - name: Verify new-directory resumed spatial history end to end
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-landscape -- run \
             --landscape examples/landscape-loading/landscape.json \
@@ -125,9 +195,11 @@ jobs:
           test -s /tmp/spatial-resumed-new.zip
 
       - name: Test explorer artifact models
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: node --test explorer/model.test.mjs explorer/spatial-model.test.mjs
 
       - name: Validate report provenance and reconciliation fields
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           python3 - <<'PY'
           import json
@@ -181,6 +253,7 @@ jobs:
           PY
 
       - name: Prove explorer serves spatial artifacts read-only
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           find spatial-observed -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/spatial-before.sha256
           python3 scripts/serve-explorer.py spatial-observed --no-browser --port 8875 > /tmp/anthrosim-explorer.log 2>&1 &
@@ -211,6 +284,7 @@ jobs:
           diff -u /tmp/spatial-before.sha256 /tmp/spatial-after.sha256
 
       - name: Derive observability across an M7 spatial sweep
+        if: ${{ needs.classify.outputs.change_class == 'full' }}
         run: |
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim -- sweep --seeds 8701,8702 --years 1 --world-width 2 --world-height 2 --population 20 --max-person-records 1000 --landscape examples/landscape-loading/landscape.json --mechanisms examples/landscape-loading/spatial-mechanisms.json --sweep-annual-food-need 80,100 --run-dir observed-sweep
           cargo run --locked --quiet -p anthrosim-cli --bin anthrosim-spatial-observability -- tree --root observed-sweep
