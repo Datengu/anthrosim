@@ -1,6 +1,6 @@
 # Pull-request CI path classification
 
-AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the cross-platform determinism, spatial-mechanism and landscape-loading workflows while the remaining required workflows continue to run their existing full behavior.
+AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the cross-platform determinism, spatial-mechanism, landscape-loading and landscape-preprocessing workflows while the remaining required workflows continue to run their existing full behavior.
 
 ## Why this exists
 
@@ -47,7 +47,7 @@ Unknown paths are never guessed into a cheaper class. They fall back to `full`.
 
 ## Current enforcement boundary
 
-`Cross-platform determinism`, `Spatial mechanism determinism` and `Landscape loading determinism` are the required workflows currently wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, their protected execution contexts still run and resolve successfully, but report an explicit documentation-only N/A disposition instead of installing Rust, running executable simulation fixtures, uploading golden artifacts or comparing those artifacts.
+`Cross-platform determinism`, `Spatial mechanism determinism`, `Landscape loading determinism` and `Landscape preprocessing` are the required workflows currently wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, their protected execution contexts still run and resolve successfully, but report an explicit documentation-only N/A disposition instead of running executable simulation/preprocessing fixtures, uploading golden artifacts or comparing those artifacts.
 
 The affected protected contexts are:
 
@@ -64,6 +64,7 @@ The affected protected contexts are:
 - `Landscape golden run (windows-latest)`
 - `Landscape golden run (macos-latest)`
 - `Compare landscape golden runs`
+- `M8.2 preprocessing validation`
 
 For `full` changes, for every push to protected `main`, and therefore for any PR that changes executable/scientific machinery, an unknown path, or any optimized workflow itself, the existing executable validation remains unchanged. Each optimized workflow validates the classifier before deciding which disposition applies; incomplete GitHub changed-file retrieval fails classification instead of degrading to the cheaper path.
 
