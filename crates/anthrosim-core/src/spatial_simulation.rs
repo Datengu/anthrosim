@@ -9,7 +9,8 @@ use crate::{
     config::{ExperimentConfig, PopulationInitialization},
     demography::{
         DemographyConfigError, DemographyRngs, DemographyStepOutcome,
-        process_demographic_year_after_competing_mortality_recorded, validate_demography_config,
+        process_demographic_year_after_competing_mortality_recorded_with_founder_history,
+        validate_demography_config,
     },
     events::EventLog,
     focal_region::{FocalRegionBindingError, FocalRegionSource},
@@ -641,14 +642,16 @@ impl SpatialLandscapeSimulation {
             }
 
             self.time = SimTime::from_years(year);
-            let outcome = process_demographic_year_after_competing_mortality_recorded(
-                &mut self.population,
-                &self.world,
-                &self.config.demography,
-                self.time.days(),
-                &mut self.demography_rngs,
-                &mut self.events,
-            )?;
+            let outcome =
+                process_demographic_year_after_competing_mortality_recorded_with_founder_history(
+                    &mut self.population,
+                    &self.world,
+                    &self.config.demography,
+                    self.time.days(),
+                    &mut self.demography_rngs,
+                    &mut self.events,
+                    self.config.founder_population.as_ref(),
+                )?;
             self.temporary_mobility
                 .reconcile_after_population_change(&self.population);
             if let Some(household_lifecycle) = self.config.household_lifecycle.clone() {
