@@ -9,7 +9,11 @@ use crate::time::DAYS_PER_YEAR;
 /// identifier whenever authoritative simulation meaning changes in a way that makes checkpoint
 /// continuation scientifically incompatible. Documentation, tooling, or other source-neutral
 /// changes do not require a new identity.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v22";
+///
+/// v23 makes declared founder reproductive history agree with explicitly represented children,
+/// so checkpoints accepted under earlier stale/omitted `lastBirthDay` interpretation are not
+/// silently continued under the repaired first-boundary fertility semantics.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v23";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

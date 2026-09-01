@@ -1,8 +1,8 @@
 # M2 founder initialization contract v1
 
 **Status:** normative scientific contract for M2 initialization  
-**Applies to:** post-M9 scientific-hardening line  
-**Issue repaired:** #192  
+**Applies to:** post-M9 scientific-hardening line; founder-history reconciliation hardened at model semantics v23  
+**Issues repaired:** #192, #396  
 **Scientific status:** mechanism/initial-state verification only; not empirical validation
 
 ## 1. Purpose
@@ -16,6 +16,8 @@ The problem addressed by #192 is not merely that the old synthetic founder age d
 - early model behaviour can therefore reflect the arbitrary start date rather than the represented system.
 
 The repair separates two scientifically different initialization modes rather than silently making the synthetic mode more elaborate.
+
+Audit-v3 issue #396 closes a second boundary problem inside the declared mode: explicit child genealogy and `lastBirthDay` are not independent facts. A declaration must not claim an old "last" birth while simultaneously representing a later child of that same female, and omission of the optional field must not erase a birth already made explicit by the genealogy.
 
 ## 2. Initialization modes
 
@@ -51,7 +53,7 @@ A founder declaration contains:
 - reproductive sex used by the current M2 reproduction mechanism;
 - household membership;
 - optional living female-parent and male-parent links;
-- optional signed pre-run last-birth day;
+- optional signed pre-run `lastBirthDay`, which may represent a birth whose child is not one of the living founder records;
 - initial condition in permille;
 - a deterministic serialized `contentDigest64` over all of the preceding scientifically consequential founder-definition content.
 
@@ -72,6 +74,15 @@ Founder birth days are signed integers:
 - positive founder birth days are invalid.
 
 A declared pre-run `lastBirthDay` must be strictly negative and strictly later than the founder's own birth day. It must also occur at a female age supported by the experiment's declared fertility schedule, as specified below.
+
+Explicit living child records are also authoritative reproductive chronology. When founder child `C` names founder female `F` as `femaleParent`, `C.birthDay` proves that `F` had a birth on that day. Therefore:
+
+- if `F.lastBirthDay` is present, it must be **equal to or later than** the latest explicitly represented child birth of `F`;
+- equality means the latest known birth is that represented child;
+- a later `lastBirthDay` is permitted and explicitly means that a more recent birth is known even though that child is not represented among the living founder records (for example because the child is dead, outside the represented population, or otherwise unrepresented);
+- omission remains permitted when no additional unrepresented birth history is being asserted, but omission does **not** erase the birth dates already established by explicit child genealogy.
+
+A `lastBirthDay` older than a later explicit child is internally contradictory and fails closed.
 
 This signed chronology exists because pre-simulation events cannot be represented truthfully by the runtime fields that record events occurring during the simulation.
 
@@ -96,12 +107,14 @@ Pre-run birth timing affects the first and later M2 spacing decisions without cr
 For each living female at an annual demographic boundary:
 
 1. if the runtime population contains a successful model-period birth for that person, that model-period birth day is the authoritative spacing reference;
-2. otherwise, if the founder declaration supplies a pre-run `lastBirthDay`, M2 measures spacing from that signed day;
-3. otherwise there is no known prior-birth spacing constraint.
+2. otherwise the founder declaration supplies the **latest known founder birth**: the later of the optional `lastBirthDay` and the birth day of any explicitly represented founder child naming that female as `femaleParent`;
+3. if neither source contains a known birth, there is no known prior-birth spacing constraint.
 
-Once a model-period birth occurs, it naturally supersedes the founder pre-run timing for later spacing decisions.
+Because contradictory stale `lastBirthDay` values are rejected during founder validation, the second rule never uses an older optional field to override a newer explicit child. If the optional field is later than every represented child, that later day remains authoritative and represents an unrepresented prior child.
 
-The declaration does **not** increment `birthsSinceStart`, does not emit a `Birth` event and does not invent an unobserved pre-run child. This preserves the distinction between declared initial conditions and simulated history.
+Once a model-period birth occurs, it naturally supersedes founder pre-run timing for later spacing decisions.
+
+The declaration does **not** increment `birthsSinceStart`, does not emit a `Birth` event and does not invent an unobserved pre-run child. An explicitly represented founder child is already part of the day-0 population, not a model-period birth event. This preserves the distinction between declared initial conditions and simulated history.
 
 ## 6. Genealogy and M4 kin semantics
 
@@ -156,13 +169,15 @@ Evidence closure for empirical parameters/initial conditions remains part of the
 
 Declared founder initialization uses no synthetic founder RNG draws. Given the same world and declaration, materialization is deterministic.
 
-The full declaration remains embedded in `ExperimentConfig`, which is persisted into run manifests and checkpoints. Checkpoint resume revalidates the declaration against the reconstructed world and continues to use it as pre-run history where no later model-period birth has superseded it.
+The full declaration remains embedded in `ExperimentConfig`, which is persisted into run manifests and checkpoints. Checkpoint resume revalidates the declaration against the reconstructed world and continues to use its reconciled latest-known-birth history where no later model-period birth has superseded it.
 
-`contentDigest64` is computed deterministically from the founder-definition schema, initialization ID, provenance, genealogy-completeness status, household IDs/residences, person IDs, birth chronology, reproductive sex, household membership, parent links, pre-run birth history and initial condition. The digest field itself is excluded from its own calculation.
+`contentDigest64` is computed deterministically from the founder-definition schema, initialization ID, provenance, genealogy-completeness status, household IDs/residences, person IDs, birth chronology, reproductive sex, household membership, parent links, pre-run birth history and initial condition. The digest field itself is excluded from its own calculation. The effective latest-known birth is derived entirely from already-digested fields: explicit child `birthDay`/`femaleParent` relationships and optional `lastBirthDay`.
 
 A definition loaded from serialized form remembers the digest supplied by that artifact. If its otherwise-valid founder content is later changed without the corresponding integrity metadata being deliberately rewritten, validation fails with a content-identity mismatch. This closes the checkpoint loophole in which future-causal pre-run history could otherwise be altered while ordinary runtime Population state remained unchanged.
 
 The digest is a compact deterministic reproducibility/integrity identity. It is **not** a cryptographic signature, authenticity proof or protection against a person deliberately rewriting both content and integrity metadata.
+
+Audit-v3 #396 changes the causal continuation of some previously accepted declared-founder checkpoints: a known explicit child can now constrain first-boundary spacing even when `lastBirthDay` was omitted, and contradictory stale values are rejected. `MODEL_SEMANTICS_ID` therefore advances from v22 to **v23**. A v22 checkpoint cannot silently continue under v23 as though scientific semantics were unchanged.
 
 The repair does not alter the existing synthetic founder RNG mapping or legacy synthetic runtime state digest when `synthetic_validation_v1` is selected.
 
@@ -174,10 +189,11 @@ The core rejects the following configuration mismatches:
 - `synthetic_validation_v1` carrying a founder definition;
 - a founder definition whose counts/IDs/chronology/parent relationships/households/locations/condition are invalid;
 - a declared parent or pre-run birth event whose parent age lies outside the experiment's configured reproductive-age support;
+- a female founder `lastBirthDay` that predates a later explicitly represented child naming her as mother;
 - a serialized founder definition whose remembered content identity no longer matches its scientifically consequential contents;
 - active non-zero M4 kin weighting with declared genealogy marked `unspecified`.
 
-These rules prevent a malformed or incomplete research-facing initialization from silently falling back to synthetic/zero-history behaviour.
+These rules prevent a malformed or incomplete research-facing initialization from silently falling back to synthetic/zero-history behaviour or internally contradictory reproductive chronology.
 
 ## 11. Verification evidence required by this contract
 
@@ -189,13 +205,17 @@ The implementation must retain regression tests demonstrating at least:
 - declared mode cannot silently fall back to synthetic initialization;
 - invalid founder chronology/genealogy is rejected, including female/male parent ages immediately below, at and above configured reproductive-age boundaries;
 - pre-run `lastBirthDay` is rejected below/above configured female fertility support and accepted on supported boundaries;
+- a `lastBirthDay` older than the latest explicitly represented child of that female is rejected;
+- `lastBirthDay` equal to the latest represented child remains valid;
+- a later `lastBirthDay` remains valid as an explicitly declared unrepresented birth;
+- omission of `lastBirthDay` still uses a known represented child's birth day for first-boundary spacing;
 - custom fertility schedules change founder reproductive-history acceptance consistently rather than being overridden by a hidden universal age constant;
-- a sufficiently recent pre-run birth blocks an otherwise certain first-boundary fertility opportunity;
+- a sufficiently recent known pre-run birth blocks an otherwise certain first-boundary fertility opportunity;
 - a sufficiently distant pre-run birth permits that opportunity;
 - no fictitious pre-run birth appears in runtime birth accounting/events;
 - declared living direct-parent state can affect M4 on its first migration boundary;
 - kin-sensitive declared runs fail closed when genealogy completeness is unspecified;
-- checkpoint/resume preserves declared founder history and matches uninterrupted execution;
+- checkpoint/resume preserves and revalidates the reconciled declared founder history and matches uninterrupted execution;
 - serialized founder content identity changes when genealogy, residence, condition or pre-run birth history changes;
 - valid post-load mutation of sealed founder content is rejected rather than silently changing future behaviour.
 
@@ -210,7 +230,8 @@ Still outside this contract are:
 - automatic derivation of a stable/quasi-stable age structure from a demographic schedule;
 - burn-in generation of endogenous prehistory;
 - uncertainty distributions over founder state inside one declaration;
-- complete kinship/household lifecycle reconstruction;
+- complete kinship/household lifecycle reconstruction beyond the explicitly declared founder links;
+- inference of unrepresented births beyond an explicitly supplied `lastBirthDay`;
 - observation/taphonomic inference from archaeological evidence to individual founder records;
 - proof that any supplied founder population is historically representative;
 - general empirical evidence closure and study-specific research readiness.
@@ -219,7 +240,7 @@ A future schedule-consistent generator may produce a `FounderPopulationDefinitio
 
 ## 13. Research-use rule
 
-For inferential work, the question is no longer "did AnthroSim secretly assume every founder had no past?" The declared mode can now represent relevant pre-run state explicitly.
+For inferential work, the question is no longer "did AnthroSim secretly assume every founder had no past?" The declared mode can now represent relevant pre-run state explicitly, and known genealogy cannot be silently contradicted or ignored by the separate `lastBirthDay` field.
 
 The remaining question is scientifically harder and must stay visible:
 
