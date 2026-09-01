@@ -52,7 +52,7 @@ fn zero_recovery_full_supply_must_not_erase_latent_partial_supply_deterioration(
     // provision the household after relocation.
     let (seed, origin, origin_regeneration) = (91_000_u64..91_100)
         .find_map(|seed| {
-            let world = World::generate(world_config.clone(), RngFactory::new(seed)).ok()?;
+            let world = World::generate(world_config, RngFactory::new(seed)).ok()?;
             let mut cells = world
                 .cells()
                 .iter()
