@@ -1,14 +1,6 @@
 use std::{io, path::PathBuf, process::Command};
 
-#[test]
-fn research_observable_support_results_script_contract() {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .and_then(|path| path.parent())
-        .expect("anthrosim-cli must live under crates/<name>");
-    let test_script = repo_root.join("scripts/test-research-observable-support-results.py");
-
+fn run_python_script(script: &std::path::Path) {
     let mut candidates = Vec::new();
     if let Some(python) = std::env::var_os("PYTHON") {
         candidates.push(PathBuf::from(python));
@@ -17,11 +9,12 @@ fn research_observable_support_results_script_contract() {
     candidates.push(PathBuf::from("python"));
 
     for python in candidates {
-        match Command::new(&python).arg(&test_script).output() {
+        match Command::new(&python).arg(script).output() {
             Ok(output) => {
                 assert!(
                     output.status.success(),
-                    "research observable-support sensitivity regression suite failed with {}\nstdout:\n{}\nstderr:\n{}",
+                    "Python observable-support sensitivity test {} failed with {}\nstdout:\n{}\nstderr:\n{}",
+                    script.display(),
                     python.display(),
                     String::from_utf8_lossy(&output.stdout),
                     String::from_utf8_lossy(&output.stderr)
@@ -30,13 +23,37 @@ fn research_observable_support_results_script_contract() {
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
             Err(error) => panic!(
-                "failed to launch research observable-support sensitivity regression suite with {}: {error}",
+                "failed to launch Python observable-support sensitivity test {} with {}: {error}",
+                script.display(),
                 python.display()
             ),
         }
     }
 
     eprintln!(
-        "skipping research observable-support sensitivity regression suite because no Python interpreter was found"
+        "skipping Python observable-support sensitivity test {} because no Python interpreter was found",
+        script.display()
+    );
+}
+
+#[test]
+fn research_observable_support_results_script_contract() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|path| path.parent())
+        .expect("anthrosim-cli must live under crates/<name>");
+    run_python_script(&repo_root.join("scripts/test-research-observable-support-results.py"));
+}
+
+#[test]
+fn audit_v3_support_sensitivity_requires_executed_analysis_evidence() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|path| path.parent())
+        .expect("anthrosim-cli must live under crates/<name>");
+    run_python_script(
+        &repo_root.join("scripts/audit-v3-test-support-sensitivity-execution-binding.py"),
     );
 }
