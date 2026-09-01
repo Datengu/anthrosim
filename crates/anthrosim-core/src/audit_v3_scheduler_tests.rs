@@ -1,7 +1,10 @@
 use std::collections::BTreeSet;
 
 use crate::{
-    config::{DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, WorldConfig},
+    config::{
+        DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
+        WorldConfig,
+    },
     focal_region::{FocalRegion, FocalRegionSource},
     ids::{CellId, HouseholdId},
     simulation::Simulation,
@@ -42,11 +45,7 @@ fn collision_config(seed: u64) -> ExperimentConfig {
 fn boundary_collision_program(config: &ExperimentConfig) -> TemporaryMobilityProgram {
     let probe = Simulation::new(config.clone()).unwrap();
     let residences: BTreeSet<_> = (1..=probe.population().household_count() as u64)
-        .filter_map(|raw| {
-            probe
-                .population()
-                .household_location(HouseholdId::new(raw))
-        })
+        .filter_map(|raw| probe.population().household_location(HouseholdId::new(raw)))
         .collect();
     let destination = (1..=probe.world().cell_count() as u64)
         .map(CellId::new)
