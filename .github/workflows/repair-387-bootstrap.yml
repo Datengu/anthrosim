@@ -1,0 +1,53 @@
+name: Bootstrap repair 387
+
+on:
+  push:
+    branches:
+      - fix/387-spatial-founder-history-v22
+    paths:
+      - .github/workflows/repair-387-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply minimal AV3-001 repair
+        shell: python
+        run: |
+          from pathlib import Path
+
+          spatial = Path('crates/anthrosim-core/src/spatial_simulation.rs')
+          text = spatial.read_text()
+          old_import = '''        process_demographic_year_after_competing_mortality_recorded, validate_demography_config,\n'''
+          new_import = '''        process_demographic_year_after_competing_mortality_recorded_with_founder_history,\n        validate_demography_config,\n'''
+          if text.count(old_import) != 1:
+              raise SystemExit(f'unexpected spatial import count: {text.count(old_import)}')
+          text = text.replace(old_import, new_import)
+          old_call = '''            let outcome = process_demographic_year_after_competing_mortality_recorded(\n                &mut self.population,\n                &self.world,\n                &self.config.demography,\n                self.time.days(),\n                &mut self.demography_rngs,\n                &mut self.events,\n            )?;\n'''
+          new_call = '''            let outcome =\n                process_demographic_year_after_competing_mortality_recorded_with_founder_history(\n                    &mut self.population,\n                    &self.world,\n                    &self.config.demography,\n                    self.time.days(),\n                    &mut self.demography_rngs,\n                    &mut self.events,\n                    self.config.founder_population.as_ref(),\n                )?;\n'''
+          if text.count(old_call) != 1:
+              raise SystemExit(f'unexpected spatial call count: {text.count(old_call)}')
+          spatial.write_text(text.replace(old_call, new_call))
+
+          provenance = Path('crates/anthrosim-core/src/provenance.rs')
+          text = provenance.read_text()
+          old = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v21";'
+          new = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v22";'
+          if text.count(old) != 1:
+              raise SystemExit(f'unexpected semantics marker count: {text.count(old)}')
+          provenance.write_text(text.replace(old, new))
+
+          Path('.github/workflows/repair-387-bootstrap.yml').unlink()
+      - name: Commit repair
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add crates/anthrosim-core/src/spatial_simulation.rs crates/anthrosim-core/src/provenance.rs .github/workflows/repair-387-bootstrap.yml
+          git commit -m "fix: preserve founder reproductive history in spatial M2"
+          git push
