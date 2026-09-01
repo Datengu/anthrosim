@@ -24,7 +24,7 @@ Purpose: durable repository-authoritative state for the third independent/advers
 | Current P1 findings | **6 open — AV3-001/#387; AV3-006/#410; AV3-008/#415; AV3-009/#416; AV3-011/#419; AV3-013/#423** |
 | Current P2 findings | **7 open — AV3-002/#392; AV3-003/#396; AV3-004/#399; AV3-005/#402; AV3-007/#413; AV3-010/#418; AV3-012/#421** |
 | Current P3 findings | none discovered |
-| Coverage state | **Areas A–H complete; Area I in progress with AV3-007/008; Area J complete with AV3-009/010/011/012/013; K–N pending** |
+| Coverage state | **Areas A–J complete; K–N pending** |
 | Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered new P1 findings** |
 | Closure state | **in progress — discovery-only; findings remain unrepaired until A–N discovery is complete** |
 
@@ -50,7 +50,7 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 | F | Aggregation and interaction mechanisms | **complete — no new finding** | Closed evidence PR #406 head `5befc83204ae3d534001f9d5e2396fe8e61eec9c`, CI `33480471002`: one seven-day one-person visit produced **7 visitor-person-days / peak 1 / visitor need 7**; two simultaneous visits produced **14 / 2 / 14**. |
 | G | Initialization, burn-in, path dependence, continuation state | **complete — no new finding; AV3-001/002/003 cross-cutting** | Evidence PR #408 head `6ee0ce4444cf9814a37ffcff46daa8d980d067f6`, CI `33486199606`: with mortality, fertility, migration, resource need, condition loss and recovery all disabled, founder-condition arms **400** and **900** permille remained exactly **400** and **900** after five years. Independent year-2 checkpoint/resume in both arms produced the same complete `RecordedRun` as uninterrupted execution after excluding operational resume-lineage metadata. Existing 277 core tests plus the fresh adversary passed. No new Area G defect demonstrated; AV3-001/002/003 remain open cross-cutting limitations. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — P1 finding open** | Closed red PR #409 head `4b837284825669435f4dcd64eef2f9161d459f9f`, CI `33487273744`: AV3-006/#410. Same-seed anti-correlated arms reported half-width **3.666756860283** vs covariance-aware **5.185577281736** at threshold **4.5**. |
-| I | Sensitivity, uncertainty, convergence, robustness | **in progress — P1/P2 findings open** | AV3-007/#413 accepts fabricated support-analysis identities. AV3-008/#415: overlapping ancestor/descendant dimension paths leave **4 recorded coordinates but only 2 executable treatments**. AV3-011/#419 is cross-cutting. Remaining horizon/initialization/replicate/numerical-convergence coverage required as applicable. |
+| I | Sensitivity, uncertainty, convergence, robustness | **complete — P1/P2 findings open** | AV3-007/#413 accepts fabricated support-analysis identities; AV3-008/#415 leaves **4 recorded coordinates but only 2 executable treatments** under overlapping dimensions; AV3-011/#419 is cross-cutting. Closure note `area-i-closure-2026-09-01.md` records remaining coverage: `durationYears` is an explicit numeric sensitivity coordinate; fresh Area-G 400-vs-900 initialization arms stayed exactly distinct over 5 years with exact year-2 resume parity; Area-H 20-seed precision adversary remains limited by AV3-006; frozen scale semantics give 100→50 m refinement effects of **×4 M3 equal-area stock**, **×2 M9 route cost/travel days**, **300→150 m M4 physical horizon**, and M2 co-cell separation at 50 m. Spatial refinement is explicitly resolution-dependent, not expected to converge to a resolution-independent limit. |
 | J | Identifiability, equifinality, calibration, discrimination | **complete — P1/P2 findings open** | Frozen identifiability analyzer produced AV3-009/#416 typed-structure collapse, AV3-010/#418 non-conservative held-out averaging, AV3-011/#419 false identification of an unvaried parameter, and AV3-012/#421 hidden nuisance equifinality. AV3-013/#423 (**P1**) then showed protocol-local `evidenceId` strings are not bound to authoritative EvidenceCatalog/source identities, so one underlying source can use separate calibration and held-out aliases for the same observable and evade exact-pair circularity detection. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **pending; AV3-002/007/008/013 cross-cutting** | Replay, unbound analysis identities, overwritten sensitivity treatments and unbound evidence-source aliases are known hypotheses/limitations. |
 | L | Observability, analysis outputs, statistical summaries | **pending; AV3-002/006/007/009/010/012/013 cross-cutting** | Existing findings can misstate replay validity, precision, scale robustness, structural identity, held-out discrimination, equifinality and evidence independence. |
@@ -95,7 +95,7 @@ These establish target provenance, not scientific completion evidence.
 
 - Areas A–F completed; AV3-001 through AV3-005 were demonstrated in A–D, while E/F produced fresh passing adversarial evidence.
 - Area H completed with AV3-006/#410.
-- Area I remains in progress with AV3-007/#413 and AV3-008/#415 plus cross-cutting AV3-005/011.
+- Area I remained in progress with AV3-007/#413 and AV3-008/#415 plus cross-cutting AV3-005/011.
 - Area J demonstrated AV3-009/#416, AV3-010/#418, AV3-011/#419 and AV3-012/#421 through structural typing, held-out-envelope, unvaried-parameter and nuisance-compensation attacks.
 - All findings remain deliberately unrepaired.
 
@@ -114,7 +114,18 @@ These establish target provenance, not scientific completion evidence.
 - Both arms were independently checkpointed at year 2 and resumed. Resumed complete `RecordedRun` output matched uninterrupted execution exactly after excluding operational resume-lineage metadata. No new Area G scientific defect was demonstrated on this surface.
 - AV3-001/#387, AV3-002/#392 and AV3-003/#396 remain open cross-cutting initialization/replay limitations and were not repaired.
 - PR #394 was reviewed as stale Area-C evidence. Its central CI failure occurred before its intended mortality/fission assertion because the new founder fixture violated the configured female reproductive-age contract (`ParentOutsideConfiguredReproductiveAge`, parent PersonId(2), age 7300 days). The 277 pre-existing core tests passed. It was closed unmerged with no scientific finding inferred.
-- PR #408 is test-only evidence and is to be closed unmerged after this ledger update lands; its passing adversary is recorded here rather than merged into production.
+- PR #408 was closed unmerged after its passing evidence was recorded in the ledger.
+
+### 2026-09-01 — Area I completion
+
+- Live protected `main` at session start: `e17e5aef5b6f5dbe206e32639a4a46d9bd03d03e`; no open PRs and no overlapping active Area-I PR were present.
+- Re-read the audit protocol, audit-v3 charter and authoritative ledger, and inspected frozen `ResearchExperimentDefinition`, `ExperimentConfig`, the research-definition contract and spatial-resolution dependence semantics on exact v0.3.3/v21.
+- Existing fresh Area-I adversaries remain AV3-007/#413 and AV3-008/#415; AV3-011/#419 is a cross-cutting design-adequacy failure. No repair was made.
+- Remaining horizon coverage: `durationYears` is a normal numeric field in the complete authoritative `ExperimentConfig` and is not reserved by the dimension contract, so temporal horizon is explicitly sweepable without source edits.
+- Remaining initialization coverage uses fresh Area-G limiting-case evidence: **400 vs 900** permille founder-condition arms remained exactly distinct after **5 years**, with exact year-2 checkpoint/resume parity.
+- Remaining replicate coverage uses fresh Area-H evidence: at **20 seeds**, implemented half-width **3.666756860283** vs covariance-aware **5.185577281736** at threshold **4.5**, preserving AV3-006/#410 as an explicit unresolved replicate-precision limitation.
+- Numerical/discretization coverage: frozen spatial scale semantics are deliberately resolution-dependent. Independent inspection gives 100→50 m effects of **×4** equal-area per-cell-total M3 stock, **×2** M9 route cost/travel days for the same 200 m route, **300→150 m** M4 physical horizon for radius 3 cells, and possible M2 co-cell separation for two people 50 m apart. A further 50→25 m refinement analytically implies **×16** stock and **×4** route cost relative to 100 m under unchanged cell-space assumptions. This is model-scale sensitivity, not a numerical convergence promise.
+- Full closure evidence is preserved in `docs/research/audit-v3/area-i-closure-2026-09-01.md`. Area I is complete with AV3-005/006/007/008/011 open as relevant limitations; no new defect was demonstrated by the remaining closure checks.
 
 ## Handoff instruction
 
@@ -124,4 +135,4 @@ Read, in order:
 2. `docs/research/audit-v3/README.md`
 3. this `STATUS.md`
 
-Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Areas **A–H and J are complete**. Area **I remains incomplete** and must still receive fresh horizon/initialization/replicate/numerical-convergence robustness coverage as applicable. If I is owned by another active agent, continue the next non-overlapping pending surface, **Area K — experiment orchestration, configuration, provenance and reproducibility**. Treat AV3-001 through AV3-013 as known cross-cutting limitations, but repair none of them during discovery. Update this ledger before handoff. Do not begin site empirical work, release work, or unrelated development.
+Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Areas **A–J are complete**. Continue the next pending non-overlapping surface, **Area K — experiment orchestration, configuration, provenance and reproducibility**. Treat AV3-001 through AV3-013 as known cross-cutting limitations, but repair none of them during discovery. Update this ledger before handoff. Do not begin site empirical work, release work, or unrelated development.
