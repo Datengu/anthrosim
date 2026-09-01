@@ -170,7 +170,7 @@ fn host_births(last_birth_day: i64) -> (u64, u64) {
 
 #[test]
 fn recent_declared_birth_history_suppresses_first_boundary_fertility_in_both_hosts() {
-    // At day 365, lastBirthDay=-100 is only 465 days ago, below the configured 1278-day spacing.
+    // At day 365, lastBirthDay=-100 is only 465 days ago, below the effective 1278-day spacing.
     let (synthetic, spatial) = host_births(-100);
     assert_eq!(synthetic, 0);
     assert_eq!(spatial, synthetic);
