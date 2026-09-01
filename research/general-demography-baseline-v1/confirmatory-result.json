@@ -527,7 +527,7 @@
     },
     "stochasticMultiRegimeContextCount": 1
   },
-  "modelSemanticsId": "anthrosim-model-semantics-v21",
+  "modelSemanticsId": "anthrosim-model-semantics-v22",
   "monteCarloPrecision": {
     "positive-fission-extinction-diagnostic": {
       "batchBoundary": 1,
