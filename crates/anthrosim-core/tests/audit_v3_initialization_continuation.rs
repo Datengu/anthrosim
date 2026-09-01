@@ -1,6 +1,9 @@
 use anthrosim_core::{
-    AgeProbabilityBand, DemographyConfig, ExperimentConfig, MigrationConfig, ParameterProvenance,
-    PopulationConfig, ResourceConfig, ResumeLineage, Simulation, WorldConfig,
+    AgeProbabilityBand, DemographyConfig, ExperimentConfig, FounderGenealogyStatus,
+    FounderHousehold, FounderPerson, FounderPopulationDefinition, MigrationConfig,
+    ParameterProvenance, PopulationConfig, ReproductiveSex, ResourceConfig, ResumeLineage,
+    Simulation, WorldConfig,
+    ids::{CellId, HouseholdId, PersonId},
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -17,32 +20,42 @@ fn no_event_demography() -> DemographyConfig {
     }
 }
 
-fn config(seed: u64, initial_stock: u32) -> ExperimentConfig {
+fn founder(condition_permille: u16) -> FounderPopulationDefinition {
+    FounderPopulationDefinition::new(
+        format!("audit-v3-area-g-condition-{condition_permille}"),
+        ParameterProvenance::SyntheticValidation,
+        FounderGenealogyStatus::CompleteLivingDirectParents,
+        vec![FounderHousehold {
+            id: HouseholdId::new(1),
+            location: CellId::new(0),
+        }],
+        vec![FounderPerson {
+            id: PersonId::new(1),
+            birth_day: -(30_i64 * 365),
+            reproductive_sex: ReproductiveSex::Male,
+            household: HouseholdId::new(1),
+            female_parent: None,
+            male_parent: None,
+            last_birth_day: None,
+            condition_permille,
+        }],
+    )
+}
+
+fn config(condition_permille: u16) -> ExperimentConfig {
     let mut resources = ResourceConfig::synthetic_validation_v1()
-        .with_initial_stock_units_per_productivity(initial_stock)
-        .with_annual_regeneration_units_per_productivity(0)
-        .with_annual_need_units_per_person(0);
-    resources.periods_per_year = 1;
+        .with_annual_need_units_per_person(0)
+        .with_max_condition_loss_per_year_permille(0)
+        .with_condition_recovery_per_year_permille(0);
     resources.max_scarcity_mortality_probability_per_million = 0;
 
-    ExperimentConfig::new(seed, 5)
+    ExperimentConfig::new(307_001, 5)
         .with_world(WorldConfig::new(1, 1))
         .with_population(PopulationConfig::new(1).with_target_household_size(1))
+        .with_founder_population(founder(condition_permille))
         .with_demography(no_event_demography())
         .with_resources(resources)
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
-}
-
-fn positive_productivity_seed() -> u64 {
-    (1..=1_000)
-        .find(|&seed| {
-            Simulation::new(config(seed, 10))
-                .unwrap()
-                .resources()
-                .total_food_stock()
-                .is_ok_and(|stock| stock > 0)
-        })
-        .expect("controlled seed search must find a positive-productivity one-cell world")
 }
 
 fn without_resume_lineage(mut run: anthrosim_core::RecordedRun) -> anthrosim_core::RecordedRun {
@@ -53,23 +66,22 @@ fn without_resume_lineage(mut run: anthrosim_core::RecordedRun) -> anthrosim_cor
 }
 
 #[test]
-fn alternative_initial_resource_states_remain_causal_and_resume_exactly() {
-    let seed = positive_productivity_seed();
-    let mut terminal_stocks = Vec::new();
+fn alternative_founder_conditions_remain_causal_and_resume_exactly() {
+    let mut terminal_conditions = Vec::new();
 
-    for initial_stock in [0_u32, 10_u32] {
-        let cfg = config(seed, initial_stock);
+    for initial_condition in [400_u16, 900_u16] {
+        let cfg = config(initial_condition);
         let initial = Simulation::new(cfg.clone()).unwrap();
-        let day_zero_stock = initial.resources().total_food_stock().unwrap();
+        let day_zero_condition = initial.population().mean_living_condition_permille().unwrap();
 
         let uninterrupted = Simulation::new(cfg.clone())
             .unwrap()
             .run_recorded()
             .unwrap();
-        let terminal_stock = uninterrupted
+        let terminal_condition = uninterrupted
             .checkpoint
-            .resources
-            .total_food_stock()
+            .population
+            .mean_living_condition_permille()
             .unwrap();
 
         let checkpoint = Simulation::new(cfg).unwrap().checkpoint_at_year(2).unwrap();
@@ -81,23 +93,19 @@ fn alternative_initial_resource_states_remain_causal_and_resume_exactly() {
         assert_eq!(
             without_resume_lineage(resumed),
             without_resume_lineage(uninterrupted.clone()),
-            "checkpoint/resume must preserve the complete authoritative trajectory for each alternative initial state"
+            "checkpoint/resume must preserve the complete authoritative trajectory for each alternative founder condition"
         );
         assert_eq!(
-            terminal_stock, day_zero_stock,
-            "with zero demand, zero regeneration and no demographic or migration events, elapsed time must not silently erase the declared initial resource state"
+            terminal_condition, day_zero_condition,
+            "with mortality, fertility, migration, resource need, condition loss and condition recovery disabled, elapsed time must not silently erase founder condition"
         );
 
         println!(
-            "seed={seed} initialStockUnitsPerProductivity={initial_stock} dayZeroStock={day_zero_stock} terminalStock={terminal_stock} stateDigest64={}",
+            "initialConditionPermille={initial_condition} dayZeroCondition={day_zero_condition} terminalCondition={terminal_condition} stateDigest64={}",
             uninterrupted.checkpoint.state_digest64
         );
-        terminal_stocks.push(terminal_stock);
+        terminal_conditions.push(terminal_condition);
     }
 
-    assert_eq!(terminal_stocks[0], 0);
-    assert!(
-        terminal_stocks[1] > terminal_stocks[0],
-        "the stocked and depleted initial states must remain scientifically distinguishable after five years when no mechanism can erase their difference"
-    );
+    assert_eq!(terminal_conditions, vec![400, 900]);
 }
