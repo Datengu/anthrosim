@@ -18,7 +18,7 @@ from typing import Any
 
 PLAN_SCHEMA = 1
 SAMPLE_SCHEMA = 1
-DIAGNOSTIC_SCHEMA = 2
+DIAGNOSTIC_SCHEMA = 3
 PLAN_PREFIX = "monte-carlo-precision-plan-v1:"
 UNCERTAINTY_CATEGORY = "process_stochastic_monte_carlo"
 SUPPORTED_KINDS = {
@@ -124,25 +124,47 @@ def validate_plan(plan: dict[str, Any]) -> str:
     design = plan["design"]
     if not isinstance(design, dict):
         fail("precision plan design must be an object")
-    require_keys(design, {"mode", "seedBatches"}, {"mode", "seedBatches"}, "design")
+    require_keys(design, {"mode", "seedBatches", "groupSeedBatches"}, {"mode"}, "design")
     mode = design["mode"]
     if mode not in {"fixed", "sequential"}:
         fail("design.mode must be fixed or sequential")
-    batches = design["seedBatches"]
-    if not isinstance(batches, list) or not batches:
-        fail("design.seedBatches must contain at least one declared batch")
-    if mode == "fixed" and len(batches) != 1:
-        fail("fixed design must declare exactly one seed batch")
-    seen: set[int] = set()
-    for index, batch in enumerate(batches):
-        if not isinstance(batch, list) or not batch:
-            fail(f"design.seedBatches[{index}] must be non-empty")
-        for seed in batch:
-            if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
-                fail("declared seeds must be non-negative integers")
-            if seed in seen:
-                fail(f"declared seed {seed} appears more than once")
-            seen.add(seed)
+
+    def validate_batches(batches: Any, role: str) -> set[int]:
+        if not isinstance(batches, list) or not batches:
+            fail(f"{role} must contain at least one declared batch")
+        if mode == "fixed" and len(batches) != 1:
+            fail(f"fixed design {role} must declare exactly one seed batch")
+        seen: set[int] = set()
+        for index, batch in enumerate(batches):
+            if not isinstance(batch, list) or not batch:
+                fail(f"{role}[{index}] must be non-empty")
+            for seed in batch:
+                if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+                    fail("declared seeds must be non-negative integers")
+                if seed in seen:
+                    fail(f"declared seed {seed} appears more than once in {role}")
+                seen.add(seed)
+        return seen
+
+    if kind == "difference_in_means":
+        if "seedBatches" in design:
+            fail("difference_in_means requires design.groupSeedBatches, not shared design.seedBatches")
+        schedules = design.get("groupSeedBatches")
+        if not isinstance(schedules, list) or len(schedules) != 2:
+            fail("difference_in_means requires exactly two design.groupSeedBatches schedules")
+        left_seeds = validate_batches(schedules[0], "design.groupSeedBatches[0]")
+        right_seeds = validate_batches(schedules[1], "design.groupSeedBatches[1]")
+        if len(schedules[0]) != len(schedules[1]):
+            fail("independent group seed schedules must declare the same number of batch boundaries")
+        overlap = left_seeds & right_seeds
+        if overlap:
+            fail(f"independent group seed schedules must be disjoint; overlapping seed(s): {', '.join(map(str, sorted(overlap)))}")
+    else:
+        if "groupSeedBatches" in design:
+            fail("design.groupSeedBatches is only valid for difference_in_means")
+        if "seedBatches" not in design:
+            fail("design.seedBatches is required for this estimand")
+        validate_batches(design["seedBatches"], "design.seedBatches")
 
     pairing = plan["pairing"]
     expected_pairing = "paired_by_seed" if kind == "paired_mean_difference" else "independent"
@@ -155,13 +177,20 @@ def validate_plan(plan: dict[str, Any]) -> str:
     return expected
 
 
-def declared_prefixes(plan: dict[str, Any]) -> list[list[int]]:
+def prefixes_for_batches(batches: list[list[int]]) -> list[list[int]]:
     result: list[list[int]] = []
     current: list[int] = []
-    for batch in plan["design"]["seedBatches"]:
+    for batch in batches:
         current = current + list(batch)
         result.append(list(current))
     return result
+
+
+def declared_prefixes(plan: dict[str, Any], group_index: int = 0) -> list[list[int]]:
+    design = plan["design"]
+    if plan["estimand"]["kind"] == "difference_in_means":
+        return prefixes_for_batches(design["groupSeedBatches"][group_index])
+    return prefixes_for_batches(design["seedBatches"])
 
 
 def validate_study_binding(study_dir: Path, plan: dict[str, Any], identity: str) -> dict[str, Any]:
@@ -251,15 +280,26 @@ def validate_samples(samples: dict[str, Any], plan: dict[str, Any]) -> tuple[lis
             fail(f"sample group {group['id']} contains duplicate seeds")
         parsed.append({"id": group["id"], "seeds": seeds, "values": values})
 
-    prefixes = declared_prefixes(plan)
+    first_prefixes = declared_prefixes(plan, 0)
     first_seeds = parsed[0]["seeds"]
-    if first_seeds not in prefixes:
+    if first_seeds not in first_prefixes:
         fail("sample seeds are not exactly one predeclared cumulative batch boundary")
-    boundary_index = prefixes.index(first_seeds)
-    for group in parsed[1:]:
-        if group["seeds"] != first_seeds:
-            fail("multi-group estimands must use the same exact declared seed identities and order")
-    if plan["design"]["mode"] == "fixed" and boundary_index != len(prefixes) - 1:
+    boundary_index = first_prefixes.index(first_seeds)
+
+    if kind == "difference_in_means":
+        second_prefixes = declared_prefixes(plan, 1)
+        second_seeds = parsed[1]["seeds"]
+        if boundary_index >= len(second_prefixes) or second_seeds != second_prefixes[boundary_index]:
+            fail("independent sample groups must use their exact predeclared seed schedules at the same batch boundary")
+        overlap = set(first_seeds) & set(second_seeds)
+        if overlap:
+            fail("independent sample groups must have disjoint seed identities")
+    else:
+        for group in parsed[1:]:
+            if group["seeds"] != first_seeds:
+                fail("paired multi-group estimands must use the same exact declared seed identities and order")
+
+    if plan["design"]["mode"] == "fixed" and boundary_index != len(first_prefixes) - 1:
         fail("fixed design may only be diagnosed at its single final declared sample")
     return parsed, len(first_seeds), boundary_index
 
@@ -451,9 +491,15 @@ def derive(plan: dict[str, Any], samples: dict[str, Any], study_dir: Path | None
     groups, replicate_count, boundary_index = validate_samples(samples, plan)
     lineage = validate_study_binding(study_dir, plan, identity) if study_dir is not None else None
     precision = diagnostic(groups, plan)
-    prefixes = declared_prefixes(plan)
+    prefixes = declared_prefixes(plan, 0)
     has_next = boundary_index + 1 < len(prefixes)
-    next_batch = plan["design"]["seedBatches"][boundary_index + 1] if has_next else []
+    if has_next and plan["estimand"]["kind"] == "difference_in_means":
+        next_batch = [
+            plan["design"]["groupSeedBatches"][0][boundary_index + 1],
+            plan["design"]["groupSeedBatches"][1][boundary_index + 1],
+        ]
+    else:
+        next_batch = plan["design"]["seedBatches"][boundary_index + 1] if has_next else []
     mode = plan["design"]["mode"]
     if precision["sufficient"]:
         decision = "sufficient_stop"
@@ -476,7 +522,9 @@ def derive(plan: dict[str, Any], samples: dict[str, Any], study_dir: Path | None
         "designMode": mode,
         "batchBoundary": boundary_index + 1,
         "replicateCount": replicate_count,
-        "seedIdentities": groups[0]["seeds"],
+        "seedIdentities": groups[0]["seeds"] if len(groups) == 1 else None,
+        "groupSeedIdentities": {group["id"]: group["seeds"] for group in groups},
+        "pairingSemantics": plan["pairing"],
         "groupIds": [group["id"] for group in groups],
         "precision": precision,
         "decision": decision,
