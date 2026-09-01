@@ -22,9 +22,9 @@ Purpose: durable repository-authoritative state for the third independent/advers
 | Open PRs at initialization | none |
 | Current P0 findings | none discovered |
 | Current P1 findings | **1 open — AV3-001 / #387** |
-| Current P2 findings | **3 open — AV3-002 / #392; AV3-003 / #396; AV3-004 / #399** |
+| Current P2 findings | **4 open — AV3-002 / #392; AV3-003 / #396; AV3-004 / #399; AV3-005 / #402** |
 | Current P3 findings | none discovered |
-| Coverage state | **Areas A–C complete; Area D next / in progress; E–N pending** |
+| Coverage state | **Areas A–D complete; Area E next / in progress; F–N pending** |
 | Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered a new P1** |
 | Closure state | **in progress — discovery-only; findings remain unrepaired until A–N discovery is complete** |
 
@@ -49,17 +49,17 @@ Audit v2 is historical context only. Its green Areas, repaired findings, protect
 | A | Authoritative semantics and scheduler behaviour | **complete — P1 finding open** | Fresh M3/M9 half-open boundary-collision adversary passed. Source inspection confirmed explicit M9 within-day order and frozen-snapshot/simultaneous M4 application. Cross-host parity adversary demonstrated AV3-001/#387: identical declared founder reproductive history yields 0 births in `Simulation` vs 1 birth in `SpatialLandscapeSimulation`. Supplementary 10-seed × 4-year neutral spatial-host parity PR #391 passed `Quality and tests` before being closed unmerged after concurrent Area-A closure. |
 | B | Demography, fertility, mortality, ageing, population structure | **complete — late P2 finding added** | Fresh certain-fertility M9 locality case confirmed documented persistent-residence parentage: visitor co-presence births = 0; persistent co-residence births = 1. That run exposed AV3-002/#392 in M9 integrity replay. A later independent founder-history consistency adversary then demonstrated AV3-003/#396: a declared `lastBirthDay=-2000` can contradict an explicitly declared child at day -100 and create 1 artificial first-boundary birth where coherent spacing requires 0. AV3-001 remains a spatial-host limitation. |
 | C | Households, kinship, social links, lifecycle structure | **complete — P2 finding open** | Fresh dependency-aware fission relabelling adversary PR #397 demonstrated AV3-004/#399. Two isomorphic declared founder kin graphs differing only by a consistent canonical-ID swap between same-age/same-sex adult males produced different scientifically meaningful topology after annual fission: the same abstract dependent retained **2** co-resident living parents in one labelling and **1** in the other. Format, Clippy and all 277 existing core tests passed before the intended assertion failed. Earlier triage also confirmed `maxLivingMembers` is explicitly a target subordinate to dependency safety and at-residence-only annual fission is explicitly declared. |
-| D | Resources, condition, subsistence, depletion/recovery | **next / in progress** | Initial v20/v21 review confirmed fractional condition-loss remainder persistence through recovery and M4 travel loss is explicit contract, not hidden drift. Fresh independent Area D evidence is now being developed against frozen v0.3.3. |
-| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **pending** | Initial review confirmed M4's Manhattan distance + destination movement-cost excess is explicitly documented; M9 is the routed path-cost mechanism. Fresh independent Area E evidence still required. |
+| D | Resources, condition, subsistence, depletion/recovery | **complete — P2 finding open** | Re-read the v20 fixed-point response repair rather than repeating audit-v2 #326. Source/contract review confirmed remainder persistence through zero-need and M4 whole-point travel loss is deliberate. Fresh reachable two-year adversary PR #401 demonstrated AV3-005/#402: year-1 mild under-supply leaves visible condition 1000 plus an **8/1000** causal loss remainder; after zero-cost relocation, year 2 is fully supplied with configured recovery exactly zero, yet runtime clears the remainder to **0**. Format, Clippy and all 277 existing core tests passed before the intended assertion failed `0 vs 8`. |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **next / in progress** | Initial review confirmed M4's Manhattan distance + destination movement-cost excess is explicitly documented; M9 is the routed path-cost mechanism. Audit-v2 spatial findings are historical context only; fresh v3 executable symmetry/boundary evidence is required. |
 | F | Aggregation and interaction mechanisms | **pending** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **pending; AV3-001/002/003 cross-cutting** | AV3-001 drops declared founder reproductive history in spatial annual M2. AV3-002 prevents M9 history replay from reconstructing declared founders. AV3-003 allows mutually contradictory declared reproductive chronology to enter execution and alter first-year fertility. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **pending** | — |
-| I | Sensitivity, uncertainty, convergence, robustness | **pending** | — |
+| I | Sensitivity, uncertainty, convergence, robustness | **pending; AV3-005 cross-cutting** | AV3-005 can erase repeated sub-unit scarcity exposure under intermittent full-support intervals when the declared recovery coefficient is zero. |
 | J | Identifiability, equifinality, calibration, discrimination | **pending** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **pending; AV3-002 cross-cutting** | AV3-002 is a fail-closed recorded-run integrity/replay limitation for declared-founder + M9 runs. |
 | L | Observability, analysis outputs, statistical summaries | **pending; AV3-002 cross-cutting** | M9 event-history replay cannot reconstruct declared founder state. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **pending** | — |
-| N | Cross-system integration | **pending; AV3-001/002/003/004 cross-cutting** | AV3-001/002/003 involve explicit initialization crossing execution/replay boundaries. AV3-004 shows arbitrary canonical IDs can change post-fission kin topology that is subsequently causal for M3 resource sharing, M4 kin/migration and M9 household selection. |
+| N | Cross-system integration | **pending; AV3-001/002/003/004/005 cross-cutting** | AV3-001/002/003 involve explicit initialization crossing execution/replay boundaries. AV3-004 shows arbitrary canonical IDs can change post-fission kin topology that is subsequently causal for M3 resource sharing, M4 kin/migration and M9 household selection. AV3-005 shows M3 latent condition state can be erased by a subsequent full-support interval even when its configured recovery mechanism has zero strength. |
 
 ## Finding register
 
@@ -69,6 +69,7 @@ Audit v2 is historical context only. Its green Areas, repaired findings, protect
 | AV3-002 — M9 history validator cannot replay declared-founder runs | **P2** | K/L primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #392 | Frozen `v0.3.3` / `358ae93b...` / v21. Closed red evidence PR #390 head `3161ddd1269ad78bfb519f1d3eda3111c6e833e7`: M2 visitor/persistent locality assertions pass, then `RecordedRun::validate_invariants()` fails because `temporary_history.rs` always calls synthetic-only `Population::initialize`. Fail-closed, therefore P2 rather than P1. |
 | AV3-003 — declared `lastBirthDay` can predate a later explicitly declared child | **P2** | B/G primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #396 | Frozen v21. Red test-only PR #395 head `662bf03c1b6b3908adea02e1f8f118d833404c7b`: female ID 1 declares `lastBirthDay=-2000` while child ID 3 declares ID 1 as mother at `birthDay=-100`; both event ages are individually schedule-valid. Format, Clippy and all 277 existing core tests pass, then the audit assertion fails with births **1 vs expected 0** because only 465 days have elapsed since the known child. This is an internally contradictory-input/fail-closed boundary defect, hence P2. |
 | AV3-004 — dependency-aware household fission remains PersonId-sensitive through kin-role tie-breaking | **P2** | C primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #399 | Frozen `v0.3.3` / `358ae93b...` / v21. Closed red evidence PR #397 head `b04d756a35e83fee3b294df74544b41b1f5bdd76`: two isomorphic founder graphs consistently swap IDs 3/4 between same-age/same-sex adult males while preserving the abstract father role. CI format/Clippy and all 277 existing core tests pass; the fresh assertion then fails with co-resident living parents **2 vs 1**. The v21 anchor sort uses `(birthDay, reproductiveSex, PersonId)` before dependent-parent structure is considered, violating the documented relationship-aware relabelling contract. |
+| AV3-005 — zero-recovery full supply clears latent M3 condition deterioration | **P2** | D primary; I/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #402 | Frozen `v0.3.3` / `358ae93b...` / v21. Closed red evidence PR #401 head `d3d6f8392b184ca34c418a24d666dc89ae947375`, CI `33474425681`: a reachable two-year run creates **8/1000** latent deterioration under slight year-1 shortage while visible condition remains 1000, relocates at zero condition cost to a richer cell, then receives full year-2 supply with `conditionRecoveryPerPeriod=0`. Format/Clippy and all 277 existing core tests pass; audit assertion fails **actual remainder 0 vs expected 8**. A zero-strength recovery mechanism therefore performs hidden-state recovery. |
 
 ## Convergence accounting
 
@@ -122,15 +123,18 @@ These establish target provenance, not scientific completion evidence.
 - Source inspection explains the result: independent adults are seeded using `(birthDay, reproductiveSex, PersonId)` before dependent parent structure is considered, so people with different relationship roles are incorrectly allowed to reach arbitrary-ID tie-breaking.
 - Preserved as AV3-004/#399 (P2); PR #397 closed unmerged as red evidence. No repair made.
 
-### Area D started
+### 2026-09-01 — Area D complete / AV3-005
 
-- Re-read the v20 M3 response contract and implementation rather than repeating audit-v2's repaired partial-supply ceiling defect.
-- Rejected one false positive: the carried fractional M3 condition-loss remainder is explicitly retained through full-supply recovery and M4 whole-point travel loss unless condition saturates at the relevant bound. The implementation matches that declared causal contract.
-- Fresh Area-D adversarial arithmetic and reachable-state checks are in progress against frozen v0.3.3.
+- Re-read the v20 M3 response contract and implementation rather than repeating audit-v2's repaired per-boundary partial-supply ceiling defect (#326). Confirmed zero-need intervals, checkpointing/digesting, and M4 whole-point travel-loss preservation of the fractional remainder are explicit and implemented.
+- Rejected an apparent M4-remainder interaction as a false positive because the contract explicitly preserves latent deterioration through whole-point travel loss unless lower-bound saturation occurs. Also confirmed storage-capacity clipping and the M4 destination-cost / M9 routed-cost distinction are explicit model assumptions rather than hidden defects.
+- Fresh test-only PR #401 built a reachable two-year counterexample rather than injecting hidden state. Year 1 mild shortage leaves visible condition at 1000 and exactly **8/1000** causal deterioration remainder; M4 relocates at zero condition cost to a strictly richer cell; year 2 is fully supplied with configured condition recovery exactly **0**.
+- Exact evidence head `d3d6f8392b184ca34c418a24d666dc89ae947375`, CI run `33474425681`, job `99750661005`: format and Clippy passed; all 277 existing core tests passed; the fresh assertion then failed exactly **actual 0 vs expected 8**.
+- Source inspection identifies the cause: the full-supply path clears the remainder whenever visible recovered condition equals 1000, even when `interval_recovery == 0`. Preserved as AV3-005/#402 (P2); PR #401 closed unmerged. No repair made.
 
-### Initial Area E triage
+### Area E started
 
-- E: M4 permanent relocation explicitly uses Manhattan distance plus destination movement-cost excess; M9 is the route-cost graph mechanism. No defect assigned. Area E still needs fresh evidence.
+- Re-read audit-v2 Area E as historical context only. Current-facing documentation explicitly retains M4's Manhattan distance plus destination-cell movement-cost excess as a synthetic relocation proxy, while M9 uses symmetric routed path cost. This distinction is not a defect by itself.
+- Fresh v3 Area-E executable symmetry/boundary testing is next; avoid duplicating audit-v2's old lower-CellId M9 tie documentation finding or its paired-seed candidate-order note.
 
 ## Handoff instruction
 
@@ -140,4 +144,4 @@ Read, in order:
 2. `docs/research/audit-v3/README.md`
 3. this `STATUS.md`
 
-Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. **Continue Area D from first principles against frozen v0.3.3.** Do not repeat Areas A–C unless new evidence requires it. Create issues for demonstrated findings and update this ledger. Do **not** repair #387, #392, #396, #399, or any later audit-v3 finding until the complete A–N discovery pass is finished.
+Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. **Continue Area E from first principles against frozen v0.3.3.** Do not repeat Areas A–D unless new evidence requires it. Create issues for demonstrated findings and update this ledger. Do **not** repair #387, #392, #396, #399, #402, or any later audit-v3 finding until the complete A–N discovery pass is finished.
