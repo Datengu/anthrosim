@@ -20,7 +20,239 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Apply staged repair and remove temporary machinery
         run: |
-          git apply tmp-419.patch
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script = Path('scripts/research-identifiability.py')
+          text = script.read_text()
+
+          old = '''def _numeric_parameter_diagnostic(
+              parameter: str,
+              points: list[dict[str, Any]],
+              compatible: list[dict[str, Any]],
+              max_normalized_width: float,
+          ) -> dict[str, Any]:
+              all_values = [_number(p["parameters"][parameter], f"parameter {parameter}") for p in points]
+              compatible_values = [_number(p["parameters"][parameter], f"parameter {parameter}") for p in compatible]
+              full_min, full_max = min(all_values), max(all_values)
+              if not compatible_values:
+                  return {
+                      "parameter": parameter,
+                      "kind": "numeric",
+                      "identified": False,
+                      "reason": "no_compatible_points",
+                      "fullRange": [full_min, full_max],
+                      "compatibleRange": None,
+                      "normalizedCompatibleWidth": None,
+                  }
+              compatible_min, compatible_max = min(compatible_values), max(compatible_values)
+              denominator = full_max - full_min
+              width = 0.0 if denominator == 0 else (compatible_max - compatible_min) / denominator
+              return {
+                  "parameter": parameter,
+                  "kind": "numeric",
+                  "identified": width <= max_normalized_width,
+                  "reason": "compatible_region_within_threshold" if width <= max_normalized_width else "compatible_region_too_wide",
+                  "fullRange": [full_min, full_max],
+                  "compatibleRange": [compatible_min, compatible_max],
+                  "normalizedCompatibleWidth": width,
+              }
+          '''
+          new = '''def _numeric_parameter_diagnostic(
+              parameter: str,
+              points: list[dict[str, Any]],
+              compatible: list[dict[str, Any]],
+              max_normalized_width: float,
+          ) -> dict[str, Any]:
+              all_values = [_number(p["parameters"][parameter], f"parameter {parameter}") for p in points]
+              compatible_values = [_number(p["parameters"][parameter], f"parameter {parameter}") for p in compatible]
+              full_min, full_max = min(all_values), max(all_values)
+              explored_level_count = len(set(all_values))
+              if not compatible_values:
+                  return {
+                      "parameter": parameter,
+                      "kind": "numeric",
+                      "identified": False,
+                      "reason": "no_compatible_points",
+                      "fullRange": [full_min, full_max],
+                      "compatibleRange": None,
+                      "normalizedCompatibleWidth": None,
+                      "exploredLevelCount": explored_level_count,
+                  }
+              compatible_min, compatible_max = min(compatible_values), max(compatible_values)
+              if explored_level_count < 2:
+                  return {
+                      "parameter": parameter,
+                      "kind": "numeric",
+                      "identified": False,
+                      "reason": "insufficient_explored_variation",
+                      "fullRange": [full_min, full_max],
+                      "compatibleRange": [compatible_min, compatible_max],
+                      "normalizedCompatibleWidth": None,
+                      "exploredLevelCount": explored_level_count,
+                  }
+              denominator = full_max - full_min
+              width = (compatible_max - compatible_min) / denominator
+              return {
+                  "parameter": parameter,
+                  "kind": "numeric",
+                  "identified": width <= max_normalized_width,
+                  "reason": "compatible_region_within_threshold" if width <= max_normalized_width else "compatible_region_too_wide",
+                  "fullRange": [full_min, full_max],
+                  "compatibleRange": [compatible_min, compatible_max],
+                  "normalizedCompatibleWidth": width,
+                  "exploredLevelCount": explored_level_count,
+              }
+          '''
+          if old not in text:
+              raise SystemExit('numeric diagnostic source did not match expected main')
+          text = text.replace(old, new, 1)
+
+          old = '''def _categorical_parameter_diagnostic(
+              parameter: str, points: list[dict[str, Any]], compatible: list[dict[str, Any]]
+          ) -> dict[str, Any]:
+              all_values = sorted({str(p["parameters"][parameter]) for p in points})
+              compatible_values = sorted({str(p["parameters"][parameter]) for p in compatible})
+              return {
+                  "parameter": parameter,
+                  "kind": "categorical",
+                  "identified": len(compatible_values) == 1,
+                  "reason": "single_compatible_value" if len(compatible_values) == 1 else "multiple_compatible_values",
+                  "fullValues": all_values,
+                  "compatibleValues": compatible_values,
+              }
+          '''
+          new = '''def _categorical_parameter_diagnostic(
+              parameter: str, points: list[dict[str, Any]], compatible: list[dict[str, Any]]
+          ) -> dict[str, Any]:
+              all_values = sorted({str(p["parameters"][parameter]) for p in points})
+              compatible_values = sorted({str(p["parameters"][parameter]) for p in compatible})
+              explored_level_count = len(all_values)
+              if not compatible_values:
+                  identified = False
+                  reason = "no_compatible_points"
+              elif explored_level_count < 2:
+                  identified = False
+                  reason = "insufficient_explored_variation"
+              elif len(compatible_values) == 1:
+                  identified = True
+                  reason = "single_compatible_value"
+              else:
+                  identified = False
+                  reason = "multiple_compatible_values"
+              return {
+                  "parameter": parameter,
+                  "kind": "categorical",
+                  "identified": identified,
+                  "reason": reason,
+                  "fullValues": all_values,
+                  "compatibleValues": compatible_values,
+                  "exploredLevelCount": explored_level_count,
+              }
+          '''
+          if old not in text:
+              raise SystemExit('categorical diagnostic source did not match expected main')
+          text = text.replace(old, new, 1)
+
+          marker = '''    tampered = stochastic_data(0.01, 0.02)
+          '''
+          tests = '''    fixed_numeric_plan = {
+              "schemaVersion": 2,
+              "analysisId": "fixed-numeric-design-self-test",
+              "calibrationTargets": [{"observable": "score", "target": 0.0, "tolerance": 0.0}],
+              "corroborationObservables": [],
+              "claim": {"parameterIds": ["theta"], "structuralHypothesis": False},
+              "maxNormalizedAcceptableWidth": 0.25,
+          }
+          fixed_numeric_data = {
+              "schemaVersion": 2,
+              "monteCarloDiagnostics": {},
+              "points": [
+                  {
+                      "id": "fixed-a",
+                      "parameters": {"theta": 7, "nuisance": 0},
+                      "outputs": {"score": 0.0},
+                      "outputEvidence": {"score": {"kind": "deterministic"}},
+                  },
+                  {
+                      "id": "fixed-b",
+                      "parameters": {"theta": 7, "nuisance": 1},
+                      "outputs": {"score": 0.0},
+                      "outputEvidence": {"score": {"kind": "deterministic"}},
+                  },
+              ],
+          }
+          fixed_numeric = analyse(fixed_numeric_plan, fixed_numeric_data)
+          theta = next(item for item in fixed_numeric["parameterDiagnostics"] if item["parameter"] == "theta")
+          assert theta["fullRange"] == [7.0, 7.0]
+          assert theta["compatibleRange"] == [7.0, 7.0]
+          assert theta["normalizedCompatibleWidth"] is None
+          assert theta["exploredLevelCount"] == 1
+          assert theta["reason"] == "insufficient_explored_variation"
+          assert theta["identified"] is False
+          assert fixed_numeric["researchGate"]["passes"] is False
+
+          fixed_categorical_plan = dict(fixed_numeric_plan)
+          fixed_categorical_plan["analysisId"] = "fixed-categorical-design-self-test"
+          fixed_categorical_data = {
+              "schemaVersion": 2,
+              "monteCarloDiagnostics": {},
+              "points": [
+                  {
+                      "id": "category-a",
+                      "parameters": {"theta": "same", "nuisance": 0},
+                      "outputs": {"score": 0.0},
+                      "outputEvidence": {"score": {"kind": "deterministic"}},
+                  },
+                  {
+                      "id": "category-b",
+                      "parameters": {"theta": "same", "nuisance": 1},
+                      "outputs": {"score": 0.0},
+                      "outputEvidence": {"score": {"kind": "deterministic"}},
+                  },
+              ],
+          }
+          fixed_categorical = analyse(fixed_categorical_plan, fixed_categorical_data)
+          theta = next(item for item in fixed_categorical["parameterDiagnostics"] if item["parameter"] == "theta")
+          assert theta["exploredLevelCount"] == 1
+          assert theta["reason"] == "insufficient_explored_variation"
+          assert theta["identified"] is False
+          assert fixed_categorical["researchGate"]["passes"] is False
+
+          varied_categorical_data = json.loads(json.dumps(fixed_categorical_data))
+          varied_categorical_data["points"][0]["parameters"]["theta"] = "selected"
+          varied_categorical_data["points"][1]["parameters"]["theta"] = "rejected"
+          varied_categorical_data["points"][1]["outputs"]["score"] = 1.0
+          varied_categorical = analyse(fixed_categorical_plan, varied_categorical_data)
+          theta = next(item for item in varied_categorical["parameterDiagnostics"] if item["parameter"] == "theta")
+          assert theta["exploredLevelCount"] == 2
+          assert theta["compatibleValues"] == ["selected"]
+          assert theta["reason"] == "single_compatible_value"
+          assert theta["identified"] is True
+          assert varied_categorical["researchGate"]["passes"] is True
+
+          '''
+          if marker not in text:
+              raise SystemExit('self-test insertion marker missing')
+          text = text.replace(marker, tests + marker, 1)
+          script.write_text(text)
+
+          docs = Path('docs/research/identifiability-equifinality-v1.md')
+          text = docs.read_text()
+          old = '''For each parameter, the analyzer reports the range represented by all evaluated points and the range represented by the final compatible region. Numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Categorical parameters are identified only when a single value remains compatible.
+          '''
+          new = '''For each parameter, the analyzer reports the range represented by all evaluated points and the range represented by the final compatible region. A claimed parameter must have at least two distinct evaluated levels before the finite design can support an identification claim. A parameter held at one level is **fixed by design**, not identified by evidence; its diagnostic reports `identified=false`, reason `insufficient_explored_variation`, and an explored-level count of one. For a fixed numeric parameter the normalized compatible width is undefined and therefore reported as `null`, rather than being coerced to zero.
+
+          Once genuine explored variation exists, numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Categorical parameters likewise require at least two explored alternatives and are identified only when one of those alternatives remains compatible.
+
+          Profiles and pairwise surfaces continue to report the actually evaluated levels and compatibility counts. They therefore expose whether a coordinate was varied independently of whether the final identification gate passes. A StudyProtocol or downstream finalization step must consume the fail-closed research gate rather than reinterpret a fixed-by-design parameter as quantitatively constrained.
+          '''
+          if old not in text:
+              raise SystemExit('documentation source did not match expected main')
+          docs.write_text(text.replace(old, new, 1))
+          PY
+          python3 -m py_compile scripts/research-identifiability.py
+          python3 scripts/research-identifiability.py --self-test
           rm tmp-419.patch .github/workflows/tmp-apply-419.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
