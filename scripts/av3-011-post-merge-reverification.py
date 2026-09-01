@@ -52,7 +52,7 @@ def theta_diagnostic(report: dict) -> dict:
 def theta_values_from_pairwise(report: dict) -> set:
     surface = next(
         item
-        for item in report["pairwiseSurfaces"]
+        for item in report["pairwiseInteractionSurfaces"]
         if set(item["parameters"]) == {"theta", "nuisance"}
     )
     theta_side = surface["parameters"].index("theta")
