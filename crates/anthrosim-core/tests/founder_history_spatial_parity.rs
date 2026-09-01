@@ -187,10 +187,11 @@ fn spatial_checkpoint_resume_preserves_declared_founder_history_before_first_m2_
     let config = experiment(-100, 1);
     let source = landscape();
 
-    let uninterrupted = SpatialLandscapeSimulation::new(config.clone(), source.clone(), mechanisms())
-        .unwrap()
-        .run_recorded()
-        .unwrap();
+    let uninterrupted =
+        SpatialLandscapeSimulation::new(config.clone(), source.clone(), mechanisms())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
 
     let checkpoint = SpatialLandscapeSimulation::new(config, source.clone(), mechanisms())
         .unwrap()
@@ -201,7 +202,10 @@ fn spatial_checkpoint_resume_preserves_declared_founder_history_before_first_m2_
         .run_recorded()
         .unwrap();
 
-    assert_eq!(uninterrupted.core_manifest().population.births_since_start, 0);
+    assert_eq!(
+        uninterrupted.core_manifest().population.births_since_start,
+        0
+    );
     assert_eq!(
         resumed.core_manifest().population.births_since_start,
         uninterrupted.core_manifest().population.births_since_start,
