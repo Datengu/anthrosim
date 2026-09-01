@@ -27,8 +27,8 @@ At each eligible annual household-lifecycle boundary:
 4. living members at or above `minimumIndependentAgeYears` are identified;
 5. the number of daughter groups is limited by the number of independent-age members, so every created group can be seeded by at least one such member;
 6. if fewer than two independent-age members exist, fission is deferred instead of manufacturing an autonomous child-only unit;
-7. independent-age members are assigned deterministically by age, reproductive sex and finally PersonId only as a tie-break among otherwise equivalent records;
-8. dependents are then assigned deterministically, preferring groups containing their living parent(s) when those parents remain in the source household; remaining target capacity is used as the secondary allocation criterion;
+7. independent-age members are assigned deterministically by age, reproductive sex and an ID-independent relationship-role refinement over the living source-household parent/child graph; PersonId is used only as a final tie-break within the same stabilized relationship class;
+8. dependents are ordered by the same age/sex/relationship-role rule and then assigned deterministically, preferring groups containing their living parent(s) when those parents remain in the source household; remaining target capacity is used as the secondary allocation criterion;
 9. the original household retains group 0 and each remaining group becomes a new household at the same persistent residence;
 10. person identity, parent links and condition remain unchanged, and M3/M4/M9 operate on the resulting households normally.
 
@@ -45,6 +45,8 @@ This means a household can temporarily remain above the target. That is intentio
 PersonId is not a household-composition variable. The treatment may use it only as a final deterministic tie-break among records that are otherwise equivalent under the declared age/sex/relationship rule.
 
 Relabelling scientifically equivalent people while preserving their age, sex and relationship structure must preserve the unlabelled scientific composition of the resulting households. In particular, packed-storage order must not separate founders from model-born cohorts as it did under v1.
+
+From model semantics v25, the relationship comparison is executable rather than documentary: living members of the source household are partitioned into age/sex role classes, then those classes are iteratively refined by female-parent state, male-parent state and the multiset of living in-household child roles until stable. Only records still in the same stabilized role class may fall through to PersonId. This keeps deterministic replay without allowing canonical record labels to choose between relationship-distinct anchors or dependents.
 
 ## Downstream integration
 
