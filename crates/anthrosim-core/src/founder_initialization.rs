@@ -378,8 +378,7 @@ impl FounderPopulationDefinition {
                         },
                     );
                 }
-                if let Some(known_child_birth_day) =
-                    self.latest_explicit_child_birth_day(person.id)
+                if let Some(known_child_birth_day) = self.latest_explicit_child_birth_day(person.id)
                     && last_birth_day < known_child_birth_day
                 {
                     return Err(FounderPopulationError::PriorBirthPredatesKnownChild {
