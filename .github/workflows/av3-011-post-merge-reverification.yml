@@ -1,0 +1,23 @@
+name: AV3-011 post-merge reverification
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/av3-011-post-merge-reverification.py"
+      - "scripts/research-identifiability.py"
+      - ".github/workflows/av3-011-post-merge-reverification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  av3-011-post-merge-reverification:
+    name: AV3-011 post-merge reverification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence head
+        uses: actions/checkout@v4
+      - name: Run independent fixed-design adversary
+        run: python3 scripts/av3-011-post-merge-reverification.py
