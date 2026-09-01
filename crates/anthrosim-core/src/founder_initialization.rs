@@ -37,8 +37,9 @@ pub struct FounderHousehold {
 /// One living person declared at simulation day 0.
 ///
 /// Birth and prior-birth timing use signed epoch-relative days. Negative values are before the
-/// simulation epoch. `last_birth_day` is reproductive-history timing only: it does not imply that
-/// the corresponding child is represented by a persistent person record.
+/// simulation epoch. `last_birth_day` may describe a birth whose child is not represented by a
+/// persistent founder record; explicitly represented children remain authoritative known births
+/// and are reconciled with this optional additional history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FounderPerson {
@@ -210,10 +211,31 @@ impl FounderPopulationDefinition {
         self.people.get(index).filter(|person| person.id == id)
     }
 
-    /// Signed pre-run last-birth timing for the declared founder, if supplied.
+    /// Latest known birth timing for one declared founder.
+    ///
+    /// An explicit `lastBirthDay` may represent an unrepresented/non-living child, while a living
+    /// founder child naming this person as female parent is independently authoritative evidence of
+    /// a birth. The effective spacing reference is therefore the later of those two known sources.
     #[must_use]
     pub fn last_birth_day(&self, id: PersonId) -> Option<i64> {
-        self.person(id)?.last_birth_day
+        let person = self.person(id)?;
+        match (
+            person.last_birth_day,
+            self.latest_explicit_child_birth_day(id),
+        ) {
+            (Some(declared), Some(explicit_child)) => Some(declared.max(explicit_child)),
+            (Some(declared), None) => Some(declared),
+            (None, Some(explicit_child)) => Some(explicit_child),
+            (None, None) => None,
+        }
+    }
+
+    fn latest_explicit_child_birth_day(&self, female_parent: PersonId) -> Option<i64> {
+        self.people
+            .iter()
+            .filter(|child| child.female_parent == Some(female_parent))
+            .map(|child| child.birth_day)
+            .max()
     }
 
     pub fn validate(
@@ -355,6 +377,15 @@ impl FounderPopulationDefinition {
                             age_days,
                         },
                     );
+                }
+                if let Some(known_child_birth_day) = self.latest_explicit_child_birth_day(person.id)
+                    && last_birth_day < known_child_birth_day
+                {
+                    return Err(FounderPopulationError::PriorBirthPredatesKnownChild {
+                        person: person.id,
+                        last_birth_day,
+                        known_child_birth_day,
+                    });
                 }
             }
         }
@@ -616,6 +647,14 @@ pub enum FounderPopulationError {
         person: PersonId,
         last_birth_day: i64,
         age_days: u64,
+    },
+    #[error(
+        "founder {person:?} prior birth day {last_birth_day} predates later explicitly declared child birth day {known_child_birth_day}"
+    )]
+    PriorBirthPredatesKnownChild {
+        person: PersonId,
+        last_birth_day: i64,
+        known_child_birth_day: i64,
     },
     #[error(
         "founder population content identity mismatch: stored {expected}, reconstructed {actual}"
