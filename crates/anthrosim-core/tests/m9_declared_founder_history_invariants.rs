@@ -108,9 +108,12 @@ fn recorded_declared_founder_m9_run() -> RecordedRun {
 #[test]
 fn declared_founder_m9_history_replays_through_checkpoint_and_recorded_run_invariants() {
     let run = recorded_declared_founder_m9_run();
-    assert!(run.events().events.iter().any(|record| {
-        matches!(record.event, EventKind::TemporaryJourneyArrived { .. })
-    }));
+    assert!(
+        run.events()
+            .events
+            .iter()
+            .any(|record| { matches!(record.event, EventKind::TemporaryJourneyArrived { .. }) })
+    );
     run.checkpoint.validate_invariants().unwrap();
     run.validate_invariants().unwrap();
 }
