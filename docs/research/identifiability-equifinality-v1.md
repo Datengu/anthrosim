@@ -15,7 +15,9 @@ A failed gate is a scientific result, not an optimisation failure. The study mus
 The procedure takes two versioned JSON documents:
 
 1. A **plan** declaring calibration targets, tolerances, held-out corroboration observables, claimed parameter IDs, whether a structural hypothesis is being claimed, and the maximum compatible normalized parameter-range width.
-2. A **data table** containing every evaluated design point, its exact parameter coordinates, an explicit structural-model identifier, output summaries, and explicit `outputEvidence` for every calibration/corroboration output.
+2. A **data table** containing every evaluated design point, its exact parameter coordinates, an explicit structural-model identifier where structural hypotheses are claimed, output summaries, and explicit `outputEvidence` for every calibration/corroboration output.
+
+A `structure` identifier, when present, must be a non-empty JSON string. If `claim.structuralHypothesis=true`, every design point must carry such an explicit identifier; a missing identifier fails closed rather than being treated as an implicit structure. When no structural hypothesis is claimed, omission remains backward-compatible and maps only to the literal default identifier `"default"`. Non-string, empty, and whitespace-only structure values are invalid in either case. Structural equifinality and held-out discrimination use these exact validated string identities with no presentation-oriented coercion, so JSON values such as numeric `1` and string `"1"` can never collapse into one accepted structural identity.
 
 `outputEvidence` must distinguish the two supported cases:
 
@@ -48,7 +50,7 @@ The final research gate requires all three conditions:
 
 1. no unresolved calibration points remain for the declared evidence;
 2. the compatible parameter region identifies every claimed parameter to the predeclared resolution;
-3. if a structural mechanism is claimed, only one compatible structure remains.
+3. if a structural mechanism is claimed, only one compatible canonical structure identifier remains.
 
 This gives the required precision trajectory: the same point estimates can remain non-identifying at low Monte Carlo precision and become identifying after a predeclared increase in independent replication makes their simulation intervals sufficiently narrow.
 
@@ -75,7 +77,7 @@ The result preserves:
 - the immutable Monte Carlo diagnostic identities actually used by the calibration decision;
 - per-parameter profile/conditional compatibility counts;
 - pairwise parameter compatibility surfaces;
-- the set of compatible structural-model identifiers;
+- the set of compatible canonical structural-model identifiers;
 - staged diagnostics showing what each additional calibration pattern contributes;
 - held-out observables that would discriminate between structural hypotheses still compatible with the calibration evidence.
 
@@ -91,11 +93,13 @@ Two synthetic parameters, `opportunity_scale` and `need_scale`, each take values
 
 The analyzer self-test adds the stochastic adversarial acceptance case from issue #338. Two parameter points have fixed estimates 0.00 and 0.10 against target 0.00 ± 0.05. With four-replicate, ±0.20 Monte Carlo intervals the design remains unresolved and non-identifying. With the **same point estimates** but adequately bound ±0.01 intervals, the first point is wholly inside the band, the second wholly outside, and the claimed parameter becomes identified. Tampering with the bound replicate provenance also fails closed.
 
+The self-test also preserves the AV3-009 boundary: numeric JSON `1` and string JSON `"1"` are not two spellings of one structure. The numeric identifier is rejected as noncanonical, a structural claim with no explicit identifier is rejected, and two distinct valid string identifiers remain two compatible structures and force the structural gate to fail.
+
 ## Structural hypotheses
 
-Each design point carries a `structure` identifier. If the study claims a structural mechanism, the calibration gate passes only when one structural identifier remains in the compatible region. Multiple compatible structures are reported as structural equifinality.
+Each design point in a structural claim carries a canonical non-empty string `structure` identifier. The analyzer compares those exact identifiers; it never stringifies arbitrary JSON values. If the study claims a structural mechanism, the calibration gate passes only when one structural identifier remains in the compatible region. Multiple compatible structures are reported as structural equifinality.
 
-If held-out corroboration observables differ between those structures by more than the predeclared discrimination tolerance after simulation uncertainty is accounted for, the analyzer records them as discriminating predictions. That tells the investigator what additional observation could separate the hypotheses without pretending the existing evidence already does so.
+If held-out corroboration observables differ between those structures by more than the predeclared discrimination tolerance after simulation uncertainty is accounted for, the analyzer records them as discriminating predictions. The held-out grouping uses the same canonical structure identifier semantics as the structural-equifinality gate. That tells the investigator what additional observation could separate the hypotheses without pretending the existing evidence already does so.
 
 ## Interpretation limits
 
