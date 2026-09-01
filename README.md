@@ -4,6 +4,8 @@ AnthroSim is an experimental, reproducible agent-based simulation framework for 
 
 **v0.3.2 is the latest released baseline.** It is a documentation-convergence patch over the v0.3.1 scientific-audit implementation: the simulation semantics and scientific results are unchanged, while the living README, roadmap, scientific specification, ODD/ODD+D and TRACE dossier are synchronized with the actual post-audit state. v0.3.1 remains an immutable historical release whose code and verification were valid, but several living documents still described the earlier v0.3.0/pre-audit state when that tag was created.
 
+**Current protected `main` is a post-v0.3.2 development line with `anthrosim-model-semantics-v21`.** Scientific audit v2 is complete: Areas A–N were covered, all 15 AV2 findings were repaired and reverified, and no P0–P3 scientific finding remains open. This does not make AnthroSim empirically validated or prove scientific correctness; the next planned sequence is to freeze this audited line as `v0.3.3`, run a fresh independent/adversarial audit against that immutable release baseline, and only then proceed to question-led model interrogation if convergence remains strong.
+
 The preserved M8.6 and M9.7 references are capability/regression baselines under declared assumptions, not archaeological validation. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
 ## Core rule
@@ -14,7 +16,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-AnthroSim v0.3.2 includes:
+Current protected `main` includes:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -56,7 +58,8 @@ Culture, language, trade, states, religion, warfare, and AI-controlled agents re
 - **M9 — Temporary mobility and controlled aggregation / v0.3.0:** complete, audited and released. M9 adds persistent-residence/current-presence separation, identity-bearing focal regions, deterministic multi-day temporary journeys, duration-aware resource accounting, M9 observability and a predeclared continuous-residence versus intermittent-aggregation benchmark.
 - **v0.3.1 post-M9 scientific hardening:** released. The first major audit backlog is resolved and its analysis/inference safeguards are preserved in that immutable release.
 - **v0.3.2 documentation convergence:** released as a maintenance patch that synchronizes living scientific/project documentation with the already-implemented v0.3.1 state; no model semantics or frozen scientific results change.
-- **Next validation phase:** further independent/adversarial audit convergence, followed by question-led model interrogation. No fixed M10 feature list is declared.
+- **Scientific audit v2 / current v21 development line:** complete. A second independent/adversarial A–N audit repaired and reverified all 15 AV2 findings; no P0–P3 finding remains open.
+- **Next validation phase:** freeze the audited v21 line as `v0.3.3`, run another fresh independent/adversarial audit against that immutable baseline, then proceed to question-led model interrogation if convergence remains strong. No fixed M10 feature list is declared.
 
 M1–M4 establish the baseline permanent-residence response loop: local supply and competition affect condition/survival, and surviving pressured households can make bounded permanent relocations. M5–M7 make that loop inspectable, resumable and reproducibly orchestrated without introducing a second simulation engine.
 
@@ -216,7 +219,7 @@ Released v0.2.0 demonstrated that the deterministic experiment engine can bind p
 
 Neither result makes a run a reconstruction of a real past population. Strong archaeological or anthropological claims still require question-specific evidence, calibration/validation where appropriate, uncertainty and sensitivity analysis, comparison against independent observations, discriminating predictions and domain review.
 
-The first major post-M9 audit backlog is complete, but one completed audit is not evidence of scientific convergence. The next framework-level step is another genuinely independent/adversarial audit pass; after convergence improves, focused model interrogation and study-specific comparisons should identify which missing mechanism, competing assumption, comparison method or observation layer is scientifically useful next. See [`docs/roadmap.md`](docs/roadmap.md).
+Scientific audit v2 is complete and found no remaining open P0–P3 finding after repair/reverification of all 15 AV2 findings. That is stronger convergence evidence than a single audit generation, but repeated audits are still evidence about process maturity rather than proof of correctness. The next framework-level sequence is to freeze the audited v21 line as `v0.3.3`, run a fresh independent/adversarial audit against that immutable release baseline, and—only if convergence remains strong—begin question-led model interrogation and study-specific comparisons. See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Contributing and security
 
