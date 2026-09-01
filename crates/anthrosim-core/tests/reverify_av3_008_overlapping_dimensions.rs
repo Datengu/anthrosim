@@ -1,7 +1,7 @@
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResearchDimension,
-    ResearchDimensionKind, ResearchExperimentDefinition, ResearchExperimentError, ResearchRunConfig,
-    ResourceConfig, WorldConfig,
+    ResearchDimensionKind, ResearchExperimentDefinition, ResearchExperimentError,
+    ResearchRunConfig, ResourceConfig, WorldConfig,
 };
 use serde_json::Value;
 
@@ -117,5 +117,9 @@ fn independent_sibling_dimensions_still_form_the_full_factorial() {
             )
         })
         .collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(treatments.len(), 4, "4 recorded coordinates must remain 4 executable treatments");
+    assert_eq!(
+        treatments.len(),
+        4,
+        "4 recorded coordinates must remain 4 executable treatments"
+    );
 }
