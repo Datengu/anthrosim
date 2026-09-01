@@ -27,3 +27,5 @@ jobs:
         run: python3 -m py_compile scripts/research-evidence-role-audit.py scripts/test-research-evidence-role-audit.py
       - name: Run evidence-role adversarial regression suite
         run: python3 scripts/test-research-evidence-role-audit.py
+
+# Test-only post-merge AV3-013 reverification trigger for main 57e4c2f2acc7eb64dd99cfc5a152b4765f905da8. Do not merge.
