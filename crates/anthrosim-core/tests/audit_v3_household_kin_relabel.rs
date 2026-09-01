@@ -122,7 +122,7 @@ fn co_resident_parent_count(run: &anthrosim_core::RecordedRun) -> usize {
     let child_household = child.household;
     [child.female_parent, child.male_parent]
         .into_iter()
-        .flatten()
+        .filter(|&parent| parent != PersonId::INVALID)
         .filter(|&parent| {
             population
                 .person(parent)
