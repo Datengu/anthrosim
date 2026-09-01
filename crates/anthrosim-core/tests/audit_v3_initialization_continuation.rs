@@ -43,10 +43,9 @@ fn founder(condition_permille: u16) -> FounderPopulationDefinition {
 }
 
 fn config(condition_permille: u16) -> ExperimentConfig {
-    let mut resources = ResourceConfig::synthetic_validation_v1()
-        .with_annual_need_units_per_person(0)
-        .with_max_condition_loss_per_year_permille(0)
-        .with_condition_recovery_per_year_permille(0);
+    let mut resources = ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
+    resources.condition_recovery_per_period = 0;
+    resources.max_condition_loss_per_period = 0;
     resources.max_scarcity_mortality_probability_per_million = 0;
 
     ExperimentConfig::new(307_001, 5)
