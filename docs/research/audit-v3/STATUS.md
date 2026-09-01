@@ -24,7 +24,7 @@ Purpose: durable repository-authoritative state for the third independent/advers
 | Current P1 findings | **1 open — AV3-001 / #387** |
 | Current P2 findings | **4 open — AV3-002 / #392; AV3-003 / #396; AV3-004 / #399; AV3-005 / #402** |
 | Current P3 findings | none discovered |
-| Coverage state | **Areas A–D complete; Area E next / in progress; F–N pending** |
+| Coverage state | **Areas A–E complete; Area F next / in progress; G–N pending** |
 | Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered a new P1** |
 | Closure state | **in progress — discovery-only; findings remain unrepaired until A–N discovery is complete** |
 
@@ -50,8 +50,8 @@ Audit v2 is historical context only. Its green Areas, repaired findings, protect
 | B | Demography, fertility, mortality, ageing, population structure | **complete — late P2 finding added** | Fresh certain-fertility M9 locality case confirmed documented persistent-residence parentage: visitor co-presence births = 0; persistent co-residence births = 1. That run exposed AV3-002/#392 in M9 integrity replay. A later independent founder-history consistency adversary then demonstrated AV3-003/#396: a declared `lastBirthDay=-2000` can contradict an explicitly declared child at day -100 and create 1 artificial first-boundary birth where coherent spacing requires 0. AV3-001 remains a spatial-host limitation. |
 | C | Households, kinship, social links, lifecycle structure | **complete — P2 finding open** | Fresh dependency-aware fission relabelling adversary PR #397 demonstrated AV3-004/#399. Two isomorphic declared founder kin graphs differing only by a consistent canonical-ID swap between same-age/same-sex adult males produced different scientifically meaningful topology after annual fission: the same abstract dependent retained **2** co-resident living parents in one labelling and **1** in the other. Format, Clippy and all 277 existing core tests passed before the intended assertion failed. Earlier triage also confirmed `maxLivingMembers` is explicitly a target subordinate to dependency safety and at-residence-only annual fission is explicitly declared. |
 | D | Resources, condition, subsistence, depletion/recovery | **complete — P2 finding open** | Re-read the v20 fixed-point response repair rather than repeating audit-v2 #326. Source/contract review confirmed remainder persistence through zero-need and M4 whole-point travel loss is deliberate. Fresh reachable two-year adversary PR #401 demonstrated AV3-005/#402: year-1 mild under-supply leaves visible condition 1000 plus an **8/1000** causal loss remainder; after zero-cost relocation, year 2 is fully supplied with configured recovery exactly zero, yet runtime clears the remainder to **0**. Format, Clippy and all 277 existing core tests passed before the intended assertion failed `0 vs 8`. |
-| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **next / in progress** | Initial review confirmed M4's Manhattan distance + destination movement-cost excess is explicitly documented; M9 is the routed path-cost mechanism. Audit-v2 spatial findings are historical context only; fresh v3 executable symmetry/boundary evidence is required. |
-| F | Aggregation and interaction mechanisms | **pending** | — |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — no new finding** | Fresh v3 quarter-turn metamorphic adversary on closed test-only PR #404 head `dc0e5ded1923ab4ef67e88607b4a2112a08d316b`, CI run `33475847586`, rotated an asymmetric non-flat 5×5 M9 movement-cost landscape, origin and focal destination by exactly 90°. Format, Clippy, all 277 existing core tests and the new adversary passed. Independent route arithmetic gives the same minimum cost **8000** in both orientations and therefore **3 outbound + 3 return days** at capacity 3000. Source review confirmed symmetric endpoint edge cost, preservation of equal-minimum destination labels, explicit closed finite boundaries/extent sensitivity, and fail-closed rejection of rectangular cells for active movement. Audit-v2 evidence was context only, not sole completion evidence. No fresh spatial symmetry/boundary defect was demonstrated. |
+| F | Aggregation and interaction mechanisms | **next / in progress** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **pending; AV3-001/002/003 cross-cutting** | AV3-001 drops declared founder reproductive history in spatial annual M2. AV3-002 prevents M9 history replay from reconstructing declared founders. AV3-003 allows mutually contradictory declared reproductive chronology to enter execution and alter first-year fertility. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **pending** | — |
 | I | Sensitivity, uncertainty, convergence, robustness | **pending; AV3-005 cross-cutting** | AV3-005 can erase repeated sub-unit scarcity exposure under intermittent full-support intervals when the declared recovery coefficient is zero. |
@@ -131,10 +131,14 @@ These establish target provenance, not scientific completion evidence.
 - Exact evidence head `d3d6f8392b184ca34c418a24d666dc89ae947375`, CI run `33474425681`, job `99750661005`: format and Clippy passed; all 277 existing core tests passed; the fresh assertion then failed exactly **actual 0 vs expected 8**.
 - Source inspection identifies the cause: the full-supply path clears the remainder whenever visible recovered condition equals 1000, even when `interval_recovery == 0`. Preserved as AV3-005/#402 (P2); PR #401 closed unmerged. No repair made.
 
-### Area E started
+### 2026-09-01 — Area E complete / no new finding
 
-- Re-read audit-v2 Area E as historical context only. Current-facing documentation explicitly retains M4's Manhattan distance plus destination-cell movement-cost excess as a synthetic relocation proxy, while M9 uses symmetric routed path cost. This distinction is not a defect by itself.
-- Fresh v3 Area-E executable symmetry/boundary testing is next; avoid duplicating audit-v2's old lower-CellId M9 tie documentation finding or its paired-seed candidate-order note.
+- Re-read audit-v2 Area E only to identify already-tested surfaces; did not count its evidence as v3 completion.
+- Inspected frozen v21 M9 routing, M4 candidate discovery, grid/CRS movement constraints and finite-boundary/extent-sensitivity machinery. M9 edge cost is symmetric in adjacent endpoint movement costs, equal-cost destination labels are preserved, and active M4/M9 rejects rectangular cells rather than treating unequal physical X/Y distances as equivalent steps.
+- Fresh test-only PR #404 head `dc0e5ded1923ab4ef67e88607b4a2112a08d316b` attacked 90° rotational symmetry on an asymmetric non-flat 5×5 movement-cost landscape, rotating terrain, origin and focal destination together. CI run `33475847586`: format and Clippy passed; all 277 existing core tests passed; the new `m9_route_cost_and_duration_are_invariant_under_quarter_turn_rotation` adversary passed.
+- Independent route arithmetic gives **8000** minimum accumulated cost in both orientations and **3 outbound / 3 return days** in both at capacity 3000. This is fresh evidence against hidden row/column, north-up, directional edge-cost or queue-order dependence in M9 minimum-cost routing.
+- Existing frozen boundary tests also passed during the same workspace run, including M4 candidate clipping/convergence, M9 hard-wall reachability/buffer convergence, and propagation of boundary reachability into visits/resource pressure. No new Area-E defect was demonstrated.
+- PR #404 was closed unmerged after preserving the passing audit evidence; no production behavior changed.
 
 ## Handoff instruction
 
@@ -144,4 +148,4 @@ Read, in order:
 2. `docs/research/audit-v3/README.md`
 3. this `STATUS.md`
 
-Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. **Continue Area E from first principles against frozen v0.3.3.** Do not repeat Areas A–D unless new evidence requires it. Create issues for demonstrated findings and update this ledger. Do **not** repair #387, #392, #396, #399, #402, or any later audit-v3 finding until the complete A–N discovery pass is finished.
+Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. **Continue Area F from first principles against frozen v0.3.3.** Do not repeat Areas A–E unless new evidence requires it. Create issues for demonstrated findings and update this ledger. Do **not** repair #387, #392, #396, #399, #402, or any later audit-v3 finding until the complete A–N discovery pass is finished.
