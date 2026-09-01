@@ -155,3 +155,28 @@ fn later_last_birth_may_represent_an_unrepresented_child() {
     assert_eq!(births(&run), 0);
     run.validate_invariants().unwrap();
 }
+
+#[test]
+fn checkpoint_round_trip_preserves_explicit_child_spacing_history() {
+    let uninterrupted = Simulation::new(config(None))
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+
+    let checkpoint = Simulation::new(config(None))
+        .unwrap()
+        .checkpoint_at_year(0)
+        .unwrap();
+    let serialized = serde_json::to_string(&checkpoint).unwrap();
+    let checkpoint = serde_json::from_str(&serialized).unwrap();
+    let resumed = Simulation::from_checkpoint(checkpoint)
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+
+    assert_eq!(births(&uninterrupted), 0);
+    assert_eq!(births(&resumed), 0);
+    assert_eq!(resumed.events(), uninterrupted.events());
+    assert_eq!(resumed.metrics(), uninterrupted.metrics());
+    resumed.validate_invariants().unwrap();
+}
