@@ -1,6 +1,6 @@
 # M3/M4 response-time contract v1
 
-**Status:** normative executable timing contract introduced by `anthrosim-model-semantics-v9`; retained and amended through `anthrosim-model-semantics-v20`, with causal naming governed by [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md)  
+**Status:** normative executable timing contract introduced by `anthrosim-model-semantics-v9`; retained and amended through `anthrosim-model-semantics-v24`, with causal naming governed by [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md)  
 **Scope:** M3 condition response, condition-mediated mortality timing, independent M4 decision opportunities, and merged subannual scheduling  
 **Scientific status:** implementation/model-contract specification; **not empirical validation**
 
@@ -21,6 +21,8 @@ v9 separates those meanings. It does **not** claim that all results must be iden
 The v8 annual resource-accounting and seasonal-integration rules in [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md) remain normative unless explicitly superseded below. Under v10, the same timing equations remain in force, while #200 removes the false implication that this condition-dependent hazard is necessarily caused by resource scarcity. The immediate-cause semantics are normative in [`m3-condition-mortality-contract-v1.md`](m3-condition-mortality-contract-v1.md).
 
 v20 additionally repairs the integer rounding of **partial-supply condition loss**. Before v20, each M3 boundary independently rounded any positive sub-unit loss upward. Finer resource partitioning could therefore manufacture large deterioration from the same elapsed supply deficit. v20 carries a person-specific fixed-point remainder so rounding is cumulative over actual partial-supply exposure rather than repeated at each settlement boundary.
+
+v24 additionally repairs **full-supply recovery of that fixed-point state**. A full-supply interval with zero recovery budget is strictly response-neutral, including when visible condition is already `1000`. Positive whole-point recovery preserves the latent deterioration remainder when the unbounded visible sum lands exactly on `1000`; the remainder is cleared only when the recovery sum is strictly greater than `1000`, so the upper cap actually clips part of the exact fixed-point deficit.
 
 ## 1. Two independent subannual clocks
 
@@ -152,7 +154,7 @@ The remainder follows **actual exposure**, not calendar phase. For example, a 1â
 Boundary rules are:
 
 - zero modeled need changes neither integer condition nor the carried remainder;
-- full supply applies the elapsed whole recovery budget; an existing partial-loss remainder is retained unless condition saturates at the upper bound `1000`;
+- full supply applies the elapsed whole recovery budget to the complete fixed-point state: zero recovery changes neither visible condition nor remainder; a positive whole-point recovery retains the remainder when `condition + recovery == 1000`, and clears it only when `condition + recovery > 1000` so upper-bound clipping actually occurs;
 - partial supply updates whole loss plus carried remainder using the fixed-point equation above;
 - zero supply therefore still applies the full elapsed maximum whole-condition loss; any already-carried sub-unit remainder remains carried unless the lower bound is reached;
 - if any deterioration or other whole-condition loss saturates condition at `0`, the M3 loss remainder is cleared because no sub-unit deterioration below the lower bound can be represented;
@@ -260,7 +262,9 @@ v20 changes deterministic continuation state without changing the experiment inp
 
 `anthrosim-model-semantics-v19 -> anthrosim-model-semantics-v20`
 
-A v19 checkpoint cannot be silently continued as v20: it lacks the fractional M3 loss state needed to determine future whole-condition transitions. Package versioning remains separate from these development semantics changes.
+A v19 checkpoint cannot be silently continued as v20: it lacks the fractional M3 loss state needed to determine future whole-condition transitions.
+
+v24 changes the causal interpretation of that already-persisted remainder under full supply without changing its wire representation. The authoritative model-semantics identity therefore advances from v23 to v24. A v23 checkpoint must not be silently resumed under v24 because future full-supply intervals can now retain latent deterioration that v23 would have erased without a positive recovery budget. Package versioning remains separate from these development semantics changes.
 
 ## 9. Required verification
 
