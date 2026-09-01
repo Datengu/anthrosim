@@ -13,7 +13,11 @@ use crate::time::DAYS_PER_YEAR;
 /// v23 makes declared founder reproductive history agree with explicitly represented children,
 /// so checkpoints accepted under earlier stale/omitted `lastBirthDay` interpretation are not
 /// silently continued under the repaired first-boundary fertility semantics.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v23";
+///
+/// v24 makes full-supply M3 recovery act on the complete fixed-point condition state: zero
+/// recovery cannot erase latent deterioration, and upper-bound saturation clears that remainder
+/// only when a positive recovery budget actually clips the exact effective condition.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v24";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
