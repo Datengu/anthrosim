@@ -83,6 +83,12 @@ Two useful archive patterns are:
 
 The packer intentionally remains a semantic completed-run packer rather than becoming the authority for arbitrary research-directory contents.
 
+## CI validation boundary
+
+Scientific documentation is part of the research-integrity surface even when it cannot change simulator execution. Pull requests that change only the reviewed scientific-documentation paths still run lightweight documentation/model-semantics consistency checks and the always-present scientific/security gate aggregator, while irrelevant executable simulation, release, benchmark, deterministic-golden, provenance-build and bundle fixtures resolve explicitly as not applicable.
+
+This cheaper documentation class is risk routing, not a bypass. Gate-specific scientific checks remain authoritative for documentation such as benchmark contracts/results, and any mixed, executable, workflow, script, configuration, reference-data or otherwise unclassified change falls back to the complete validation suite. The maintained path classes and protected-context mapping are documented in `docs/ci-path-classification.md`.
+
 ## Trust boundary
 
 SHA-256 detects changes relative to a **trusted copy of the integrity manifest**. The version-1 format does not sign the manifest and does not establish who created it. For publication, preserve the manifest through the same trusted repository/DOI/release record as the research archive. Signing can be added later if a concrete authenticity requirement justifies it.
