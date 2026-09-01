@@ -22,9 +22,9 @@ Purpose: durable repository-authoritative state for the third independent/advers
 | Open PRs at initialization | none |
 | Current P0 findings | none discovered |
 | Current P1 findings | **1 open — AV3-001 / #387** |
-| Current P2 findings | **1 open — AV3-002 / #392** |
+| Current P2 findings | **2 open — AV3-002 / #392; AV3-003 / #396** |
 | Current P3 findings | none discovered |
-| Coverage state | **Areas A–B complete; Area C next; D–N pending** |
+| Coverage state | **Areas A–B complete; Area C in progress; D–N pending** |
 | Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered a new P1** |
 | Closure state | **in progress — discovery-only; findings remain unrepaired until A–N discovery is complete** |
 
@@ -46,27 +46,28 @@ Audit v2 is historical context only. Its green Areas, repaired findings, protect
 
 | ID | Audit area | Status | Fresh v3 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **complete — P1 finding open** | Fresh M3/M9 half-open boundary-collision adversary passed. Source inspection confirmed explicit M9 within-day order and frozen-snapshot/simultaneous M4 application. Cross-host parity adversary demonstrated AV3-001/#387: identical declared founder reproductive history yields 0 births in `Simulation` vs 1 birth in `SpatialLandscapeSimulation`. |
-| B | Demography, fertility, mortality, ageing, population structure | **complete — no additional causal M2 defect; cross-cutting P2 found** | Fresh certain-fertility limiting case confirmed documented M2 persistent-residence parentage: male physically visiting the female's cell across day 365 still gives 0 births, while persistent co-residence gives 1. Source review confirmed interval-start age exposure, partitioned background mortality, explicit birth-spacing quantization and operational record-limit censoring. The valid M9 arm then exposed AV3-002/#392 in integrity replay, not M2 execution. AV3-001 remains a spatial-host limitation on declared founder reproductive history. |
-| C | Households, kinship, social links, lifecycle structure | **next / in progress** | Initial v21 review rejected two false positives: `maxLivingMembers` is explicitly a target subordinate to dependency safety, and at-residence-only annual fission is explicitly declared. A fresh executable/counterfactual Area C adversary is still required before completion. |
+| A | Authoritative semantics and scheduler behaviour | **complete — P1 finding open** | Fresh M3/M9 half-open boundary-collision adversary passed. Source inspection confirmed explicit M9 within-day order and frozen-snapshot/simultaneous M4 application. Cross-host parity adversary demonstrated AV3-001/#387: identical declared founder reproductive history yields 0 births in `Simulation` vs 1 birth in `SpatialLandscapeSimulation`. Supplementary 10-seed × 4-year neutral spatial-host parity PR #391 passed `Quality and tests` before being closed unmerged after concurrent Area-A closure. |
+| B | Demography, fertility, mortality, ageing, population structure | **complete — late P2 finding added** | Fresh certain-fertility M9 locality case confirmed documented persistent-residence parentage: visitor co-presence births = 0; persistent co-residence births = 1. That run exposed AV3-002/#392 in M9 integrity replay. A later independent founder-history consistency adversary then demonstrated AV3-003/#396: a declared `lastBirthDay=-2000` can contradict an explicitly declared child at day -100 and create 1 artificial first-boundary birth where coherent spacing requires 0. AV3-001 remains a spatial-host limitation. |
+| C | Households, kinship, social links, lifecycle structure | **in progress** | Initial v21 review rejected two false positives: `maxLivingMembers` is explicitly a target subordinate to dependency safety, and at-residence-only annual fission is explicitly declared. Fresh PR #397 is testing whether dependency-aware fission remains invariant to a consistent PersonId relabelling of same-age/same-sex adults with different kin roles. |
 | D | Resources, condition, subsistence, depletion/recovery | **pending** | Initial v20/v21 review confirmed fractional condition-loss remainder persistence through recovery is explicit contract, not hidden drift. Fresh independent Area D evidence still required. |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **pending** | Initial review confirmed M4's Manhattan distance + destination movement-cost excess is explicitly documented; M9 is the routed path-cost mechanism. Fresh independent Area E evidence still required. |
 | F | Aggregation and interaction mechanisms | **pending** | — |
-| G | Initialization, burn-in, path dependence, continuation state | **pending; AV3-001/002 cross-cutting** | AV3-001 drops declared founder reproductive history in spatial annual M2. AV3-002 prevents M9 history replay from reconstructing declared founders. |
+| G | Initialization, burn-in, path dependence, continuation state | **pending; AV3-001/002/003 cross-cutting** | AV3-001 drops declared founder reproductive history in spatial annual M2. AV3-002 prevents M9 history replay from reconstructing declared founders. AV3-003 allows mutually contradictory declared reproductive chronology to enter execution and alter first-year fertility. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **pending** | — |
 | I | Sensitivity, uncertainty, convergence, robustness | **pending** | — |
 | J | Identifiability, equifinality, calibration, discrimination | **pending** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **pending; AV3-002 cross-cutting** | AV3-002 is a fail-closed recorded-run integrity/replay limitation for declared-founder + M9 runs. |
 | L | Observability, analysis outputs, statistical summaries | **pending; AV3-002 cross-cutting** | M9 event-history replay cannot reconstruct declared founder state. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **pending** | — |
-| N | Cross-system integration | **pending; AV3-001/002 cross-cutting** | Both findings are cross-system integration failures involving explicit initialization. |
+| N | Cross-system integration | **pending; AV3-001/002/003 cross-cutting** | All three current findings cross subsystem boundaries involving explicit initialization; retain them as dependencies during later integration audit. |
 
 ## Finding register
 
 | Finding | Severity | Area | Status | Issue | Evidence / later repair requirement |
 |---|---|---|---|---|---|
 | AV3-001 — spatial host ignores declared founder reproductive history during annual M2 | **P1** | A primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #387 | Frozen `v0.3.3` / `358ae93b...` / v21. Closed red evidence PR #386 head `230f652c4f1923fb6851f6a6433053267e0c60bf`: female founder `lastBirthDay=-100`, minimum spacing 1278 days, certain fertility, zero mortality; core births = 0, spatial births = 1. Core uses founder-history-aware M2 finalizer; spatial host does not. |
-| AV3-002 — M9 history validator cannot replay declared-founder runs | **P2** | K/L primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #392 | Frozen `v0.3.3` / `358ae93b...` / v21. Closed red evidence PR #390 head `3161ddd1269ad78bfb519f1d3eda3111c6e833e7`: M2 assertions pass (visitor arm births 0, persistent control births 1), then `RecordedRun::validate_invariants()` fails because `temporary_history.rs` always calls synthetic-only `Population::initialize`. CLI bundle reconstruction already contains the correct initialization-mode switch. Fail-closed, therefore P2 rather than P1. |
+| AV3-002 — M9 history validator cannot replay declared-founder runs | **P2** | K/L primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #392 | Frozen `v0.3.3` / `358ae93b...` / v21. Closed red evidence PR #390 head `3161ddd1269ad78bfb519f1d3eda3111c6e833e7`: M2 visitor/persistent locality assertions pass, then `RecordedRun::validate_invariants()` fails because `temporary_history.rs` always calls synthetic-only `Population::initialize`. Fail-closed, therefore P2 rather than P1. |
+| AV3-003 — declared `lastBirthDay` can predate a later explicitly declared child | **P2** | B/G primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #396 | Frozen v21. Red test-only PR #395 head `662bf03c1b6b3908adea02e1f8f118d833404c7b`: female ID 1 declares `lastBirthDay=-2000` while child ID 3 declares ID 1 as mother at `birthDay=-100`; both event ages are individually schedule-valid. Format, Clippy and all 277 existing core tests pass, then the audit assertion fails with births **1 vs expected 0** because only 465 days have elapsed since the known child. This is an internally contradictory-input/fail-closed boundary defect, hence P2. |
 
 ## Convergence accounting
 
@@ -104,18 +105,21 @@ These establish target provenance, not scientific completion evidence.
 - Inspected core/spatial scheduler implementations, M3/M9 ordering, M4 frozen-snapshot application and founder-initialization contract.
 - Fresh M3/M9 collision test passed half-open resource attribution at exact day-91/day-182 collisions.
 - Fresh cross-host founder-history adversary demonstrated AV3-001/#387 (P1), preserved in closed test-only PR #386.
-- Area A closed for discovery with AV3-001 left open and unrepaired.
+- A supplementary neutral identity-overlay host-parity adversary on PR #391 passed `Quality and tests` across 10 seeds × 4 years; it was closed unmerged because Area A had concurrently been authoritatively closed.
 
-### 2026-09-01 — Area B complete / AV3-002
+### 2026-09-01 — Area B complete / AV3-002 and late AV3-003
 
 - Inspected M2 age exposure, fertility, parentage, birth spacing, partitioned background mortality and record-limit semantics on frozen v0.3.3.
-- Fresh test-only PR #390 constructed a deterministic M9/M2 locality counterfactual: a male is physically visiting the female's cell over the annual fertility boundary, but persistent residences differ. With certain fertility and zero mortality/resources, temporary visitor arm births = **0**; persistent co-residence control births = **1**, confirming the documented residence-based M2 rule.
-- The valid visitor run then failed only at invariant replay. Source inspection demonstrated `temporary_history.rs` uses synthetic-only founder reconstruction while the CLI bundle validator already implements the correct initialization-mode-aware reconstruction.
-- Preserved as AV3-002/#392 (P2); PR #390 closed unmerged as red evidence. No repair made.
+- Fresh PR #390 M9/M2 locality counterfactual confirmed visitor physical co-presence does not change persistent-residence M2 parentage (0 births vs 1 persistent-control birth), then exposed AV3-002/#392 when declared-founder M9 history replay failed.
+- Later fresh PR #395 tested cross-field founder chronology rather than repeating audit-v2 biological-age checks. A mother with `lastBirthDay=-2000` and an explicit child at day -100 was accepted and produced 1 first-boundary birth; coherent latest-known-birth spacing requires 0. Preserved as AV3-003/#396 (P2). No repair made.
 
-### Initial Area C/D/E triage
+### 2026-09-01 — Area C in progress
 
-- C: dependency-aware fission's size target is explicitly subordinate to parent/dependency safety; temporary-away households are explicitly ineligible at annual fission boundaries. These are declared assumptions, not demonstrated defects. Area C still needs a fresh executable/counterfactual test.
+- Reviewed v21 dependency-aware fission and audit-v2's obsolete PersonId-slicing defect. Confirmed current size ceiling is explicitly a target subordinate to dependency safety and temporary-away annual ineligibility is documented.
+- Identified a fresh relabelling hypothesis not covered by the v21 acceptance suite: adult sorting uses `(birthDay, reproductiveSex, PersonId)` but ignores differing kin roles when deciding which same-age/same-sex independent adults anchor groups. Test-only PR #397 compares two isomorphic founder kin graphs differing only by a consistent ID swap between otherwise-identical adult males; it measures whether a dependent child's retained co-resident-parent count changes after fission.
+
+### Initial Area D/E triage
+
 - D: v20 fixed-point condition-loss remainder semantics explicitly preserve latent deterioration through full-supply recovery unless condition saturates; no defect assigned. Area D still needs fresh evidence.
 - E: M4 permanent relocation explicitly uses Manhattan distance plus destination movement-cost excess; M9 is the route-cost graph mechanism. No defect assigned. Area E still needs fresh evidence.
 
@@ -127,4 +131,4 @@ Read, in order:
 2. `docs/research/audit-v3/README.md`
 3. this `STATUS.md`
 
-Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. **Continue Area C from first principles against frozen v0.3.3.** Do not repeat A/B unless new evidence requires it. Create issues for demonstrated findings and update this ledger. Do **not** repair #387, #392, or any later audit-v3 finding until the complete A–N discovery pass is finished.
+Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. **Continue Area C from first principles against frozen v0.3.3.** PR #397 is the active Area-C evidence branch; avoid duplicating it while open. Create issues for demonstrated findings and update this ledger. Do **not** repair #387, #392, #396, or any later audit-v3 finding until the complete A–N discovery pass is finished.
