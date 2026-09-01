@@ -34,19 +34,19 @@ jobs:
                   raise SystemExit(f'{path}: expected one current v21 phrase, found {text.count(old)}')
               path.write_text(text.replace(old, 'current model semantics v22'))
 
-          model = Path('docs/scientific-model.md')
-          text = model.read_text()
-          marker = '- Female parenthood and a female founder\'s pre-run `lastBirthDay` must fall inside configured fertility-age bands with positive probability support; male parenthood must fall inside `[maleParentMinAgeYears, maleParentMaxAgeYearsExclusive)`.\n'
-          addition = marker + '- From model semantics v22, that declared pre-run reproductive history is supplied to annual M2 identically by both synthetic and spatial authoritative hosts, including after spatial checkpoint/resume; v0.3.3/v21 remains the immutable historical baseline where the spatial host omitted this fallback.\n'
+          contract = Path('docs/research/m2-demographic-time-contract-v1.md')
+          text = contract.read_text()
+          marker = 'Founder demographic/kin prehistory is handled by the separate declared-founder contract rather than hidden inside annual transition code.\n'
+          addition = marker + '\nFrom model semantics v22, both the synthetic and spatial authoritative hosts pass declared founder reproductive history into the same annual fertility-spacing finalizer, including after spatial checkpoint/resume. Immutable v0.3.3/v21 remains the historical baseline before that cross-host parity repair.\n'
           if text.count(marker) != 1:
-              raise SystemExit(f'scientific-model founder-history marker count: {text.count(marker)}')
-          model.write_text(text.replace(marker, addition))
+              raise SystemExit(f'M2 contract founder-history marker count: {text.count(marker)}')
+          contract.write_text(text.replace(marker, addition))
 
           Path('.github/workflows/repair-387-docs-bootstrap.yml').unlink()
       - name: Commit documentation synchronization
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add docs/scientific-model.md docs/research/odd.md docs/research/odd-d.md .github/workflows/repair-387-docs-bootstrap.yml
+          git add docs/scientific-model.md docs/research/odd.md docs/research/odd-d.md docs/research/m2-demographic-time-contract-v1.md .github/workflows/repair-387-docs-bootstrap.yml
           git commit -m "docs: document v22 spatial founder-history parity"
           git push
