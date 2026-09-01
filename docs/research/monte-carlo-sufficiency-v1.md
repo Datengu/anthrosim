@@ -126,15 +126,15 @@ The diagnostic records the exact method name. For `quantile`, diagnostic schema 
 
 The remaining methods are analysis contracts rather than universal guarantees. Very small samples, heavy-tailed outputs or rare events may require a separately predeclared method rather than pretending a generic interval is adequate.
 
-`paired_mean_difference` means paired **replicate-level seed contrasts** when scientifically justified. It does not claim per-agent common-random-number counterfactual coupling and does not alter simulator RNG semantics.
+`difference_in_means` means genuinely independent Monte Carlo arms with separately predeclared, disjoint seed schedules. Reusing a seed identity across those arms is not treated as evidence of independence and fails closed. `paired_mean_difference` means paired **replicate-level seed contrasts** on the same exact seed identities when scientifically justified. It does not claim per-agent common-random-number counterfactual coupling and does not alter simulator RNG semantics.
 
 ## Sample schema
 
-The input sample is intentionally downstream of simulation execution. It contains one or two named groups and exact `(seed, value)` rows. The exact seed order must equal one declared cumulative seed-batch prefix.
+The input sample is intentionally downstream of simulation execution. It contains one or two named groups and exact `(seed, value)` rows. For one-group estimands and `paired_mean_difference`, the exact seed order must equal the shared `design.seedBatches` cumulative prefix; paired groups must use the same exact identities/order. For `difference_in_means`, the plan instead carries exactly two `design.groupSeedBatches` schedules. Each arm must match its own predeclared cumulative boundary, both arms must be evaluated at the same boundary, and the two seed sets must be disjoint. A shared or overlapping seed layout is rejected before the independent variance estimator can run.
 
 For `probability`, values are boolean or `0/1`. Other v1 estimands use finite numeric values.
 
-The emitted diagnostic uses schema v2 while retaining precision-plan schema/identity v1. The v2 change is analysis-layer only and does not change `MODEL_SEMANTICS_ID`.
+The emitted diagnostic remains schema v2 and retains precision-plan schema/identity v1. For `difference_in_means`, v2 diagnostics additionally record `pairingSemantics=independent` and the exact per-group seed identities so the independent-arm contract is machine-visible. Existing diagnostic shapes for the other estimands remain unchanged. This analysis-layer change does not change `MODEL_SEMANTICS_ID`.
 
 The emitted diagnostic preserves:
 
@@ -179,7 +179,8 @@ The suite also verifies:
 - a changed seed design changing plan identity and preserved seed provenance;
 - rejection of an undeclared partial sequential batch;
 - a fixed design that fails precision and has no post-hoc continuation escape;
-- paired-seed mean contrasts;
+- genuinely independent two-arm mean contrasts with disjoint provenance-bound seed schedules, including rejection of overlapping/same-seed layouts;
+- paired-seed mean contrasts with positive- and negative-covariance adversaries;
 - central and tail quantile estimands with exact binomial coverage assertions, including fail-closed under-supported samples at `p = 0.5, 0.9, 0.95, 0.99`;
 - confirmatory frozen-study binding and rejection of a post-result replacement precision plan.
 
