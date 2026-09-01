@@ -17,6 +17,7 @@ RELEASE_SPECIFIC_GATES = (
     "Execute predeclared M9.7 aggregation benchmark",
     "RustSec dependency audit",
 )
+WORKSPACE_PACKAGES = ("anthrosim-cli", "anthrosim-core")
 
 
 def require(condition: bool, message: str) -> None:
@@ -40,6 +41,22 @@ def citation_version(path: Path) -> str:
                 values.append(value)
     require(len(values) == 1, "CITATION.cff must contain exactly one top-level version field")
     return values[0]
+
+
+def lock_workspace_versions(path: Path) -> dict[str, str]:
+    lock = tomllib.loads(path.read_text(encoding="utf-8"))
+    packages = lock.get("package")
+    require(isinstance(packages, list), "Cargo.lock is missing package entries")
+    versions: dict[str, str] = {}
+    for package in packages:
+        if not isinstance(package, dict):
+            continue
+        name = package.get("name")
+        version = package.get("version")
+        if name in WORKSPACE_PACKAGES and isinstance(version, str):
+            require(name not in versions, f"Cargo.lock contains duplicate workspace package entry: {name}")
+            versions[name] = version
+    return versions
 
 
 def latest_check_runs(checks: dict) -> dict[str, dict]:
@@ -100,6 +117,13 @@ def verify(
     workspace_version = cargo.get("workspace", {}).get("package", {}).get("version")
     require(workspace_version == version, f"Cargo workspace version {workspace_version!r} does not match {tag}")
 
+    lock_versions = lock_workspace_versions(repo_root / "Cargo.lock")
+    for package in WORKSPACE_PACKAGES:
+        require(
+            lock_versions.get(package) == version,
+            f"Cargo.lock workspace package {package} version {lock_versions.get(package)!r} does not match {tag}",
+        )
+
     cff_version = citation_version(repo_root / "CITATION.cff")
     require(cff_version == version, f"CITATION.cff version {cff_version!r} does not match {tag}")
 
@@ -135,8 +159,14 @@ def verify(
 
 
 def _fixture(root: Path) -> None:
-    (root / "docs" / "releases").mkdir(parents=True)
+    (root / "docs" / "releases").mkdir(parents=True, exist_ok=True)
     (root / "Cargo.toml").write_text('[workspace]\n[workspace.package]\nversion = "0.4.0"\n', encoding="utf-8")
+    (root / "Cargo.lock").write_text(
+        'version = 4\n\n'
+        '[[package]]\nname = "anthrosim-cli"\nversion = "0.4.0"\n\n'
+        '[[package]]\nname = "anthrosim-core"\nversion = "0.4.0"\n',
+        encoding="utf-8",
+    )
     (root / "CITATION.cff").write_text('cff-version: 1.2.0\nversion: "0.4.0"\n', encoding="utf-8")
     (root / "docs" / "releases" / "v0.4.0.md").write_text("# AnthroSim v0.4.0\n", encoding="utf-8")
 
@@ -185,6 +215,28 @@ def self_test() -> None:
             require("release-specific" in str(error), "failed release gate produced wrong diagnosis")
         else:
             raise ValueError("failed release-specific check was accepted")
+
+        bad_lock = root / "Cargo.lock"
+        bad_lock.write_text(
+            'version = 4\n\n'
+            '[[package]]\nname = "anthrosim-cli"\nversion = "0.4.0"\n\n'
+            '[[package]]\nname = "anthrosim-core"\nversion = "0.3.9"\n',
+            encoding="utf-8",
+        )
+        try:
+            verify(
+                tag="v0.4.0",
+                sha=sha,
+                repo_root=root,
+                branch_payload=branch,
+                checks_payload=checks,
+                status_payload=status,
+            )
+        except ValueError as error:
+            require("Cargo.lock workspace package anthrosim-core" in str(error), "lock mismatch produced wrong diagnosis")
+        else:
+            raise ValueError("Cargo.lock workspace version mismatch was accepted")
+        _fixture(root)
 
         try:
             verify(
