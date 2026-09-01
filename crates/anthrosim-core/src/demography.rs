@@ -260,19 +260,6 @@ pub(crate) fn process_demographic_year_recorded_with_founder_history(
     )
 }
 
-pub(crate) fn process_demographic_year_after_competing_mortality_recorded(
-    population: &mut Population,
-    world: &World,
-    config: &DemographyConfig,
-    day: u64,
-    rngs: &mut DemographyRngs,
-    events: &mut EventLog,
-) -> Result<DemographyStepOutcome, PopulationError> {
-    process_demographic_year_after_competing_mortality_recorded_with_founder_history(
-        population, world, config, day, rngs, events, None,
-    )
-}
-
 pub(crate) fn process_demographic_year_after_competing_mortality_recorded_with_founder_history(
     population: &mut Population,
     world: &World,
