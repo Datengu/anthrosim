@@ -242,18 +242,18 @@
     },
     {
       "births": {
-        "ci95Lower": 792.2580409742161,
-        "ci95Upper": 872.8496513334762,
-        "mean": 832.5538461538462,
+        "ci95Lower": 791.83110076718,
+        "ci95Upper": 871.9688992328199,
+        "mean": 831.9,
         "n": 130,
-        "sd": 234.41393394368197
+        "sd": 233.0939475235104
       },
       "deaths": {
-        "ci95Lower": 810.6708456880017,
-        "ci95Upper": 879.8214620043061,
-        "mean": 845.2461538461539,
+        "ci95Lower": 810.4575528357188,
+        "ci95Upper": 879.388601010435,
+        "mean": 844.9230769230769,
         "n": 130,
-        "sd": 201.1359238644687
+        "sd": 200.49727386592681
       },
       "demography": "positive_growth_control_v1",
       "earlyGrowthRatePerYear": {
@@ -273,51 +273,51 @@
       "founderAgeCeilingYears": 60,
       "householdLifecycle": "fixed_founder_v1",
       "lateBirthDeathRatio": {
-        "ci95Lower": 0.9650969245819288,
-        "ci95Upper": 0.9924608237366805,
-        "mean": 0.9787788741593046,
+        "ci95Lower": 0.9647083831031125,
+        "ci95Upper": 0.9920149567465932,
+        "mean": 0.9783616699248529,
         "n": 130,
-        "sd": 0.0795923945471391
+        "sd": 0.0794256538832853
       },
       "lateGrowthRatePerYear": {
-        "ci95Lower": -0.0012928952897959716,
-        "ci95Upper": -0.0003402841524421249,
-        "mean": -0.0008165897211190482,
+        "ci95Lower": -0.0013086909877329947,
+        "ci95Upper": -0.0003563744527317615,
+        "mean": -0.0008325327202323782,
         "n": 130,
-        "sd": 0.0027708259362262755
+        "sd": 0.002769969036902422
       },
       "mateLimitationFraction": {
-        "ci95Lower": 0.11237195491128375,
-        "ci95Upper": 0.13075810712074934,
-        "mean": 0.12156503101601654,
+        "ci95Lower": 0.11238737429383462,
+        "ci95Upper": 0.1307664419312865,
+        "mean": 0.12157690811256056,
         "n": 130,
-        "sd": 0.05347914317998139
+        "sd": 0.053458536538810705
       },
       "replicates": 130,
       "resourceProductivityScalePermille": 1000,
       "spacingLimitationFraction": {
-        "ci95Lower": 0.4301832160500959,
-        "ci95Upper": 0.4365643829108653,
-        "mean": 0.4333737994804806,
+        "ci95Lower": 0.43016550531972,
+        "ci95Upper": 0.43653794844773175,
+        "mean": 0.43335172688372586,
         "n": 130,
-        "sd": 0.018560671766154006
+        "sd": 0.018535297356767226
       },
       "terminalMaleFraction": {
-        "ci95Lower": 0.5101669357583821,
-        "ci95Upper": 0.5278225724244153,
-        "mean": 0.5189947540913987,
+        "ci95Lower": 0.5100214418746652,
+        "ci95Upper": 0.5276530795707318,
+        "mean": 0.5188372607226985,
         "n": 130,
-        "sd": 0.05135431875248053
+        "sd": 0.05128451380708488
       },
       "terminalPopulation": {
-        "ci95Lower": 100.64091947166254,
-        "ci95Upper": 113.97446514372207,
-        "max": 203,
-        "mean": 107.3076923076923,
+        "ci95Lower": 100.4209312212755,
+        "ci95Upper": 113.53291493257065,
+        "max": 197,
+        "mean": 106.97692307692307,
         "median": 108.0,
         "min": 14,
         "n": 130,
-        "sd": 38.78280729808114
+        "sd": 38.13835794902948
       }
     },
     {
@@ -527,7 +527,7 @@
     },
     "stochasticMultiRegimeContextCount": 1
   },
-  "modelSemanticsId": "anthrosim-model-semantics-v23",
+  "modelSemanticsId": "anthrosim-model-semantics-v24",
   "monteCarloPrecision": {
     "positive-fission-extinction-diagnostic": {
       "batchBoundary": 1,
@@ -716,10 +716,10 @@
       "precision": {
         "confidenceLevel": 0.95,
         "declaredMaxHalfWidth": 0.001,
-        "estimate": -0.0008165897211190482,
-        "halfWidth": 0.0004763055686769232,
-        "intervalLower": -0.0012928952897959714,
-        "intervalUpper": -0.000340284152442125,
+        "estimate": -0.0008325327202323782,
+        "halfWidth": 0.0004761582675006165,
+        "intervalLower": -0.0013086909877329947,
+        "intervalUpper": -0.00035637445273176165,
         "precisionMethod": "normal_clt_mean_se",
         "sufficient": true
       },
@@ -886,10 +886,10 @@
       "precision": {
         "confidenceLevel": 0.95,
         "declaredMaxHalfWidth": 15.0,
-        "estimate": -86.38461538461539,
-        "halfWidth": 7.04224745615115,
-        "intervalLower": -93.42686284076653,
-        "intervalUpper": -79.34236792846424,
+        "estimate": -86.05384615384615,
+        "halfWidth": 6.940413052821833,
+        "intervalLower": -92.99425920666799,
+        "intervalUpper": -79.11343310102431,
         "precisionMethod": "normal_clt_paired_seed_difference",
         "sufficient": true
       },
@@ -1040,7 +1040,7 @@
   },
   "pairedHouseholdEffects": [],
   "recommendation": "no_universal_demographic_baseline",
-  "researchId": "research-execution-v1-4efd041f2dd4c4a2",
+  "researchId": "research-execution-v1-2260cdc6dc109cda",
   "runCount": 780,
   "schemaVersion": 1,
   "scientificStatus": "confirmatory_synthetic_model_analysis"
