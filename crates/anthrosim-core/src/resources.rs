@@ -749,13 +749,11 @@ impl ResourceSystem {
                     ))?
                     .min(u64::from(PERMILLE_MAX));
                 if supplied_permille >= u64::from(PERMILLE_MAX) {
-                    let recovered = current.saturating_add(interval_recovery).min(PERMILLE_MAX);
-                    let remainder = if recovered == PERMILLE_MAX {
-                        0
-                    } else {
-                        current_remainder
-                    };
-                    (recovered, remainder)
+                    full_supply_condition_recovery_with_remainder(
+                        current,
+                        interval_recovery,
+                        current_remainder,
+                    )?
                 } else {
                     let (loss, remainder) = partial_supply_condition_loss_with_remainder(
                         interval_max_loss,
@@ -1338,6 +1336,35 @@ fn reference_quarter_quantity_for_interval(
             .ok_or(ResourceError::AccountingOverflow)?;
     }
     Ok(total)
+}
+
+/// Applies a full-supply recovery interval to the same fixed-point condition representation used
+/// by partial-supply deterioration. `current_remainder_thousandths` means the exact effective
+/// condition is `current - remainder / 1000`. Whole-point recovery therefore preserves the
+/// remainder when it lands exactly on visible 1000 and clears it only when recovery would exceed
+/// the upper bound and the cap actually clips the latent deficit.
+fn full_supply_condition_recovery_with_remainder(
+    current: u16,
+    interval_recovery: u16,
+    current_remainder_thousandths: u16,
+) -> Result<(u16, u16), ResourceError> {
+    if current > PERMILLE_MAX
+        || u64::from(current_remainder_thousandths) >= CONDITION_RESPONSE_DENOMINATOR
+    {
+        return Err(ResourceError::InternalInvariant(
+            "full-supply condition response inputs are invalid",
+        ));
+    }
+    let recovery_sum = current
+        .checked_add(interval_recovery)
+        .ok_or(ResourceError::AccountingOverflow)?;
+    let recovered = recovery_sum.min(PERMILLE_MAX);
+    let remainder = if recovery_sum > PERMILLE_MAX {
+        0
+    } else {
+        current_remainder_thousandths
+    };
+    Ok((recovered, remainder))
 }
 
 /// Converts one partial-supply interval into whole condition loss plus a carried fixed-point
@@ -2047,6 +2074,55 @@ mod tests {
             partial_supply_condition_loss_with_remainder(100, 0, 400).unwrap(),
             (100, 400)
         );
+    }
+
+    #[test]
+    fn full_supply_zero_recovery_is_fixed_point_neutral() {
+        assert_eq!(
+            full_supply_condition_recovery_with_remainder(1_000, 0, 8).unwrap(),
+            (1_000, 8)
+        );
+        assert_eq!(
+            full_supply_condition_recovery_with_remainder(900, 0, 375).unwrap(),
+            (900, 375)
+        );
+    }
+
+    #[test]
+    fn full_supply_recovery_preserves_remainder_at_exact_visible_upper_boundary() {
+        assert_eq!(
+            full_supply_condition_recovery_with_remainder(999, 1, 500).unwrap(),
+            (1_000, 500)
+        );
+    }
+
+    #[test]
+    fn full_supply_positive_recovery_clears_remainder_only_when_upper_cap_clips() {
+        assert_eq!(
+            full_supply_condition_recovery_with_remainder(1_000, 1, 500).unwrap(),
+            (1_000, 0)
+        );
+        assert_eq!(
+            full_supply_condition_recovery_with_remainder(999, 2, 500).unwrap(),
+            (1_000, 0)
+        );
+        assert_eq!(
+            full_supply_condition_recovery_with_remainder(900, 1, 500).unwrap(),
+            (901, 500)
+        );
+    }
+
+    #[test]
+    fn repeated_mild_scarcity_accumulates_across_zero_recovery_full_supply() {
+        let (first_loss, first_remainder) =
+            partial_supply_condition_loss_with_remainder(4, 998, 0).unwrap();
+        assert_eq!((first_loss, first_remainder), (0, 8));
+        let (condition, carried) =
+            full_supply_condition_recovery_with_remainder(1_000, 0, first_remainder).unwrap();
+        assert_eq!((condition, carried), (1_000, 8));
+        let (second_loss, second_remainder) =
+            partial_supply_condition_loss_with_remainder(4, 998, carried).unwrap();
+        assert_eq!((second_loss, second_remainder), (0, 16));
     }
 
     #[test]
