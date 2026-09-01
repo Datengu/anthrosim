@@ -116,7 +116,10 @@ fn omitted_last_birth_uses_latest_explicit_child_for_first_boundary_spacing() {
         .founder_population
         .as_ref()
         .expect("declared founder definition remains checkpointed");
-    assert_eq!(definition.last_birth_day(MOTHER), Some(KNOWN_CHILD_BIRTH_DAY));
+    assert_eq!(
+        definition.last_birth_day(MOTHER),
+        Some(KNOWN_CHILD_BIRTH_DAY)
+    );
     assert_eq!(
         births(&run),
         0,
