@@ -83,10 +83,11 @@ def normalize_paths(paths: list[str]) -> list[str]:
 
 
 def classify_change_class(paths: list[str]) -> str:
-    """Return a conservative PR risk class for future path-aware CI decisions.
+    """Return the conservative PR risk class enforced by path-aware CI.
 
-    This classification is intentionally advisory today: existing required checks still
-    run unchanged. Any mixed or unrecognized path set fails safe to ``full``.
+    Required contexts remain present for every class. Documentation-only classes resolve
+    irrelevant executable work through explicit successful/N/A dispositions, while mixed or
+    unrecognized path sets fail safe to ``full``.
     """
 
     if all(path_matches(path, AUDIT_STATUS_PATTERNS) for path in paths):
