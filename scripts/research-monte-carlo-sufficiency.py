@@ -18,7 +18,7 @@ from typing import Any
 
 PLAN_SCHEMA = 1
 SAMPLE_SCHEMA = 1
-DIAGNOSTIC_SCHEMA = 3
+DIAGNOSTIC_SCHEMA = 2
 PLAN_PREFIX = "monte-carlo-precision-plan-v1:"
 UNCERTAINTY_CATEGORY = "process_stochastic_monte_carlo"
 SUPPORTED_KINDS = {
@@ -522,9 +522,7 @@ def derive(plan: dict[str, Any], samples: dict[str, Any], study_dir: Path | None
         "designMode": mode,
         "batchBoundary": boundary_index + 1,
         "replicateCount": replicate_count,
-        "seedIdentities": groups[0]["seeds"] if len(groups) == 1 else None,
-        "groupSeedIdentities": {group["id"]: group["seeds"] for group in groups},
-        "pairingSemantics": plan["pairing"],
+        "seedIdentities": groups[0]["seeds"],
         "groupIds": [group["id"] for group in groups],
         "precision": precision,
         "decision": decision,
@@ -538,6 +536,9 @@ def derive(plan: dict[str, Any], samples: dict[str, Any], study_dir: Path | None
             ],
         },
     }
+    if plan["estimand"]["kind"] == "difference_in_means":
+        result["groupSeedIdentities"] = {group["id"]: group["seeds"] for group in groups}
+        result["pairingSemantics"] = plan["pairing"]
     if lineage is not None:
         result["studyLineage"] = lineage
     return result

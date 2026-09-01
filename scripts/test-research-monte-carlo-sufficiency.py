@@ -153,7 +153,7 @@ def independent_difference_demo():
     assert abs(result["precision"]["halfWidth"] - 3.666756860283) < 1e-12
     assert result["precision"]["sufficient"] is True
     assert result["pairingSemantics"] == "independent"
-    assert result["seedIdentities"] is None
+    assert result["seedIdentities"] == left_seeds
     assert result["groupSeedIdentities"]["left"] == left_seeds
     assert result["groupSeedIdentities"]["right"] == right_seeds
 
