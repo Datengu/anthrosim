@@ -17,7 +17,11 @@ use crate::time::DAYS_PER_YEAR;
 /// v24 makes full-supply M3 recovery act on the complete fixed-point condition state: zero
 /// recovery cannot erase latent deterioration, and upper-bound saturation clears that remainder
 /// only when a positive recovery budget actually clips the exact effective condition.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v24";
+///
+/// v25 makes dependency-aware household fission relationship-aware before arbitrary identity
+/// tie-breaking, so scientifically equivalent PersonId relabellings preserve unlabelled kin
+/// composition when age and sex are equal but parent/child roles differ.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v25";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
