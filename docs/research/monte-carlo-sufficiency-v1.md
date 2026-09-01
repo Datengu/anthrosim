@@ -134,7 +134,7 @@ The input sample is intentionally downstream of simulation execution. It contain
 
 For `probability`, values are boolean or `0/1`. Other v1 estimands use finite numeric values.
 
-The emitted diagnostic uses schema v3 while retaining precision-plan schema/identity v1. Schema v3 records actual pairing semantics and per-group seed identities. This analysis-layer change does not change `MODEL_SEMANTICS_ID`.
+The emitted diagnostic remains schema v2 and retains precision-plan schema/identity v1. For `difference_in_means`, v2 diagnostics additionally record `pairingSemantics=independent` and the exact per-group seed identities so the independent-arm contract is machine-visible. Existing diagnostic shapes for the other estimands remain unchanged. This analysis-layer change does not change `MODEL_SEMANTICS_ID`.
 
 The emitted diagnostic preserves:
 
