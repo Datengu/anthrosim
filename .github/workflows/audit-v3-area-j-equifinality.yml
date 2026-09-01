@@ -1,0 +1,26 @@
+name: Audit v3 Area J equifinality adversary
+
+on:
+  pull_request:
+    paths:
+      - "docs/research/audit-v3/area-j-equifinality-compensation-adversary.py"
+      - ".github/workflows/audit-v3-area-j-equifinality.yml"
+      - "scripts/research-identifiability.py"
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: Area J nuisance-compensation equifinality adversary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify frozen analyzer self-test
+        run: python3 scripts/research-identifiability.py --self-test
+      - name: Run Area J adversary
+        run: python3 docs/research/audit-v3/area-j-equifinality-compensation-adversary.py
