@@ -1,6 +1,6 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for the post-v0.3.2 scientific-hardening line / current model semantics v21 (immutable v0.3.2 release baseline: v19)
+**Status:** working specification for the post-v0.3.2 scientific-hardening line / current model semantics v22 (immutable v0.3.2 release baseline: v19)
 **Scientific status:** exploratory / unvalidated
 
 This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing and condition-mortality causal contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
