@@ -48,9 +48,18 @@ A malformed declaration or a declaration incompatible with the selected world fa
 
 If permanent migration is enabled with non-zero kin weighting and the declaration says founder genealogy is `unspecified`, construction fails rather than treating unknown direct-parent links as evidence of no kin.
 
+A female founder's optional `lastBirthDay` is reconciled with explicit living children in the same declaration. If child `C` names female founder `F` as `femaleParent`, `C.birthDay` is an authoritative known birth of `F`. A supplied `F.lastBirthDay` therefore cannot be older than the latest such child; that contradiction fails before execution.
+
 ## Manifest and checkpoint provenance
 
 The run manifest/checkpoint embeds the complete `founderPopulation` object inside the experiment configuration. A later checkpoint resume therefore carries the same pre-run founder identity/history without requiring the original input file to be supplied again.
+
+From model semantics v23, M2 reconstructs a founder female's latest known pre-run birth as the later of:
+
+- her optional `lastBirthDay`; and
+- the birth day of any explicitly represented founder child naming her as `femaleParent`.
+
+Omitting `lastBirthDay` therefore does not erase a birth already represented by explicit genealogy. A `lastBirthDay` later than every represented child remains legal and means that a more recent birth is known even though that child is not represented among the living founders. This distinction is part of authoritative checkpoint continuation semantics.
 
 The input file itself should still be retained with the study materials because file-level provenance and the scientific derivation procedure matter independently of the serialized values.
 
@@ -70,7 +79,8 @@ Before a real study relies on large declared-founder ensembles/sweeps, orchestra
 
 The ability to load a declaration does not establish that its contents are defensible. A research application must document the evidence/generation procedure and test sensitivity to plausible alternatives as required by TRACE.
 
-
 ## Reproductive chronology validation
 
 Founder parent ages and declared pre-run `lastBirthDay` are validated against the experiment's `DemographyConfig` before execution. Female events require positive fertility-band support at the declared event age; male parentage uses the configured male-parent age interval. These are experiment-declared assumptions, not universal anthropological constants.
+
+The cross-field rule is chronological rather than inferential: an explicit child proves at least that birth, while a later `lastBirthDay` can encode a known but unrepresented child. AnthroSim does not infer additional births beyond those declarations.
