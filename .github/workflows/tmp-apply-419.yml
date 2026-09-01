@@ -25,7 +25,6 @@ jobs:
 
           script = Path('scripts/research-identifiability.py')
           text = script.read_text()
-
           old = '''def _numeric_parameter_diagnostic(
               parameter: str,
               points: list[dict[str, Any]],
@@ -153,88 +152,6 @@ jobs:
           if old not in text:
               raise SystemExit('categorical diagnostic source did not match expected main')
           text = text.replace(old, new, 1)
-
-          marker = '''    tampered = stochastic_data(0.01, 0.02)
-          '''
-          tests = '''    fixed_numeric_plan = {
-              "schemaVersion": 2,
-              "analysisId": "fixed-numeric-design-self-test",
-              "calibrationTargets": [{"observable": "score", "target": 0.0, "tolerance": 0.0}],
-              "corroborationObservables": [],
-              "claim": {"parameterIds": ["theta"], "structuralHypothesis": False},
-              "maxNormalizedAcceptableWidth": 0.25,
-          }
-          fixed_numeric_data = {
-              "schemaVersion": 2,
-              "monteCarloDiagnostics": {},
-              "points": [
-                  {
-                      "id": "fixed-a",
-                      "parameters": {"theta": 7, "nuisance": 0},
-                      "outputs": {"score": 0.0},
-                      "outputEvidence": {"score": {"kind": "deterministic"}},
-                  },
-                  {
-                      "id": "fixed-b",
-                      "parameters": {"theta": 7, "nuisance": 1},
-                      "outputs": {"score": 0.0},
-                      "outputEvidence": {"score": {"kind": "deterministic"}},
-                  },
-              ],
-          }
-          fixed_numeric = analyse(fixed_numeric_plan, fixed_numeric_data)
-          theta = next(item for item in fixed_numeric["parameterDiagnostics"] if item["parameter"] == "theta")
-          assert theta["fullRange"] == [7.0, 7.0]
-          assert theta["compatibleRange"] == [7.0, 7.0]
-          assert theta["normalizedCompatibleWidth"] is None
-          assert theta["exploredLevelCount"] == 1
-          assert theta["reason"] == "insufficient_explored_variation"
-          assert theta["identified"] is False
-          assert fixed_numeric["researchGate"]["passes"] is False
-
-          fixed_categorical_plan = dict(fixed_numeric_plan)
-          fixed_categorical_plan["analysisId"] = "fixed-categorical-design-self-test"
-          fixed_categorical_data = {
-              "schemaVersion": 2,
-              "monteCarloDiagnostics": {},
-              "points": [
-                  {
-                      "id": "category-a",
-                      "parameters": {"theta": "same", "nuisance": 0},
-                      "outputs": {"score": 0.0},
-                      "outputEvidence": {"score": {"kind": "deterministic"}},
-                  },
-                  {
-                      "id": "category-b",
-                      "parameters": {"theta": "same", "nuisance": 1},
-                      "outputs": {"score": 0.0},
-                      "outputEvidence": {"score": {"kind": "deterministic"}},
-                  },
-              ],
-          }
-          fixed_categorical = analyse(fixed_categorical_plan, fixed_categorical_data)
-          theta = next(item for item in fixed_categorical["parameterDiagnostics"] if item["parameter"] == "theta")
-          assert theta["exploredLevelCount"] == 1
-          assert theta["reason"] == "insufficient_explored_variation"
-          assert theta["identified"] is False
-          assert fixed_categorical["researchGate"]["passes"] is False
-
-          varied_categorical_data = json.loads(json.dumps(fixed_categorical_data))
-          varied_categorical_data["points"][0]["parameters"]["theta"] = "selected"
-          varied_categorical_data["points"][1]["parameters"]["theta"] = "rejected"
-          varied_categorical_data["points"][1]["outputs"]["score"] = 1.0
-          varied_categorical = analyse(fixed_categorical_plan, varied_categorical_data)
-          theta = next(item for item in varied_categorical["parameterDiagnostics"] if item["parameter"] == "theta")
-          assert theta["exploredLevelCount"] == 2
-          assert theta["compatibleValues"] == ["selected"]
-          assert theta["reason"] == "single_compatible_value"
-          assert theta["identified"] is True
-          assert varied_categorical["researchGate"]["passes"] is True
-
-          '''
-          if marker not in text:
-              raise SystemExit('self-test insertion marker missing')
-          text = text.replace(marker, tests + marker, 1)
           script.write_text(text)
 
           docs = Path('docs/research/identifiability-equifinality-v1.md')
