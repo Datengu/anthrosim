@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** v0.3.2 / completed M9 plus first major post-M9 scientific-audit backlog  
+**AnthroSim baseline:** post-v0.3.2 development line / current model semantics v21 / scientific audit v2 complete (immutable v0.3.2 release baseline: v19)  
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
@@ -21,10 +21,10 @@ A green software build, deterministic replay, an ODD description or a completed 
 | TRACE element | Current status | Main reason |
 |---|---|---|
 | 1. Problem formulation | Partial / study-specific | Framework purposes are explicit, but real research questions require their own frozen hypotheses, observables and applicability domain. |
-| 2. Model description | Established for v0.3.2 baseline | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification now exist. |
+| 2. Model description | Established for current v21 development line | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification describe current semantics while preserving immutable v0.3.2/v19 identity. |
 | 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty and evidence-role separation remain to be completed. |
-| 4. Conceptual model evaluation | In progress / audit convergence | The first major audit backlog is resolved, but additional independent audit passes are still required and structural assumptions remain study-sensitive. |
-| 5. Implementation verification | In progress / audit convergence | The first major audit closed its known P1 scientific-behaviour backlog with regression/invariant evidence, but one clean backlog does not establish convergence; further independent audit passes are required. |
+| 4. Conceptual model evaluation | In progress / audit convergence | Scientific audit v2 completed a second independent/adversarial A–N pass with all 15 AV2 findings repaired and no open P0–P3 finding; structural assumptions remain study-sensitive and another fresh release-baseline audit is planned before empirical inference. |
+| 5. Implementation verification | In progress / audit convergence | Two independent audit generations have now been completed and the current v21 line has no open P0–P3 scientific finding, but repeated audits are convergence evidence rather than proof of correctness; a further independent v0.3.3 audit remains required before empirical inference. |
 | 6. Model output verification | Not established empirically | Existing M8/M9 benchmarks are capability/synthetic verification, not validation against empirical target patterns. |
 | 7. Model analysis | Substantially strengthened / study-specific | v0.3.1 adds complete scientific-configuration exposure, replicate-precision gates, long-run diagnostics, structural/initialization sensitivity and identifiability/equifinality analysis; empirical uncertainty propagation and adequacy remain study-specific. |
 | 8. Model output corroboration | Not established | No held-out independent archaeological/anthropological corroboration has yet been completed for a real inferential study. |
@@ -84,7 +84,7 @@ Provide a detailed, understandable description of what the model is, how it work
 
 ## Current assessment
 
-**Established for description of the v0.3.2 baseline**, subject to normal documentation/code consistency review.
+**Established for description of the current v21 development line**, subject to normal documentation/code consistency review. The immutable `v0.3.2` release remains the historical v19 baseline rather than being retroactively redefined by living documentation.
 
 This status means the model is described; it does not mean the described model is empirically valid.
 
@@ -142,6 +142,8 @@ The detailed scientific model and ODD/ODD+D documents explicitly identify many n
 
 The repository's adversarial scientific audits have also produced concrete issue-level evidence that conceptual/causal semantics are being challenged rather than accepted because code runs reproducibly.
 
+Scientific audit v2 provides the latest framework-level closure evidence: it independently covered Areas A–N, demonstrated 15 AV2 findings across the audited surface, required repair/reverification of those findings, and closed with no remaining P0–P3 scientific finding on the current v21 line. That result is evidence of stronger convergence, not a claim that the conceptual model is universally valid.
+
 ### High-priority conceptual/semantic debt and repair record
 
 At the time this dossier was introduced, known P1 issues included scientific problems around:
@@ -157,7 +159,7 @@ At the time this dossier was introduced, known P1 issues included scientific pro
 - spatial georeferencing/physical movement interpretation;
 - evidence closure for empirical provenance.
 
-The live GitHub issue tracker is authoritative for exact open/closed status. Founder/history initialization issue #192 has a dedicated repair/evaluation record in [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md): the repair removes the requirement that research-facing founder reproductive/kin state begin implicitly at zero, while leaving empirical founder derivation, uncertainty and initialization sensitivity as separate open scientific tasks.
+The dated TRACE repair records preserve the state and rationale of those findings at the time they were investigated. The live GitHub issue tracker and the repository-authoritative audit-v2 ledger are authoritative for current open/closed status. Founder/history initialization issue #192 has a dedicated repair/evaluation record in [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md): the repair removes the requirement that research-facing founder reproductive/kin state begin implicitly at zero, while leaving empirical founder derivation, uncertainty and initialization sensitivity as separate scientific tasks for relevant studies.
 
 ## Required conceptual-evaluation methods
 
@@ -173,7 +175,7 @@ For each scientifically consequential submodel, record:
 
 **Gate:** unresolved conceptual P1 defects block claims that depend on the affected mechanism.
 
-**Current assessment:** In progress.
+**Current assessment:** In progress / audit convergence. The current v21 line has completed scientific audit v2 with no open P0–P3 finding, but another genuinely fresh audit of the frozen `v0.3.3` baseline is required before beginning empirical inferential work.
 
 ---
 
@@ -219,7 +221,7 @@ Implementation verification must extend beyond ordinary unit tests to scientific
 
 ## P1 convergence rule
 
-AnthroSim should not declare foundational scientific verification complete immediately after fixing the current known P1 backlog. The corrected implementation should undergo repeated independent/adversarial scientific audit passes.
+AnthroSim should not declare foundational scientific verification complete merely because the current known P1 backlog is empty. The corrected implementation should continue to undergo repeated independent/adversarial scientific audit passes.
 
 A practical gate for moving from foundational verification to empirical calibration is:
 
@@ -227,7 +229,7 @@ A practical gate for moving from foundational verification to empirical calibrat
 
 This is not proof that no defect exists; it is evidence of audit convergence.
 
-**Current assessment:** In progress / audit convergence. The first major audit backlog is closed; additional independent audit passes remain required before claiming convergence.
+**Current assessment:** In progress / audit convergence. Scientific audit v2 is the second independent audit generation and closed with all 15 AV2 findings repaired/reverified and no open P0–P3 scientific finding on the current v21 line. One further genuinely fresh audit of the frozen `v0.3.3` release baseline is planned before empirical inferential work; a clean result would provide substantially stronger convergence evidence but still would not prove correctness.
 
 ---
 
