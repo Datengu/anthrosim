@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 use crate::{
-    EventKind, Population, SimulationCheckpoint, TemporaryJourneyObservability,
-    TemporaryTriggerTiming, World, derive_temporary_mobility_observability,
+    EventKind, Population, PopulationInitialization, SimulationCheckpoint,
+    TemporaryJourneyObservability, TemporaryTriggerTiming, World,
+    derive_temporary_mobility_observability,
     ids::{HouseholdId, TemporaryJourneyId},
     rng::RngFactory,
 };
@@ -49,11 +50,31 @@ pub fn validate_temporary_mobility_history(
         return Ok(());
     };
 
-    let initial_population = Population::initialize(
-        checkpoint.experiment.population,
-        world,
-        RngFactory::new(checkpoint.experiment.seed),
-    )
+    let population_config = checkpoint.experiment.population;
+    let initial_population = match population_config.initialization {
+        PopulationInitialization::SyntheticValidationV1 => Population::initialize(
+            population_config,
+            world,
+            RngFactory::new(checkpoint.experiment.seed),
+        ),
+        PopulationInitialization::DeclaredFounderStateV1 => {
+            let definition = checkpoint
+                .experiment
+                .founder_population
+                .as_ref()
+                .ok_or_else(|| {
+                    invalid(
+                        "could not reconstruct founder population: declared founder initialization is missing founderPopulation in checkpoint experiment",
+                    )
+                })?;
+            Population::initialize_declared_founder_state_v1(
+                population_config,
+                definition,
+                world,
+                &checkpoint.experiment.demography,
+            )
+        }
+    }
     .map_err(|error| invalid(format!("could not reconstruct founder population: {error}")))?;
     let report = derive_temporary_mobility_observability(world, &initial_population, checkpoint)
         .map_err(|error| invalid(format!("temporary event replay failed: {error}")))?;
