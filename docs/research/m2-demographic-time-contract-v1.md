@@ -14,7 +14,7 @@ The first M2 repair made those annual semantics explicit. A later repair, introd
 
 Founder demographic/kin prehistory is handled by the separate declared-founder contract rather than hidden inside annual transition code.
 
-From model semantics v22, both the synthetic and spatial authoritative hosts pass declared founder reproductive history into the same annual fertility-spacing finalizer, including after spatial checkpoint/resume. Immutable v0.3.3/v21 remains the historical baseline before that cross-host parity repair.
+From model semantics v22, both the synthetic and spatial authoritative hosts pass declared founder reproductive history into the same annual fertility-spacing finalizer, including after spatial checkpoint/resume. Immutable v0.3.3/v21 remains the historical baseline before that cross-host parity repair; its audit conclusions remain historical evidence rather than being rewritten by this repair.
 
 ## 2. Annual interval and schedule selection
 
