@@ -1,6 +1,6 @@
 # Pull-request CI path classification
 
-AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the central CI, cross-platform determinism, spatial-mechanism, landscape-loading, landscape-preprocessing, run-bundle-pack and resumed-Explorer-compatibility workflows while the remaining required workflows continue to run their existing full behavior.
+AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the central CI, cross-platform determinism, spatial-mechanism, landscape-loading, landscape-preprocessing, run-bundle-pack, resumed-Explorer-compatibility and spatial-observability workflows while the remaining required workflows continue to run their existing full behavior.
 
 ## Why this exists
 
@@ -47,9 +47,11 @@ Unknown paths are never guessed into a cheaper class. They fall back to `full`.
 
 ## Current enforcement boundary
 
-`CI`, `Cross-platform determinism`, `Spatial mechanism determinism`, `Landscape loading determinism`, `Landscape preprocessing`, `Run bundle pack` and `Resumed Explorer compatibility` are the required workflows currently wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, their protected execution contexts still run and resolve successfully, but irrelevant executable work reports an explicit documentation-only N/A disposition instead of running simulation, release, preprocessing, bundle, resume-Explorer or deterministic-golden fixtures.
+`CI`, `Cross-platform determinism`, `Spatial mechanism determinism`, `Landscape loading determinism`, `Landscape preprocessing`, `Run bundle pack`, `Resumed Explorer compatibility` and `Spatial observability` are the required workflows currently wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, their protected execution contexts still run and resolve successfully, but irrelevant executable work reports an explicit documentation-only N/A disposition instead of running simulation, release, preprocessing, bundle, resume-Explorer, spatial-observability or deterministic-golden fixtures.
 
 The central `CI` workflow keeps `Quality and tests` present for documentation-only changes but replaces the full Rust workspace build/test surface with lightweight documentation consistency checks. Those checks verify the living model-semantics documentation against executable provenance and validate the basic audit-v2 ledger/document structure. The other protected central-CI contexts resolve explicitly as N/A for documentation-only changes. Non-required core benchmarks, performance/memory acceptance and the 1000-run ensemble soak do not run for those classes.
+
+`Spatial observability` preserves the required `Derive and inspect spatial observability` context but resolves it explicitly as N/A for documentation-only changes instead of installing Rust, running transformed-landscape/resume fixtures, checking/tampering derived observability, serving Explorer artifacts, or deriving observability across an M7 spatial sweep.
 
 The affected protected contexts are:
 
@@ -74,6 +76,7 @@ The affected protected contexts are:
 - `M8.2 preprocessing validation`
 - `Deterministic completed-run ZIP`
 - `New-directory resume Explorer compatibility`
+- `Derive and inspect spatial observability`
 
 For `full` changes, for every push to protected `main`, and therefore for any PR that changes executable/scientific machinery, an unknown path, or any optimized workflow itself, the existing executable validation remains unchanged. Each optimized workflow validates the classifier before deciding which disposition applies; incomplete GitHub changed-file retrieval fails classification instead of degrading to the cheaper path.
 
