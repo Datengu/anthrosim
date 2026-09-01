@@ -27,7 +27,7 @@ fn founder(condition_permille: u16) -> FounderPopulationDefinition {
         FounderGenealogyStatus::CompleteLivingDirectParents,
         vec![FounderHousehold {
             id: HouseholdId::new(1),
-            location: CellId::new(0),
+            location: CellId::new(1),
         }],
         vec![FounderPerson {
             id: PersonId::new(1),
