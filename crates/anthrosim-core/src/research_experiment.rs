@@ -73,6 +73,7 @@ impl ResearchExperimentDefinition {
             .map_err(|error| ResearchExperimentError::Serialization(error.to_string()))?;
         let mut ids = BTreeSet::new();
         let mut paths = BTreeSet::new();
+        let mut decoded_paths: Vec<(String, Vec<String>)> = Vec::new();
         let mut point_count = 1_usize;
         for dimension in &self.dimensions {
             dimension.validate_against(&base)?;
@@ -89,6 +90,18 @@ impl ResearchExperimentDefinition {
                     dimension.path.clone(),
                 ));
             }
+            let segments = pointer_segments(&dimension.path)?;
+            for (existing_path, existing_segments) in &decoded_paths {
+                if strict_pointer_ancestor(existing_segments, &segments)
+                    || strict_pointer_ancestor(&segments, existing_segments)
+                {
+                    return Err(ResearchExperimentError::OverlappingDimensionPaths {
+                        first: existing_path.clone(),
+                        second: dimension.path.clone(),
+                    });
+                }
+            }
+            decoded_paths.push((dimension.path.clone(), segments));
             point_count = point_count
                 .checked_mul(dimension.values.len())
                 .ok_or(ResearchExperimentError::TooManyPoints)?;
@@ -429,6 +442,10 @@ fn pointer_segments(path: &str) -> Result<Vec<String>, ResearchExperimentError> 
         .collect()
 }
 
+fn strict_pointer_ancestor(ancestor: &[String], descendant: &[String]) -> bool {
+    ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
+}
+
 fn point_identity(
     index: u64,
     run_config: &ResearchRunConfig,
@@ -520,6 +537,8 @@ pub enum ResearchExperimentError {
     DuplicateDimensionId(String),
     #[error("duplicate research dimension path {0}")]
     DuplicateDimensionPath(String),
+    #[error("research dimension paths overlap by ancestry: {first} and {second}")]
+    OverlappingDimensionPaths { first: String, second: String },
     #[error("research dimension {0} must contain at least one value")]
     NoDimensionValues(String),
     #[error("research dimension {0} contains a duplicate value")]
@@ -653,6 +672,39 @@ mod tests {
                 .travel_cost_weight,
             2
         );
+    }
+
+    #[test]
+    fn overlapping_dimension_paths_fail_closed_in_both_declaration_orders() {
+        let base = base_definition();
+        let child = numeric(
+            "annual_need",
+            "/experiment/resources/annualNeedUnitsPerPerson",
+            &[100, 200],
+        );
+        let mut resources_a =
+            serde_json::to_value(&base.base.experiment.resources).expect("serialize resources A");
+        let mut resources_b = resources_a.clone();
+        resources_a["annualNeedUnitsPerPerson"] = Value::from(300);
+        resources_b["annualNeedUnitsPerPerson"] = Value::from(400);
+        let parent = ResearchDimension {
+            id: "resource_structure".to_owned(),
+            kind: ResearchDimensionKind::Structural,
+            path: "/experiment/resources".to_owned(),
+            values: vec![resources_a, resources_b],
+        };
+
+        for dimensions in [
+            vec![child.clone(), parent.clone()],
+            vec![parent.clone(), child.clone()],
+        ] {
+            let mut definition = base.clone();
+            definition.dimensions = dimensions;
+            assert!(matches!(
+                definition.expand(),
+                Err(ResearchExperimentError::OverlappingDimensionPaths { .. })
+            ));
+        }
     }
 
     #[test]
