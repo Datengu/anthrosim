@@ -614,6 +614,120 @@ impl Population {
         Ok(id)
     }
 
+    /// Derives deterministic, PersonId-independent relationship-role classes for the living
+    /// members of one source household. Refinement starts from age/sex state and repeatedly
+    /// incorporates parent state plus the multiset of living in-household child roles until the
+    /// partition is stable. PersonId can therefore remain a final deterministic tie-break only
+    /// after the declared relationship rule can no longer distinguish two records.
+    fn household_relationship_ranks(&self, living_members: &[usize]) -> Vec<u64> {
+        let person_count = self.person_count();
+        let mut member_positions = vec![usize::MAX; person_count];
+        for (position, &member_index) in living_members.iter().enumerate() {
+            member_positions[member_index] = position;
+        }
+
+        let mut child_links = vec![Vec::<(u8, usize)>::new(); living_members.len()];
+        for &child_index in living_members {
+            for (role, parent) in [
+                (0_u8, self.female_parents[child_index]),
+                (1_u8, self.male_parents[child_index]),
+            ] {
+                if parent == PersonId::INVALID {
+                    continue;
+                }
+                if let Some(parent_index) = person_index(parent, person_count) {
+                    let position = member_positions[parent_index];
+                    if position != usize::MAX {
+                        child_links[position].push((role, child_index));
+                    }
+                }
+            }
+        }
+
+        let sex_rank = |index: usize| match self.reproductive_sexes[index] {
+            ReproductiveSex::Female => 0_u8,
+            ReproductiveSex::Male => 1_u8,
+        };
+        let mut base_keys = living_members
+            .iter()
+            .map(|&index| (self.birth_days[index], sex_rank(index)))
+            .collect::<Vec<_>>();
+        base_keys.sort_unstable();
+        base_keys.dedup();
+
+        let mut ranks = vec![u64::MAX; person_count];
+        for &index in living_members {
+            let position = base_keys
+                .binary_search(&(self.birth_days[index], sex_rank(index)))
+                .expect("living household member base role must be represented");
+            ranks[index] = u64::try_from(position)
+                .expect("living household relationship-rank space must fit u64");
+        }
+
+        for _ in 0..living_members.len() {
+            let signatures = living_members
+                .iter()
+                .enumerate()
+                .map(|(member_position, &index)| {
+                    let parent_signature = |parent: PersonId| -> (u8, u64) {
+                        if parent == PersonId::INVALID {
+                            return (0, 0);
+                        }
+                        let Some(parent_index) = person_index(parent, person_count) else {
+                            return (1, 0);
+                        };
+                        let position = member_positions[parent_index];
+                        if position != usize::MAX {
+                            (3, ranks[parent_index])
+                        } else if self.is_alive_index(parent_index) {
+                            (2, 0)
+                        } else {
+                            (1, 0)
+                        }
+                    };
+                    let mut children = child_links[member_position]
+                        .iter()
+                        .map(|&(role, child_index)| (role, ranks[child_index]))
+                        .collect::<Vec<_>>();
+                    children.sort_unstable();
+                    (
+                        index,
+                        (
+                            ranks[index],
+                            parent_signature(self.female_parents[index]),
+                            parent_signature(self.male_parents[index]),
+                            children,
+                        ),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            let mut unique_signatures = signatures
+                .iter()
+                .map(|(_, signature)| signature.clone())
+                .collect::<Vec<_>>();
+            unique_signatures.sort();
+            unique_signatures.dedup();
+
+            let mut next_ranks = ranks.clone();
+            for (index, signature) in signatures {
+                let position = unique_signatures
+                    .binary_search(&signature)
+                    .expect("relationship signature must be represented");
+                next_ranks[index] = u64::try_from(position)
+                    .expect("living household relationship-rank space must fit u64");
+            }
+            if living_members
+                .iter()
+                .all(|&index| next_ranks[index] == ranks[index])
+            {
+                return ranks;
+            }
+            ranks = next_ranks;
+        }
+        ranks
+    }
+
     pub(crate) fn fission_oversized_households(
         &mut self,
         max_living_members: u16,
@@ -664,6 +778,7 @@ impl Population {
                         .is_some_and(|age| age >= minimum_independent_age_days)
                 })
                 .collect::<Vec<_>>();
+            let relationship_ranks = self.household_relationship_ranks(&living_members);
             independent.sort_by_key(|&index| {
                 (
                     self.birth_days[index],
@@ -671,6 +786,7 @@ impl Population {
                         ReproductiveSex::Female => 0_u8,
                         ReproductiveSex::Male => 1_u8,
                     },
+                    relationship_ranks[index],
                     person_id_from_index(index).0,
                 )
             });
@@ -705,6 +821,7 @@ impl Population {
                         ReproductiveSex::Female => 0_u8,
                         ReproductiveSex::Male => 1_u8,
                     },
+                    relationship_ranks[index],
                     person_id_from_index(index).0,
                 )
             });
