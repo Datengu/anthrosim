@@ -50,6 +50,8 @@ pub mod time;
 pub mod world;
 
 #[cfg(test)]
+mod audit_v3_scheduler_tests;
+#[cfg(test)]
 mod competing_mortality_acceptance_tests;
 #[cfg(test)]
 mod condition_mortality_acceptance_tests;
