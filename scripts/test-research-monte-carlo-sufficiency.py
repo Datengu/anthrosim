@@ -17,7 +17,7 @@ mc = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(mc)
 
 
-def make_plan(kind, batches, threshold, *, pairing="independent", quantile=None):
+def make_plan(kind, batches, threshold, *, pairing="independent", quantile=None, group_batches=None):
     estimand = {
         "kind": kind,
         "confidenceLevel": 0.95,
@@ -31,10 +31,17 @@ def make_plan(kind, batches, threshold, *, pairing="independent", quantile=None)
         "planId": f"synthetic-{kind}",
         "uncertaintyCategory": "process_stochastic_monte_carlo",
         "estimand": estimand,
-        "design": {
-            "mode": "sequential" if len(batches) > 1 else "fixed",
-            "seedBatches": batches,
-        },
+        "design": (
+            {
+                "mode": "sequential" if len(group_batches[0]) > 1 else "fixed",
+                "groupSeedBatches": group_batches,
+            }
+            if group_batches is not None
+            else {
+                "mode": "sequential" if len(batches) > 1 else "fixed",
+                "seedBatches": batches,
+            }
+        ),
         "pairing": pairing,
         "rationale": "Controlled synthetic precision demonstration declared before result inspection.",
     }
@@ -122,6 +129,88 @@ def changed_seed_provenance_demo(base_plan, larger):
     assert changed["planIdentity"] != base_plan["planIdentity"]
     assert changed_result["seedIdentities"] != original_result["seedIdentities"]
     assert changed_result != original_result
+
+
+def independent_difference_demo():
+    left_seeds = list(range(1, 21))
+    right_seeds = list(range(101, 121))
+    plan = make_plan(
+        "difference_in_means",
+        [],
+        4.5,
+        group_batches=[[left_seeds], [right_seeds]],
+    )
+    values = [float(index) - 9.5 for index in range(20)]
+    result = mc.derive(
+        plan,
+        sample([
+            ("left", list(zip(left_seeds, values))),
+            ("right", list(zip(right_seeds, [-value for value in values]))),
+        ]),
+        None,
+    )
+    assert result["precision"]["precisionMethod"] == "normal_clt_independent_difference_in_means"
+    assert abs(result["precision"]["halfWidth"] - 3.666756860283) < 1e-12
+    assert result["precision"]["sufficient"] is True
+    assert result["pairingSemantics"] == "independent"
+    assert result["seedIdentities"] == left_seeds
+    assert result["groupSeedIdentities"]["left"] == left_seeds
+    assert result["groupSeedIdentities"]["right"] == right_seeds
+
+    same_seed_plan = dict(plan)
+    same_seed_plan["design"] = {"mode": "fixed", "groupSeedBatches": [[left_seeds], [left_seeds]]}
+    same_seed_plan["planIdentity"] = mc.plan_identity(same_seed_plan)
+    assert_raises("must be disjoint", lambda: mc.validate_plan(same_seed_plan))
+
+    overlapping = dict(plan)
+    overlapping["design"] = {"mode": "fixed", "groupSeedBatches": [[left_seeds], [list(range(20, 40))]]}
+    overlapping["planIdentity"] = mc.plan_identity(overlapping)
+    assert_raises("overlapping seed", lambda: mc.validate_plan(overlapping))
+
+    sequential = make_plan(
+        "difference_in_means",
+        [],
+        0.1,
+        group_batches=[[[1, 2], [3, 4]], [[101, 102], [103, 104]]],
+    )
+    mismatched = sample([
+        ("left", [(1, 1.0), (2, 2.0)]),
+        ("right", [(101, 1.0), (102, 2.0), (103, 3.0), (104, 4.0)]),
+    ])
+    assert_raises("same batch boundary", lambda: mc.derive(sequential, mismatched, None))
+
+
+def paired_covariance_adversaries():
+    seeds = list(range(1, 21))
+    values = [float(index) - 9.5 for index in range(20)]
+    plan = make_plan(
+        "paired_mean_difference",
+        [seeds],
+        4.5,
+        pairing="paired_by_seed",
+    )
+    negative = mc.derive(
+        plan,
+        sample([
+            ("left", list(zip(seeds, values))),
+            ("right", list(zip(seeds, [-value for value in values]))),
+        ]),
+        None,
+    )
+    assert abs(negative["precision"]["halfWidth"] - 5.185577281736) < 1e-12
+    assert negative["precision"]["sufficient"] is False
+    assert negative["decision"] == "insufficient_no_predeclared_additional_batch"
+
+    positive = mc.derive(
+        plan,
+        sample([
+            ("left", list(zip(seeds, values))),
+            ("right", list(zip(seeds, values))),
+        ]),
+        None,
+    )
+    assert positive["precision"]["halfWidth"] == 0.0
+    assert positive["precision"]["sufficient"] is True
 
 
 def paired_demo():
@@ -278,6 +367,8 @@ def main():
     plan, _small, larger, _first, _second = mean_sequential_demo()
     probability_demo()
     changed_seed_provenance_demo(plan, larger)
+    independent_difference_demo()
+    paired_covariance_adversaries()
     paired_demo()
     quantile_demo()
     quantile_coverage_adversarial_demo()
