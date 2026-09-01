@@ -8,6 +8,7 @@ on:
       - "docs/research/evidence-role-firewall-v1.md"
       - "docs/research/evidence-provenance.md"
       - "docs/research/study-protocol-v1.md"
+      - "docs/research/analysis-provenance-v2.md"
       - ".github/workflows/evidence-role-firewall.yml"
   workflow_dispatch:
 
