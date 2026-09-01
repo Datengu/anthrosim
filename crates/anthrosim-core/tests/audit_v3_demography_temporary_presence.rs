@@ -102,12 +102,11 @@ fn temporary_physical_copresence_does_not_redefine_m2_parentage_locality() {
     )
     .unwrap();
 
-    let run = Simulation::new(
-        base_config(female_cell, male_residence).with_temporary_mobility(mobility),
-    )
-    .unwrap()
-    .run_recorded()
-    .unwrap();
+    let run =
+        Simulation::new(base_config(female_cell, male_residence).with_temporary_mobility(mobility))
+            .unwrap()
+            .run_recorded()
+            .unwrap();
 
     assert_eq!(
         run.checkpoint
