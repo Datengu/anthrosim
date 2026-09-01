@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+from pathlib import Path
+
+path = Path('scripts/research-monte-carlo-sufficiency.py')
+text = path.read_text()
+text = text.replace('DIAGNOSTIC_SCHEMA = 2', 'DIAGNOSTIC_SCHEMA = 3')
+
+old = '''    require_keys(design, {"mode", "seedBatches"}, {"mode", "seedBatches"}, "design")
+    mode = design["mode"]
+    if mode not in {"fixed", "sequential"}:
+        fail("design.mode must be fixed or sequential")
+    batches = design["seedBatches"]
+    if not isinstance(batches, list) or not batches:
+        fail("design.seedBatches must contain at least one declared batch")
+    if mode == "fixed" and len(batches) != 1:
+        fail("fixed design must declare exactly one seed batch")
+    seen: set[int] = set()
+    for index, batch in enumerate(batches):
+        if not isinstance(batch, list) or not batch:
+            fail(f"design.seedBatches[{index}] must be non-empty")
+        for seed in batch:
+            if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+                fail("declared seeds must be non-negative integers")
+            if seed in seen:
+                fail(f"declared seed {seed} appears more than once")
+            seen.add(seed)
+'''
+new = '''    require_keys(design, {"mode", "seedBatches", "groupSeedBatches"}, {"mode"}, "design")
+    mode = design["mode"]
+    if mode not in {"fixed", "sequential"}:
+        fail("design.mode must be fixed or sequential")
+
+    def validate_batches(batches: Any, role: str) -> set[int]:
+        if not isinstance(batches, list) or not batches:
+            fail(f"{role} must contain at least one declared batch")
+        if mode == "fixed" and len(batches) != 1:
+            fail(f"fixed design {role} must declare exactly one seed batch")
+        seen: set[int] = set()
+        for index, batch in enumerate(batches):
+            if not isinstance(batch, list) or not batch:
+                fail(f"{role}[{index}] must be non-empty")
+            for seed in batch:
+                if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+                    fail("declared seeds must be non-negative integers")
+                if seed in seen:
+                    fail(f"declared seed {seed} appears more than once in {role}")
+                seen.add(seed)
+        return seen
+
+    if kind == "difference_in_means":
+        if "seedBatches" in design:
+            fail("difference_in_means requires design.groupSeedBatches, not shared design.seedBatches")
+        schedules = design.get("groupSeedBatches")
+        if not isinstance(schedules, list) or len(schedules) != 2:
+            fail("difference_in_means requires exactly two design.groupSeedBatches schedules")
+        left_seeds = validate_batches(schedules[0], "design.groupSeedBatches[0]")
+        right_seeds = validate_batches(schedules[1], "design.groupSeedBatches[1]")
+        if len(schedules[0]) != len(schedules[1]):
+            fail("independent group seed schedules must declare the same number of batch boundaries")
+        overlap = left_seeds & right_seeds
+        if overlap:
+            fail(f"independent group seed schedules must be disjoint; overlapping seed(s): {', '.join(map(str, sorted(overlap)))}")
+    else:
+        if "groupSeedBatches" in design:
+            fail("design.groupSeedBatches is only valid for difference_in_means")
+        if "seedBatches" not in design:
+            fail("design.seedBatches is required for this estimand")
+        validate_batches(design["seedBatches"], "design.seedBatches")
+'''
+assert old in text
+text = text.replace(old, new)
+
+old = '''def declared_prefixes(plan: dict[str, Any]) -> list[list[int]]:
+    result: list[list[int]] = []
+    current: list[int] = []
+    for batch in plan["design"]["seedBatches"]:
+        current = current + list(batch)
+        result.append(list(current))
+    return result
+'''
+new = '''def prefixes_for_batches(batches: list[list[int]]) -> list[list[int]]:
+    result: list[list[int]] = []
+    current: list[int] = []
+    for batch in batches:
+        current = current + list(batch)
+        result.append(list(current))
+    return result
+
+
+def declared_prefixes(plan: dict[str, Any], group_index: int = 0) -> list[list[int]]:
+    design = plan["design"]
+    if plan["estimand"]["kind"] == "difference_in_means":
+        return prefixes_for_batches(design["groupSeedBatches"][group_index])
+    return prefixes_for_batches(design["seedBatches"])
+'''
+assert old in text
+text = text.replace(old, new)
+
+old = '''    prefixes = declared_prefixes(plan)
+    first_seeds = parsed[0]["seeds"]
+    if first_seeds not in prefixes:
+        fail("sample seeds are not exactly one predeclared cumulative batch boundary")
+    boundary_index = prefixes.index(first_seeds)
+    for group in parsed[1:]:
+        if group["seeds"] != first_seeds:
+            fail("multi-group estimands must use the same exact declared seed identities and order")
+    if plan["design"]["mode"] == "fixed" and boundary_index != len(prefixes) - 1:
+        fail("fixed design may only be diagnosed at its single final declared sample")
+    return parsed, len(first_seeds), boundary_index
+'''
+new = '''    first_prefixes = declared_prefixes(plan, 0)
+    first_seeds = parsed[0]["seeds"]
+    if first_seeds not in first_prefixes:
+        fail("sample seeds are not exactly one predeclared cumulative batch boundary")
+    boundary_index = first_prefixes.index(first_seeds)
+
+    if kind == "difference_in_means":
+        second_prefixes = declared_prefixes(plan, 1)
+        second_seeds = parsed[1]["seeds"]
+        if boundary_index >= len(second_prefixes) or second_seeds != second_prefixes[boundary_index]:
+            fail("independent sample groups must use their exact predeclared seed schedules at the same batch boundary")
+        overlap = set(first_seeds) & set(second_seeds)
+        if overlap:
+            fail("independent sample groups must have disjoint seed identities")
+    else:
+        for group in parsed[1:]:
+            if group["seeds"] != first_seeds:
+                fail("paired multi-group estimands must use the same exact declared seed identities and order")
+
+    if plan["design"]["mode"] == "fixed" and boundary_index != len(first_prefixes) - 1:
+        fail("fixed design may only be diagnosed at its single final declared sample")
+    return parsed, len(first_seeds), boundary_index
+'''
+assert old in text
+text = text.replace(old, new)
+
+old = '''    prefixes = declared_prefixes(plan)
+    has_next = boundary_index + 1 < len(prefixes)
+    next_batch = plan["design"]["seedBatches"][boundary_index + 1] if has_next else []
+    mode = plan["design"]["mode"]
+'''
+new = '''    prefixes = declared_prefixes(plan, 0)
+    has_next = boundary_index + 1 < len(prefixes)
+    if has_next and plan["estimand"]["kind"] == "difference_in_means":
+        next_batch = [
+            plan["design"]["groupSeedBatches"][0][boundary_index + 1],
+            plan["design"]["groupSeedBatches"][1][boundary_index + 1],
+        ]
+    else:
+        next_batch = plan["design"]["seedBatches"][boundary_index + 1] if has_next else []
+    mode = plan["design"]["mode"]
+'''
+assert old in text
+text = text.replace(old, new)
+
+old = '''        "seedIdentities": groups[0]["seeds"],
+        "groupIds": [group["id"] for group in groups],
+        "precision": precision,
+'''
+new = '''        "seedIdentities": groups[0]["seeds"] if len(groups) == 1 else None,
+        "groupSeedIdentities": {group["id"]: group["seeds"] for group in groups},
+        "pairingSemantics": plan["pairing"],
+        "groupIds": [group["id"] for group in groups],
+        "precision": precision,
+'''
+assert old in text
+text = text.replace(old, new)
+path.write_text(text)
+
+path = Path('scripts/test-research-monte-carlo-sufficiency.py')
+text = path.read_text()
+text = text.replace(
+    'def make_plan(kind, batches, threshold, *, pairing="independent", quantile=None):',
+    'def make_plan(kind, batches, threshold, *, pairing="independent", quantile=None, group_batches=None):',
+)
+old = '''        "design": {
+            "mode": "sequential" if len(batches) > 1 else "fixed",
+            "seedBatches": batches,
+        },
+'''
+new = '''        "design": (
+            {
+                "mode": "sequential" if len(group_batches[0]) > 1 else "fixed",
+                "groupSeedBatches": group_batches,
+            }
+            if group_batches is not None
+            else {
+                "mode": "sequential" if len(batches) > 1 else "fixed",
+                "seedBatches": batches,
+            }
+        ),
+'''
+assert old in text
+text = text.replace(old, new)
+marker = 'def paired_demo():\n'
+insert = '''def independent_difference_demo():
+    left_seeds = list(range(1, 21))
+    right_seeds = list(range(101, 121))
+    plan = make_plan(
+        "difference_in_means",
+        [],
+        4.5,
+        group_batches=[[left_seeds], [right_seeds]],
+    )
+    values = [float(index) - 9.5 for index in range(20)]
+    result = mc.derive(
+        plan,
+        sample([
+            ("left", list(zip(left_seeds, values))),
+            ("right", list(zip(right_seeds, [-value for value in values]))),
+        ]),
+        None,
+    )
+    assert result["precision"]["precisionMethod"] == "normal_clt_independent_difference_in_means"
+    assert abs(result["precision"]["halfWidth"] - 3.666756860283) < 1e-12
+    assert result["precision"]["sufficient"] is True
+    assert result["pairingSemantics"] == "independent"
+    assert result["seedIdentities"] is None
+    assert result["groupSeedIdentities"]["left"] == left_seeds
+    assert result["groupSeedIdentities"]["right"] == right_seeds
+
+    same_seed_plan = dict(plan)
+    same_seed_plan["design"] = {"mode": "fixed", "groupSeedBatches": [[left_seeds], [left_seeds]]}
+    same_seed_plan["planIdentity"] = mc.plan_identity(same_seed_plan)
+    assert_raises("must be disjoint", lambda: mc.validate_plan(same_seed_plan))
+
+    overlapping = dict(plan)
+    overlapping["design"] = {"mode": "fixed", "groupSeedBatches": [[left_seeds], [list(range(20, 40))]]}
+    overlapping["planIdentity"] = mc.plan_identity(overlapping)
+    assert_raises("overlapping seed", lambda: mc.validate_plan(overlapping))
+
+    sequential = make_plan(
+        "difference_in_means",
+        [],
+        0.1,
+        group_batches=[[[1, 2], [3, 4]], [[101, 102], [103, 104]]],
+    )
+    mismatched = sample([
+        ("left", [(1, 1.0), (2, 2.0)]),
+        ("right", [(101, 1.0), (102, 2.0), (103, 3.0), (104, 4.0)]),
+    ])
+    assert_raises("same batch boundary", lambda: mc.derive(sequential, mismatched, None))
+
+
+def paired_covariance_adversaries():
+    seeds = list(range(1, 21))
+    values = [float(index) - 9.5 for index in range(20)]
+    plan = make_plan(
+        "paired_mean_difference",
+        [seeds],
+        4.5,
+        pairing="paired_by_seed",
+    )
+    negative = mc.derive(
+        plan,
+        sample([
+            ("left", list(zip(seeds, values))),
+            ("right", list(zip(seeds, [-value for value in values]))),
+        ]),
+        None,
+    )
+    assert abs(negative["precision"]["halfWidth"] - 5.185577281736) < 1e-12
+    assert negative["precision"]["sufficient"] is False
+    assert negative["decision"] == "insufficient_no_predeclared_additional_batch"
+
+    positive = mc.derive(
+        plan,
+        sample([
+            ("left", list(zip(seeds, values))),
+            ("right", list(zip(seeds, values))),
+        ]),
+        None,
+    )
+    assert positive["precision"]["halfWidth"] == 0.0
+    assert positive["precision"]["sufficient"] is True
+
+
+'''
+assert marker in text
+text = text.replace(marker, insert + marker)
+text = text.replace(
+    '    changed_seed_provenance_demo(plan, larger)\n    paired_demo()\n',
+    '    changed_seed_provenance_demo(plan, larger)\n    independent_difference_demo()\n    paired_covariance_adversaries()\n    paired_demo()\n',
+)
+path.write_text(text)
+
+path = Path('docs/research/monte-carlo-sufficiency-v1.md')
+text = path.read_text()
+text = text.replace(
+    'The emitted diagnostic uses schema v2 while retaining precision-plan schema/identity v1. The v2 change is analysis-layer only and does not change `MODEL_SEMANTICS_ID`.',
+    'The emitted diagnostic uses schema v3 while retaining precision-plan schema/identity v1. Schema v3 records actual pairing semantics and per-group seed identities. This analysis-layer change does not change `MODEL_SEMANTICS_ID`.',
+)
+text = text.replace(
+    'The input sample is intentionally downstream of simulation execution. It contains one or two named groups and exact `(seed, value)` rows. The exact seed order must equal one declared cumulative seed-batch prefix.',
+    'The input sample is intentionally downstream of simulation execution. It contains one or two named groups and exact `(seed, value)` rows. For one-group estimands and `paired_mean_difference`, the exact seed order must equal the shared `design.seedBatches` cumulative prefix; paired groups must use the same exact identities/order. For `difference_in_means`, the plan instead carries exactly two `design.groupSeedBatches` schedules. Each arm must match its own predeclared cumulative boundary, both arms must be evaluated at the same boundary, and the two seed sets must be disjoint. A shared or overlapping seed layout is rejected before the independent variance estimator can run.',
+)
+text = text.replace(
+    '`paired_mean_difference` means paired **replicate-level seed contrasts** when scientifically justified. It does not claim per-agent common-random-number counterfactual coupling and does not alter simulator RNG semantics.',
+    '`difference_in_means` means genuinely independent Monte Carlo arms with separately predeclared, disjoint seed schedules. Reusing a seed identity across those arms is not treated as evidence of independence and fails closed. `paired_mean_difference` means paired **replicate-level seed contrasts** on the same exact seed identities when scientifically justified. It does not claim per-agent common-random-number counterfactual coupling and does not alter simulator RNG semantics.',
+)
+text = text.replace(
+    '- paired-seed mean contrasts;',
+    '- genuinely independent two-arm mean contrasts with disjoint provenance-bound seed schedules, including rejection of overlapping/same-seed layouts;\n- paired-seed mean contrasts with positive- and negative-covariance adversaries;',
+)
+path.write_text(text)
