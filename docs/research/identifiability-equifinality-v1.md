@@ -64,7 +64,11 @@ For stochastic held-out outputs the analyzer uses a conservative envelope of the
 
 ## Practical parameter identifiability
 
-For each parameter, the analyzer reports the range represented by all evaluated points and the range represented by the final compatible region. Numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Categorical parameters are identified only when a single value remains compatible.
+For each parameter, the analyzer reports the range represented by all evaluated points and the range represented by the final compatible region. A claimed parameter must have at least two distinct evaluated levels before the finite design can support an identification claim. A parameter held at one level is **fixed by design**, not identified by evidence; its diagnostic reports `identified=false`, reason `insufficient_explored_variation`, and an explored-level count of one. For a fixed numeric parameter the normalized compatible width is undefined and therefore reported as `null`, rather than being coerced to zero.
+
+Once genuine explored variation exists, numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Categorical parameters likewise require at least two explored alternatives and are identified only when one of those alternatives remains compatible.
+
+Profiles and pairwise surfaces continue to report the actually evaluated levels and compatibility counts. They therefore expose whether a coordinate was varied independently of whether the final identification gate passes. A StudyProtocol or downstream finalization step must consume the fail-closed research gate rather than reinterpret a fixed-by-design parameter as quantitatively constrained.
 
 This is deliberately a transparent finite-design diagnostic, not a claim that a grid has reconstructed a continuous posterior. A real study remains responsible for choosing a scientifically adequate design density, parameter ranges, empirical uncertainty treatment and stochastic precision.
 
