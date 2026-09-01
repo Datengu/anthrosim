@@ -1,6 +1,6 @@
 # Exact research experiment definition contract v1
 
-Status: normative infrastructure contract for GitHub issue #205, with the structural-treatment validity rule enforced by #336.
+Status: normative infrastructure contract for GitHub issue #205, with structural-treatment validity enforced by #336 and non-overlapping treatment paths enforced by #415.
 
 This document defines AnthroSim's versioned research-facing mechanism for declaring sensitivity and uncertainty experiments without editing simulator source code. It supplements the legacy M7 ensemble/sweep interface; it does not reinterpret or replace the preserved `v0.1-resource-variability` experiment.
 
@@ -23,6 +23,8 @@ No synthetic model defaults are reconstructed by the research runner. The comple
 Each dimension has a stable study-facing `id`, a `kind`, an RFC 6901 JSON-pointer `path`, and an ordered list of `values`.
 
 Paths are limited to the exact typed research configuration rooted at `/experiment` or `/spatial`. A path must already exist in the exact base configuration. Unknown paths fail before execution; there is no create-if-missing behavior and no ignored override behavior.
+
+Dimension paths must also be pairwise non-overlapping by JSON-pointer ancestry. Exact duplicate paths are rejected, and a path may not be a strict ancestor or descendant of another dimension path. For example, `/experiment/resources` and `/experiment/resources/annualNeedUnitsPerPerson` cannot coexist in one definition. Schema v1 intentionally defines no parent/child composition or declaration-order overwrite rule: permitting such a pair could erase a declared treatment while retaining its coordinate metadata. Sibling paths remain valid. Ancestry is evaluated on decoded RFC 6901 path segments rather than raw string prefixes.
 
 `/experiment/seed` is reserved because seeds are controlled by the ordered top-level `seeds` list. Any `schemaVersion` path is also reserved. `/spatial/spatialModelSemanticsId` is likewise reserved: it identifies executable build semantics and cannot be pretended into existence by a within-build dimension. Changing any of these through a scientific dimension would mix provenance/schema identity with scientific coordinates and is rejected.
 
@@ -57,13 +59,13 @@ This classification is deliberately path-aware. `HouseholdLifecycleConfig.modelI
 
 Free-form provenance labels such as `modelId` or `scheduleId` may still accompany a real whole-object structural alternative. A whole typed sub-configuration remains representable when its executable fields differ after metadata is removed. What is rejected is a nominal structural contrast whose proposed levels collapse to the same executable configuration.
 
-Because this check runs during `ResearchExperimentDefinition::validate()`, a metadata-only structural design fails before point expansion, immutable research-plan publication, run execution or `analysis/points.json` / `analysis/runs.json` generation. The analysis surface therefore cannot report metadata relabelling as evidence that multiple structures were tested.
+Because these checks run during `ResearchExperimentDefinition::validate()`, a metadata-only structural design or overlapping parent/child treatment design fails before point expansion, immutable research-plan publication, run execution or `analysis/points.json` / `analysis/runs.json` generation. The analysis surface therefore cannot report metadata relabelling or an overwritten coordinate as evidence that multiple treatments were tested.
 
 This classification is preserved in point/run analysis rows. Downstream analysis must therefore treat accepted structural alternatives as distinct executable model structures/categories rather than pooling them as a scalar response axis.
 
 ## Deterministic expansion
 
-Dimensions are expanded as a Cartesian product in declaration order. Values retain their listed order. Under schema v1 the final declared dimension varies fastest. A definition with no dimensions still produces one scientific point: the exact base configuration. Expansion fails closed above 100,000 scientific points rather than allocating an unbounded orchestration plan.
+Dimensions are expanded as a Cartesian product in declaration order. Values retain their listed order. Under schema v1 the final declared dimension varies fastest. This ordering controls deterministic point enumeration only; because dimension paths are pairwise non-overlapping, declaration order cannot change which treatments survive in the final executable configuration. A definition with no dimensions still produces one scientific point: the exact base configuration. Expansion fails closed above 100,000 scientific points rather than allocating an unbounded orchestration plan.
 
 Each point preserves:
 
@@ -107,16 +109,16 @@ These files expose the experimental design and execution status. They are not, b
 
 The existing `anthrosim ensemble` and `anthrosim sweep` engineering/synthetic interfaces remain available under their existing contracts. `experiments/v0.1-resource-variability.json` is not migrated or silently reinterpreted by this change.
 
-The research-definition v1 path is additive so validated historical experiment records keep their prior meaning. #336 tightens validation only for definitions that previously labelled non-causal metadata variation as `kind: "structural"`; such definitions did not represent valid structural sensitivity under the pre-existing normative contract.
+The research-definition v1 path is additive so validated historical experiment records keep their prior meaning. #336 tightened validation for definitions that labelled non-causal metadata variation as `kind: "structural"`; #415 additionally rejects definitions whose dimension paths overlap by ancestry. Such overlapping definitions had declaration-order-dependent treatment overwrite semantics and did not represent an unambiguous factorial design under the pre-existing requirement that every recorded coordinate correspond to an executable treatment.
 
 ## Model-semantics boundary
 
 This infrastructure exposes existing configuration and spatial alternatives; it does not alter M2, M3, M4, M8 or M9 transition rules, defaults, RNG algorithms or draw ordering. For an identical effective `ExperimentConfig` and spatial configuration, the normal simulator is invoked without a sensitivity-specific model execution path.
 
-The #336 validator changes research-design admissibility, not simulation transitions, so `MODEL_SEMANTICS_ID` is unchanged.
+The #336 and #415 validators change research-design admissibility, not simulation transitions, so `MODEL_SEMANTICS_ID` is unchanged.
 
 ## TRACE boundary
 
-This contract satisfies an infrastructure prerequisite for reproducible sensitivity/uncertainty work: the study's scientific configuration space can now be declared, expanded, identified, preserved and retried without source edits. A coordinate recorded as `kind: "structural"` is machine-checked to represent a distinct executable model assumption rather than a provenance relabel.
+This contract satisfies an infrastructure prerequisite for reproducible sensitivity/uncertainty work: the study's scientific configuration space can now be declared, expanded, identified, preserved and retried without source edits. A coordinate recorded as `kind: "structural"` is machine-checked to represent a distinct executable model assumption rather than a provenance relabel, and every accepted dimension path is independent of the others by JSON-pointer ancestry so one declared treatment cannot erase another by subtree replacement.
 
 It does **not** establish that a study has selected defensible uncertainty ranges, sampled the space adequately, completed global sensitivity analysis, quantified Monte Carlo error, resolved identifiability/equifinality, selected valid analysis windows, or performed empirical validation. Those remain study-specific TRACE obligations and/or separate backlog issues.
