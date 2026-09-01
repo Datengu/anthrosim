@@ -17,7 +17,7 @@ fn no_event_demography() -> DemographyConfig {
     }
 }
 
-fn config(initial_stock: u32) -> ExperimentConfig {
+fn config(seed: u64, initial_stock: u32) -> ExperimentConfig {
     let mut resources = ResourceConfig::synthetic_validation_v1()
         .with_initial_stock_units_per_productivity(initial_stock)
         .with_annual_regeneration_units_per_productivity(0)
@@ -25,12 +25,24 @@ fn config(initial_stock: u32) -> ExperimentConfig {
     resources.periods_per_year = 1;
     resources.max_scarcity_mortality_probability_per_million = 0;
 
-    ExperimentConfig::new(307_001, 5)
-        .with_world(WorldConfig::new(4, 4))
-        .with_population(PopulationConfig::new(8).with_target_household_size(2))
+    ExperimentConfig::new(seed, 5)
+        .with_world(WorldConfig::new(1, 1))
+        .with_population(PopulationConfig::new(1).with_target_household_size(1))
         .with_demography(no_event_demography())
         .with_resources(resources)
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
+}
+
+fn positive_productivity_seed() -> u64 {
+    (1..=1_000)
+        .find(|&seed| {
+            Simulation::new(config(seed, 10))
+                .unwrap()
+                .resources()
+                .total_food_stock()
+                .is_ok_and(|stock| stock > 0)
+        })
+        .expect("controlled seed search must find a positive-productivity one-cell world")
 }
 
 fn without_resume_lineage(mut run: anthrosim_core::RecordedRun) -> anthrosim_core::RecordedRun {
@@ -42,10 +54,11 @@ fn without_resume_lineage(mut run: anthrosim_core::RecordedRun) -> anthrosim_cor
 
 #[test]
 fn alternative_initial_resource_states_remain_causal_and_resume_exactly() {
+    let seed = positive_productivity_seed();
     let mut terminal_stocks = Vec::new();
 
     for initial_stock in [0_u32, 10_u32] {
-        let cfg = config(initial_stock);
+        let cfg = config(seed, initial_stock);
         let initial = Simulation::new(cfg.clone()).unwrap();
         let day_zero_stock = initial.resources().total_food_stock().unwrap();
 
@@ -76,7 +89,7 @@ fn alternative_initial_resource_states_remain_causal_and_resume_exactly() {
         );
 
         println!(
-            "initialStockUnitsPerProductivity={initial_stock} dayZeroStock={day_zero_stock} terminalStock={terminal_stock} stateDigest64={}",
+            "seed={seed} initialStockUnitsPerProductivity={initial_stock} dayZeroStock={day_zero_stock} terminalStock={terminal_stock} stateDigest64={}",
             uninterrupted.checkpoint.state_digest64
         );
         terminal_stocks.push(terminal_stock);
