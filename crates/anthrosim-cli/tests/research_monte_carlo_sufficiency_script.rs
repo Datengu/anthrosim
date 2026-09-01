@@ -53,7 +53,5 @@ fn audit_v3_independent_difference_pairing_adversary() {
         .parent()
         .and_then(|path| path.parent())
         .expect("anthrosim-cli must live under crates/<name>");
-    run_python_script(
-        &repo_root.join("scripts/audit-v3-test-monte-carlo-independent-pairing.py"),
-    );
+    run_python_script(&repo_root.join("scripts/audit-v3-test-monte-carlo-independent-pairing.py"));
 }
