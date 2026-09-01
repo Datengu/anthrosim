@@ -113,7 +113,7 @@ fn independent_sibling_dimensions_still_form_the_full_factorial() {
                     .run_config
                     .experiment
                     .resources
-                    .max_condition_mortality_probability_per_million,
+                    .max_scarcity_mortality_probability_per_million,
             )
         })
         .collect::<std::collections::BTreeSet<_>>();
