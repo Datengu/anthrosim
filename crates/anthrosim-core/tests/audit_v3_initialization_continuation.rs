@@ -43,7 +43,8 @@ fn founder(condition_permille: u16) -> FounderPopulationDefinition {
 }
 
 fn config(condition_permille: u16) -> ExperimentConfig {
-    let mut resources = ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
+    let mut resources =
+        ResourceConfig::synthetic_validation_v1().with_annual_need_units_per_person(0);
     resources.condition_recovery_per_period = 0;
     resources.max_condition_loss_per_period = 0;
     resources.max_scarcity_mortality_probability_per_million = 0;
@@ -71,7 +72,10 @@ fn alternative_founder_conditions_remain_causal_and_resume_exactly() {
     for initial_condition in [400_u16, 900_u16] {
         let cfg = config(initial_condition);
         let initial = Simulation::new(cfg.clone()).unwrap();
-        let day_zero_condition = initial.population().mean_living_condition_permille().unwrap();
+        let day_zero_condition = initial
+            .population()
+            .mean_living_condition_permille()
+            .unwrap();
 
         let uninterrupted = Simulation::new(cfg.clone())
             .unwrap()
