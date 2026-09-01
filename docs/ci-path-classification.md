@@ -1,10 +1,10 @@
 # Pull-request CI path classification
 
-AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the central CI, cross-platform determinism, spatial-mechanism, landscape-loading, landscape-preprocessing, run-bundle-pack, resumed-Explorer-compatibility and spatial-observability workflows while the remaining required workflows continue to run their existing full behavior.
+AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the central CI, cross-platform determinism, spatial-mechanism, landscape-loading, landscape-preprocessing, run-bundle-pack, resumed-Explorer-compatibility, spatial-observability and source-provenance workflows. The always-present scientific/security aggregator retains its own independently reviewed gate-specific applicability logic.
 
 ## Why this exists
 
-Audit-ledger and documentation-only pull requests should not eventually need the same simulation, release and deterministic-golden workload as executable scientific changes. Any optimization must nevertheless fail safe: a mixed or unknown path set must continue to receive the full validation surface, and required GitHub status contexts must still resolve rather than disappearing behind workflow-level path filters.
+Audit-ledger and documentation-only pull requests should not need the same simulation, release and deterministic-golden workload as executable scientific changes. Any optimization must nevertheless fail safe: a mixed or unknown path set must continue to receive the full validation surface, and required GitHub status contexts must still resolve rather than disappearing behind workflow-level path filters.
 
 The versioned classifier is `scripts/classify-applicable-pr-gates.py`. The always-present `Applicable scientific/security gates` workflow validates the classifier on every pull request and records the resulting class in its job summary.
 
@@ -47,11 +47,13 @@ Unknown paths are never guessed into a cheaper class. They fall back to `full`.
 
 ## Current enforcement boundary
 
-`CI`, `Cross-platform determinism`, `Spatial mechanism determinism`, `Landscape loading determinism`, `Landscape preprocessing`, `Run bundle pack`, `Resumed Explorer compatibility` and `Spatial observability` are the required workflows currently wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, their protected execution contexts still run and resolve successfully, but irrelevant executable work reports an explicit documentation-only N/A disposition instead of running simulation, release, preprocessing, bundle, resume-Explorer, spatial-observability or deterministic-golden fixtures.
+`CI`, `Cross-platform determinism`, `Spatial mechanism determinism`, `Landscape loading determinism`, `Landscape preprocessing`, `Run bundle pack`, `Resumed Explorer compatibility`, `Spatial observability` and `Source provenance` are wired to the reviewed risk classes. On pull requests classified `audit_status_only` or `scientific_documentation_only`, their protected execution contexts still run and resolve successfully, but irrelevant executable work reports an explicit documentation-only N/A disposition instead of running simulation, release, preprocessing, bundle, resume-Explorer, spatial-observability, provenance-build or deterministic-golden fixtures.
 
 The central `CI` workflow keeps `Quality and tests` present for documentation-only changes but replaces the full Rust workspace build/test surface with lightweight documentation consistency checks. Those checks verify the living model-semantics documentation against executable provenance and validate the basic audit-v2 ledger/document structure. The other protected central-CI contexts resolve explicitly as N/A for documentation-only changes. Non-required core benchmarks, performance/memory acceptance and the 1000-run ensemble soak do not run for those classes.
 
 `Spatial observability` preserves the required `Derive and inspect spatial observability` context but resolves it explicitly as N/A for documentation-only changes instead of installing Rust, running transformed-landscape/resume fixtures, checking/tampering derived observability, serving Explorer artifacts, or deriving observability across an M7 spatial sweep.
+
+`Source provenance` preserves the required `Automatic Git source identity` context but resolves it explicitly as N/A for documentation-only changes instead of installing Rust, compiling provenance variants, executing simulator provenance probes, or running the versioned-sweep provenance preflight. Executable, provenance-implementation, workflow, script, configuration, unknown and mixed changes continue to receive the complete provenance suite through the `full` fallback.
 
 The affected protected contexts are:
 
@@ -77,9 +79,10 @@ The affected protected contexts are:
 - `Deterministic completed-run ZIP`
 - `New-directory resume Explorer compatibility`
 - `Derive and inspect spatial observability`
+- `Automatic Git source identity`
 
 For `full` changes, for every push to protected `main`, and therefore for any PR that changes executable/scientific machinery, an unknown path, or any optimized workflow itself, the existing executable validation remains unchanged. Each optimized workflow validates the classifier before deciding which disposition applies; incomplete GitHub changed-file retrieval fails classification instead of degrading to the cheaper path.
 
-All other globally required checks continue to run exactly as before until they receive equivalent reviewed N/A handling. Gate-specific M8.6, M9.7 and RustSec applicability remains enforced independently by the existing protected `Applicable scientific/security gates` context.
+The remaining required `Applicable scientific/security gates` context is intentionally not converted to a blanket N/A path: it is the classifier/gate aggregator itself and already applies its M8.6, M9.7 and RustSec sub-gates according to their own conservative path rules. It remains always present and self-protecting.
 
-Future #317 optimizations must preserve the exact required context names in `docs/required-status-checks.md`, make skipped heavy work resolve through an explicit successful/N/A disposition rather than absent checks, and retain `full` as the fallback for mixed or ambiguous changes.
+Future #317 changes must preserve the exact required context names in `docs/required-status-checks.md`, make skipped heavy work resolve through an explicit successful/N/A disposition rather than absent checks, and retain `full` as the fallback for mixed or ambiguous changes.
