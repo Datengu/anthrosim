@@ -129,7 +129,10 @@ fn m9_route_cost_and_duration_are_invariant_under_quarter_turn_rotation() {
     let base_result = resolve(&base, (0, 2), (4, 2));
     let rotated_result = resolve(&rotated, (2, 0), (2, 4));
 
-    assert_eq!(base_result.1, rotated_result.1, "quarter-turn rotation changed minimum accumulated route cost");
+    assert_eq!(
+        base_result.1, rotated_result.1,
+        "quarter-turn rotation changed minimum accumulated route cost"
+    );
 
     match (base_result.0, rotated_result.0) {
         (
@@ -144,8 +147,14 @@ fn m9_route_cost_and_duration_are_invariant_under_quarter_turn_rotation() {
                 ..
             },
         ) => {
-            assert_eq!(base_out, rotated_out, "quarter-turn rotation changed outbound duration");
-            assert_eq!(base_back, rotated_back, "quarter-turn rotation changed return duration");
+            assert_eq!(
+                base_out, rotated_out,
+                "quarter-turn rotation changed outbound duration"
+            );
+            assert_eq!(
+                base_back, rotated_back,
+                "quarter-turn rotation changed return duration"
+            );
         }
         pair => panic!("rotated-equivalent routes must have identical reachability: {pair:?}"),
     }
