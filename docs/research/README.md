@@ -8,6 +8,10 @@ Start here:
 - [`odd.md`](odd.md) — formal ODD 2020 model description.
 - [`odd-d.md`](odd-d.md) — ODD+D human decision-making supplement.
 - [`trace.md`](trace.md) — living TRACE evaluation / research-readiness dossier.
+- [`scientific-audit-protocol.md`](scientific-audit-protocol.md) — reusable adversarial scientific-audit protocol and convergence criteria.
+- [`audit-v3/README.md`](audit-v3/README.md) — active third independent scientific-audit charter for the immutable `v0.3.3` baseline.
+- [`audit-v3/STATUS.md`](audit-v3/STATUS.md) — repository-authoritative active audit-v3 ledger and cross-session handoff state.
+- [`audit-v2/STATUS.md`](audit-v2/STATUS.md) — closed second independent audit ledger; historical evidence, not completion evidence for audit v3.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence provenance and transformation contract.
@@ -37,9 +41,11 @@ Start here:
 - [`trace-audit-2026-08-25-pass-8.md`](trace-audit-2026-08-25-pass-8.md) — writer→reader causal-graph audit across condition, residence, resources, temporary presence, genealogy and world fields; no new P1 discovered.
 - [`trace-audit-2026-08-25-pass-9.md`](trace-audit-2026-08-25-pass-9.md) — symmetry, relabelling and arbitrary-bookkeeping audit; no new P1 discovered and current audit-first discovery phase judged converged.
 
-The current discovery sequence has now produced multiple genuinely different clean P1-discovery passes. This is a stopping signal for **finding new foundational defects on the audited baseline**, not a claim that verification is complete. Known blocking findings are being repaired by causal cluster; after those repairs, the relevant adversarial audit families must be repeated on the corrected implementation.
+Those earlier TRACE passes and scientific audit v2 are preserved as historical evidence. Audit v2 subsequently completed the reusable protocol's full Areas A–N, repaired and reverified all 15 AV2 findings, and closed with no open P0–P3 scientific finding. The repaired v21 state was then frozen as immutable `v0.3.3` at `358ae93b57a9b8f7053575dc6651aa959de2b4f9`.
 
-The post-M9 repair programme proceeds by explicit causal contracts rather than issue-by-issue tuning. M2 repairs are anchored by [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md); M3 annual resource accounting is anchored by [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md), with the independent response/decision timing repair anchored by [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved only after the changed outputs are mechanistically explained. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
+Scientific audit v3 now restarts full A–N coverage from zero against that frozen release. Its convergence target is deliberately stronger than “all discovered defects repaired”: the desired signal is a genuinely fresh full audit that discovers **no new P0 or P1**. Audit-v2 conclusions and green CI may inform hypotheses, but they cannot be reused as the sole completion evidence for audit v3.
+
+The post-M9 repair programme proceeded by explicit causal contracts rather than issue-by-issue tuning. M2 repairs are anchored by [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md); M3 annual resource accounting is anchored by [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md), with the independent response/decision timing repair anchored by [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved only after the changed outputs are mechanistically explained. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
 
 Module- and milestone-specific documents in this directory provide the detailed evidence, contracts, assumptions and benchmark records referenced by those standards documents.
 
