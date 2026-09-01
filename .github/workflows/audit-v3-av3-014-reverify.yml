@@ -1,0 +1,125 @@
+name: Audit v3 AV3-014 post-merge reverification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/audit-v3-av3-014-reverify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reverify-source-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned Rust toolchain
+        run: rustup show active-toolchain
+
+      - name: Build adversarial binaries and exercise exact-research source gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src = Path('research/general-demography-baseline-v1/confirmatory-definition.json')
+          d = json.loads(src.read_text())
+          seed = d['seeds'][0]
+          d['seeds'] = [seed]
+          d['base']['experiment']['seed'] = seed
+          d['base']['experiment']['durationYears'] = 1
+          d['dimensions'] = []
+          Path('/tmp/definition.json').write_text(json.dumps(d, separators=(',', ':')) + '\n')
+          PY
+
+          # Positive control: ordinary clean checkout source identity.
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --target-dir /tmp/target-clean
+          /tmp/target-clean/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/clean-run
+          cp /tmp/clean-run/research-manifest.json /tmp/clean-manifest-before.json
+          clean_tree_before="$(find /tmp/clean-run -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum)"
+          /tmp/target-clean/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/clean-run --retry
+          clean_tree_after="$(find /tmp/clean-run -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum)"
+          test "$clean_tree_before" = "$clean_tree_after"
+          cmp /tmp/clean-manifest-before.json /tmp/clean-run/research-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path('/tmp/clean-run/research-manifest.json').read_text())
+          rev = m['source']['gitCommit']
+          assert isinstance(rev, str) and rev and '-dirty' not in rev
+          assert m['researchId'].startswith('research-execution-v1-')
+          print('clean accepted source:', rev)
+          print('clean researchId:', m['researchId'])
+          PY
+
+          # Controlled build-time override remains accepted by the established provenance contract.
+          ANTHROSIM_GIT_COMMIT=controlled-source-override-427 cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --target-dir /tmp/target-override
+          /tmp/target-override/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/override-run
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path('/tmp/override-run/research-manifest.json').read_text())
+          assert m['source']['gitCommit'] == 'controlled-source-override-427'
+          print('controlled override accepted researchId:', m['researchId'])
+          PY
+
+          # A: source tree with Git metadata unavailable -> gitCommit=null -> reject before root publication.
+          mkdir /tmp/source-null-a
+          git archive HEAD | tar -x -C /tmp/source-null-a
+          (cd /tmp/source-null-a && env -u ANTHROSIM_GIT_COMMIT cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --target-dir /tmp/target-null-a)
+          set +e
+          /tmp/target-null-a/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/null-run-a >/tmp/null-a.out 2>/tmp/null-a.err
+          rc_a=$?
+          set -e
+          test "$rc_a" -ne 0
+          grep -F 'gitCommit is missing' /tmp/null-a.err
+          test ! -e /tmp/null-run-a
+
+          # B: genuinely source-distinct no-Git build (tracked Rust source differs by a non-causal comment).
+          cp -a /tmp/source-null-a /tmp/source-null-b
+          printf '\n// AV3-014 independent source-distinct build B marker\n' >> /tmp/source-null-b/crates/anthrosim-core/src/research_experiment.rs
+          (cd /tmp/source-null-b && env -u ANTHROSIM_GIT_COMMIT cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --target-dir /tmp/target-null-b)
+          set +e
+          /tmp/target-null-b/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/null-run-b >/tmp/null-b.out 2>/tmp/null-b.err
+          rc_b=$?
+          set -e
+          test "$rc_b" -ne 0
+          grep -F 'gitCommit is missing' /tmp/null-b.err
+          test ! -e /tmp/null-run-b
+
+          # Original AV3-014 cardinality 2 distinct sources -> 1 accepted identity is now 2 -> 0.
+          accepted=0
+          test -d /tmp/null-run-a && accepted=$((accepted+1)) || true
+          test -d /tmp/null-run-b && accepted=$((accepted+1)) || true
+          test "$accepted" -eq 0
+          echo "source-distinct unavailable-provenance accepted roots: ${accepted}/2"
+
+          # Dirty automatic source identity must likewise fail before root publication.
+          printf '\nAV3-014 dirty-build marker\n' >> README.md
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --target-dir /tmp/target-dirty
+          git checkout -- README.md
+          set +e
+          /tmp/target-dirty/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/dirty-run >/tmp/dirty.out 2>/tmp/dirty.err
+          rc_dirty=$?
+          set -e
+          test "$rc_dirty" -ne 0
+          grep -F 'exact research identity rejects dirty source revision' /tmp/dirty.err
+          test ! -e /tmp/dirty-run
+
+          # An unaccepted current executable cannot use --retry to retain a clean executable's child bundle.
+          clean_tree_before_bad_retry="$(find /tmp/clean-run -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum)"
+          set +e
+          /tmp/target-null-b/release/anthrosim-research --definition /tmp/definition.json --run-dir /tmp/clean-run --retry >/tmp/bad-retry.out 2>/tmp/bad-retry.err
+          rc_retry=$?
+          set -e
+          test "$rc_retry" -ne 0
+          grep -F 'gitCommit is missing' /tmp/bad-retry.err
+          clean_tree_after_bad_retry="$(find /tmp/clean-run -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum)"
+          test "$clean_tree_before_bad_retry" = "$clean_tree_after_bad_retry"
+
+          echo 'AV3-014 post-merge independent reverification: PASS'
