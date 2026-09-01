@@ -11,10 +11,12 @@ Study protocol v1 adds a frozen research-governance layer above the exact experi
 
 A study has two different kinds of identity:
 
-1. **simulation/research-definition identity** — what AnthroSim actually simulates;
+1. **simulation/research-definition identity** — what AnthroSim actually simulates, including any EvidenceCatalog embedded in the base experiment;
 2. **study-protocol identity** — what scientific question, hypotheses, observables, analysis rules and evidence-use declarations the researcher intends to apply.
 
 Changing a decision threshold, primary observable or evidence role changes the study-protocol identity. It does **not** alter the underlying `ResearchExperimentDefinition`, per-run configuration or deterministic simulation state.
+
+For evidence-bearing confirmatory work, those two identities are nevertheless checked together: protocol-local `evidenceId` references must resolve to records in the EvidenceCatalog preserved by the exact bound research definition. The protocol cannot manufacture a second evidence namespace independent of the scientific configuration.
 
 This separation permits honest reuse of the same deterministic simulation outputs for a new exploratory analysis while preventing that new interpretation from masquerading as the original predeclared confirmatory analysis.
 
@@ -40,7 +42,7 @@ This separation permits honest reuse of the same deterministic simulation output
 - permitted and prohibited interpretations;
 - explicit amendment provenance for revisions after v1.
 
-The TRACE evidence-role vocabulary represented here is `model_construction`, `parameterisation`, `calibration`, `model_output_verification`, and `independent_corroboration`. The frozen protocol records those assignments; the dedicated #206 evidence-role firewall in `docs/research/evidence-role-firewall-v1.md` audits cross-role reuse and rejects circular held-out/independent-corroboration claims for confirmatory studies.
+The TRACE evidence-role vocabulary represented here is `model_construction`, `parameterisation`, `calibration`, `model_output_verification`, and `independent_corroboration`. The frozen protocol records those assignments; the dedicated #206 evidence-role firewall in `docs/research/evidence-role-firewall-v1.md`, hardened by Audit-v3 #423 / AV3-013, resolves those assignments through the bound EvidenceCatalog and rejects circular held-out/independent-corroboration claims by immutable source identity rather than by protocol-local aliases.
 
 ## Confirmatory validation
 
@@ -55,13 +57,17 @@ A protocol labelled `confirmatory` must contain at least:
 
 IDs and references are validated strictly. Unknown analysis-window, hypothesis or observable references fail closed. The schema does not pretend that a syntactically complete protocol is scientifically good; it makes omissions, changes and declared decisions auditable.
 
-Evidence-role circularity is a distinct study-level validation concern. Before freezing a confirmatory protocol that claims held-out corroboration, run:
+Evidence-role circularity is a distinct study-level validation concern. Before freezing a confirmatory protocol that declares evidence roles or held-out corroboration, validate the protocol against the **same research definition that will be frozen**:
 
 ```text
-python scripts/research-evidence-role-audit.py validate protocol.json
+python scripts/research-evidence-role-audit.py validate \
+  protocol.json \
+  --definition research-definition.json
 ```
 
-After finalization, derive and preserve the assessment against the exact frozen study/result binding. This keeps the protocol schema stable while making the stronger #206 independence rules machine-auditable.
+A confirmatory evidence-bearing protocol without that definition fails closed. Every referenced `evidenceId` must resolve to a real record in `base.experiment.evidence`, and same-source/same-observable circularity is checked using a canonical identity derived from the immutable `EvidenceRecord.source` object. Unknown/fabricated IDs and source aliases cannot receive independent-corroboration status.
+
+After finalization, derive and preserve the assessment against the exact frozen study/result/definition binding. This keeps the `StudyProtocol` schema stable while making the stronger #206/#423 independence rules machine-auditable.
 
 ## Analysis windows
 
@@ -71,7 +77,7 @@ The study protocol freezes the intended window. The #219 tooling remains respons
 
 ## Immutable preparation workflow
 
-For confirmatory work, create a fresh study directory **before executing the research experiment**:
+For confirmatory work, create a fresh study directory **before executing the research experiment**. For an evidence-bearing protocol, first run the source-binding validation above, then freeze the exact validated files:
 
 ```text
 anthrosim-study prepare \
@@ -91,6 +97,8 @@ study/example/
 ```
 
 `study-plan.json` and `study-manifest.json` are redundant exact copies of the immutable pre-execution plan. They bind the complete protocol and `protocolIdentity`, the exact research definition and `definitionIdentity`, executable `SourceRevisionIdentity`, a `studyExecutionId` derived from protocol + definition + source, the fixed child research directory `research/`, and whether the protocol is eligible to be described as a pre-result confirmatory declaration.
+
+The bound research definition contains the authoritative EvidenceCatalog used by the evidence-role firewall. Because that catalogue is inside `ExperimentConfig`, changing its records or source metadata changes the enclosing research-definition identity rather than silently changing an evidential claim beneath the same study execution.
 
 The study directory must be empty when prepared. Protocol changes do not overwrite it; they require a new study root/revision.
 
@@ -137,7 +145,7 @@ It then writes immutable `study-result-binding.json`, containing:
 
 The result-artifact digests mean a later change to an analysis artifact can no longer silently retain the old result binding. Running `finalize` again is idempotent when nothing changed. If the frozen protocol, research identity or bound result bytes differ, finalization fails rather than rewriting provenance.
 
-For studies that claim held-out/independent corroboration, #206 then derives `analysis/evidence-role-assessment.json` from this exact finalized binding. That assessment makes calibration/corroboration reuse machine-visible without changing simulation identity.
+For studies that claim held-out/independent corroboration, #206/#423 then derives `analysis/evidence-role-assessment.json` from this exact finalized binding. Derivation re-resolves every confirmatory evidence ID through the EvidenceCatalog inside the frozen definition, preserves each resolved source identity and source object, and refuses same-source/same-target aliasing. Later `verify` re-derives those bindings; mutation of either the assessment or the frozen source provenance invalidates verification.
 
 ## Amendments
 
@@ -151,7 +159,7 @@ This mechanism records the scientific timing declaration; it is not a trusted ex
 
 This contract deliberately provides stable attachment points rather than absorbing all downstream methods work:
 
-- **#206 / evidence-role firewall v1**: validates evidence-role independence and detects calibration/corroboration leakage;
+- **#206 / evidence-role firewall v1**, hardened by **#423 / AV3-013**: validates evidence-role independence, binds protocol IDs to frozen EvidenceCatalog source identities, and detects calibration/corroboration leakage through aliases;
 - **#217**: execute and diagnose identifiability/equifinality analyses;
 - **#226**: derive exposure-aware rates and cumulative-outcome semantics;
 - **#231**: quantify Monte Carlo precision and replicate sufficiency for stochastic claims;
@@ -161,10 +169,10 @@ The frozen protocol can declare those plans now. Their dedicated issues implemen
 
 ## Model-semantics boundary
 
-Study protocols do not alter `ExperimentConfig`, initialization, M2/M3/M4/M8/M9 transition rules, random-number streams or draw order, checkpoints or deterministic run identity, or `MODEL_SEMANTICS_ID`.
+Study protocols and evidence-role source binding do not alter `ExperimentConfig`, initialization, M2/M3/M4/M8/M9 transition rules, random-number streams or draw order, checkpoints or deterministic run identity, or `MODEL_SEMANTICS_ID`.
 
-A study-protocol change is a change to the scientific claim/analysis contract, not to what the simulator causally does.
+A study-protocol or evidence-governance change is a change to the scientific claim/analysis contract, not to what the simulator causally does.
 
 ## Acceptance meaning
 
-After this contract is used, a confirmatory result can identify one immutable pre-execution protocol that says what was being tested, which outputs/windows count, how runs are treated and what result would support/reject the declared hypotheses. Changing those rules produces a new provenance-visible protocol identity/revision rather than silently changing the interpretation of the old result.
+After this contract is used, a confirmatory result can identify one immutable pre-execution protocol that says what was being tested, which outputs/windows count, how runs are treated and what result would support/reject the declared hypotheses. For evidence-bearing studies, the corresponding frozen research definition also identifies the authoritative provenance source behind every confirmatory evidence reference. Changing those rules or source bindings produces a new provenance-visible identity rather than silently changing the interpretation of the old result.
