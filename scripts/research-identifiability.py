@@ -36,6 +36,21 @@ def _number(value: Any, label: str) -> float:
     return float(value)
 
 
+def _structure_id(point: dict[str, Any], *, required: bool) -> str:
+    if "structure" not in point:
+        if required:
+            raise IdentifiabilityError(
+                f"point {point.get('id', '<unknown>')} requires a non-empty string structure identifier for a structural claim"
+            )
+        return "default"
+    structure = point["structure"]
+    if not isinstance(structure, str) or not structure.strip():
+        raise IdentifiabilityError(
+            f"point {point.get('id', '<unknown>')} structure must be a non-empty string"
+        )
+    return structure
+
+
 def _load(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -105,6 +120,13 @@ def _validate(plan: dict[str, Any], data: dict[str, Any]) -> tuple[list[dict[str
             "calibration targets and held-out corroboration must be disjoint: " + ", ".join(sorted(overlap))
         )
 
+    claim = plan.get("claim", {})
+    if not isinstance(claim, dict):
+        raise IdentifiabilityError("claim must be an object")
+    structural_claim = claim.get("structuralHypothesis", False)
+    if not isinstance(structural_claim, bool):
+        raise IdentifiabilityError("claim.structuralHypothesis must be a boolean")
+
     diagnostics = data.get("monteCarloDiagnostics", {})
     if not isinstance(diagnostics, dict):
         raise IdentifiabilityError("monteCarloDiagnostics must be an object")
@@ -125,6 +147,7 @@ def _validate(plan: dict[str, Any], data: dict[str, Any]) -> tuple[list[dict[str
         if not isinstance(point_id, str) or not point_id or point_id in point_ids:
             raise IdentifiabilityError("point ids must be unique non-empty strings")
         point_ids.add(point_id)
+        _structure_id(point, required=structural_claim)
         if not isinstance(point.get("parameters"), dict) or not isinstance(point.get("outputs"), dict):
             raise IdentifiabilityError(f"point {point_id} requires parameters and outputs objects")
         evidence = point.get("outputEvidence")
@@ -426,7 +449,7 @@ def _pairwise_surfaces(points: list[dict[str, Any]], compatible: list[dict[str, 
 
 
 def _structural_diagnostic(compatible: list[dict[str, Any]]) -> dict[str, Any]:
-    structures = sorted({str(p.get("structure", "default")) for p in compatible})
+    structures = sorted({_structure_id(p, required=False) for p in compatible})
     return {
         "compatibleStructures": structures,
         "identified": len(structures) == 1,
@@ -445,7 +468,7 @@ def _discriminating_predictions(
     tolerance = _number(plan.get("corroborationDiscriminationTolerance", 0.0), "corroborationDiscriminationTolerance")
     by_structure: dict[str, list[dict[str, Any]]] = {}
     for point in compatible:
-        by_structure.setdefault(str(point.get("structure", "default")), []).append(point)
+        by_structure.setdefault(_structure_id(point, required=False), []).append(point)
     structures = sorted(by_structure)
     result: list[dict[str, Any]] = []
     for left_index, left in enumerate(structures):
@@ -529,8 +552,6 @@ def analyse(plan: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
     final_parameters = _parameter_diagnostics(points, compatible, threshold)
     diagnostic_by_id = {item["parameter"]: item for item in final_parameters}
     claim = plan.get("claim", {})
-    if not isinstance(claim, dict):
-        raise IdentifiabilityError("claim must be an object")
     claimed_parameters = claim.get("parameterIds", [])
     if not isinstance(claimed_parameters, list) or any(not isinstance(x, str) for x in claimed_parameters):
         raise IdentifiabilityError("claim.parameterIds must be an array of strings")
@@ -538,7 +559,7 @@ def analyse(plan: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
     if unknown:
         raise IdentifiabilityError("claimed parameters are not present in every design point: " + ", ".join(unknown))
     structural = _structural_diagnostic(compatible)
-    require_structure = bool(claim.get("structuralHypothesis", False))
+    require_structure = claim.get("structuralHypothesis", False)
     uncertainty_gate = len(unresolved) == 0
     parameter_gate = bool(compatible) and all(diagnostic_by_id[x]["identified"] for x in claimed_parameters)
     structure_gate = (not require_structure) or structural["identified"]
@@ -685,6 +706,83 @@ def _self_test() -> None:
     result = analyse(bad, data)
     assert not result["researchGate"]["passes"]
     assert result["equifinality"]["present"]
+
+    structural_plan = {
+        "schemaVersion": 2,
+        "analysisId": "structure-id-self-test",
+        "calibrationTargets": [{"observable": "score", "target": 0.0, "tolerance": 0.0}],
+        "corroborationObservables": [],
+        "claim": {"parameterIds": [], "structuralHypothesis": True},
+        "maxNormalizedAcceptableWidth": 0.25,
+    }
+    typed_structure_data = {
+        "schemaVersion": 2,
+        "monteCarloDiagnostics": {},
+        "points": [
+            {
+                "id": "numeric-structure",
+                "parameters": {},
+                "structure": 1,
+                "outputs": {"score": 0.0},
+                "outputEvidence": {"score": {"kind": "deterministic"}},
+            },
+            {
+                "id": "string-structure",
+                "parameters": {},
+                "structure": "1",
+                "outputs": {"score": 0.0},
+                "outputEvidence": {"score": {"kind": "deterministic"}},
+            },
+        ],
+    }
+    try:
+        analyse(structural_plan, typed_structure_data)
+    except IdentifiabilityError as error:
+        assert "structure must be a non-empty string" in str(error)
+    else:
+        raise AssertionError("typed structure identifiers must not collapse through string coercion")
+
+    missing_structure_data = {
+        "schemaVersion": 2,
+        "monteCarloDiagnostics": {},
+        "points": [
+            {
+                "id": "missing-structure",
+                "parameters": {},
+                "outputs": {"score": 0.0},
+                "outputEvidence": {"score": {"kind": "deterministic"}},
+            }
+        ],
+    }
+    try:
+        analyse(structural_plan, missing_structure_data)
+    except IdentifiabilityError as error:
+        assert "requires a non-empty string structure identifier" in str(error)
+    else:
+        raise AssertionError("a structural claim must bind an explicit structure identifier")
+
+    two_structure_data = {
+        "schemaVersion": 2,
+        "monteCarloDiagnostics": {},
+        "points": [
+            {
+                "id": structure,
+                "parameters": {},
+                "structure": structure,
+                "outputs": {"score": 0.0},
+                "outputEvidence": {"score": {"kind": "deterministic"}},
+            }
+            for structure in ["structure-a", "structure-b"]
+        ],
+    }
+    two_structure_result = analyse(structural_plan, two_structure_data)
+    assert two_structure_result["structuralDiagnostic"]["compatibleStructures"] == [
+        "structure-a",
+        "structure-b",
+    ]
+    assert two_structure_result["structuralDiagnostic"]["identified"] is False
+    assert two_structure_result["structuralDiagnostic"]["equifinal"] is True
+    assert two_structure_result["researchGate"]["passes"] is False
 
     stochastic_plan = {
         "schemaVersion": 2,
