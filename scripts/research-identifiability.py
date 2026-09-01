@@ -346,6 +346,7 @@ def _numeric_parameter_diagnostic(
     all_values = [_number(p["parameters"][parameter], f"parameter {parameter}") for p in points]
     compatible_values = [_number(p["parameters"][parameter], f"parameter {parameter}") for p in compatible]
     full_min, full_max = min(all_values), max(all_values)
+    explored_level_count = len(set(all_values))
     if not compatible_values:
         return {
             "parameter": parameter,
@@ -355,10 +356,22 @@ def _numeric_parameter_diagnostic(
             "fullRange": [full_min, full_max],
             "compatibleRange": None,
             "normalizedCompatibleWidth": None,
+            "exploredLevelCount": explored_level_count,
         }
     compatible_min, compatible_max = min(compatible_values), max(compatible_values)
+    if explored_level_count < 2:
+        return {
+            "parameter": parameter,
+            "kind": "numeric",
+            "identified": False,
+            "reason": "insufficient_explored_variation",
+            "fullRange": [full_min, full_max],
+            "compatibleRange": [compatible_min, compatible_max],
+            "normalizedCompatibleWidth": None,
+            "exploredLevelCount": explored_level_count,
+        }
     denominator = full_max - full_min
-    width = 0.0 if denominator == 0 else (compatible_max - compatible_min) / denominator
+    width = (compatible_max - compatible_min) / denominator
     return {
         "parameter": parameter,
         "kind": "numeric",
@@ -367,6 +380,7 @@ def _numeric_parameter_diagnostic(
         "fullRange": [full_min, full_max],
         "compatibleRange": [compatible_min, compatible_max],
         "normalizedCompatibleWidth": width,
+        "exploredLevelCount": explored_level_count,
     }
 
 
@@ -375,13 +389,27 @@ def _categorical_parameter_diagnostic(
 ) -> dict[str, Any]:
     all_values = sorted({str(p["parameters"][parameter]) for p in points})
     compatible_values = sorted({str(p["parameters"][parameter]) for p in compatible})
+    explored_level_count = len(all_values)
+    if not compatible_values:
+        identified = False
+        reason = "no_compatible_points"
+    elif explored_level_count < 2:
+        identified = False
+        reason = "insufficient_explored_variation"
+    elif len(compatible_values) == 1:
+        identified = True
+        reason = "single_compatible_value"
+    else:
+        identified = False
+        reason = "multiple_compatible_values"
     return {
         "parameter": parameter,
         "kind": "categorical",
-        "identified": len(compatible_values) == 1,
-        "reason": "single_compatible_value" if len(compatible_values) == 1 else "multiple_compatible_values",
+        "identified": identified,
+        "reason": reason,
         "fullValues": all_values,
         "compatibleValues": compatible_values,
+        "exploredLevelCount": explored_level_count,
     }
 
 
