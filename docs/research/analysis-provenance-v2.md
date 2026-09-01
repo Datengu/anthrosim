@@ -1,6 +1,6 @@
 # Downstream analysis provenance v2
 
-Status: normative research contract for GitHub issues #232 and #340.
+Status: normative research contract for GitHub issues #232 and #340, with evidence-independence integration hardened by Audit-v3 #423 / AV3-013.
 
 ## Executable configuration contract
 
@@ -22,6 +22,21 @@ For `scripted` mode, `command` must be non-empty. For `external_or_manual`, `com
 
 The only v2 reproduction criterion is `exact_output_bytes`.
 
+## Evidence-independence assessment as provenance input
+
+When a confirmatory scientific result makes a held-out or independent-corroboration claim, the canonical `analysis/evidence-role-assessment.json` produced by `research-evidence-role-audit.py` should be declared as an analysis input. Audit-v3 #423 hardened that assessment so protocol-local evidence IDs are resolved through the EvidenceCatalog inside the exact frozen research definition and same-source aliases cannot evade the calibration/corroboration firewall.
+
+The downstream analysis wrapper does not recreate that scientific judgement. Instead, normal v2 input fingerprinting binds the exact assessment bytes used by the analysis. This preserves a clean separation:
+
+```text
+frozen ResearchExperimentDefinition / EvidenceCatalog
+  -> source-resolved evidence-role assessment (#206 / #423)
+  -> downstream analysis definition and exact input digest (#232 / #340)
+  -> analysis-provenance-v2-sha256-* record
+```
+
+If the frozen EvidenceCatalog source binding changes, evidence-role verification fails and the derived assessment changes. If the assessment bytes used by an analysis change, analysis provenance verification fails. Neither layer can silently inherit an independence claim from an unbound protocol-local string.
+
 ## Run, verify, and replay
 
 `run` fingerprints the frozen study binding plus declared inputs, implementation, and environment; rejects pre-existing outputs; executes the exact `command` argv; re-fingerprints source artifacts; fingerprints outputs; and publishes `analysis-provenance.json`. `verify` recomputes definition/provenance identities and every artifact digest. `replay` reconstructs an isolated root from declared artifacts, executes the same complete `command` argv, and requires exact output bytes.
@@ -30,4 +45,4 @@ Definition and provenance identities use `analysis-definition-v2-sha256-*` and `
 
 ## Scientific boundary
 
-This provenance layer establishes which frozen study, executable argv, configuration-file bytes, code, environment specification, RNG declarations, and outputs form one reproducible downstream analysis lineage. It does not establish statistical validity, sufficient Monte Carlo precision, identifiability, empirical validity, or archaeological truth; those remain separate research gates.
+This provenance layer establishes which frozen study, executable argv, configuration-file bytes, code, environment specification, RNG declarations, evidence-role assessment inputs, and outputs form one reproducible downstream analysis lineage. It does not establish statistical validity, sufficient Monte Carlo precision, identifiability, empirical validity, evidence independence by itself, or archaeological truth; those remain separate research gates.
