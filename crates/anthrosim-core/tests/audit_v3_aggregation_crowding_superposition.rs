@@ -93,14 +93,14 @@ fn run(population: u32) -> Outcome {
     let world = simulation.world().clone();
     let initial_population = simulation.population().clone();
     let recorded = simulation.run_recorded().expect("recorded run");
-    recorded.checkpoint.validate_invariants().expect("checkpoint invariants");
+    recorded
+        .checkpoint
+        .validate_invariants()
+        .expect("checkpoint invariants");
 
-    let report = derive_temporary_mobility_observability(
-        &world,
-        &initial_population,
-        &recorded.checkpoint,
-    )
-    .expect("temporary observability");
+    let report =
+        derive_temporary_mobility_observability(&world, &initial_population, &recorded.checkpoint)
+            .expect("temporary observability");
     let period = recorded
         .checkpoint
         .resources
