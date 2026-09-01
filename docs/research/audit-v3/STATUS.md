@@ -20,12 +20,12 @@ Purpose: durable repository-authoritative state for the third independent/advers
 | Required protected-main contexts at initialization | 24 |
 | Open issues at initialization | none |
 | Open PRs at initialization | none |
-| Current P0 findings | none discovered |
+| Current P0 findings | **1 open — AV3-014/#427** |
 | Current P1 findings | **6 open — AV3-001/#387; AV3-006/#410; AV3-008/#415; AV3-009/#416; AV3-011/#419; AV3-013/#423** |
 | Current P2 findings | **7 open — AV3-002/#392; AV3-003/#396; AV3-004/#399; AV3-005/#402; AV3-007/#413; AV3-010/#418; AV3-012/#421** |
 | Current P3 findings | none discovered |
-| Coverage state | **Areas A–J complete; K–N pending** |
-| Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered new P1 findings** |
+| Coverage state | **Areas A–K complete; L–N pending** |
+| Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered new P0/P1 findings** |
 | Closure state | **in progress — discovery-only; findings remain unrepaired until A–N discovery is complete** |
 
 The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3. Audit documentation may advance protected `main`, but executable/scientific evidence must continue to interrogate the frozen tag or source proven causally identical to it rather than a repaired successor. Audit v2 is historical context only and is not v3 completion evidence.
@@ -52,10 +52,10 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — P1 finding open** | Closed red PR #409 head `4b837284825669435f4dcd64eef2f9161d459f9f`, CI `33487273744`: AV3-006/#410. Same-seed anti-correlated arms reported half-width **3.666756860283** vs covariance-aware **5.185577281736** at threshold **4.5**. |
 | I | Sensitivity, uncertainty, convergence, robustness | **complete — P1/P2 findings open** | AV3-007/#413 accepts fabricated support-analysis identities; AV3-008/#415 leaves **4 recorded coordinates but only 2 executable treatments** under overlapping dimensions; AV3-011/#419 is cross-cutting. Closure note `area-i-closure-2026-09-01.md` records remaining coverage: `durationYears` is an explicit numeric sensitivity coordinate; fresh Area-G 400-vs-900 initialization arms stayed exactly distinct over 5 years with exact year-2 resume parity; Area-H 20-seed precision adversary remains limited by AV3-006; frozen scale semantics give 100→50 m refinement effects of **×4 M3 equal-area stock**, **×2 M9 route cost/travel days**, **300→150 m M4 physical horizon**, and M2 co-cell separation at 50 m. Spatial refinement is explicitly resolution-dependent, not expected to converge to a resolution-independent limit. |
 | J | Identifiability, equifinality, calibration, discrimination | **complete — P1/P2 findings open** | Frozen identifiability analyzer produced AV3-009/#416 typed-structure collapse, AV3-010/#418 non-conservative held-out averaging, AV3-011/#419 false identification of an unvaried parameter, and AV3-012/#421 hidden nuisance equifinality. AV3-013/#423 (**P1**) then showed protocol-local `evidenceId` strings are not bound to authoritative EvidenceCatalog/source identities, so one underlying source can use separate calibration and held-out aliases for the same observable and evade exact-pair circularity detection. |
-| K | Experiment orchestration, configuration, provenance, reproducibility | **pending; AV3-002/007/008/013 cross-cutting** | Replay, unbound analysis identities, overwritten sensitivity treatments and unbound evidence-source aliases are known hypotheses/limitations. |
+| K | Experiment orchestration, configuration, provenance, reproducibility | **complete — P0/P2 findings open** | Fresh frozen-source review confirms complete typed run configs, redundant immutable plan/manifest publication, fail-closed exact-copy retry reconciliation and child-bundle config/digest/spatial checks. AV3-014/#427 (**P0**) demonstrates that two source-distinct 0.3.3/v21 executables with unavailable Git identity both become `gitCommit=null`, producing the same source/research/run identities; B can `--retry` and retain A's completed child bundle as source-identical. Known AV3-002/007/008/013 remain cross-cutting. |
 | L | Observability, analysis outputs, statistical summaries | **pending; AV3-002/006/007/009/010/012/013 cross-cutting** | Existing findings can misstate replay validity, precision, scale robustness, structural identity, held-out discrimination, equifinality and evidence independence. |
 | M | Documentation, TRACE/ODD/ODD+D, and claim consistency | **pending; AV3-013 cross-cutting** | Evidence-role documentation promises a machine-auditable target-level firewall but the source identity behind protocol-local evidence IDs is not bound. |
-| N | Cross-system integration | **pending; AV3-001 through AV3-013 cross-cutting** | Explicit coupled attacks remain required. |
+| N | Cross-system integration | **pending; AV3-001 through AV3-014 cross-cutting** | Explicit coupled attacks remain required. |
 
 ## Finding register
 
@@ -74,10 +74,11 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 | AV3-011 — constant unvaried numeric parameter can be certified as identified | **P1** | J primary; I/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #419 | Claimed `theta=7` at all points yields normalized width 0 and `identified=true` despite zero treatment variation. |
 | AV3-012 — equifinality summary can hide nuisance-parameter compensation | **P2** | J primary; L/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #421 | Closed red PR #420: theta width **0.1**, nuisance width **1.0**, yet `equifinality.present=false`. |
 | AV3-013 — evidence-role firewall can certify held-out independence through unbound evidence-ID aliases | **P1** | J primary; K/M/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #423 | Frozen `scripts/research-evidence-role-audit.py` validates `evidenceId` only as a non-empty string and checks circularity by exact `(evidenceId, observableId)` pair. Separate aliases for the same underlying source can therefore represent calibration and independent corroboration of the same observable without conflict. Later repair must bind role declarations to authoritative stable evidence/source identities and fail closed on aliases/unknown IDs. |
+| AV3-014 — exact research identity collapses source-distinct executables when Git identity is unavailable | **P0** | K primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #427 | Frozen `SourceRevisionIdentity` permits `gitCommit=null`; `anthrosim-research` accepts it into immutable `researchId`/`runId`. Two source-distinct 0.3.3/v21 builds therefore collapse **2 executable sources → 1 represented source identity**, and B's `--retry` can retain A's completed child bundle because `None == None` satisfies source reconciliation. Evidence note `area-k-null-source-identity-adversary-2026-09-01.md`. |
 
 ## Convergence accounting
 
-The project objective is a fresh full-scale audit with no newly discovered P0/P1 finding. AV3-001, AV3-006, AV3-008, AV3-009, AV3-011 and AV3-013 mean v3 is necessarily a **non-clean convergence pass**. Discovery continues through all Areas A–N on the same frozen target. After discovery closes, repair and independently reverify the complete backlog, freeze a successor baseline, and start a new audit generation from zero coverage. Do not lower severity to improve convergence classification.
+The project objective is a fresh full-scale audit with no newly discovered P0/P1 finding. AV3-014 together with AV3-001, AV3-006, AV3-008, AV3-009, AV3-011 and AV3-013 means v3 is necessarily a **non-clean convergence pass**. Discovery continues through all Areas A–N on the same frozen target. After discovery closes, repair and independently reverify the complete backlog, freeze a successor baseline, and start a new audit generation from zero coverage. Do not lower severity to improve convergence classification.
 
 ## Initial repository verification — 2026-09-01
 
@@ -127,6 +128,16 @@ These establish target provenance, not scientific completion evidence.
 - Numerical/discretization coverage: frozen spatial scale semantics are deliberately resolution-dependent. Independent inspection gives 100→50 m effects of **×4** equal-area per-cell-total M3 stock, **×2** M9 route cost/travel days for the same 200 m route, **300→150 m** M4 physical horizon for radius 3 cells, and possible M2 co-cell separation for two people 50 m apart. A further 50→25 m refinement analytically implies **×16** stock and **×4** route cost relative to 100 m under unchanged cell-space assumptions. This is model-scale sensitivity, not a numerical convergence promise.
 - Full closure evidence is preserved in `docs/research/audit-v3/area-i-closure-2026-09-01.md`. Area I is complete with AV3-005/006/007/008/011 open as relevant limitations; no new defect was demonstrated by the remaining closure checks.
 
+### 2026-09-01 — Area K completion / AV3-014
+
+- Live protected `main` at Area-K start: `3370b8d6d60fe28d02f649ffd9fe72053368ed0f`; no open PRs or overlapping Area-K work were present.
+- Fresh inspection covered frozen `research_experiment.rs`, `provenance.rs`, `anthrosim-research.rs`, shared build provenance, exact research-definition documentation and source-provenance documentation.
+- Positive controls show strong orchestration behavior: complete resolved configs are preserved; redundant immutable plan/manifest copies are published before execution; retry requires exact immutable corroboration; mutable state can be reconstructed; completed child bundles are revalidated against exact planned configuration/source/digest/spatial artifacts; missing runs are recreated under the same identity. No generic defect was demonstrated on those surfaces beyond known AV3-002/007/008/013.
+- Fresh null-source-identity adversary demonstrated AV3-014/#427 (**P0**): when Git provenance is unavailable, both source-distinct builds can obtain the identical source tuple `(0.3.3, v21, null)`. With an identical research definition this deterministically yields identical `researchId` and `runId` values. A completed A bundle then passes B's `--retry` source equality check because `None == None`, so B retains output produced by a source-distinct executable as though it were source-identical.
+- Minimal identity cardinality: **2 source-distinct executables → 1 represented source identity**. More generally N source-distinct builds with the same version/semantics and null Git identity collapse to one represented identity.
+- Historical #94 is not a duplicate: the repaired versioned-sweep adapter rejects missing/dirty provenance; AV3-014 is the generic exact research runner accepting null provenance into authoritative immutable identity.
+- Evidence is preserved in `area-k-null-source-identity-adversary-2026-09-01.md` and `area-k-orchestration-review-2026-09-01.md`. No repair was made.
+
 ## Handoff instruction
 
 Read, in order:
@@ -135,4 +146,4 @@ Read, in order:
 2. `docs/research/audit-v3/README.md`
 3. this `STATUS.md`
 
-Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Areas **A–J are complete**. Continue the next pending non-overlapping surface, **Area K — experiment orchestration, configuration, provenance and reproducibility**. Treat AV3-001 through AV3-013 as known cross-cutting limitations, but repair none of them during discovery. Update this ledger before handoff. Do not begin site empirical work, release work, or unrelated development.
+Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Areas **A–K are complete**. Continue the next pending non-overlapping surface, **Area L — observability, analysis outputs and statistical summaries**. Treat AV3-001 through AV3-014 as known cross-cutting limitations, but repair none of them during discovery. Update this ledger before handoff. Do not begin site empirical work, release work, or unrelated development.
