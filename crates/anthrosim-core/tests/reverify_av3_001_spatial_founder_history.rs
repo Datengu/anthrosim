@@ -204,7 +204,10 @@ fn founder_history_survives_spatial_checkpoint_before_first_fertility_boundary()
         .run_recorded()
         .unwrap();
 
-    assert_eq!(uninterrupted.core_manifest().population.births_since_start, 0);
+    assert_eq!(
+        uninterrupted.core_manifest().population.births_since_start,
+        0
+    );
     assert_eq!(resumed.core_manifest().population.births_since_start, 0);
     assert_eq!(resumed.events(), uninterrupted.events());
     assert_eq!(resumed.metrics(), uninterrupted.metrics());
