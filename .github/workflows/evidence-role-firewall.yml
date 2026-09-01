@@ -1,0 +1,29 @@
+name: Evidence-role firewall
+
+on:
+  pull_request:
+    paths:
+      - "scripts/research-evidence-role-audit.py"
+      - "scripts/test-research-evidence-role-audit.py"
+      - "docs/research/evidence-role-firewall-v1.md"
+      - "docs/research/evidence-provenance.md"
+      - "docs/research/study-protocol-v1.md"
+      - "docs/research/analysis-provenance-v2.md"
+      - ".github/workflows/evidence-role-firewall.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-role-firewall:
+    name: Bound evidence-source identity firewall
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Compile evidence-role auditor
+        run: python3 -m py_compile scripts/research-evidence-role-audit.py scripts/test-research-evidence-role-audit.py
+      - name: Run evidence-role adversarial regression suite
+        run: python3 scripts/test-research-evidence-role-audit.py
