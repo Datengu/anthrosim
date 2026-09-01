@@ -24,9 +24,9 @@ Purpose: durable repository-authoritative state for the third independent/advers
 | Current P1 findings | **6 open — AV3-001/#387; AV3-006/#410; AV3-008/#415; AV3-009/#416; AV3-011/#419; AV3-013/#423** |
 | Current P2 findings | **10 open — AV3-002/#392; AV3-003/#396; AV3-004/#399; AV3-005/#402; AV3-007/#413; AV3-010/#418; AV3-012/#421; AV3-015/#429; AV3-016/#431; AV3-017/#432** |
 | Current P3 findings | none discovered |
-| Coverage state | **Areas A–M complete; N pending** |
+| Coverage state | **Areas A–N complete** |
 | Audit-v3 convergence classification | **non-clean convergence pass: v3 discovered new P0/P1 findings** |
-| Closure state | **in progress — discovery-only; findings remain unrepaired until A–N discovery is complete** |
+| Closure state | **discovery complete — findings deliberately unrepaired; repair and independent re-verification phase pending** |
 
 The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3. Audit documentation may advance protected `main`, but executable/scientific evidence must continue to interrogate the frozen tag or source proven causally identical to it rather than a repaired successor. Audit v2 is historical context only and is not v3 completion evidence.
 
@@ -55,7 +55,7 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 | K | Experiment orchestration, configuration, provenance, reproducibility | **complete — P0/P2 findings open** | Fresh frozen-source review confirms complete typed run configs, redundant immutable plan/manifest publication, fail-closed exact-copy retry reconciliation and child-bundle config/digest/spatial checks. AV3-014/#427 (**P0**) demonstrates that two source-distinct 0.3.3/v21 executables with unavailable Git identity both become `gitCommit=null`, producing the same source/research/run identities; B can `--retry` and retain A's completed child bundle as source-identical. Known AV3-002/007/008/013 remain cross-cutting. |
 | L | Observability, analysis outputs, statistical summaries | **complete — P1/P2/P0 cross-cutting findings open** | AV3-015/#429 (**P2**) shows the committed 780-run confirmatory baseline has **3 × 130 = 390** current v2 same-seed household contrasts but `pairedHouseholdEffects=[]` because the summarizer still selects historical `deterministic_size_fission_v1`. Fresh hand case confirms run-weighted vs pooled-per-move means remain distinct (**500 vs 100** for 1 move at 1000 and 9 moves at 0); survivor-conditioned direction adversary (mean condition **600→800**, living **100→20**) is explicitly flagged discordant; long-run diagnostics retain censoring, missingness, sensitivity and multi-regime structure. AV3-006/010/012/014 remain statistical/provenance limitations. |
 | M | Documentation, TRACE/ODD/ODD+D, and claim consistency | **complete — P1/P2/P0 cross-cutting findings open** | AV3-016/#431 (**P2**) shows current TRACE links to a demographic result page that still presents historical v1/64-seed evidence; current confirmation is v2/130-seed and changes positive-fission mean N240 **28.9→20.923**, mate limitation **38.7%→43.289%**, and simple fission-minus-fixed N240 effect **-79.4→-86.385**. AV3-017/#432 (**P2**) shows normative `docs/scientific-model.md` claims current v21 while naming superseded `deterministic_size_fission_v1` instead of active dependency-aware v2. ODD/ODD+D and release docs preserve explicit synthetic/unvalidated and benchmark-capability boundaries. AV3-006/013/014/015 remain cross-cutting documentation limitations. |
-| N | Cross-system integration | **pending; AV3-001 through AV3-017 cross-cutting** | Explicit coupled attacks remain required. |
+| N | Cross-system integration | **complete — no new smallest defect; AV3-001 through AV3-017 cross-cutting** | Final explicit coupling pass covered all protocol-required interactions. Fresh synthesis shows AV3-001's **0-vs-1 birth** host mismatch feeds same-day household lifecycle; Area-F aggregation/resource scaling remains **7→14 visitor-person-days and need** for doubled visitors; Area-G **400/900** initialization arms retain exact five-year and resume separation; Area-H precision remains **3.666756860283 vs 5.185577281736**; Area-L weighting and survivor-condition guards distinguish **500 vs 100** estimands and flag **600→800 condition with 100→20 living** as discordant. Household topology reconciliation after fission and checkpoint/RNG continuation passed inspected surfaces. Full integration evidence: `area-n-cross-system-integration-2026-09-01.md`. |
 
 ## Finding register
 
@@ -81,7 +81,7 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 
 ## Convergence accounting
 
-The project objective is a fresh full-scale audit with no newly discovered P0/P1 finding. AV3-014 together with AV3-001, AV3-006, AV3-008, AV3-009, AV3-011 and AV3-013 means v3 is necessarily a **non-clean convergence pass**. Discovery continues through all Areas A–N on the same frozen target. After discovery closes, repair and independently reverify the complete backlog, freeze a successor baseline, and start a new audit generation from zero coverage. Do not lower severity to improve convergence classification.
+The project objective is a fresh full-scale audit with no newly discovered P0/P1 finding. AV3-014 together with AV3-001, AV3-006, AV3-008, AV3-009, AV3-011 and AV3-013 means v3 is necessarily a **non-clean convergence pass**. Discovery is complete across Areas A–N on the frozen target. The complete backlog must now be repaired and independently reverified before a successor baseline is frozen and a new audit generation starts from zero coverage. Do not lower severity to improve convergence classification.
 
 ## Initial repository verification — 2026-09-01
 
@@ -159,6 +159,16 @@ These establish target provenance, not scientific completion evidence.
 - AV3-017/#432 (**P2**): normative `docs/scientific-model.md` declares current semantics v21 but names superseded `deterministic_size_fission_v1` as the explicit structural lifecycle alternative. Frozen v21 config/current lifecycle contract define `deterministic_dependency_fission_v2`, a scientifically distinct dependency-aware replacement.
 - TRACE/release claims about exact provenance, fail-closed precision and machine-auditable evidence roles inherit AV3-006/013/014 rather than creating duplicate documentation findings. AV3-015 remains the distinct machine-summary omission. Full evidence is in `area-m-documentation-review-2026-09-01.md`. No repair was made.
 
+### 2026-09-01 — Area N completion / discovery closure
+
+- Live protected `main` at Area-N start: `99abf4fea28b1f419f120a48a162fd08cf61e04e`; no open PRs or overlapping Area-N work were present.
+- Performed the protocol-required final explicit cross-system pass across demography×households, demography×resources, households×movement, movement×resources, aggregation×resources, initialization×demography, initialization×spatial placement, stochastic inference×censoring/extinction, sensitivity×hidden configuration, calibration×identifiability, checkpoint/resume×RNG, and observability×scientific interpretation.
+- Frozen scheduler inspection confirms annual M2 precedes household lifecycle in both hosts, so AV3-001's demonstrated **0-vs-1 birth** mismatch can immediately change the living-member count presented to same-day fission. This is a cross-system consequence of AV3-001, not a separate smallest defect.
+- Household lifecycle explicitly reconciles temporary-mobility topology after fission. Fresh Area-F **7→14** visitor-person-day/resource-need scaling, Area-G exact **400/900** persistence and resume parity, Area-H **3.666756860283 vs 5.185577281736** precision conflict, and Area-L **500 vs 100** weighting plus **600→800 condition / 100→20 living** survivor-conditioning adversaries were reinterpreted jointly rather than as isolated subsystem checks.
+- No additional independent defect was demonstrated beyond AV3-001 through AV3-017. Several existing findings are confirmed to have multi-system consequences, especially AV3-001/004/005/006/008/013/014.
+- Full evidence and coupling matrix are preserved in `docs/research/audit-v3/area-n-cross-system-integration-2026-09-01.md`. No repair was made.
+- Areas A–N are now complete. Audit-v3 discovery closes with **1 P0 + 6 P1 + 10 P2 = 17 open findings**, zero production repairs during discovery, and a necessarily non-clean convergence classification.
+
 ## Handoff instruction
 
 Read, in order:
@@ -167,4 +177,4 @@ Read, in order:
 2. `docs/research/audit-v3/README.md`
 3. this `STATUS.md`
 
-Then verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Areas **A–M are complete**. Continue the final pending discovery surface, **Area N — cross-system integration**. Treat AV3-001 through AV3-017 as known cross-cutting limitations, but repair none of them during discovery. Update this ledger before handoff. Do not begin site empirical work, release work, or unrelated development.
+Audit-v3 discovery is complete across **Areas A–N** on immutable `v0.3.3`. Do not reopen discovery coverage merely because findings remain open. The next project phase is repair plus independent re-verification of the complete **17-finding** backlog, beginning with P0 AV3-014/#427 and then P1 findings unless dependency ordering requires otherwise. Preserve the frozen v0.3.3 evidence and do not rewrite its historical semantics. After the complete backlog is repaired and independently reverified, freeze a successor baseline and start a new audit generation from zero coverage before empirical inference or release-readiness claims.
