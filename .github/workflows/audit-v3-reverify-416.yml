@@ -1,0 +1,23 @@
+name: AV3-009 post-merge reverification
+
+on:
+  pull_request:
+    paths:
+      - "docs/research/audit-v3/reverify-av3-009.py"
+      - ".github/workflows/audit-v3-reverify-416.yml"
+      - "scripts/research-identifiability.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reverify:
+    name: Independent structural-identity adversary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Run independent AV3-009 adversary
+        run: python3 docs/research/audit-v3/reverify-av3-009.py
