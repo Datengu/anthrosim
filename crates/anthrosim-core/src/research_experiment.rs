@@ -278,12 +278,27 @@ impl ResearchPoint {
     pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 }
 
+fn validate_exact_research_source_identity(
+    source: &SourceRevisionIdentity,
+) -> Result<(), ResearchExperimentError> {
+    let Some(git_commit) = source.git_commit.as_deref() else {
+        return Err(ResearchExperimentError::MissingExactSourceIdentity);
+    };
+    if git_commit.ends_with("-dirty") || git_commit.contains("-dirty-") {
+        return Err(ResearchExperimentError::DirtyExactSourceIdentity(
+            git_commit.to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 /// Exact immutable identity for one executed seed/configuration/source triple.
 pub fn research_run_identity(
     point_id: &str,
     run_config: &ResearchRunConfig,
     source: &SourceRevisionIdentity,
 ) -> Result<String, ResearchExperimentError> {
+    validate_exact_research_source_identity(source)?;
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Identity<'a> {
@@ -495,6 +510,10 @@ pub enum ResearchExperimentError {
         "research spatial model semantics {found} do not match this build's executable semantics {expected}"
     )]
     SpatialModelSemanticsMismatch { found: String, expected: String },
+    #[error("exact research identity requires an explicit source revision; gitCommit is missing")]
+    MissingExactSourceIdentity,
+    #[error("exact research identity rejects dirty source revision {0}")]
+    DirtyExactSourceIdentity(String),
     #[error("research dimension id may not be empty")]
     EmptyDimensionId,
     #[error("duplicate research dimension id {0}")]
@@ -657,6 +676,43 @@ mod tests {
         let mut normalized = second;
         normalized.experiment.seed = 11;
         assert_eq!(first, normalized);
+    }
+
+    #[test]
+    fn exact_run_identity_rejects_missing_and_dirty_source_identity() {
+        let point = base_definition().expand().unwrap().remove(0);
+        let missing = SourceRevisionIdentity {
+            model_version: "0.3.3".to_owned(),
+            model_semantics_id: "anthrosim-model-semantics-v21".to_owned(),
+            git_commit: None,
+        };
+        assert_eq!(
+            research_run_identity(&point.point_id, &point.run_config, &missing),
+            Err(ResearchExperimentError::MissingExactSourceIdentity)
+        );
+
+        for revision in ["abc123-dirty", "abc123-dirty-deadbeef"] {
+            let dirty = SourceRevisionIdentity {
+                model_version: "0.3.3".to_owned(),
+                model_semantics_id: "anthrosim-model-semantics-v21".to_owned(),
+                git_commit: Some(revision.to_owned()),
+            };
+            assert_eq!(
+                research_run_identity(&point.point_id, &point.run_config, &dirty),
+                Err(ResearchExperimentError::DirtyExactSourceIdentity(
+                    revision.to_owned()
+                ))
+            );
+        }
+
+        let clean = SourceRevisionIdentity {
+            model_version: "0.3.3".to_owned(),
+            model_semantics_id: "anthrosim-model-semantics-v21".to_owned(),
+            git_commit: Some("abc123".to_owned()),
+        };
+        let first = research_run_identity(&point.point_id, &point.run_config, &clean).unwrap();
+        let second = research_run_identity(&point.point_id, &point.run_config, &clean).unwrap();
+        assert_eq!(first, second);
     }
 
     #[test]
