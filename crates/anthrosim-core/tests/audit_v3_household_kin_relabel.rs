@@ -28,7 +28,7 @@ fn definition(m1_id: u64, m2_id: u64, id: &str) -> FounderPopulationDefinition {
     let mut people = vec![
         FounderPerson {
             id: PersonId::new(1),
-            birth_day: -(30 * 365),
+            birth_day: -(35 * 365),
             reproductive_sex: ReproductiveSex::Female,
             household,
             female_parent: None,
@@ -38,7 +38,7 @@ fn definition(m1_id: u64, m2_id: u64, id: &str) -> FounderPopulationDefinition {
         },
         FounderPerson {
             id: PersonId::new(2),
-            birth_day: -(30 * 365),
+            birth_day: -(35 * 365),
             reproductive_sex: ReproductiveSex::Female,
             household,
             female_parent: None,
@@ -50,7 +50,7 @@ fn definition(m1_id: u64, m2_id: u64, id: &str) -> FounderPopulationDefinition {
 
     let male = |person_id: u64| FounderPerson {
         id: PersonId::new(person_id),
-        birth_day: -(30 * 365),
+        birth_day: -(35 * 365),
         reproductive_sex: ReproductiveSex::Male,
         household,
         female_parent: None,
