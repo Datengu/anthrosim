@@ -33,9 +33,7 @@ fn config(initial_stock: u32) -> ExperimentConfig {
         .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
 }
 
-fn without_resume_lineage(
-    mut run: anthrosim_core::RecordedRun,
-) -> anthrosim_core::RecordedRun {
+fn without_resume_lineage(mut run: anthrosim_core::RecordedRun) -> anthrosim_core::RecordedRun {
     run.manifest.resume_lineage = ResumeLineage::new();
     run.checkpoint.resume_lineage = ResumeLineage::new();
     run.checkpoint = run.checkpoint.seal_continuation_identity();
@@ -61,10 +59,7 @@ fn alternative_initial_resource_states_remain_causal_and_resume_exactly() {
             .total_food_stock()
             .unwrap();
 
-        let checkpoint = Simulation::new(cfg)
-            .unwrap()
-            .checkpoint_at_year(2)
-            .unwrap();
+        let checkpoint = Simulation::new(cfg).unwrap().checkpoint_at_year(2).unwrap();
         let resumed = Simulation::from_checkpoint(checkpoint)
             .unwrap()
             .run_recorded()
