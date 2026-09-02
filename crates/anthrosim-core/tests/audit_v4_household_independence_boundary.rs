@@ -59,8 +59,8 @@ fn definition(second_anchor_age_at_day_365: i64) -> FounderPopulationDefinition 
                 ReproductiveSex::Male
             },
             household,
-            female_parent: Some(PersonId::new(1)),
-            male_parent: Some(PersonId::new(2)),
+            female_parent: None,
+            male_parent: None,
             last_birth_day: None,
             condition_permille: 1_000,
         });
@@ -69,7 +69,7 @@ fn definition(second_anchor_age_at_day_365: i64) -> FounderPopulationDefinition 
     FounderPopulationDefinition::new(
         "audit-v4-household-independence-boundary",
         ParameterProvenance::SyntheticValidation,
-        FounderGenealogyStatus::CompleteLivingDirectParents,
+        FounderGenealogyStatus::Unspecified,
         vec![FounderHousehold {
             id: household,
             location: CellId::new(1),
