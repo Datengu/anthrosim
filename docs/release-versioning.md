@@ -49,9 +49,10 @@ The practical release cadence is currently:
 - **`v0.3.1`**: post-M9 scientific-audit and research-readiness hardening patch.
 - **`v0.3.2`**: documentation-convergence maintenance patch over the v19 model semantics preserved by the immutable `v0.3.2` tag; it corrects living-document drift present when v0.3.1 was tagged.
 - **`v0.3.3`**: post-scientific-audit-v2 hardening/convergence patch preserving the repaired v21 model-semantics baseline before another fresh independent release-baseline audit.
+- **`v0.3.4`**: post-Scientific-Audit-v3 convergence patch preserving the fully remediated and independently reverified v25 model-semantics baseline.
 - **Later major milestones** should normally target the next minor release in sequence unless the repository deliberately records a reason to do otherwise.
 
-The living development line can and does advance its model-semantics identity after a named release. That does not rewrite the identity of a preserved release tag: `v0.3.2` remains v19, while the audited `v0.3.3` baseline preserves the later repaired v21 scientific state.
+The living development line can and does advance its model-semantics identity after a named release. That does not rewrite preserved release tags: `v0.3.2` remains v19 and `v0.3.3` remains v21, while the v0.3.4 freeze preserves the later Audit-v3-remediated v25 scientific state.
 
 These are release targets, not identity equivalences. `M9` does not literally mean `v0.3.0`, and patch releases can exist within an already completed milestone.
 
@@ -65,7 +66,7 @@ Documentation, packaging, explorer-only or other source-neutral changes may warr
 
 Each milestone release candidate must therefore independently review whether the milestone changed authoritative scientific/model meaning. The expected minor-version increase does not replace that review.
 
-The `v0.3.3` release-preparation change itself does not introduce new authoritative model behaviour; it names and preserves the already-reviewed v21 state produced by the audit-v2 repair line. Therefore the release version changes while `MODEL_SEMANTICS_ID` remains v21.
+The `v0.3.4` release-preparation change itself does not introduce new authoritative model behaviour; it names and preserves the already-reviewed v25 state produced by the Audit-v3 remediation line. Therefore the software version changes while `MODEL_SEMANTICS_ID` remains v25.
 
 ## Milestone completion versus hardening
 

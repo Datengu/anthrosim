@@ -4,8 +4,8 @@ title: "AnthroSim"
 type: software
 authors:
   - family-names: "Datengu"
-version: "0.3.3"
-date-released: 2026-09-01
+version: "0.3.4"
+date-released: 2026-09-02
 repository-code: "https://github.com/Datengu/anthrosim"
 url: "https://github.com/Datengu/anthrosim"
 license: "Apache-2.0"
@@ -24,9 +24,11 @@ abstract: >-
   AnthroSim is a reproducible agent-based simulation framework for deterministic
   demography, resource-constrained permanent household migration,
   evidence-grounded spatial experiments, and explicit temporary mobility and
-  aggregation under declared model assumptions. Version 0.3.3 preserves the
-  post-v0.3.2 model-semantics-v21 baseline after completion of the second
-  independent/adversarial scientific audit. That audit covered Areas A-N, repaired
-  and reverified all 15 recorded AV2 findings, and closed with no open P0-P3
-  scientific finding. This release records a reviewed scientific-hardening baseline;
-  it does not establish empirical archaeological validity or prove model correctness.
+  aggregation under declared model assumptions. Version 0.3.4 preserves the
+  model-semantics-v25 state produced by the complete Scientific Audit v3
+  remediation programme. Audit v3 interrogated the immutable v0.3.3/v21
+  baseline across Areas A-N, demonstrated 17 findings (1 P0, 6 P1 and 10 P2),
+  and all 17 were repaired, merged through protected CI, independently
+  post-merge reverified, and closed before this release freeze. The v0.3.4
+  baseline records that scientific-hardening state; it does not establish
+  empirical archaeological validity or prove model correctness.

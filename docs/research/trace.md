@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** v0.3.3 / current model semantics v21 / scientific audit v2 complete (immutable v0.3.2 release baseline: v19)  
+**AnthroSim baseline:** v0.3.4 / current model semantics v25 / Scientific Audit v3 remediation complete (immutable v0.3.3 release baseline: v21)  
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
@@ -21,10 +21,10 @@ A green software build, deterministic replay, an ODD description or a completed 
 | TRACE element | Current status | Main reason |
 |---|---|---|
 | 1. Problem formulation | Partial / study-specific | Framework purposes are explicit, but real research questions require their own frozen hypotheses, observables and applicability domain. |
-| 2. Model description | Established for v0.3.3 / v21 baseline | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification describe current semantics while preserving immutable v0.3.2/v19 identity. |
+| 2. Model description | Established for v0.3.4 / v25 baseline | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification describe current semantics while preserving immutable v0.3.3/v21 history. |
 | 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty and evidence-role separation remain to be completed. |
-| 4. Conceptual model evaluation | In progress / audit convergence | Scientific audit v2 completed a second independent/adversarial A–N pass with all 15 AV2 findings repaired and no open P0–P3 finding; structural assumptions remain study-sensitive and a fresh independent audit of v0.3.3 remains required before empirical inference. |
-| 5. Implementation verification | In progress / audit convergence | Two independent audit generations have now been completed and the current v21 line has no open P0–P3 scientific finding, but repeated audits are convergence evidence rather than proof of correctness; a fresh independent audit of v0.3.3 remains required before empirical inference. |
+| 4. Conceptual model evaluation | Framework audit convergence established; study-specific evaluation remains required | Scientific Audit v3 completed the third A–N audit generation against immutable v0.3.3, demonstrated 17 findings, and all 17 were repaired and independently post-merge reverified. Structural assumptions and empirical applicability remain study-specific. |
+| 5. Implementation verification | Strong framework-level convergence; never proof of correctness | Three audit generations have now been completed. Audit v3 closed 17/17 demonstrated findings with independent post-merge adversaries, leaving no original Audit-v3 finding open on the v25 line. Empirical study readiness remains a separate gate. |
 | 6. Model output verification | Not established empirically | Existing M8/M9 benchmarks are capability/synthetic verification, not validation against empirical target patterns. |
 | 7. Model analysis | Substantially strengthened / study-specific | v0.3.1 adds complete scientific-configuration exposure, replicate-precision gates, long-run diagnostics, structural/initialization sensitivity and identifiability/equifinality analysis; empirical uncertainty propagation and adequacy remain study-specific. |
 | 8. Model output corroboration | Not established | No held-out independent archaeological/anthropological corroboration has yet been completed for a real inferential study. |
@@ -84,7 +84,7 @@ Provide a detailed, understandable description of what the model is, how it work
 
 ## Current assessment
 
-**Established for description of the v0.3.3 / v21 baseline**, subject to normal documentation/code consistency review. The immutable `v0.3.2` release remains the historical v19 baseline rather than being retroactively redefined by living documentation.
+**Established for description of the v0.3.4 / v25 baseline**, subject to normal documentation/code consistency review. The immutable `v0.3.3` release remains the historical v21 baseline rather than being retroactively redefined by living documentation.
 
 This status means the model is described; it does not mean the described model is empirically valid.
 
@@ -142,7 +142,7 @@ The detailed scientific model and ODD/ODD+D documents explicitly identify many n
 
 The repository's adversarial scientific audits have also produced concrete issue-level evidence that conceptual/causal semantics are being challenged rather than accepted because code runs reproducibly.
 
-Scientific audit v2 provides the latest framework-level closure evidence: it independently covered Areas A–N, demonstrated 15 AV2 findings across the audited surface, required repair/reverification of those findings, and closed with no remaining P0–P3 scientific finding on the current v21 line. That result is evidence of stronger convergence, not a claim that the conceptual model is universally valid.
+Scientific Audit v3 provides the latest framework-level closure evidence: it independently interrogated Areas A–N on immutable v0.3.3/v21, demonstrated 17 findings across the audited surface, and the subsequent remediation programme repaired and independently post-merge reverified every finding. The resulting v25 line has no open original Audit-v3 finding. That result is strong convergence evidence, not a claim that the conceptual model is universally valid or empirically validated.
 
 ### High-priority conceptual/semantic debt and repair record
 
@@ -175,7 +175,7 @@ For each scientifically consequential submodel, record:
 
 **Gate:** unresolved conceptual P1 defects block claims that depend on the affected mechanism.
 
-**Current assessment:** In progress / audit convergence. The v0.3.3 / v21 baseline completed scientific audit v2 with no open P0–P3 finding at release preparation, but another genuinely fresh audit of immutable `v0.3.3` is required before beginning empirical inferential work.
+**Current assessment:** Framework-level conceptual audit convergence is strong for the v0.3.4 / v25 baseline: Audit v3 is complete and all 17 findings are independently reverified and closed. Empirical inferential work still requires its own question-specific evidence, calibration/validation, uncertainty, applicability and corroboration gates.
 
 ---
 
@@ -229,7 +229,7 @@ A practical gate for moving from foundational verification to empirical calibrat
 
 This is not proof that no defect exists; it is evidence of audit convergence.
 
-**Current assessment:** In progress / audit convergence. Scientific audit v2 is the second independent audit generation and closed with all 15 AV2 findings repaired/reverified and no open P0–P3 scientific finding on the v0.3.3 / v21 baseline at release preparation. One further genuinely fresh audit of immutable `v0.3.3` remains required before empirical inferential work; a clean result would provide substantially stronger convergence evidence but still would not prove correctness.
+**Current assessment:** Strong framework-level implementation convergence. Scientific Audit v3 is the third audit generation; all 17 findings were repaired and independently post-merge reverified, and no original Audit-v3 finding remains open on the v0.3.4 / v25 line. This still does not prove correctness, and empirical inferential work remains gated by study-specific validation and corroboration.
 
 ---
 

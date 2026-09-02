@@ -9,8 +9,9 @@ Start here:
 - [`odd-d.md`](odd-d.md) — ODD+D human decision-making supplement.
 - [`trace.md`](trace.md) — living TRACE evaluation / research-readiness dossier.
 - [`scientific-audit-protocol.md`](scientific-audit-protocol.md) — reusable adversarial scientific-audit protocol and convergence criteria.
-- [`audit-v3/README.md`](audit-v3/README.md) — active third independent scientific-audit charter for the immutable `v0.3.3` baseline.
-- [`audit-v3/STATUS.md`](audit-v3/STATUS.md) — repository-authoritative active audit-v3 ledger and cross-session handoff state.
+- [`audit-v3/README.md`](audit-v3/README.md) — completed third independent scientific-audit charter for the immutable `v0.3.3` / model-semantics-v21 discovery baseline.
+- [`audit-v3/STATUS.md`](audit-v3/STATUS.md) — immutable discovery-phase Audit-v3 ledger and A–N evidence record; its finding statuses describe the frozen discovery state, not the later remediation state.
+- [`v0.3.4-documentation-readiness-audit.md`](v0.3.4-documentation-readiness-audit.md) — pre-release living-document/release-identity convergence record for the fully remediated v25 line.
 - [`audit-v2/STATUS.md`](audit-v2/STATUS.md) — closed second independent audit ledger; historical evidence, not completion evidence for audit v3.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
@@ -43,7 +44,7 @@ Start here:
 
 Those earlier TRACE passes and scientific audit v2 are preserved as historical evidence. Audit v2 subsequently completed the reusable protocol's full Areas A–N, repaired and reverified all 15 AV2 findings, and closed with no open P0–P3 scientific finding. The repaired v21 state was then frozen as immutable `v0.3.3` at `358ae93b57a9b8f7053575dc6651aa959de2b4f9`.
 
-Scientific audit v3 now restarts full A–N coverage from zero against that frozen release. Its convergence target is deliberately stronger than “all discovered defects repaired”: the desired signal is a genuinely fresh full audit that discovers **no new P0 or P1**. Audit-v2 conclusions and green CI may inform hypotheses, but they cannot be reused as the sole completion evidence for audit v3.
+Scientific Audit v3 then restarted full A–N coverage from zero against that frozen release. It demonstrated 17 findings (1 P0, 6 P1 and 10 P2). The post-discovery remediation programme repaired all 17 through protected production changes and independently re-ran the original adversaries against merged `main` before closing each finding. The resulting living line is `anthrosim-model-semantics-v25`, and `v0.3.4` is the intended named freeze for that state. This is strong framework-verification convergence evidence, not proof of correctness or empirical archaeological validity.
 
 The post-M9 repair programme proceeded by explicit causal contracts rather than issue-by-issue tuning. M2 repairs are anchored by [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md); M3 annual resource accounting is anchored by [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md), with the independent response/decision timing repair anchored by [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved only after the changed outputs are mechanistically explained. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
 
