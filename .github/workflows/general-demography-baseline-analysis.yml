@@ -5,6 +5,7 @@ on:
       - "research/general-demography-baseline-v1/**"
       - "scripts/prepare-general-demography-baseline-definition.py"
       - "scripts/research-general-demography-baseline.py"
+      - "scripts/test-research-general-demography-paired-effects.py"
       - "scripts/research-monte-carlo-sufficiency.py"
       - "crates/anthrosim-cli/src/bundle.rs"
       - "crates/anthrosim-core/src/**"
@@ -22,6 +23,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Verify declared paired household-effect derivation
+        run: |
+          python3 -m py_compile scripts/research-general-demography-baseline.py scripts/test-research-general-demography-paired-effects.py
+          python3 scripts/test-research-general-demography-paired-effects.py
       - run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
@@ -82,7 +87,18 @@ jobs:
           PY
           while IFS=$'\t' read -r id rel; do target/release/anthrosim-demography-observability --run-dir "/tmp/c304/$rel" --output "/tmp/o304/$id.json" >/dev/null; done </tmp/runs304.tsv
           python3 scripts/research-long-run-diagnostics.py /tmp/c304 /tmp/confirm-long-run.json --output /tmp/a304/long-run.json
-          python3 scripts/research-general-demography-baseline.py /tmp/c304 /tmp/o304 /tmp/a304/summary.json --long-run /tmp/a304/long-run.json
+          python3 scripts/research-general-demography-baseline.py /tmp/c304 /tmp/o304 /tmp/a304/summary.json --definition /tmp/confirm-definition.json --long-run /tmp/a304/long-run.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          summary=json.loads(Path('/tmp/a304/summary.json').read_text())
+          paired=summary['pairedHouseholdEffects']
+          assert len(paired)==3
+          assert all(effect['pairedReplicates']==130 for effect in paired)
+          assert sum(effect['pairedReplicates'] for effect in paired)==390
+          assert {effect['fixedHouseholdLifecycle'] for effect in paired}=={'fixed_founder_v1'}
+          assert {effect['fissionHouseholdLifecycle'] for effect in paired}=={'deterministic_dependency_fission_v2'}
+          PY
       - name: Apply issue 231 Monte Carlo precision gates
         run: |
           python3 - <<'PY'
