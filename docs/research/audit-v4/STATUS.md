@@ -19,7 +19,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Target model semantics | `anthrosim-model-semantics-v25` |
 | Coverage state | **0/14 Areas complete — Area A in progress** |
 | Current P0 findings | none discovered |
-| Current P1 findings | **2 open — AV4-001/#486; AV4-002/#488** |
+| Current P1 findings | **6 open — AV4-001/#486; AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497** |
 | Current P2 findings | none discovered |
 | Current P3 findings | none discovered |
 | Convergence classification | **non-clean candidate: v4 has discovered new P1 findings; full A–N discovery still pending** |
@@ -38,65 +38,56 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 
 | ID | Audit area | Status | Fresh v4 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **in progress — 2 P1 findings open** | Scheduler attack: closed PR #483 / run `33686718180` checked **133,225** M3/M4 period-count pairs, collision range **1–365**, **128,400** pairs with >1 collision, no skipped/duplicated/reordered boundaries, and matching inspected host order; no finding. Fertility label-order attack: closed red PR #485 / evidence head `3168cd5547952c8eb2ae715447252785584bb84e` / run `33687262609` demonstrated **AV4-001/#486 (P1)**: pure canonical person relabelling changed the seed-1 first-year birth cell from `CellId(1)` to `CellId(2)`. Mortality label-order attack: closed red PR #487 / evidence head `c6f48d587fa7e469c97c4594c0e92d46176a004d` / run `33689235132` demonstrated **AV4-002/#488 (P1)**: pure canonical person relabelling changed the seed-1 death cell from `CellId(1)` to `CellId(2)`. Separate sequential fertility and mortality RNG streams are both attached to canonical record iteration, making arbitrary labels spatially causal. |
-| B | Demography, fertility, mortality, ageing, population structure | **incomplete — AV4-001/002 cross-cutting** | — |
-| C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
-| D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
-| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete — AV4-001/002 cross-cutting** | — |
+| A | Authoritative semantics and scheduler behaviour | **in progress — 6 P1 findings open** | Pass 1: exhaustive scheduler collision attack, PR #483 / run `33686718180`, checked **133,225** M3/M4 period-count pairs with no skipped/duplicated/reordered boundaries and matching inspected host order; no finding. Pass 2: fertility PersonId relabel, PR #485 / run `33687262609` → **AV4-001/#486**. Pass 3: background-mortality PersonId relabel, PR #487 / run `33689235132` → **AV4-002/#488**. Pass 4: M4 HouseholdId relabel, PR #490 / run `33689659272` → **AV4-003/#491**. Pass 5: newborn-sex PersonId relabel, PR #492 / run `33689950122` → **AV4-004/#493**. Pass 6: parentage PersonId relabel, PR #494 / run `33690127728` → **AV4-005/#495**. Pass 7: condition-mediated mortality PersonId relabel, PR #496 / run `33690381210` → **AV4-006/#497**. All six red evidence PRs were closed unmerged after preserving the findings. |
+| B | Demography, fertility, mortality, ageing, population structure | **incomplete — AV4-001/002/004/005/006 cross-cutting** | — |
+| C | Households, kinship, social links, lifecycle structure | **incomplete — AV4-003/005 cross-cutting** | — |
+| D | Resources, condition, subsistence, depletion/recovery | **incomplete — AV4-006 cross-cutting** | — |
+| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete — AV4-001/002/003/004/006 cross-cutting** | — |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete — AV4-001/002 cross-cutting** | — |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete — AV4-001 through AV4-006 cross-cutting** | — |
 | I | Sensitivity, uncertainty, convergence, robustness | **incomplete** | — |
 | J | Identifiability, equifinality, calibration, discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | — |
-| N | Cross-system integration | **incomplete — AV4-001/002 cross-cutting** | — |
+| N | Cross-system integration | **incomplete — AV4-001 through AV4-006 cross-cutting** | — |
 
 ## Finding register
 
-| Finding | Severity | Area | Status | Issue | Evidence / later repair requirement |
+| Finding | Severity | Area | Status | Issue | Fresh evidence |
 |---|---|---|---|---|---|
-| AV4-001 — fertility RNG assignment is sensitive to arbitrary founder person labels | **P1** | A primary; B/E/H/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #486 | Closed red PR #485, evidence head `3168cd5547952c8eb2ae715447252785584bb84e`, run `33687262609`: pure canonical-label permutation of two equivalent household-local female/male pairs changes same-seed birth cell at seed 1 from **CellId(1)** to **CellId(2)**. Later repair must make stochastic fertility realization label/order invariant without substituting another arbitrary storage key, preserve deterministic replay/provenance, and independently reverify after merge. |
-| AV4-002 — background-mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A primary; B/E/H/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #488 | Closed red PR #487, evidence head `c6f48d587fa7e469c97c4594c0e92d46176a004d`, run `33689235132`, job `100443882649`: pure canonical-label permutation of two otherwise-equivalent fixed-cell founders changes same-seed death cell at seed 1 from **CellId(1)** to **CellId(2)**. Later repair must make background-mortality stochastic assignment label/order invariant while preserving competing-risk semantics, stream separation, deterministic replay/provenance, and independent post-merge reverification. |
+| AV4-001 — fertility RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #486 | Closed red PR #485, head `3168cd5547952c8eb2ae715447252785584bb84e`, run `33687262609`: seed 1 birth cell changes `CellId(1)` → `CellId(2)` under pure PersonId relabelling. |
+| AV4-002 — background-mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #488 | Closed red PR #487, head `c6f48d587fa7e469c97c4594c0e92d46176a004d`, run `33689235132`: seed 1 death cell changes `CellId(1)` → `CellId(2)` under pure PersonId relabelling. |
+| AV4-003 — migration RNG assignment is sensitive to arbitrary household labels | **P1** | A; C/E/H/N | **demonstrated; open; deliberately unrepaired** | #491 | Closed red PR #490, head `52d739562f0dcba3be1569ef4f41108c6f0d83f2`, run `33689659272`: seed 1 changes from move `(CellId(4), CellId(1))` to no move under pure HouseholdId relabelling. |
+| AV4-004 — newborn-sex RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #493 | Closed red PR #492, head `156a3836e85a325fa5986bd090ec340f663c25b4`, run `33689950122`: with two forced births, seed 1 swaps male/female assignment between fixed cells under PersonId relabelling. |
+| AV4-005 — parentage RNG assignment is sensitive to arbitrary male person labels | **P1** | A; B/C/H/N | **demonstrated; open; deliberately unrepaired** | #495 | Closed red PR #494, head `c48ebe8ddc45a4f3762552545139b74a085d80e6`, run `33690127728`: seed 1 changes whether the newborn selects the male already father of an existing child after a genealogy-preserving male-ID swap. |
+| AV4-006 — condition-mediated mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/D/E/H/N | **demonstrated; open; deliberately unrepaired** | #497 | Closed red PR #496, head `21775e28406d9c6af803aeaa8cbbb595a1eb3e2d`, run `33690381210`, job `100447530200`: seed 1 death cell changes `CellId(2)` → `CellId(1)` under pure PersonId relabelling with background mortality disabled. |
 
 ## Session log
 
 ### 2026-09-02 — Audit v4 initialization
 
 - Frozen target selected: `v0.3.4` / `8996e99ffc4c5b91b9e00d1048eedd4227ea1d09` / semantics v25.
-- Reusable scientific audit protocol reviewed.
-- Audit-v3 charter and ledger reviewed as historical context only.
-- Audit-v4 coverage initialized at zero.
-- Recommended first substantive area: **Area A — authoritative semantics and scheduler behaviour**, beginning with fresh scheduler/simultaneity/order-invariance attacks against v25 and targeted regression attacks on the integrated v3 repair line.
+- Audit-v4 coverage initialized at zero and prior audits treated as historical context only.
+- Area A selected first for fresh scheduler, simultaneity and order-invariance attacks.
 
 ### 2026-09-02 — Area A pass 1: exhaustive scheduler collision attack
 
-- Live protected `main` after Audit-v4 initialization: `5655ec64393d4d849cc2261d34d91d42da13b925`; scientific discovery remained fixed to immutable `v0.3.4` / `8996e99...` / v25.
-- Closed unmerged evidence PR #483 targeted the frozen release rather than living `main` semantics.
-- Fresh checker exhaustively enumerated **365 × 365 = 133,225** supported M3/M4 period-count combinations.
-- Exact results: minimum same-day M3/M4 collisions **1**; maximum **365**; **128,400** period-count pairs had more than one same-day collision.
-- Every merged dispatch matched the ordered union of the two boundary sets; configured M3 and M4 boundaries were each dispatched exactly once; day 365 was always a real shared M3/M4 boundary.
-- Source-order attack verified both authoritative simulation hosts exposed the same inspected scheduler ordering markers.
-- Dedicated workflow run `33686718180` completed successfully with `failures=0`.
-- Disposition: this specific scheduler-collision/host-drift hypothesis was falsified. Area A remained incomplete.
+- Closed unmerged evidence PR #483 targeted the frozen release.
+- Enumerated **365 × 365 = 133,225** supported M3/M4 period-count combinations.
+- Same-day collision range was **1–365**; **128,400** pairs had more than one collision.
+- No configured boundary was skipped, duplicated or reordered; inspected host scheduling markers agreed.
+- Dedicated run `33686718180` completed with `failures=0`; this specific hypothesis was falsified.
 
-### 2026-09-02 — Area A pass 2: canonical person-label fertility attack
+### 2026-09-02 — Area A passes 2–7: stochastic label/order attacks
 
-- Closed red evidence PR #485 targeted immutable v0.3.4/v25 and constructed two founder states identical after erasing canonical person labels.
-- Each arm had two fixed households/cells, one 30-year-old female and one 30-year-old male per household, mortality off, fertility 500,000 per million, zero birth spacing, zero resource need, migration off, and one-year horizon.
-- The only transformation exchanged which canonical person labels identified the two otherwise-equivalent household-local pairs.
-- Dedicated workflow `33687262609` compiled the adversary successfully under Rust 1.97.1 and failed at the intended scientific assertion immediately at seed 1: **A=[CellId(1)] vs B=[CellId(2)]**.
-- Source inspection ties the failure to a shared sequential fertility RNG consumed while iterating canonical population records; the same random realization is therefore attached to different fixed spatial households after arbitrary relabelling.
-- Finding preserved as **AV4-001/#486, P1** before any repair. The minimal construction preserves first-year total births but changes spatial attribution; downstream household/resource/migration/aggregation state can therefore diverge causally.
-- Per Audit-v4 discovery rules, **do not repair #486 yet**. Continue fresh discovery against immutable v0.3.4/v25.
-
-### 2026-09-02 — Area A pass 3: canonical person-label mortality attack
-
-- Closed red evidence PR #487 targeted immutable v0.3.4/v25 with two fixed one-person households at cells 1 and 2, each containing an otherwise-equivalent 30-year-old male founder.
-- The only transformation exchanged which canonical `PersonId` occupied which fixed household/cell; both arms used the same initialization identity and were scientifically identical after erasing record labels.
-- Mortality was forced to 500,000 per million across all age bands; fertility was zero; annual resource need was zero; migration was disabled; horizon was one year.
-- Dedicated workflow run `33689235132` / job `100443882649` compiled successfully under pinned Rust 1.97.1 and then failed at the intended scientific assertion immediately at seed 1: **A=[CellId(1)] vs B=[CellId(2)]**.
-- This is a separate stochastic mechanism from AV4-001: background mortality has its own RNG stream, but sequential draws are likewise attached to canonical population-record iteration.
-- Finding preserved as **AV4-002/#488, P1** before repair. Arbitrary bookkeeping identity can determine which spatially situated person dies and can therefore propagate into household, kin, resource, fertility, migration, temporary-mobility and spatial outputs.
-- Per Audit-v4 discovery rules, **do not repair #486 or #488 yet**. Continue fresh discovery against immutable v0.3.4/v25; next Area-A attack should test household-label/order coupling in M4 migration and other stochastic simultaneous processes.
+- Pass 2 / AV4-001/#486: separate fertility RNG draws are consumed in canonical person-record order; a pure relabelling moved the seed-1 birth between fixed cells.
+- Pass 3 / AV4-002/#488: separate background-mortality RNG draws are likewise attached to canonical person order; a pure relabelling moved the seed-1 death between fixed cells.
+- Pass 4 / AV4-003/#491: M4's shared migration choice/uncertainty streams are attached to stable HouseholdId evaluation order; a pure household relabelling changed seed-1 from one migration to no migration even though the pre-move snapshot was scientifically identical.
+- Pass 5 / AV4-004/#493: with fertility occurrence forced identical, the independent newborn-sex RNG stream assigned male/female outcomes to opposite fixed cells after PersonId relabelling.
+- Pass 6 / AV4-005/#495: reservoir-sampled parentage over the eligible-male vector inherited canonical record order; a genealogy-preserving male-ID swap changed whether the newborn shared the existing child's father.
+- Pass 7 / AV4-006/#497: independent condition-mediated mortality draws were attached to canonical person iteration; with background mortality disabled, seed 1 moved the death between fixed cells after pure relabelling.
+- Every evidence test compiled and ran under pinned Rust 1.97.1; each red result above was the intended scientific assertion rather than setup failure.
+- Each defect was preserved as a P1 issue before the corresponding deliberately failing evidence PR was closed unmerged.
+- **No repair is authorized yet. Area A remains in progress and discovery continues against immutable v0.3.4/v25.**
