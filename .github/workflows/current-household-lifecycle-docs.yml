@@ -1,0 +1,31 @@
+name: Current household lifecycle documentation
+
+on:
+  pull_request:
+    paths:
+      - "docs/scientific-model.md"
+      - "docs/research/odd.md"
+      - "docs/research/odd-d.md"
+      - "docs/research/trace.md"
+      - "docs/research/household-lifecycle-structural-sensitivity-v1.md"
+      - "docs/research/household-lifecycle-structural-sensitivity-v2.md"
+      - "crates/anthrosim-core/src/config.rs"
+      - "scripts/test-current-household-lifecycle-docs.py"
+      - ".github/workflows/current-household-lifecycle-docs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  current-household-lifecycle-docs:
+    name: Current household lifecycle docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Verify current model-form identity across living docs
+        run: |
+          python3 -m py_compile scripts/test-current-household-lifecycle-docs.py
+          python3 scripts/test-current-household-lifecycle-docs.py
