@@ -1,6 +1,6 @@
 # AnthroSim scientific audit v3 — status ledger
 
-Audit target: immutable AnthroSim `v0.3.3`, tag commit `358ae93b57a9b8f7053575dc6651aa959de2b4f9`, model semantics `anthrosim-model-semantics-v21`.
+Audit target: immutable AnthroSim `v0.3.3`, tag commit `d3b6fc0b0750933b57252c9087513d156d88f218`, model semantics `anthrosim-model-semantics-v21`.
 
 Protocol: `docs/research/scientific-audit-protocol.md`
 
@@ -14,7 +14,7 @@ Purpose: durable repository-authoritative state for the third independent/advers
 |---|---|
 | Audit generation | v3 / third independent scientific audit |
 | Immutable discovery target | `v0.3.3` |
-| Target tag SHA | `358ae93b57a9b8f7053575dc6651aa959de2b4f9` |
+| Target tag SHA | `d3b6fc0b0750933b57252c9087513d156d88f218` |
 | Target software version | `0.3.3` |
 | Target model semantics | `anthrosim-model-semantics-v21` |
 | Required protected-main contexts at initialization | 24 |
@@ -85,7 +85,7 @@ The project objective is a fresh full-scale audit with no newly discovered P0/P1
 
 ## Initial repository verification — 2026-09-01
 
-- `refs/tags/v0.3.3` resolves exactly to `358ae93b57a9b8f7053575dc6651aa959de2b4f9`.
+- `refs/tags/v0.3.3` resolves exactly to `d3b6fc0b0750933b57252c9087513d156d88f218`.
 - Protected `main` was the same SHA at audit initialization.
 - Frozen target declares `MODEL_SEMANTICS_ID = "anthrosim-model-semantics-v21"`.
 - Exact-SHA release verification passed protected CI, RustSec, M8.6, M9.7 and the fail-closed release-tag workflow before audit-v3 initialization.
