@@ -19,10 +19,10 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Target model semantics | `anthrosim-model-semantics-v25` |
 | Coverage state | **0/14 Areas complete — Area A in progress** |
 | Current P0 findings | none discovered |
-| Current P1 findings | none discovered |
+| Current P1 findings | **1 open — AV4-001/#486** |
 | Current P2 findings | none discovered |
 | Current P3 findings | none discovered |
-| Convergence classification | **pending full A–N discovery** |
+| Convergence classification | **non-clean candidate: v4 has discovered a new P1; full A–N discovery still pending** |
 | Repair state | **discovery only; do not repair v4 findings until A–N discovery completes** |
 
 ## Discovery rule
@@ -38,24 +38,26 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 
 | ID | Audit area | Status | Fresh v4 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **in progress — first scheduler/collision adversary passed; broader Area-A attacks still required** | Closed evidence PR #483, head `879d08e7e59c0128c739238c49279e1722c9961b`, workflow run `33686718180`: exhaustive M3/M4 fixed-clock enumeration checked **133,225 period-count pairs**; same-day collision count ranged **1–365**, with **128,400** pairs having >1 collision. The merged dispatcher preserved the exact ordered set union with no skipped/duplicated boundaries; both `Simulation` and `SpatialLandscapeSimulation` exposed the same inspected order markers: temporary pre-boundary → M3 resource processing → resource-period completion → M4 migration → annual M2 demography. `failures=0`. No finding from this attack. |
-| B | Demography, fertility, mortality, ageing, population structure | **incomplete** | — |
+| A | Authoritative semantics and scheduler behaviour | **in progress — P1 finding open** | Scheduler attack: closed PR #483 / run `33686718180` checked **133,225** M3/M4 period-count pairs, collision range **1–365**, **128,400** pairs with >1 collision, no skipped/duplicated/reordered boundaries, and matching inspected host order; no finding. Fresh label-order attack: closed red PR #485 / exact evidence head `3168cd5547952c8eb2ae715447252785584bb84e` / run `33687262609` demonstrated **AV4-001/#486 (P1)**: at seed 1, two scientifically identical unlabeled founder states differing only in canonical person-label assignment produced first-year birth cells **A=[CellId(1)] vs B=[CellId(2)]**. Shared sequential fertility RNG draws are attached by canonical record iteration, making arbitrary labels spatially causal. |
+| B | Demography, fertility, mortality, ageing, population structure | **incomplete — AV4-001 cross-cutting** | — |
 | C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
-| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | — |
+| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete — AV4-001 cross-cutting** | — |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete** | — |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete — AV4-001 cross-cutting** | — |
 | I | Sensitivity, uncertainty, convergence, robustness | **incomplete** | — |
 | J | Identifiability, equifinality, calibration, discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | — |
-| N | Cross-system integration | **incomplete** | — |
+| N | Cross-system integration | **incomplete — AV4-001 cross-cutting** | — |
 
 ## Finding register
 
-No Audit-v4 findings yet.
+| Finding | Severity | Area | Status | Issue | Evidence / later repair requirement |
+|---|---|---|---|---|---|
+| AV4-001 — fertility RNG assignment is sensitive to arbitrary founder person labels | **P1** | A primary; B/E/H/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #486 | Closed red PR #485, exact evidence head `3168cd5547952c8eb2ae715447252785584bb84e`, run `33687262609`: pure canonical-label permutation of two equivalent household-local female/male pairs changes same-seed birth cell at seed 1 from **CellId(1)** to **CellId(2)**. Later repair must make stochastic fertility realization label/order invariant without substituting another arbitrary storage key, preserve deterministic replay/provenance, and independently reverify after merge. |
 
 ## Session log
 
@@ -76,4 +78,14 @@ No Audit-v4 findings yet.
 - Every merged dispatch matched the ordered union of the two boundary sets; configured M3 and M4 boundaries were each dispatched exactly once; day 365 was always a real shared M3/M4 boundary.
 - Source-order attack verified both authoritative simulation hosts exposed the same inspected scheduler ordering markers.
 - Dedicated workflow run `33686718180` completed successfully with `failures=0`.
-- Disposition: this specific scheduler-collision/host-drift hypothesis was falsified. **Area A remains incomplete** pending fresh simultaneous-process, permutation/order-invariance, tie-breaking and v25 repair-integration attacks.
+- Disposition: this specific scheduler-collision/host-drift hypothesis was falsified. Area A remained incomplete.
+
+### 2026-09-02 — Area A pass 2: canonical person-label fertility attack
+
+- Closed red evidence PR #485 targeted immutable v0.3.4/v25 and constructed two founder states identical after erasing canonical person labels.
+- Each arm had two fixed households/cells, one 30-year-old female and one 30-year-old male per household, mortality off, fertility 500,000 per million, zero birth spacing, zero resource need, migration off, and one-year horizon.
+- The only transformation exchanged which canonical person labels identified the two otherwise-equivalent household-local pairs.
+- Dedicated workflow `33687262609` compiled the adversary successfully under Rust 1.97.1 and failed at the intended scientific assertion immediately at seed 1: **A=[CellId(1)] vs B=[CellId(2)]**.
+- Source inspection ties the failure to a shared sequential fertility RNG consumed while iterating canonical population records; the same random realization is therefore attached to different fixed spatial households after arbitrary relabelling.
+- Finding preserved as **AV4-001/#486, P1** before any repair. The minimal construction preserves first-year total births but changes spatial attribution; downstream household/resource/migration/aggregation state can therefore diverge causally.
+- Per Audit-v4 discovery rules, **do not repair #486 yet**. Continue fresh discovery against immutable v0.3.4/v25.
