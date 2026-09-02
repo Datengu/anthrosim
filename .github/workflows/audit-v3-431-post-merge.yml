@@ -1,0 +1,24 @@
+name: Audit v3 AV3-016 post-merge evidence
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v3-431-post-merge.py"
+      - ".github/workflows/audit-v3-431-post-merge.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  av3-016-post-merge:
+    name: AV3-016 independent stale-doc adversary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evidence head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Independently re-run frozen documentation adversary
+        run: |
+          python3 -m py_compile scripts/audit-v3-431-post-merge.py
+          python3 scripts/audit-v3-431-post-merge.py
