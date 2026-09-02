@@ -14,6 +14,9 @@ from typing import Any
 DAYS_PER_YEAR = 365
 Z95 = 1.959963984540054
 U64_MAX = 18446744073709551615
+FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID = "fixed_founder_v1"
+HOUSEHOLD_LIFECYCLE_DIMENSION_ID = "household_lifecycle"
+HOUSEHOLD_LIFECYCLE_PATH = "/experiment/householdLifecycle"
 
 
 def load(path: Path) -> Any:
@@ -77,10 +80,99 @@ def coord_values(row: dict[str, Any]) -> dict[str, Any]:
     return {coordinate["id"]: coordinate["value"] for coordinate in row["coordinates"]}
 
 
+def dimension_by_id(definition: dict[str, Any], dimension_id: str) -> dict[str, Any]:
+    dimensions = [
+        dimension
+        for dimension in definition.get("dimensions", [])
+        if dimension.get("id") == dimension_id
+    ]
+    if len(dimensions) != 1:
+        raise ValueError(
+            f"expected exactly one declared {dimension_id!r} dimension, found {len(dimensions)}"
+        )
+    return dimensions[0]
+
+
+def household_lifecycle_model_id(value: Any) -> str:
+    if value is None:
+        return FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID
+    if not isinstance(value, dict):
+        raise ValueError("household lifecycle coordinate must be null or an object")
+    model_id = value.get("modelId")
+    if not isinstance(model_id, str) or not model_id:
+        raise ValueError("household lifecycle coordinate object requires a non-empty modelId")
+    return model_id
+
+
+def declared_household_lifecycle_contrast(definition: dict[str, Any]) -> tuple[str, str]:
+    dimension = dimension_by_id(definition, HOUSEHOLD_LIFECYCLE_DIMENSION_ID)
+    if dimension.get("kind") != "structural" or dimension.get("path") != HOUSEHOLD_LIFECYCLE_PATH:
+        raise ValueError(
+            "declared household_lifecycle dimension must be structural at "
+            f"{HOUSEHOLD_LIFECYCLE_PATH}"
+        )
+    values = dimension.get("values")
+    if not isinstance(values, list) or len(values) != 2:
+        raise ValueError("declared household_lifecycle contrast requires exactly two values")
+    lifecycle_ids = [household_lifecycle_model_id(value) for value in values]
+    if len(set(lifecycle_ids)) != 2:
+        raise ValueError("declared household_lifecycle contrast must resolve to two distinct model IDs")
+    if FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID not in lifecycle_ids:
+        raise ValueError(
+            "declared household_lifecycle contrast must include the fixed-founder control encoded by null"
+        )
+    treatments = [
+        model_id
+        for model_id in lifecycle_ids
+        if model_id != FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID
+    ]
+    if len(treatments) != 1:
+        raise ValueError("declared household_lifecycle contrast requires exactly one non-fixed treatment")
+    return FIXED_FOUNDER_HOUSEHOLD_LIFECYCLE_ID, treatments[0]
+
+
+def declared_household_pairing_cells(
+    definition: dict[str, Any],
+) -> set[tuple[str, int, int, int]]:
+    demography_dimension = dimension_by_id(definition, "demography")
+    founder_dimension = dimension_by_id(definition, "founder_age_ceiling_years")
+    resource_dimension = dimension_by_id(definition, "resource_productivity_scale_permille")
+
+    demographies: list[str] = []
+    for value in demography_dimension.get("values", []):
+        if not isinstance(value, dict):
+            raise ValueError("declared demography values must be objects")
+        schedule_id = value.get("scheduleId")
+        if not isinstance(schedule_id, str) or not schedule_id:
+            raise ValueError("declared demography value requires a non-empty scheduleId")
+        demographies.append(schedule_id)
+    founders = [int(value) for value in founder_dimension.get("values", [])]
+    resources = [int(value) for value in resource_dimension.get("values", [])]
+    seeds = [int(value) for value in definition.get("seeds", [])]
+
+    for label, values in (
+        ("demography", demographies),
+        ("founder_age_ceiling_years", founders),
+        ("resource_productivity_scale_permille", resources),
+        ("seeds", seeds),
+    ):
+        if not values:
+            raise ValueError(f"declared pairing design has no {label} values")
+        if len(values) != len(set(values)):
+            raise ValueError(f"declared pairing design has duplicate {label} values")
+
+    return {
+        (demography, founder, resource, seed)
+        for demography in demographies
+        for founder in founders
+        for resource in resources
+        for seed in seeds
+    }
+
+
 def arm_key(coords: dict[str, Any]) -> tuple[str, str, int, int]:
     demography = coords["demography"]["scheduleId"]
-    lifecycle_value = coords["household_lifecycle"]
-    lifecycle = "fixed_founder_v1" if lifecycle_value is None else lifecycle_value["modelId"]
+    lifecycle = household_lifecycle_model_id(coords[HOUSEHOLD_LIFECYCLE_DIMENSION_ID])
     founder = int(coords["founder_age_ceiling_years"])
     resource = int(coords["resource_productivity_scale_permille"])
     return demography, lifecycle, founder, resource
@@ -195,14 +287,55 @@ def summarize_arms(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def paired_household_effects(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def paired_household_effects(
+    runs: list[dict[str, Any]], definition: dict[str, Any]
+) -> list[dict[str, Any]]:
+    fixed_lifecycle, fission_lifecycle = declared_household_lifecycle_contrast(definition)
+    expected_lifecycles = {fixed_lifecycle, fission_lifecycle}
+    expected_cells = declared_household_pairing_cells(definition)
+
     cells: dict[tuple[str, int, int, int], dict[str, dict[str, Any]]] = defaultdict(dict)
     for run in runs:
-        cells[(run["demography"], run["founderAgeCeilingYears"], run["resourceProductivityScalePermille"], run["seed"])][run["householdLifecycle"]] = run
+        key = (
+            run["demography"],
+            run["founderAgeCeilingYears"],
+            run["resourceProductivityScalePermille"],
+            run["seed"],
+        )
+        lifecycle = run["householdLifecycle"]
+        if lifecycle in cells[key]:
+            raise ValueError(
+                f"duplicate household lifecycle run for pairing cell {key}: {lifecycle}"
+            )
+        cells[key][lifecycle] = run
+
+    observed_cells = set(cells)
+    unexpected_cells = sorted(observed_cells - expected_cells)
+    if unexpected_cells:
+        raise ValueError(f"unexpected household pairing cell(s): {unexpected_cells[:5]}")
+    missing_cells = sorted(expected_cells - observed_cells)
+    if missing_cells:
+        raise ValueError(f"missing declared pairing cell(s): {missing_cells[:5]}")
+
     grouped: dict[tuple[str, int, int], list[tuple[dict[str, Any], dict[str, Any]]]] = defaultdict(list)
-    for (demography, founder, resource, _seed), by_lifecycle in cells.items():
-        if "fixed_founder_v1" in by_lifecycle and "deterministic_size_fission_v1" in by_lifecycle:
-            grouped[(demography, founder, resource)].append((by_lifecycle["deterministic_size_fission_v1"], by_lifecycle["fixed_founder_v1"]))
+    for demography, founder, resource, seed in sorted(expected_cells):
+        key = (demography, founder, resource, seed)
+        by_lifecycle = cells[key]
+        observed_lifecycles = set(by_lifecycle)
+        unexpected_lifecycles = sorted(observed_lifecycles - expected_lifecycles)
+        if unexpected_lifecycles:
+            raise ValueError(
+                f"unexpected household lifecycle in pairing cell {key}: {unexpected_lifecycles}"
+            )
+        missing_lifecycles = sorted(expected_lifecycles - observed_lifecycles)
+        if missing_lifecycles:
+            raise ValueError(
+                f"missing declared household lifecycle in pairing cell {key}: {missing_lifecycles}"
+            )
+        grouped[(demography, founder, resource)].append(
+            (by_lifecycle[fission_lifecycle], by_lifecycle[fixed_lifecycle])
+        )
+
     result = []
     for key, pairs in sorted(grouped.items()):
         def differences(field: str) -> list[float]:
@@ -212,11 +345,14 @@ def paired_household_effects(runs: list[dict[str, Any]]) -> list[dict[str, Any]]
                 if left is not None and right is not None:
                     values.append(float(left) - float(right))
             return values
+
         result.append(
             {
                 "demography": key[0],
                 "founderAgeCeilingYears": key[1],
                 "resourceProductivityScalePermille": key[2],
+                "fixedHouseholdLifecycle": fixed_lifecycle,
+                "fissionHouseholdLifecycle": fission_lifecycle,
                 "pairedReplicates": len(pairs),
                 "fissionMinusFixedTerminalPopulation": mean_ci(differences("terminalPopulation")),
                 "fissionMinusFixedLateGrowthRatePerYear": mean_ci(differences("lateGrowthRatePerYear")),
@@ -287,8 +423,10 @@ def main() -> int:
     parser.add_argument("research_root", type=Path)
     parser.add_argument("observability_root", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--definition", type=Path, required=True)
     parser.add_argument("--long-run", type=Path)
     args = parser.parse_args()
+    definition = load(args.definition)
     runs = read_runs(args.research_root, args.observability_root)
     summary = {
         "schemaVersion": 1,
@@ -297,7 +435,7 @@ def main() -> int:
         "runCount": len(runs),
         "runs": runs,
         "arms": summarize_arms(runs),
-        "pairedHouseholdEffects": paired_household_effects(runs),
+        "pairedHouseholdEffects": paired_household_effects(runs, definition),
         "longRun": summarize_long_run(args.long_run),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
