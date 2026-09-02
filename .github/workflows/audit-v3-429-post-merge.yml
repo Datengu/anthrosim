@@ -1,0 +1,104 @@
+name: Audit v3 AV3-015 post-merge reverification
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v3-429-post-merge.py"
+      - ".github/workflows/audit-v3-429-post-merge.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  av3-015-post-merge:
+    name: AV3-015 independent 390-pair adversary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout merged-main evidence branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Verify committed repaired result independently
+        run: |
+          python3 -m py_compile scripts/audit-v3-429-post-merge.py
+          python3 scripts/audit-v3-429-post-merge.py \
+            research/general-demography-baseline-v1/confirmatory-definition.json \
+            research/general-demography-baseline-v1/confirmatory-result.json
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build research binaries
+        run: |
+          export ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)"
+          cargo build --locked --release -p anthrosim-cli \
+            --bin anthrosim-research \
+            --bin anthrosim-demography-observability
+
+      - name: Re-run frozen 780-run AV3-015 design
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/av3-015-runs /tmp/av3-015-observability /tmp/av3-015-evidence
+          mkdir -p /tmp/av3-015-observability /tmp/av3-015-evidence
+
+          target/release/anthrosim-research \
+            --definition research/general-demography-baseline-v1/confirmatory-definition.json \
+            --run-dir /tmp/av3-015-runs
+
+          python3 - <<'PY' >/tmp/av3-015-runs.tsv
+          import json
+          from pathlib import Path
+
+          rows = json.loads(Path('/tmp/av3-015-runs/analysis/runs.json').read_text())['runs']
+          assert len(rows) == 780, len(rows)
+          for row in rows:
+              assert row['state'] == 'completed', (row['runId'], row['state'])
+              print(f"{row['runId']}\t{row['relativeDir']}")
+          PY
+
+          while IFS=$'\t' read -r run_id relative_dir; do
+            target/release/anthrosim-demography-observability \
+              --run-dir "/tmp/av3-015-runs/$relative_dir" \
+              --output "/tmp/av3-015-observability/$run_id.json" >/dev/null
+          done </tmp/av3-015-runs.tsv
+
+          python3 scripts/research-long-run-diagnostics.py \
+            /tmp/av3-015-runs \
+            research/general-demography-baseline-v1/confirmatory-long-run-protocol.json \
+            --output /tmp/av3-015-evidence/long-run.json
+
+          python3 scripts/research-general-demography-baseline.py \
+            /tmp/av3-015-runs \
+            /tmp/av3-015-observability \
+            /tmp/av3-015-evidence/summary.json \
+            --definition research/general-demography-baseline-v1/confirmatory-definition.json \
+            --long-run /tmp/av3-015-evidence/long-run.json
+
+      - name: Independently re-run original 390-pair adversary
+        run: |
+          set -euo pipefail
+          python3 scripts/audit-v3-429-post-merge.py \
+            research/general-demography-baseline-v1/confirmatory-definition.json \
+            /tmp/av3-015-evidence/summary.json
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          generated = json.loads(Path('/tmp/av3-015-evidence/summary.json').read_text())
+          committed = json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
+          assert generated['runCount'] == 780
+          assert generated['pairedHouseholdEffects'] == committed['pairedHouseholdEffects']
+          assert len(generated['pairedHouseholdEffects']) == 3
+          assert sum(effect['pairedReplicates'] for effect in generated['pairedHouseholdEffects']) == 390
+          print('AV3-015 merged-main regeneration matches committed paired effects exactly: 390/390')
+          PY
+
+      - name: Upload independent AV3-015 evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: av3-015-post-merge-evidence
+          path: /tmp/av3-015-evidence
+          retention-days: 14
