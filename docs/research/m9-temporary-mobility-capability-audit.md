@@ -1,7 +1,7 @@
 # M9 capability audit — temporary mobility and aggregation
 
 **Status:** roadmap decision input  
-**Baseline audited:** post-v0.2.0 `main` at `030c7299f26dea7edb0cea7f3aee66b34d30781f`
+**Baseline audited:** post-v0.2.0 `main` at `3df93c75fb3fec90f74753715b32e30671734d39`
 
 ## Purpose
 

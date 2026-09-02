@@ -94,11 +94,11 @@ The seasonal prefix table is deterministic derived state only; it avoids a 365-d
 
 All reference changes were generated from one tested branch head:
 
-`7e13d5ee82db0c65d5ac52e4e5501c812fc968b0`
+`f4fd6aa1d35fa6b313199c958861b6195e833005`
 
 with merge-ref build identity:
 
-`bdee1f2831d8c18a9798acc5756cc10d21df1d04`.
+`pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`.
 
 No model parameter or experiment definition was changed to recover old outputs.
 

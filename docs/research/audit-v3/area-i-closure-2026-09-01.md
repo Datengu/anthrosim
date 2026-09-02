@@ -1,6 +1,6 @@
 # Audit v3 Area I closure note — sensitivity, uncertainty, convergence, robustness
 
-Immutable discovery target: `v0.3.3` / `358ae93b57a9b8f7053575dc6651aa959de2b4f9` / `anthrosim-model-semantics-v21`.
+Immutable discovery target: `v0.3.3` / `d3b6fc0b0750933b57252c9087513d156d88f218` / `anthrosim-model-semantics-v21`.
 
 This note closes the remaining Area I coverage after AV3-007/#413 and AV3-008/#415 were already demonstrated. It records the additional horizon, initialization, replicate and numerical/discretization checks required by the audit protocol. It is discovery evidence only; no finding is repaired.
 

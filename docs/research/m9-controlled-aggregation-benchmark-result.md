@@ -1,7 +1,7 @@
 # M9.7 controlled aggregation benchmark result
 
 **Benchmark:** `m9_7_controlled_continuous_vs_intermittent_v1`  
-**Predeclared contract commit:** `d0986a833e68a3682e831a2ed1b9ffea174f7a9d`  
+**Predeclared contract commit:** `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`  
 **Scientific status:** synthetic capability/verification benchmark, not archaeological validation  
 **Current classification:** `capability_distinguished`
 
@@ -14,8 +14,8 @@ The repository's executable `MODEL_SEMANTICS_ID` may advance beyond the referenc
 Reviewed reference execution:
 
 - workflow run: `33260785876`;
-- branch head: `e3ba2e12ea2ae38f5f4be0e0e2b6ff9ae1eb9513`;
-- pull-request merge-ref build: `f6ecc05ceeb800ae442820f5ad87eb28951474da`;
+- branch head: `b65b5ac45507c923a4cdba15ca26ca1165a8dc92`;
+- pull-request merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9717232706`;
 - artifact SHA-256: `a090a82a4a136cdf804c43549f73c758bf1541a2f0a506261da1c3af46668bc1`;
 - aggregate canonical SHA-256: `19ec2e01b1a107897672c2b6edb16394bbf6cce0d9a88ab9939cc5014578c243`;

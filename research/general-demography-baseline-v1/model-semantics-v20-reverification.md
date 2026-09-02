@@ -1,6 +1,6 @@
 # Model-semantics v20 reverification
 
-Audit-v2 issue #350 re-executed the frozen issue #304 384-run confirmatory design on branch head `96e50e9114e05543ae1fc6fd94a095867e54385a`, which contains live `anthrosim-model-semantics-v20` plus only this reverification trigger. All 384 runs completed and all three predeclared Monte Carlo precision gates returned `sufficient_stop`.
+Audit-v2 issue #350 re-executed the frozen issue #304 384-run confirmatory design on branch head `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`, which contains live `anthrosim-model-semantics-v20` plus only this reverification trigger. All 384 runs completed and all three predeclared Monte Carlo precision gates returned `sufficient_stop`.
 
 The high-level recommendation remains **`no_universal_demographic_baseline`**, but quantitative evidence changed under the #326 M3 partial-supply fixed-point repair. Representative changes versus the pre-v20 reference are:
 

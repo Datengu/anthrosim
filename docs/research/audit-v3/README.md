@@ -11,7 +11,7 @@ Authoritative ledger: `docs/research/audit-v3/STATUS.md`
 Audit v3 starts from the immutable release identity:
 
 - release tag: `v0.3.3`;
-- exact tagged commit: `358ae93b57a9b8f7053575dc6651aa959de2b4f9`;
+- exact tagged commit: `d3b6fc0b0750933b57252c9087513d156d88f218`;
 - software version: `0.3.3`;
 - executable model semantics: `anthrosim-model-semantics-v21`.
 

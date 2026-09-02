@@ -1,6 +1,6 @@
 # AnthroSim scientific audit v3 — status ledger
 
-Audit target: immutable AnthroSim `v0.3.3`, tag commit `358ae93b57a9b8f7053575dc6651aa959de2b4f9`, model semantics `anthrosim-model-semantics-v21`.
+Audit target: immutable AnthroSim `v0.3.3`, tag commit `d3b6fc0b0750933b57252c9087513d156d88f218`, model semantics `anthrosim-model-semantics-v21`.
 
 Protocol: `docs/research/scientific-audit-protocol.md`
 
@@ -14,7 +14,7 @@ Purpose: durable repository-authoritative state for the third independent/advers
 |---|---|
 | Audit generation | v3 / third independent scientific audit |
 | Immutable discovery target | `v0.3.3` |
-| Target tag SHA | `358ae93b57a9b8f7053575dc6651aa959de2b4f9` |
+| Target tag SHA | `d3b6fc0b0750933b57252c9087513d156d88f218` |
 | Target software version | `0.3.3` |
 | Target model semantics | `anthrosim-model-semantics-v21` |
 | Required protected-main contexts at initialization | 24 |
@@ -46,10 +46,10 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 | B | Demography, fertility, mortality, ageing, population structure | **complete — P2 findings open** | Certain-fertility M9 locality case exposed AV3-002/#392 in replay. AV3-003/#396: `lastBirthDay=-2000` plus explicit child at day -100 creates 1 artificial first-boundary birth where coherent spacing requires 0. |
 | C | Households, kinship, social links, lifecycle structure | **complete — P2 finding open** | PR #397 demonstrated AV3-004/#399: isomorphic founder kin graphs differing only by canonical-ID relabelling leave **2 vs 1** co-resident living parents after dependency-aware fission. PR #394 was later closed unmerged as an invalid stale adversary because its new fixture failed founder validation before reaching its intended mortality/fission assertion; no finding was inferred. |
 | D | Resources, condition, subsistence, depletion/recovery | **complete — P2 finding open** | PR #401 demonstrated AV3-005/#402: mild under-supply leaves visible condition 1000 plus **8/1000** latent loss; later full supply with configured recovery zero clears the remainder to **0**. |
-| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **complete — no new finding** | Closed evidence PR #404 head `dc0e5ded1923ab4ef67e88607b4a2112a08d316b`, CI `33475847586`: 90° rotation of asymmetric non-flat 5×5 M9 routing preserved minimum cost **8000** and **3 outbound + 3 return days**. |
-| F | Aggregation and interaction mechanisms | **complete — no new finding** | Closed evidence PR #406 head `5befc83204ae3d534001f9d5e2396fe8e61eec9c`, CI `33480471002`: one seven-day one-person visit produced **7 visitor-person-days / peak 1 / visitor need 7**; two simultaneous visits produced **14 / 2 / 14**. |
-| G | Initialization, burn-in, path dependence, continuation state | **complete — no new finding; AV3-001/002/003 cross-cutting** | Evidence PR #408 head `6ee0ce4444cf9814a37ffcff46daa8d980d067f6`, CI `33486199606`: with mortality, fertility, migration, resource need, condition loss and recovery all disabled, founder-condition arms **400** and **900** permille remained exactly **400** and **900** after five years. Independent year-2 checkpoint/resume in both arms produced the same complete `RecordedRun` as uninterrupted execution after excluding operational resume-lineage metadata. Existing 277 core tests plus the fresh adversary passed. No new Area G defect demonstrated; AV3-001/002/003 remain open cross-cutting limitations. |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — P1 finding open** | Closed red PR #409 head `4b837284825669435f4dcd64eef2f9161d459f9f`, CI `33487273744`: AV3-006/#410. Same-seed anti-correlated arms reported half-width **3.666756860283** vs covariance-aware **5.185577281736** at threshold **4.5**. |
+| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **complete — no new finding** | Closed evidence PR #404 head `74d2e1da45aa24252c88f697ee04c30d4fa5b4d6`, CI `33475847586`: 90° rotation of asymmetric non-flat 5×5 M9 routing preserved minimum cost **8000** and **3 outbound + 3 return days**. |
+| F | Aggregation and interaction mechanisms | **complete — no new finding** | Closed evidence PR #406 head `677491df183aec3a97108f979656791f5ff99d9e`, CI `33480471002`: one seven-day one-person visit produced **7 visitor-person-days / peak 1 / visitor need 7**; two simultaneous visits produced **14 / 2 / 14**. |
+| G | Initialization, burn-in, path dependence, continuation state | **complete — no new finding; AV3-001/002/003 cross-cutting** | Evidence PR #408 head `b49d4878a5a5690f106a3032be2e36ea18ddf7ed`, CI `33486199606`: with mortality, fertility, migration, resource need, condition loss and recovery all disabled, founder-condition arms **400** and **900** permille remained exactly **400** and **900** after five years. Independent year-2 checkpoint/resume in both arms produced the same complete `RecordedRun` as uninterrupted execution after excluding operational resume-lineage metadata. Existing 277 core tests plus the fresh adversary passed. No new Area G defect demonstrated; AV3-001/002/003 remain open cross-cutting limitations. |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — P1 finding open** | Closed red PR #409 head `601d01d8e3e70d5235b0b3fbf68372a2fa102053`, CI `33487273744`: AV3-006/#410. Same-seed anti-correlated arms reported half-width **3.666756860283** vs covariance-aware **5.185577281736** at threshold **4.5**. |
 | I | Sensitivity, uncertainty, convergence, robustness | **complete — P1/P2 findings open** | AV3-007/#413 accepts fabricated support-analysis identities; AV3-008/#415 leaves **4 recorded coordinates but only 2 executable treatments** under overlapping dimensions; AV3-011/#419 is cross-cutting. Closure note `area-i-closure-2026-09-01.md` records remaining coverage: `durationYears` is an explicit numeric sensitivity coordinate; fresh Area-G 400-vs-900 initialization arms stayed exactly distinct over 5 years with exact year-2 resume parity; Area-H 20-seed precision adversary remains limited by AV3-006; frozen scale semantics give 100→50 m refinement effects of **×4 M3 equal-area stock**, **×2 M9 route cost/travel days**, **300→150 m M4 physical horizon**, and M2 co-cell separation at 50 m. Spatial refinement is explicitly resolution-dependent, not expected to converge to a resolution-independent limit. |
 | J | Identifiability, equifinality, calibration, discrimination | **complete — P1/P2 findings open** | Frozen identifiability analyzer produced AV3-009/#416 typed-structure collapse, AV3-010/#418 non-conservative held-out averaging, AV3-011/#419 false identification of an unvaried parameter, and AV3-012/#421 hidden nuisance equifinality. AV3-013/#423 (**P1**) then showed protocol-local `evidenceId` strings are not bound to authoritative EvidenceCatalog/source identities, so one underlying source can use separate calibration and held-out aliases for the same observable and evade exact-pair circularity detection. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **complete — P0/P2 findings open** | Fresh frozen-source review confirms complete typed run configs, redundant immutable plan/manifest publication, fail-closed exact-copy retry reconciliation and child-bundle config/digest/spatial checks. AV3-014/#427 (**P0**) demonstrates that two source-distinct 0.3.3/v21 executables with unavailable Git identity both become `gitCommit=null`, producing the same source/research/run identities; B can `--retry` and retain A's completed child bundle as source-identical. Known AV3-002/007/008/013 remain cross-cutting. |
@@ -61,11 +61,11 @@ The immutable `v0.3.3` tag is the sole scientific discovery target for audit v3.
 
 | Finding | Severity | Area | Status | Issue | Evidence / later repair requirement |
 |---|---|---|---|---|---|
-| AV3-001 — spatial host ignores declared founder reproductive history during annual M2 | **P1** | A primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #387 | Closed red PR #386 head `230f652c4f1923fb6851f6a6433053267e0c60bf`: founder `lastBirthDay=-100`, certain fertility; core births 0, spatial births 1. |
-| AV3-002 — M9 history validator cannot replay declared-founder runs | **P2** | K/L primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #392 | Closed red PR #390 head `3161ddd1269ad78bfb519f1d3eda3111c6e833e7`: replay reconstructs with synthetic-only initialization and fails. |
-| AV3-003 — declared `lastBirthDay` can predate a later explicitly declared child | **P2** | B/G primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #396 | Red PR #395 head `662bf03c1b6b3908adea02e1f8f118d833404c7b`: contradictory chronology produces **1 vs expected 0** first-boundary births. |
-| AV3-004 — dependency-aware household fission remains PersonId-sensitive through kin-role tie-breaking | **P2** | C primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #399 | Closed red PR #397 head `b04d756a35e83fee3b294df74544b41b1f5bdd76`: isomorphic relabellings leave **2 vs 1** co-resident parents. |
-| AV3-005 — zero-recovery full supply clears latent M3 condition deterioration | **P2** | D primary; I/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #402 | Closed red PR #401 head `d3d6f8392b184ca34c418a24d666dc89ae947375`, CI `33474425681`: **8/1000** latent deterioration resets to **0** under full supply with recovery coefficient 0. |
+| AV3-001 — spatial host ignores declared founder reproductive history during annual M2 | **P1** | A primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #387 | Closed red PR #386 head `8d468bb344a4b8bd432fe5936924f7c7469c22e4`: founder `lastBirthDay=-100`, certain fertility; core births 0, spatial births 1. |
+| AV3-002 — M9 history validator cannot replay declared-founder runs | **P2** | K/L primary; B/G/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #392 | Closed red PR #390 head `17e8356a8a0ef75e5099ffb4aaa7ffa7ee02053f`: replay reconstructs with synthetic-only initialization and fails. |
+| AV3-003 — declared `lastBirthDay` can predate a later explicitly declared child | **P2** | B/G primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #396 | Red PR #395 head `b1c4a48cab22ae7656d21ea108ffad1d27798b50`: contradictory chronology produces **1 vs expected 0** first-boundary births. |
+| AV3-004 — dependency-aware household fission remains PersonId-sensitive through kin-role tie-breaking | **P2** | C primary; N cross-cutting | **demonstrated; open; deliberately unrepaired** | #399 | Closed red PR #397 head `61e143889a56c4ed8de631d4e2909cdf72fbe1c9`: isomorphic relabellings leave **2 vs 1** co-resident parents. |
+| AV3-005 — zero-recovery full supply clears latent M3 condition deterioration | **P2** | D primary; I/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #402 | Closed red PR #401 head `d6129ba893ea2df5eef7f758ccab22f0e02a11a4`, CI `33474425681`: **8/1000** latent deterioration resets to **0** under full supply with recovery coefficient 0. |
 | AV3-006 — independent difference-in-means gate ignores mandatory same-seed covariance | **P1** | H primary; J/L/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #410 | Closed red PR #409: reported half-width **3.666756860283** versus covariance-aware **5.185577281736** at threshold **4.5**. |
 | AV3-007 — support-sensitivity report can claim executed alternatives with fabricated analysis identities | **P2** | I primary; J/K/L/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #413 | Closed red PR #412: nonexistent primary/alternative identities accepted and `materialScaleDependence=false` certified. |
 | AV3-008 — overlapping research dimensions can erase declared sensitivity treatments | **P1** | I primary; J/K/N cross-cutting | **demonstrated; open; deliberately unrepaired** | #415 | **4 recorded coordinates but only 2 executable treatments**; declaration order changes realized design. |
@@ -85,7 +85,7 @@ The project objective is a fresh full-scale audit with no newly discovered P0/P1
 
 ## Initial repository verification — 2026-09-01
 
-- `refs/tags/v0.3.3` resolves exactly to `358ae93b57a9b8f7053575dc6651aa959de2b4f9`.
+- `refs/tags/v0.3.3` resolves exactly to `d3b6fc0b0750933b57252c9087513d156d88f218`.
 - Protected `main` was the same SHA at audit initialization.
 - Frozen target declares `MODEL_SEMANTICS_ID = "anthrosim-model-semantics-v21"`.
 - Exact-SHA release verification passed protected CI, RustSec, M8.6, M9.7 and the fail-closed release-tag workflow before audit-v3 initialization.
@@ -105,15 +105,15 @@ These establish target provenance, not scientific completion evidence.
 
 ### 2026-09-01 — Area J completion / AV3-013
 
-- Live protected `main` at session start: `5a01ca56c23d985bb6acc85832bafd7912446a7f`.
+- Live protected `main` at session start: `fbb91e01b9b82fac3edff48bf0e115a4367dfafa`.
 - Re-read the scientific audit protocol, audit-v3 charter and authoritative ledger. Open PR #408 owned Area G; stale Area-C evidence PR #394 also remained open, so neither surface was duplicated.
 - Frozen evidence-role firewall inspection demonstrated AV3-013/#423 (**P1**): `evidenceId` is accepted as a free non-empty string and confirmatory circularity is checked only on exact `(evidenceId, observableId)` equality, permitting same-source/same-observable calibration and held-out aliases.
-- No repair was made. Together with AV3-009/010/011/012, this supplied fresh structural, parameter, nuisance-compensation, held-out discrimination and calibration/held-out leakage coverage. Area J was closed through ledger PR #424, merged as `d9b84d310c9994073959672b92bcd529237a860b` after all required workflows passed.
+- No repair was made. Together with AV3-009/010/011/012, this supplied fresh structural, parameter, nuisance-compensation, held-out discrimination and calibration/held-out leakage coverage. Area J was closed through ledger PR #424, merged as `f4983aa017b084078c6dce804cec9a01aeb5c77d` after all required workflows passed.
 
 ### 2026-09-01 — Area G completion and audit-PR cleanup
 
-- Live protected `main` at reconciliation: `d9b84d310c9994073959672b92bcd529237a860b`.
-- PR #408 exact evidence head `6ee0ce4444cf9814a37ffcff46daa8d980d067f6` passed all workflow families; central CI run `33486199606` passed all **277 existing core tests** plus the fresh Area-G adversary.
+- Live protected `main` at reconciliation: `f4983aa017b084078c6dce804cec9a01aeb5c77d`.
+- PR #408 exact evidence head `b49d4878a5a5690f106a3032be2e36ea18ddf7ed` passed all workflow families; central CI run `33486199606` passed all **277 existing core tests** plus the fresh Area-G adversary.
 - Fresh initialization/path-dependence attack fixed all erasure mechanisms at zero and compared founder-condition arms **400** and **900** permille over five years. End states remained exactly **400** and **900**, so elapsed model time did not itself erase the causal initial-state contrast in this limiting case.
 - Both arms were independently checkpointed at year 2 and resumed. Resumed complete `RecordedRun` output matched uninterrupted execution exactly after excluding operational resume-lineage metadata. No new Area G scientific defect was demonstrated on this surface.
 - AV3-001/#387, AV3-002/#392 and AV3-003/#396 remain open cross-cutting initialization/replay limitations and were not repaired.
@@ -122,7 +122,7 @@ These establish target provenance, not scientific completion evidence.
 
 ### 2026-09-01 — Area I completion
 
-- Live protected `main` at session start: `e17e5aef5b6f5dbe206e32639a4a46d9bd03d03e`; no open PRs and no overlapping active Area-I PR were present.
+- Live protected `main` at session start: `7854ed3772988959374f4de9ee399e67c7cb2620`; no open PRs and no overlapping active Area-I PR were present.
 - Re-read the audit protocol, audit-v3 charter and authoritative ledger, and inspected frozen `ResearchExperimentDefinition`, `ExperimentConfig`, the research-definition contract and spatial-resolution dependence semantics on exact v0.3.3/v21.
 - Existing fresh Area-I adversaries remain AV3-007/#413 and AV3-008/#415; AV3-011/#419 is a cross-cutting design-adequacy failure. No repair was made.
 - Remaining horizon coverage: `durationYears` is a normal numeric field in the complete authoritative `ExperimentConfig` and is not reserved by the dimension contract, so temporal horizon is explicitly sweepable without source edits.
@@ -133,17 +133,17 @@ These establish target provenance, not scientific completion evidence.
 
 ### 2026-09-01 — Area K completion / AV3-014
 
-- Live protected `main` at Area-K start: `3370b8d6d60fe28d02f649ffd9fe72053368ed0f`; no open PRs or overlapping Area-K work were present.
+- Live protected `main` at Area-K start: `aec39efda82914fc739cb5945ded901c05b78d0e`; no open PRs or overlapping Area-K work were present.
 - Fresh inspection covered frozen `research_experiment.rs`, `provenance.rs`, `anthrosim-research.rs`, shared build provenance, exact research-definition documentation and source-provenance documentation.
 - Positive controls show strong orchestration behavior: complete resolved configs are preserved; redundant immutable plan/manifest copies are published before execution; retry requires exact immutable corroboration; mutable state can be reconstructed; completed child bundles are revalidated against exact planned configuration/source/digest/spatial artifacts; missing runs are recreated under the same identity. No generic defect was demonstrated on those surfaces beyond known AV3-002/007/008/013.
 - Fresh null-source-identity adversary demonstrated AV3-014/#427 (**P0**): when Git provenance is unavailable, both source-distinct builds can obtain the identical source tuple `(0.3.3, v21, null)`. With an identical research definition this deterministically yields identical `researchId` and `runId` values. A completed A bundle then passes B's `--retry` source equality check because `None == None`, so B retains output produced by a source-distinct executable as though it were source-identical.
 - Minimal identity cardinality: **2 source-distinct executables → 1 represented source identity**. More generally N source-distinct builds with the same version/semantics and null Git identity collapse to one represented identity.
 - Historical #94 is not a duplicate: the repaired versioned-sweep adapter rejects missing/dirty provenance; AV3-014 is the generic exact research runner accepting null provenance into authoritative immutable identity.
-- Evidence is preserved in `area-k-null-source-identity-adversary-2026-09-01.md` and `area-k-orchestration-review-2026-09-01.md`. No repair was made. Area K ledger PR #428 merged as `5b0379f532c49e320180f6a52f7efbca8b7f28a8` after all ten workflow families passed.
+- Evidence is preserved in `area-k-null-source-identity-adversary-2026-09-01.md` and `area-k-orchestration-review-2026-09-01.md`. No repair was made. Area K ledger PR #428 merged as `1b37b430f306ee3b1e250bef5b46d33a4ea8fbe3` after all ten workflow families passed.
 
 ### 2026-09-01 — Area L completion / AV3-015
 
-- Live protected `main` at Area-L start: `5b0379f532c49e320180f6a52f7efbca8b7f28a8`; no open PRs or overlapping Area-L work were present.
+- Live protected `main` at Area-L start: `1b37b430f306ee3b1e250bef5b46d33a4ea8fbe3`; no open PRs or overlapping Area-L work were present.
 - Fresh frozen review covered the general-demography summarizer/result, sweep weighting, survivor-conditioning gate, long-run diagnostics, nominal-vs-realized movement outputs and downstream provenance compatibility.
 - AV3-015/#429 (**P2**) is directly present in the frozen committed result: the 780-run confirmatory design contains **3 × 130 = 390** same-seed current-v2 household contrasts, but the summarizer searches for historical `deterministic_size_fission_v1`, so `pairedHouseholdEffects` is empty and represents **0/390** contrasts.
 - Fresh weighting adversary with one 1000-score move in run A and nine 0-score moves in run B gives run-weighted mean **500** versus pooled-per-move mean **100**; frozen sweep weighting exposes them as separate estimands with explicit support, so no new defect was demonstrated there.
@@ -152,7 +152,7 @@ These establish target provenance, not scientific completion evidence.
 
 ### 2026-09-01 — Area M completion / AV3-016 and AV3-017
 
-- Live protected `main` at Area-M start: `4192facfdc0935851b2f9c5239aaee4ce223ac74`; no open PRs or overlapping Area-M work were present.
+- Live protected `main` at Area-M start: `17ca9070ef8b7caae3331fc3921fbbf23e02143a`; no open PRs or overlapping Area-M work were present.
 - Fresh frozen review compared current scientific-model, ODD, ODD+D, TRACE, v0.3.3 release notes and general-demography narrative against executable/configuration and current result artifacts.
 - Empirical/synthetic boundaries were conservative: ODD/ODD+D/scientific-model/release documentation repeatedly states that M8/M9 benchmarks are capability checks, current human-decision rules are synthetic/unvalidated, and a clean fresh audit is a precondition for empirical inference rather than proof of correctness. No new defect was demonstrated on that boundary.
 - AV3-016/#431 (**P2**): TRACE sends readers to a living demographic baseline page that still reports historical `deterministic_size_fission_v1` / 64-seed values. Frozen current confirmation uses dependency-aware v2 and 130 seeds/arm. Positive-fission mean N240 changes **28.9→20.923**, mate limitation **38.7%→43.289%**, and simple fission-minus-fixed N240 effect **-79.4→-86.385** people.
@@ -161,7 +161,7 @@ These establish target provenance, not scientific completion evidence.
 
 ### 2026-09-01 — Area N completion / discovery closure
 
-- Live protected `main` at Area-N start: `99abf4fea28b1f419f120a48a162fd08cf61e04e`; no open PRs or overlapping Area-N work were present.
+- Live protected `main` at Area-N start: `ba13ed432a6a6dbc5d2db9ee0a89931a53e82d82`; no open PRs or overlapping Area-N work were present.
 - Performed the protocol-required final explicit cross-system pass across demography×households, demography×resources, households×movement, movement×resources, aggregation×resources, initialization×demography, initialization×spatial placement, stochastic inference×censoring/extinction, sensitivity×hidden configuration, calibration×identifiability, checkpoint/resume×RNG, and observability×scientific interpretation.
 - Frozen scheduler inspection confirms annual M2 precedes household lifecycle in both hosts, so AV3-001's demonstrated **0-vs-1 birth** mismatch can immediately change the living-member count presented to same-day fission. This is a cross-system consequence of AV3-001, not a separate smallest defect.
 - Household lifecycle explicitly reconciles temporary-mobility topology after fission. Fresh Area-F **7→14** visitor-person-day/resource-need scaling, Area-G exact **400/900** persistence and resume parity, Area-H **3.666756860283 vs 5.185577281736** precision conflict, and Area-L **500 vs 100** weighting plus **600→800 condition / 100→20 living** survivor-conditioning adversaries were reinterpreted jointly rather than as isolated subsystem checks.

@@ -53,7 +53,7 @@
   },
   "provenance": {
     "workflowRunId": 33272700305,
-    "workflowHeadSha": "72beb5ce656ebc2b55dee20c48682161e55e1403",
+    "workflowHeadSha": "2b8edc9130286ae991dbf76021786418ace79432",
     "artifactId": 9720595797,
     "artifactDigest": "sha256:11079ddefe586013faf3abf67ea809f49fa4698781a9edb55a2d3f3ff8c0c2f9"
   }

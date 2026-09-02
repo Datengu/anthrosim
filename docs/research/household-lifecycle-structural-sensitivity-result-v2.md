@@ -33,4 +33,4 @@ These results do not establish that dependency-aware fission is historically cor
 
 Machine-readable aggregate: `research/household-lifecycle-sensitivity-v2/reference-result.json`.
 
-Artifact provenance: workflow run `33272700305`, head `72beb5ce656ebc2b55dee20c48682161e55e1403`, artifact `9720595797`, artifact digest `sha256:11079ddefe586013faf3abf67ea809f49fa4698781a9edb55a2d3f3ff8c0c2f9`.
+Artifact provenance: workflow run `33272700305`, head `2b8edc9130286ae991dbf76021786418ace79432`, artifact `9720595797`, artifact digest `sha256:11079ddefe586013faf3abf67ea809f49fa4698781a9edb55a2d3f3ff8c0c2f9`.
