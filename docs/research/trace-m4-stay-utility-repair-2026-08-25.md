@@ -77,7 +77,7 @@ The M8.6 reference is updated only after this causal inspection. The new referen
 
 ## Observed M7.6 consequence
 
-The canonical synthetic resource-variability sweep was also rerun under v7 before its reference was changed. Umbrella CI run `32907506629`, merge-test revision `9dd1e447fa4ccab4d4e7be5f962b0236898b2b04`, produced artifact `9585478308` (ZIP SHA-256 `5e9765c169fea2a79c57e6bf588ea1268df30b649fa83c1432035c9ac86bdd31`). The source-definition SHA-256 remained exactly `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`; all 18 points × 8 seeds completed, with no failed, incomplete or person-record-limit runs.
+The canonical synthetic resource-variability sweep was also rerun under v7 before its reference was changed. Umbrella CI run `32907506629`, merge-test revision `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`, produced artifact `9585478308` (ZIP SHA-256 `5e9765c169fea2a79c57e6bf588ea1268df30b649fa83c1432035c9ac86bdd31`). The source-definition SHA-256 remained exactly `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`; all 18 points × 8 seeds completed, with no failed, incomplete or person-record-limit runs.
 
 M7.6 contains a particularly useful internal control because each productivity/seasonality setting is run once with migration enabled and once with migration disabled. The v6 → v7 comparison is unambiguous:
 

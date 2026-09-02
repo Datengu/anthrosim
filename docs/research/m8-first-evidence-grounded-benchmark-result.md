@@ -22,7 +22,7 @@ Reviewed v13 execution:
 
 - workflow run: `33090696389`;
 - branch head: `f1b1839dff60f120e98a214a0ac729b846a97659`;
-- pull-request merge-ref build: `0cd8253ef8813a75818f12ef131bc6d91696a0b2`;
+- pull-request merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9654333775`;
 - artifact SHA-256: `c10a47b7e5509ac97f64320fb561a0bc6c6206db0b9f67eb7e43f13988d0b30d`;
 - aggregate canonical SHA-256: `8c1b906539a74af80c9fa4f3d6500339feefe28201e6559b71081e4fb89c9725`.

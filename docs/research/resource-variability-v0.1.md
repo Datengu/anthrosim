@@ -23,7 +23,7 @@ Reviewed v13 execution:
 
 - CI run: `33095180014`;
 - branch head: `708ed24e5a046f0b660208581ab624bd6f9598dd`;
-- pull-request merge-ref build embedded in the run: `100558f92beec25cd20a6f7f17ee0b0cf7ff5f3e`;
+- pull-request merge-ref build embedded in the run: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
 - model version: `0.3.0`;
 - model semantics: `anthrosim-model-semantics-v13`;

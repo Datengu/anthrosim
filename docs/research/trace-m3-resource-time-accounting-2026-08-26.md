@@ -98,7 +98,7 @@ All reference changes were generated from one tested branch head:
 
 with merge-ref build identity:
 
-`bdee1f2831d8c18a9798acc5756cc10d21df1d04`.
+`pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`.
 
 No model parameter or experiment definition was changed to recover old outputs.
 

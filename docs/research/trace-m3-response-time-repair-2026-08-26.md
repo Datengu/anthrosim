@@ -112,7 +112,7 @@ Generation evidence:
 
 - workflow run: `32923009965`;
 - branch head: `641cb1c1907f7679ccff20574924cb36dd5f8188`;
-- PR merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
+- PR merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9590629317`;
 - artifact SHA-256: `799ce09b74cab05814593ed87e74da585cd6aee9982712385fc513b3346968d8`;
 - derived sweep identity: `anthrosim-sweep-v2-f467645573da673d`;
@@ -130,7 +130,7 @@ Generation evidence:
 
 - workflow run: `32923009999`;
 - branch head: `641cb1c1907f7679ccff20574924cb36dd5f8188`;
-- PR merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
+- PR merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9590576288`;
 - artifact SHA-256: `909a4d1032c2f3da5a4c7f5c719008a70b6c04e268e9cdb2893f1cef7c04525d`;
 - aggregate canonical SHA-256: `fb90ad3a8870038d7f7e1ec42b34ffb3d1564be9255fc8f068b80673c35bb8c2`.

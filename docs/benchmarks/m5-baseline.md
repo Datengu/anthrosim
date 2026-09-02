@@ -3,7 +3,7 @@
 **Milestone:** M5 — events, metrics, checkpoints and causal inspection  
 **Purpose:** regression baseline for persistence cost, not a cross-machine performance guarantee  
 **Environment:** GitHub-hosted Ubuntu 24.04 runner, Rust 1.97.1  
-**Measured branch head:** `179b5d1eb1131e3f24aad2e83bb80329bd54c601`  
+**Measured branch head:** `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`  
 **CI run:** 116
 
 M5 introduces deterministic annual-boundary checkpoints containing the dynamic population, resource and migration state, event/metric history and exact positions of all named stochastic streams. Persistence overhead is measured separately from the simulation lifecycle so later schema changes can be evaluated rather than treated as free.

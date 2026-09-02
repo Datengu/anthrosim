@@ -98,7 +98,7 @@ Reviewed execution before rebaseline:
 
 - workflow run: `32931457083`;
 - branch head: `3936e5ce04d990d473d242adfed8dfa13937bf49`;
-- merge-ref build: `de045e09e4a9550ea1d964ac644c22e0dac31e44`;
+- merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - derived artifact: `9593578301`;
 - artifact SHA-256: `1356300fe21d029f7a5c0a8e1f0c3db36d23fbf1d906cb5bdd522b24f1a2667e`;
 - generated sweep: `anthrosim-sweep-v2-e119a09bf3eb0393`.
@@ -113,7 +113,7 @@ Reviewed execution before rebaseline:
 
 - workflow run: `32930245492`;
 - branch head: `24feba4d86698426af65e557d4c65c776a208959`;
-- merge-ref build: `4a224061e4f4387430a33215518503b064810a1f`;
+- merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9593020274`;
 - artifact SHA-256: `61295c9c97a13b30879784fa94f613e2a53312b6db60b4b749239801a1c8d182`;
 - aggregate canonical SHA-256: `bf078fdfd5a43673bfef0ab76203af5fda673868d8d18b81c754e9b8682a1d7f`.
@@ -128,7 +128,7 @@ Reviewed execution before rebaseline:
 
 - workflow run: `32930245559`;
 - branch head: `24feba4d86698426af65e557d4c65c776a208959`;
-- merge-ref build: `4a224061e4f4387430a33215518503b064810a1f`;
+- merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9593016422`;
 - artifact SHA-256: `561f828adec030fba9879b9a354f285b4b10b9f0431b16591134e539d866bb08`;
 - aggregate canonical SHA-256: `4a7e4a95edbb01f0ab7371d313bd24e5f989cf2371a022ed6dd62fe4426f8a07`.
