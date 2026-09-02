@@ -1,0 +1,26 @@
+name: Audit v4 Area A scheduler adversary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/anthrosim-core/src/simulation.rs'
+      - 'crates/anthrosim-core/src/spatial_simulation.rs'
+      - 'docs/research/audit-v4/area-a-scheduler-adversary.py'
+      - '.github/workflows/audit-v4-area-a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scheduler-adversary:
+    name: Exhaustive scheduler collision and host-order audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Run fresh Audit-v4 Area-A adversary
+        run: python3 docs/research/audit-v4/area-a-scheduler-adversary.py
