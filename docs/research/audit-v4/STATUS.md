@@ -17,7 +17,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Target tag SHA | `8996e99ffc4c5b91b9e00d1048eedd4227ea1d09` |
 | Target software version | `0.3.4` |
 | Target model semantics | `anthrosim-model-semantics-v25` |
-| Coverage state | **1/14 Areas complete — Area A complete; Area B in progress** |
+| Coverage state | **2/14 Areas complete — Areas A-B complete; Area C next** |
 | Current P0 findings | none discovered |
 | Current P1 findings | **7 open — AV4-001/#486; AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500** |
 | Current P2 findings | none discovered |
@@ -39,7 +39,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | ID | Audit area | Status | Fresh v4 evidence / findings |
 |---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | **complete — 7 P1 findings open** | Pass 1 scheduler collision attack: PR #483 / run `33686718180`, exhaustive **133,225** M3/M4 period-count pairs, no skipped/duplicated/reordered boundaries or inspected host-order drift. Passes 2–7 demonstrated independent label/order coupling in fertility (**AV4-001/#486**), background mortality (**AV4-002/#488**), M4 migration (**AV4-003/#491**), newborn sex (**AV4-004/#493**), parentage (**AV4-005/#495**), and condition-mediated mortality (**AV4-006/#497**). Pass 8 attacked M9's non-sequential keyed equal-cost destination policy and demonstrated **AV4-007/#500**. Frozen-source RNG inventory accounted for the runtime named streams: four demography streams, two migration streams and one resource/condition-mortality stream; M9's destination symmetry breaker is keyed separately. Initialization/world-generation streams are deferred to Areas G/E rather than silently treated as Area-A closure evidence. |
-| B | Demography, fertility, mortality, ageing, population structure | **in progress — AV4-001/002/004/005/006 cross-cutting** | First fresh quantitative pass opened as PR #501: 30,000-person mortality partition Monte Carlo across 1/12/365 M3 periods/year. |
+| B | Demography, fertility, mortality, ageing, population structure | **complete — AV4-001/002/004/005/006 cross-cutting** | Fresh v4 passes: PR #501 / run `33690928936` tested 30,000-person annual background mortality under 1/12/365 M3 partitions and found all observed death counts and pairwise differences well inside six-sigma binomial envelopes; PR #503 / run `33691311786` passed exact female fertility-age and executable birth-spacing boundaries; PR #505 / run `33693515792` passed exact background-mortality age-band boundaries; PR #506 / run `33694660962` measured finite-population extinction/censoring over 200 seeds × 120 years (N=20: 28/200 extinct, all-run terminal mean 11.240 vs survivor-only 13.070; N=200: 0/200 extinct, mean 119.255), retained as an explicit analysis obligation rather than a new defect; PR #507 / run `33696946835` passed mate presence and exact male `[18,70)` eligibility boundaries. Authoritative demography/config/founder chronology code was inspected; the existing no-universal-demographic-baseline policy remains the correct interpretation boundary. No additional Area-B defect beyond the cross-cutting Area-A findings was demonstrated. |
 | C | Households, kinship, social links, lifecycle structure | **incomplete — AV4-003/005/007 cross-cutting** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete — AV4-006 cross-cutting** | — |
 | E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete — AV4-001/002/003/004/006/007 cross-cutting** | — |
@@ -81,7 +81,12 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 - All seven red evidence PRs were closed unmerged after issue preservation. No repairs were made.
 - **Area A discovery is complete. Audit v4 advances to Area B while all seven findings remain deliberately unrepaired.**
 
-### 2026-09-02 — Area B pass 1 started
+### 2026-09-02/03 — Area B discovery
 
-- Open evidence PR #501 targets immutable v0.3.4/v25 with a **30,000-person** one-year Monte Carlo check of configured annual background mortality under **1, 12 and 365** M3 partitions/year.
-- The test uses constant annual mortality `0.2`, zero fertility, zero condition-mediated mortality and no migration; observed annual deaths are checked against the binomial expectation and pairwise partition stability with conservative six-sigma envelopes.
+- PR #501 / run `33690928936`: 30,000-person Monte Carlo at annual background mortality 0.2 gave 6022, 5984 and 6015 deaths for 1, 12 and 365 M3 periods/year respectively; z-scores against the 6000 expectation were 0.318, 0.231 and 0.217 and pairwise partition differences were small. No time-basis finding.
+- PR #503 / run `33691311786`: exact female fertility-band lower/upper edges and the rounded executable birth-spacing threshold passed. No finding.
+- PR #505 / run `33693515792`: exact background-mortality age-band lower/upper edges passed. No finding.
+- PR #506 / run `33694660962`, job `100460844628`: 200-seed finite-population stress test over 120 years found **14.0% extinction at N=20** versus **0% at N=200**. Survivor-only terminal population at N=20 was 13.070 versus all-run 11.240, a +1.830 (+16.28%) censoring shift. Extinction is an explicit terminal state and current scientific-analysis contracts already require censoring/extinction treatment, so this is retained as a material model/analysis obligation rather than a new implementation defect. Central CI's only failure was rustfmt line wrapping in the disposable evidence fixture; the dedicated experiment itself compiled and passed.
+- PR #507 / run `33696946835`, job `100467763467`: no-male, lower-age-edge and upper-age-edge mate-limitation cases passed exactly: 0, 0, 1, 1, 0 births for no male, 18y−1d, 18y, 70y−1d and 70y respectively. Central CI again failed only disposable-fixture formatting; dedicated scientific execution passed.
+- Source inspection covered the authoritative demography schedule lookup, annual transition semantics, competing-mortality integration, founder reproductive chronology, birth-spacing normalization, mate gating and stop reasons. Neighbouring household/resource/spatial dependencies are carried forward to Areas C/D/E/N rather than treated as marginal-demography closure evidence.
+- **Area B discovery is complete. No new Area-B-specific finding was demonstrated beyond AV4-001/002/004/005/006 already preserved from Area A. Audit v4 advances to Area C.**
