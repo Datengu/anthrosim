@@ -1,0 +1,29 @@
+name: Current demographic baseline documentation
+
+on:
+  pull_request:
+    paths:
+      - "docs/research/general-scientific-demographic-baseline-v1.md"
+      - "docs/research/general-scientific-demographic-baseline-v1-historical.md"
+      - "docs/research/trace.md"
+      - "research/general-demography-baseline-v1/confirmatory-definition.json"
+      - "research/general-demography-baseline-v1/confirmatory-result.json"
+      - "scripts/test-current-demographic-baseline-docs.py"
+      - ".github/workflows/current-demographic-baseline-docs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  current-demographic-baseline-docs:
+    name: Current demographic baseline docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Verify current TRACE-linked demographic result
+        run: |
+          python3 -m py_compile scripts/test-current-demographic-baseline-docs.py
+          python3 scripts/test-current-demographic-baseline-docs.py
