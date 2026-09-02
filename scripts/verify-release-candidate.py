@@ -130,7 +130,11 @@ def verify(
     release_notes = repo_root / "docs" / "releases" / f"{tag}.md"
     require(release_notes.is_file(), f"release notes are missing: {release_notes.relative_to(repo_root)}")
     first_line = release_notes.read_text(encoding="utf-8").splitlines()[0]
-    require(first_line == f"# AnthroSim {tag}", f"release notes title does not identify {tag}: {first_line!r}")
+    title_pattern = rf"# AnthroSim {re.escape(tag)}(?:\s+.*)?"
+    require(
+        re.fullmatch(title_pattern, first_line) is not None,
+        f"release notes title does not identify {tag}: {first_line!r}",
+    )
 
     main_sha = branch_payload.get("commit", {}).get("sha")
     require(main_sha == sha, f"release candidate {sha} is not the current protected main HEAD ({main_sha})")
@@ -168,7 +172,9 @@ def _fixture(root: Path) -> None:
         encoding="utf-8",
     )
     (root / "CITATION.cff").write_text('cff-version: 1.2.0\nversion: "0.4.0"\n', encoding="utf-8")
-    (root / "docs" / "releases" / "v0.4.0.md").write_text("# AnthroSim v0.4.0\n", encoding="utf-8")
+    (root / "docs" / "releases" / "v0.4.0.md").write_text(
+        "# AnthroSim v0.4.0 — descriptive release title\n", encoding="utf-8"
+    )
 
 
 def self_test() -> None:
@@ -199,6 +205,23 @@ def self_test() -> None:
             status_payload=status,
         )
         require(set(verified) == set(all_names), "positive verifier fixture omitted a gate")
+
+        bad_title = root / "docs" / "releases" / "v0.4.0.md"
+        bad_title.write_text("# AnthroSim v0.4.00 — wrong tag token\n", encoding="utf-8")
+        try:
+            verify(
+                tag="v0.4.0",
+                sha=sha,
+                repo_root=root,
+                branch_payload=branch,
+                checks_payload=checks,
+                status_payload=status,
+            )
+        except ValueError as error:
+            require("release notes title" in str(error), "wrong release-note title produced wrong diagnosis")
+        else:
+            raise ValueError("release-note title with a different tag token was accepted")
+        _fixture(root)
 
         bad_checks = json.loads(json.dumps(checks))
         bad_checks["check_runs"][-1]["conclusion"] = "failure"
