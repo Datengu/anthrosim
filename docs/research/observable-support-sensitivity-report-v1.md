@@ -75,3 +75,12 @@ Together with the support-plan contract, this closes the generic machine-enforce
 - substantive inference changes across those alternatives are explicitly reported.
 
 A real study still has to justify its chosen support definitions and inference classes from its evidence and protocol. Archaeological sampling/preservation remains the separate observation-model problem tracked by #209.
+
+## Executed-analysis provenance binding (Audit-v3 AV3-007)
+
+An `analysisIdentity` is not an opaque label. For sensitivity reporting it must resolve beneath `analysis/observable-support/` to a verified `anthrosim-analysis-provenance` schema-v2 record with an `analysis-provenance-v2-sha256-*` identity and `executionStatus: executed_by_wrapper`. The generic analysis-provenance verifier must succeed against the same finalized `study-result-binding.json`.
+
+Each resolved analysis must consume, as an exact argv token and SHA-256-bound input, one `observable-support-binning-definition` generated from the supplied support plan and finalized support assessment. That definition fixes the observable, primary/alternative binning ID, observed/simulated support, and exact spatial/temporal aggregation rules. The analysis must also emit exactly one fingerprinted `observable-support-inference` output whose `inferenceClass` is the class reported by this sensitivity report. Fabricated identities, duplicate provenance identities, reused analysis identities, missing/tampered outputs, wrong study bindings, wrong binnings, and unconstrained inference labels therefore fail closed.
+
+The report identity remains deterministic over the validated analysis provenance identities and reported support result. This layer reuses downstream analysis provenance v2 rather than defining a weaker parallel execution-receipt format.
+
