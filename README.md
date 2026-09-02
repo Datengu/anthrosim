@@ -2,9 +2,9 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**v0.3.3 is the current named release baseline represented by this source tree.** It preserves the repaired post-scientific-audit-v2 state at `anthrosim-model-semantics-v21`. The earlier `v0.3.2` release remains immutable at model semantics v19; v0.3.3 names the later audited repair line rather than rewriting that historical identity.
+**This source tree is prepared as the AnthroSim v0.3.4 release baseline.** It preserves the completed Scientific Audit v3 remediation state at `anthrosim-model-semantics-v25`. The immutable `v0.3.3` release remains model semantics v21; v0.3.4 names the later repaired line rather than rewriting that historical identity.
 
-**v0.3.3 preserves `anthrosim-model-semantics-v21`.** Scientific audit v2 is complete: Areas A–N were covered, all 15 AV2 findings were repaired and reverified, and no P0–P3 scientific finding remained open at release preparation. This does not make AnthroSim empirically validated or prove scientific correctness; the next planned step is a fresh independent/adversarial audit against the immutable v0.3.3 baseline, followed by question-led model interrogation only if convergence remains strong.
+**v0.3.4 preserves `anthrosim-model-semantics-v25`.** Scientific Audit v3 is complete: the immutable v0.3.3/v21 baseline was challenged across Areas A–N, 17 findings were demonstrated (1 P0, 6 P1 and 10 P2), and all 17 were repaired, merged through protected CI, independently post-merge reverified, and closed. No original Audit-v3 finding remains open. This is strong convergence evidence, not empirical validation or proof of scientific correctness; empirical/question-specific readiness must be assessed separately.
 
 The preserved M8.6 and M9.7 references are capability/regression baselines under declared assumptions, not archaeological validation. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
@@ -16,7 +16,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-AnthroSim v0.3.3 includes:
+AnthroSim v0.3.4 includes:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -58,8 +58,9 @@ Culture, language, trade, states, religion, warfare, and AI-controlled agents re
 - **M9 — Temporary mobility and controlled aggregation / v0.3.0:** complete, audited and released. M9 adds persistent-residence/current-presence separation, identity-bearing focal regions, deterministic multi-day temporary journeys, duration-aware resource accounting, M9 observability and a predeclared continuous-residence versus intermittent-aggregation benchmark.
 - **v0.3.1 post-M9 scientific hardening:** released. The first major audit backlog is resolved and its analysis/inference safeguards are preserved in that immutable release.
 - **v0.3.2 documentation convergence:** released as a maintenance patch that synchronizes living scientific/project documentation with the already-implemented v0.3.1 state; no model semantics or frozen scientific results change.
-- **v0.3.3 post-audit-v2 convergence baseline:** preserves the repaired v21 scientific state after a second independent/adversarial A–N audit repaired and reverified all 15 AV2 findings; no P0–P3 finding remained open at release preparation.
-- **Next validation phase:** run another fresh independent/adversarial audit against immutable `v0.3.3`, then proceed to question-led model interrogation if convergence remains strong. No fixed M10 feature list is declared.
+- **v0.3.3 post-audit-v2 convergence baseline:** immutable historical baseline at model semantics v21; this became the frozen target of Scientific Audit v3.
+- **v0.3.4 post-Audit-v3 convergence baseline:** preserves the repaired v25 state after Audit v3 demonstrated 17 findings and all 17 were independently post-merge reverified and closed.
+- **Next validation phase:** perform a separate empirical/question-specific readiness assessment and then question-led model interrogation; do not infer archaeological validity merely from Audit-v3 closure. No fixed M10 feature list is declared.
 
 M1–M4 establish the baseline permanent-residence response loop: local supply and competition affect condition/survival, and surviving pressured households can make bounded permanent relocations. M5–M7 make that loop inspectable, resumable and reproducibly orchestrated without introducing a second simulation engine.
 

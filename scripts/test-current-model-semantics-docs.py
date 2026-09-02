@@ -15,12 +15,15 @@ CURRENT_DOCS = (
 )
 V032_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.2.md"
 V033_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.3.md"
+V034_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.4.md"
 VERSIONING_DOC = ROOT / "docs" / "release-versioning.md"
 
 V032_SEMANTICS_ID = "anthrosim-model-semantics-v19"
 V032_SHORT = "v19"
 V033_SEMANTICS_ID = "anthrosim-model-semantics-v21"
 V033_SHORT = "v21"
+V034_SEMANTICS_ID = "anthrosim-model-semantics-v25"
+V034_SHORT = "v25"
 
 
 def current_semantics_id() -> str:
@@ -41,8 +44,13 @@ def short_version(identity: str) -> str:
 def main() -> None:
     current_id = current_semantics_id()
     current_short = short_version(current_id)
+    if current_id != V034_SEMANTICS_ID:
+        raise AssertionError(
+            f"v0.3.4 living-release guard expects {V034_SEMANTICS_ID}, got {current_id}"
+        )
+
     current_phrase = f"current model semantics {current_short}"
-    release_phrase = f"immutable v0.3.2 release baseline: {V032_SHORT}"
+    release_phrase = f"immutable v0.3.3 release baseline: {V033_SHORT}"
 
     for path in CURRENT_DOCS:
         text = path.read_text(encoding="utf-8")
@@ -53,8 +61,8 @@ def main() -> None:
             )
         if release_phrase not in text:
             raise AssertionError(
-                f"{path.relative_to(ROOT)} does not distinguish the immutable v0.3.2 "
-                f"release baseline ({V032_SHORT}) from the living development line"
+                f"{path.relative_to(ROOT)} does not distinguish the immutable v0.3.3 "
+                f"release baseline ({V033_SHORT}) from the v0.3.4/current line"
             )
 
     v032_release_text = V032_RELEASE_DOC.read_text(encoding="utf-8")
@@ -71,6 +79,13 @@ def main() -> None:
         raise AssertionError(
             "docs/releases/v0.3.3.md does not preserve the audited release semantics "
             f"identity {V033_SEMANTICS_ID}"
+        )
+
+    v034_release_text = V034_RELEASE_DOC.read_text(encoding="utf-8")
+    if f"Model semantics: `{V034_SEMANTICS_ID}`" not in v034_release_text:
+        raise AssertionError(
+            "docs/releases/v0.3.4.md does not identify the release semantics "
+            f"as {V034_SEMANTICS_ID}"
         )
 
     versioning_text = VERSIONING_DOC.read_text(encoding="utf-8")
@@ -90,6 +105,14 @@ def main() -> None:
         raise AssertionError(
             "docs/release-versioning.md does not identify v0.3.3 as the preserved v21 baseline"
         )
+    if (
+        "v0.3.4`**: post-Scientific-Audit-v3 convergence patch preserving the fully remediated "
+        "and independently reverified v25 model-semantics baseline"
+        not in versioning_text
+    ):
+        raise AssertionError(
+            "docs/release-versioning.md does not identify v0.3.4 as the preserved v25 baseline"
+        )
 
     stale_current_patterns = (
         "v0.3.2 package / post-M9 scientific-hardening line / model semantics v15",
@@ -99,7 +122,13 @@ def main() -> None:
     )
     checked = "\n".join(
         path.read_text(encoding="utf-8")
-        for path in (*CURRENT_DOCS, V032_RELEASE_DOC, V033_RELEASE_DOC, VERSIONING_DOC)
+        for path in (
+            *CURRENT_DOCS,
+            V032_RELEASE_DOC,
+            V033_RELEASE_DOC,
+            V034_RELEASE_DOC,
+            VERSIONING_DOC,
+        )
     )
     for stale in stale_current_patterns:
         if stale in checked:
