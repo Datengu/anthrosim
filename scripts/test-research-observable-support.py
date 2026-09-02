@@ -113,15 +113,26 @@ def main():
         assert pid(changed) != pid(plan)
 
         result = {
+            "resultIdentity":"study-result-v1-test",
             "studyExecutionId":"study-execution-v1-test",
             "protocolIdentity":protocol_identity(protocol),
-            "researchId":"anthrosim-research-v1-test"
+            "researchId":"anthrosim-research-v1-test",
+            "analysisRequirements":[{
+                "kind":"observable_support_sensitivity",
+                "identity":pid(plan)
+            }]
         }
         (root / "binding.json").write_bytes(canon(result))
         bound_output = root / "assessment-bound.json"
         run(["derive", "--plan", str(plan_path), "--protocol", str(protocol_path), "--study-result-binding", str(root / "binding.json"), "--output", str(bound_output)])
         bound = json.loads(bound_output.read_text())
         assert bound["sourceResearchId"] == "anthrosim-research-v1-test"
+        assert bound["sourceStudyResultIdentity"] == "study-result-v1-test"
+
+        missing_requirement = copy.deepcopy(result)
+        missing_requirement["analysisRequirements"] = []
+        (root / "binding-missing-requirement.json").write_bytes(canon(missing_requirement))
+        run(["derive", "--plan", str(plan_path), "--protocol", str(protocol_path), "--study-result-binding", str(root / "binding-missing-requirement.json"), "--output", str(root / "missing-requirement.json")], ok=False)
 
         result["protocolIdentity"] = "study-protocol-v1-wrong"
         (root / "binding-bad.json").write_bytes(canon(result))

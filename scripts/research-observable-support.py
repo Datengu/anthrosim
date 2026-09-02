@@ -15,6 +15,7 @@ from typing import Any
 SCHEMA = "anthrosim-observable-support-plan-v1"
 ASSESSMENT_SCHEMA = "anthrosim-observable-support-assessment-v1"
 BINDING_PREFIX = "observable-support-plan-v1:"
+ANALYSIS_REQUIREMENT_KIND = "observable_support_sensitivity"
 
 
 class ContractError(ValueError):
@@ -257,11 +258,37 @@ def build_assessment(protocol: dict[str, Any], plan: dict[str, Any], result_bind
     if result_binding is not None:
         if not isinstance(result_binding, dict):
             raise ContractError("study result binding must be an object")
-        for key in ("studyExecutionId", "protocolIdentity", "researchId"):
+        for key in ("resultIdentity", "studyExecutionId", "protocolIdentity", "researchId"):
             nonempty(result_binding.get(key), f"studyResultBinding.{key}")
         if result_binding["protocolIdentity"] != assessment["protocolIdentity"]:
             raise ContractError("study result binding protocolIdentity does not match supplied frozen protocol")
+
+        requirements = result_binding.get("analysisRequirements")
+        if not isinstance(requirements, list):
+            raise ContractError(
+                "study result binding must declare analysisRequirements for a support-bound protocol"
+            )
+        seen_requirements: set[tuple[str, str]] = set()
+        expected_requirement = (ANALYSIS_REQUIREMENT_KIND, pid)
+        for idx, requirement in enumerate(requirements):
+            field = f"studyResultBinding.analysisRequirements[{idx}]"
+            requirement = exact_keys(
+                requirement, {"kind", "identity"}, {"kind", "identity"}, field
+            )
+            pair = (
+                nonempty(requirement["kind"], f"{field}.kind"),
+                nonempty(requirement["identity"], f"{field}.identity"),
+            )
+            if pair in seen_requirements:
+                raise ContractError(f"duplicate study analysis requirement: {pair}")
+            seen_requirements.add(pair)
+        if expected_requirement not in seen_requirements:
+            raise ContractError(
+                "study result binding does not require the exact observable-support sensitivity plan"
+            )
+
         assessment["sourceStudyExecutionId"] = result_binding["studyExecutionId"]
+        assessment["sourceStudyResultIdentity"] = result_binding["resultIdentity"]
         assessment["sourceResearchId"] = result_binding["researchId"]
     assessment["assessmentIdentity"] = identity("observable-support-assessment-v1-sha256-", assessment)
     return assessment

@@ -22,6 +22,8 @@ const STUDY_PROTOCOL: &str = "study-protocol.json";
 const RESEARCH_DEFINITION: &str = "research-definition.json";
 const RESEARCH_DIR: &str = "research";
 const RESULT_BINDING: &str = "study-result-binding.json";
+const OBSERVABLE_SUPPORT_BINDING_PREFIX: &str = "observable-support-plan-v1:";
+const OBSERVABLE_SUPPORT_REQUIREMENT_KIND: &str = "observable_support_sensitivity";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -159,6 +161,8 @@ struct StudyResultBinding {
     research_relative_dir: PathBuf,
     run_counts: StudyRunCounts,
     result_artifacts: Vec<StudyResultArtifact>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    analysis_requirements: Vec<StudyAnalysisRequirement>,
 }
 
 impl StudyResultBinding {
@@ -177,6 +181,13 @@ struct StudyRunCounts {
 struct StudyResultArtifact {
     path: PathBuf,
     digest64: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StudyAnalysisRequirement {
+    kind: String,
+    identity: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -348,6 +359,7 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
         });
     }
 
+    let analysis_requirements = study_analysis_requirements(&plan.protocol)?;
     let mut binding = StudyResultBinding {
         schema_version: StudyResultBinding::CURRENT_SCHEMA_VERSION,
         result_identity: String::new(),
@@ -364,6 +376,7 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
         research_relative_dir: plan.research_relative_dir.clone(),
         run_counts,
         result_artifacts,
+        analysis_requirements,
     };
     binding.result_identity = result_binding_identity(&binding)?;
 
@@ -441,6 +454,36 @@ fn completed_run_counts(state: &ResearchStateView) -> Result<StudyRunCounts, Box
     Ok(StudyRunCounts { completed, failed })
 }
 
+fn study_analysis_requirements(
+    protocol: &StudyProtocol,
+) -> Result<Vec<StudyAnalysisRequirement>, Box<dyn Error>> {
+    let mut requirements = Vec::new();
+    for observable in &protocol.observables {
+        let normalized = observable.interpretation.replace(';', " ");
+        for token in normalized.split_whitespace() {
+            let Some(identity) = token.strip_prefix(OBSERVABLE_SUPPORT_BINDING_PREFIX) else {
+                continue;
+            };
+            if !identity.starts_with("observable-support-plan-v1-sha256-")
+                || identity.len() <= "observable-support-plan-v1-sha256-".len()
+            {
+                return Err(format!(
+                    "observable {} has malformed observable-support plan binding",
+                    observable.id
+                )
+                .into());
+            }
+            requirements.push(StudyAnalysisRequirement {
+                kind: OBSERVABLE_SUPPORT_REQUIREMENT_KIND.to_owned(),
+                identity: identity.to_owned(),
+            });
+        }
+    }
+    requirements.sort();
+    requirements.dedup();
+    Ok(requirements)
+}
+
 fn study_execution_identity(
     protocol_identity: &str,
     definition_identity: &str,
@@ -503,23 +546,39 @@ fn result_binding_identity(binding: &StudyResultBinding) -> Result<String, Box<d
         run_counts: StudyRunCounts,
         result_artifacts: &'a [StudyResultArtifact],
     }
+
+    let base = Identity {
+        schema_version: binding.schema_version,
+        study_execution_id: &binding.study_execution_id,
+        protocol_identity: &binding.protocol_identity,
+        protocol_revision: binding.protocol_revision,
+        study_id: &binding.study_id,
+        scientific_status: binding.scientific_status,
+        bound_before_execution: binding.bound_before_execution,
+        confirmatory_pre_result_claim_eligible: binding.confirmatory_pre_result_claim_eligible,
+        definition_identity: &binding.definition_identity,
+        research_id: &binding.research_id,
+        source: &binding.source,
+        research_relative_dir: &binding.research_relative_dir,
+        run_counts: binding.run_counts,
+        result_artifacts: &binding.result_artifacts,
+    };
+    if binding.analysis_requirements.is_empty() {
+        return stable_identity("study-result-v1", &base);
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct IdentityWithRequirements<'a> {
+        #[serde(flatten)]
+        base: Identity<'a>,
+        analysis_requirements: &'a [StudyAnalysisRequirement],
+    }
     stable_identity(
         "study-result-v1",
-        &Identity {
-            schema_version: binding.schema_version,
-            study_execution_id: &binding.study_execution_id,
-            protocol_identity: &binding.protocol_identity,
-            protocol_revision: binding.protocol_revision,
-            study_id: &binding.study_id,
-            scientific_status: binding.scientific_status,
-            bound_before_execution: binding.bound_before_execution,
-            confirmatory_pre_result_claim_eligible: binding.confirmatory_pre_result_claim_eligible,
-            definition_identity: &binding.definition_identity,
-            research_id: &binding.research_id,
-            source: &binding.source,
-            research_relative_dir: &binding.research_relative_dir,
-            run_counts: binding.run_counts,
-            result_artifacts: &binding.result_artifacts,
+        &IdentityWithRequirements {
+            base,
+            analysis_requirements: &binding.analysis_requirements,
         },
     )
 }
@@ -882,6 +941,7 @@ mod tests {
         assert_eq!(first.run_counts.completed, 1);
         assert_eq!(first.run_counts.failed, 0);
         assert_eq!(first.result_artifacts.len(), 2);
+        assert!(first.analysis_requirements.is_empty());
         assert!(
             first
                 .result_artifacts
@@ -890,6 +950,40 @@ mod tests {
         );
         assert!(first.result_identity.starts_with("study-result-v1-"));
         assert!(first.confirmatory_pre_result_claim_eligible);
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(protocol_path).unwrap();
+        fs::remove_file(definition_path).unwrap();
+    }
+
+    #[test]
+    fn finalize_records_observable_support_analysis_requirement() {
+        let root = temp_root("support-requirement");
+        let protocol_path = root.with_extension("protocol.json");
+        let definition_path = root.with_extension("definition.json");
+        let mut protocol = tiny_protocol();
+        let support_identity = "observable-support-plan-v1-sha256-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        protocol.observables[0].interpretation = format!(
+            "Support-bound comparison; {OBSERVABLE_SUPPORT_BINDING_PREFIX}{support_identity}"
+        );
+        write_json(&protocol_path, &protocol);
+        write_json(&definition_path, &tiny_definition());
+        let plan = prepare(&root, &protocol_path, &definition_path).unwrap();
+        fake_research_root(&root, &plan, "completed");
+
+        let binding = finalize(&root).unwrap();
+        assert_eq!(
+            binding.analysis_requirements,
+            vec![StudyAnalysisRequirement {
+                kind: OBSERVABLE_SUPPORT_REQUIREMENT_KIND.to_owned(),
+                identity: support_identity.to_owned(),
+            }]
+        );
+        let serialized: Value = read_json_regular(&root.join(RESULT_BINDING), "binding").unwrap();
+        assert_eq!(
+            serialized["analysisRequirements"][0]["identity"],
+            Value::String(support_identity.to_owned())
+        );
 
         fs::remove_dir_all(&root).unwrap();
         fs::remove_file(protocol_path).unwrap();
