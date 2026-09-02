@@ -513,12 +513,12 @@ def _discriminating_predictions(
                 right_mean = sum(_number(p["outputs"][observable], observable) for p in by_structure[right]) / len(by_structure[right])
                 if intervals_available:
                     left_interval = [
-                        sum(float(item["intervalLower"]) for item in left_evidence) / len(left_evidence),
-                        sum(float(item["intervalUpper"]) for item in left_evidence) / len(left_evidence),
+                        min(float(item["intervalLower"]) for item in left_evidence),
+                        max(float(item["intervalUpper"]) for item in left_evidence),
                     ]
                     right_interval = [
-                        sum(float(item["intervalLower"]) for item in right_evidence) / len(right_evidence),
-                        sum(float(item["intervalUpper"]) for item in right_evidence) / len(right_evidence),
+                        min(float(item["intervalLower"]) for item in right_evidence),
+                        max(float(item["intervalUpper"]) for item in right_evidence),
                     ]
                     if right_interval[0] > left_interval[1]:
                         minimum_gap = right_interval[0] - left_interval[1]

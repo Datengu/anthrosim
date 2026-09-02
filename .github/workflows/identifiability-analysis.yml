@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/research-identifiability.py"
       - "scripts/test-research-identifiability-fixed-design.py"
+      - "scripts/test-research-identifiability-held-out-envelope.py"
       - "research/identifiability-benchmark-v1/**"
       - "docs/research/identifiability-equifinality-v1.md"
       - "docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py"
@@ -28,6 +29,8 @@ jobs:
           python3 scripts/research-identifiability.py --self-test
       - name: Verify fixed-by-design parameters fail closed
         run: python3 scripts/test-research-identifiability-fixed-design.py
+      - name: Verify held-out discrimination uses conservative structural envelopes
+        run: python3 scripts/test-research-identifiability-held-out-envelope.py
       - name: Run independent audit-v2 Area J uncertainty checker
         run: python3 docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py
       - name: Verify independent second pattern identifies benchmark
