@@ -6,6 +6,7 @@ on:
       - "scripts/research-identifiability.py"
       - "scripts/test-research-identifiability-fixed-design.py"
       - "scripts/test-research-identifiability-held-out-envelope.py"
+      - "scripts/test-research-identifiability-equifinality-compensation.py"
       - "research/identifiability-benchmark-v1/**"
       - "docs/research/identifiability-equifinality-v1.md"
       - "docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py"
@@ -31,6 +32,8 @@ jobs:
         run: python3 scripts/test-research-identifiability-fixed-design.py
       - name: Verify held-out discrimination uses conservative structural envelopes
         run: python3 scripts/test-research-identifiability-held-out-envelope.py
+      - name: Verify equifinality preserves nuisance-parameter compensation
+        run: python3 scripts/test-research-identifiability-equifinality-compensation.py
       - name: Run independent audit-v2 Area J uncertainty checker
         run: python3 docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py
       - name: Verify independent second pattern identifies benchmark

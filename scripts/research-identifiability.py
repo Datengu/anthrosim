@@ -608,6 +608,26 @@ def analyse(plan: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         }
     )
 
+    parameter_combination_keys = {
+        json.dumps(point["parameters"], sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        for point in compatible
+    }
+    distinct_parameter_combination_count = len(parameter_combination_keys)
+    parameter_combination_equifinality = distinct_parameter_combination_count > 1
+    nuisance_parameter_ids = [
+        diagnostic["parameter"]
+        for diagnostic in final_parameters
+        if diagnostic["parameter"] not in claimed_parameters
+    ]
+    compensating_nuisance_parameter_ids: list[str] = []
+    for parameter in nuisance_parameter_ids:
+        compatible_values = {
+            json.dumps(point["parameters"][parameter], sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+            for point in compatible
+        }
+        if len(compatible_values) > 1 and not diagnostic_by_id[parameter]["identified"]:
+            compensating_nuisance_parameter_ids.append(parameter)
+
     return {
         "schemaVersion": SCHEMA_VERSION,
         "resultType": RESULT_TYPE,
@@ -651,7 +671,14 @@ def analyse(plan: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         "pairwiseInteractionSurfaces": _pairwise_surfaces(points, compatible),
         "discriminatingPredictions": _discriminating_predictions(plan, compatible, diagnostics),
         "equifinality": {
-            "present": len(compatible) > 1 and (not parameter_gate or (require_structure and not structure_gate)),
+            "present": parameter_combination_equifinality or structural["equifinal"],
+            "parameterCombinationEquifinality": parameter_combination_equifinality,
+            "distinctCompatibleParameterCombinationCount": distinct_parameter_combination_count,
+            "structuralEquifinality": structural["equifinal"],
+            "nuisanceParameterCompensation": {
+                "present": bool(compensating_nuisance_parameter_ids),
+                "parameterIds": compensating_nuisance_parameter_ids,
+            },
             "reportingPolicy": "report_compatible_region_not_unique_optimum",
         },
     }
