@@ -69,7 +69,7 @@ jobs:
             # Bootstrap verification for the already-preserved v0.2.0 release.
             # Future named releases are created only by explicit dispatch.
             tag="v0.2.0"
-            sha="1f5904064e62b6971e4316b845d8bec3857e97c0"
+            sha="7b3d48f127d88e3f1ce3b54fef7c41468c51a4dc"
           else
             tag="$INPUT_TAG"
             sha="$INPUT_SHA"

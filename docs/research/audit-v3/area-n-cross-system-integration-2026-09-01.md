@@ -1,6 +1,6 @@
 # Audit v3 Area N — cross-system integration review
 
-Audit target: `v0.3.3` / `358ae93b57a9b8f7053575dc6651aa959de2b4f9` / `anthrosim-model-semantics-v21`.
+Audit target: `v0.3.3` / `d3b6fc0b0750933b57252c9087513d156d88f218` / `anthrosim-model-semantics-v21`.
 
 This is a discovery-only integration pass. It does not repair any finding. It explicitly re-attacks the required coupled surfaces after the individual A–M audits, using frozen-source inspection plus fresh v3 adversarial evidence already generated against the same immutable target.
 

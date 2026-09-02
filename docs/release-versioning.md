@@ -131,3 +131,18 @@ Creating or preserving a release tag does not change `MODEL_SEMANTICS_ID`, packa
 Agents and contributors must not opportunistically change the package version while implementing ordinary issues. A version bump should be an explicit release decision or part of a task that specifically calls for a named release.
 
 From M9 onward, agents should plan on a completed major milestone normally culminating in the next minor release, while still treating milestone completion, release publication, model-semantics identity and Git source identity as separate concerns. When uncertain during implementation, leave the package version unchanged and preserve exact provenance through the Git commit identity.
+
+
+## Exceptional privacy-driven history rewrites
+
+Release tags are immutable-intent scientific/version identities and must not ordinarily move after publication. The sole exception is an explicitly authorized repository-wide privacy or sensitive-data sanitisation where retaining the original Git objects would preserve information that must be removed.
+
+When such an exceptional rewrite occurs:
+
+- the release version and `MODEL_SEMANTICS_ID` do not change merely because Git object identities change;
+- rewritten tags must continue to identify source trees with the same released scientific semantics, apart from non-semantic sanitisation;
+- living provenance documentation must be reconciled to the rewritten tag SHA and must state that a privacy-driven rewrite occurred rather than pretending the original Git SHA is still the live tag identity;
+- the rewrite does not constitute a new scientific validation or a new release; and
+- subsequent releases must use the ordinary exact-candidate protected-CI and release-specific verification gates.
+
+On 2026-09-02, AnthroSim underwent such an authorized privacy sanitisation. Historical release-tag commit identities were rewritten while release versions and model-semantics identities were preserved.

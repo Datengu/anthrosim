@@ -41,7 +41,7 @@ Start here:
 - [`trace-audit-2026-08-25-pass-8.md`](trace-audit-2026-08-25-pass-8.md) — writer→reader causal-graph audit across condition, residence, resources, temporary presence, genealogy and world fields; no new P1 discovered.
 - [`trace-audit-2026-08-25-pass-9.md`](trace-audit-2026-08-25-pass-9.md) — symmetry, relabelling and arbitrary-bookkeeping audit; no new P1 discovered and current audit-first discovery phase judged converged.
 
-Those earlier TRACE passes and scientific audit v2 are preserved as historical evidence. Audit v2 subsequently completed the reusable protocol's full Areas A–N, repaired and reverified all 15 AV2 findings, and closed with no open P0–P3 scientific finding. The repaired v21 state was then frozen as immutable `v0.3.3` at `358ae93b57a9b8f7053575dc6651aa959de2b4f9`.
+Those earlier TRACE passes and scientific audit v2 are preserved as historical evidence. Audit v2 subsequently completed the reusable protocol's full Areas A–N, repaired and reverified all 15 AV2 findings, and closed with no open P0–P3 scientific finding. The repaired v21 state was then frozen as immutable `v0.3.3` at `d3b6fc0b0750933b57252c9087513d156d88f218`.
 
 Scientific audit v3 now restarts full A–N coverage from zero against that frozen release. Its convergence target is deliberately stronger than “all discovered defects repaired”: the desired signal is a genuinely fresh full audit that discovers **no new P0 or P1**. Audit-v2 conclusions and green CI may inform hypotheses, but they cannot be reused as the sole completion evidence for audit v3.
 

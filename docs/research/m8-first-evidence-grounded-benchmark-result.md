@@ -21,8 +21,8 @@ The frozen M8.6 experiment was rerun unchanged and its generated artifact was re
 Reviewed v13 execution:
 
 - workflow run: `33090696389`;
-- branch head: `e53efc592e4b13d0038b71e3252284e54a8543b6`;
-- pull-request merge-ref build: `0cd8253ef8813a75818f12ef131bc6d91696a0b2`;
+- branch head: `f1b1839dff60f120e98a214a0ac729b846a97659`;
+- pull-request merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9654333775`;
 - artifact SHA-256: `c10a47b7e5509ac97f64320fb561a0bc6c6206db0b9f67eb7e43f13988d0b30d`;
 - aggregate canonical SHA-256: `8c1b906539a74af80c9fa4f3d6500339feefe28201e6559b71081e4fb89c9725`.
@@ -30,7 +30,7 @@ Reviewed v13 execution:
 The immediate pre-#188 control is the final successful M8.6 execution from PR #272:
 
 - workflow run: `33091589938`;
-- branch head: `b24aaad2de5301c9f537d28433bf754bd2ffc72e`;
+- branch head: `7dcfa3550716d8b5e25148ff3f47b9784b4905bb`;
 - artifact: `9654664618`;
 - artifact SHA-256: `a08f78be7b9a7434f4d37ff767cda786235076d753309413a6ff4a251d8e4ee3`.
 

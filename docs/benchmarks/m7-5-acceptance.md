@@ -3,7 +3,7 @@
 **Milestone:** M7.5 — performance and memory acceptance benchmarking  
 **Purpose:** v0.1 engineering acceptance and regression protection, not scientific validation  
 **Environment:** GitHub-hosted Ubuntu 24.04, x86-64 Azure runner, 2 logical CPUs, Rust 1.97.1  
-**Initial measured PR head:** `d1afb6b5d1824c685a8f910e2ad723f9efe71331`  
+**Initial measured PR head:** `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`  
 **Initial measurement CI run:** 169
 
 M7.5 turns AnthroSim's earlier micro/regression benchmarks into an explicit end-to-end v0.1 performance envelope. The requirement being tested is the v0.1 specification's baseline that a 10,000-person simulation can execute for thousands of simulated years on ordinary CPU hardware without requiring a database, GPU, distributed execution or a nondeterministic fast path.
