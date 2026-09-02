@@ -1,0 +1,27 @@
+name: v0.3.4 convergence preview
+
+on:
+  push:
+    branches:
+      - maintenance/v034-converge-runner
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge provenance-reconciled main into release prep
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main release/v0.3.4-prep
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B release/v0.3.4-converged-preview origin/main
+          git merge --no-ff origin/release/v0.3.4-prep -m 'release: converge v0.3.4 prep with provenance reconciliation'
+          git push --force origin release/v0.3.4-converged-preview
