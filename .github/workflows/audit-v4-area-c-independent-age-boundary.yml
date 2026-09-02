@@ -1,0 +1,29 @@
+name: Audit v4 Area C independence boundary
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v4_household_independence_boundary.rs'
+      - '.github/workflows/audit-v4-area-c-independent-age-boundary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independence-boundary:
+    name: Household independence-boundary adversary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 household independence-boundary adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v4_household_independence_boundary -- --nocapture
