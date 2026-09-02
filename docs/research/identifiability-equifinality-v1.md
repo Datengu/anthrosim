@@ -60,7 +60,7 @@ Calibration targets and held-out corroboration observables must be disjoint. The
 
 Held-out corroboration may be used to derive a **discriminating prediction** between currently compatible structural hypotheses, but it is not silently consumed to make the calibration gate pass. If investigators later choose to use that observation for calibration, that is a new declared analysis with a new plan/provenance record, consistent with #206.
 
-For stochastic held-out outputs the analyzer uses a conservative envelope of their bound pointwise Monte Carlo intervals. A prediction is labelled discriminating only when the bound simulation precision is adequate and those interval envelopes remain separated by more than the predeclared corroboration discrimination tolerance. This envelope is a decision safeguard, not a newly invented estimator of between-point uncertainty.
+For stochastic held-out outputs the analyzer uses a conservative envelope of their bound pointwise Monte Carlo intervals. For each still-compatible structure, the envelope spans the minimum pointwise `intervalLower` through the maximum pointwise `intervalUpper` across every compatible parameter point in that structure; interval bounds are never averaged across compatible points. A prediction is labelled discriminating only when the bound simulation precision is adequate and those structural interval envelopes remain separated by more than the predeclared corroboration discrimination tolerance. This envelope is a decision safeguard, not a newly invented estimator of between-point uncertainty.
 
 ## Practical parameter identifiability
 
