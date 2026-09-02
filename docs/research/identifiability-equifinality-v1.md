@@ -85,7 +85,9 @@ The result preserves:
 - staged diagnostics showing what each additional calibration pattern contributes;
 - held-out observables that would discriminate between structural hypotheses still compatible with the calibration evidence.
 
-When multiple parameter combinations or structures remain compatible with the claim, `equifinality.present` is true and the reporting policy is `report_compatible_region_not_unique_optimum`.
+When multiple **distinct parameter combinations** or structures remain compatible with the claim, `equifinality.present` is true and the reporting policy is `report_compatible_region_not_unique_optimum`. This summary is derived from the compatible scientific state, not from whether the narrower declared claim gate passes. A declared parameter can therefore be practically identified to its predeclared resolution while `equifinality.present=true` because other compatible parameter combinations remain. Multiple rows that repeat the same parameter object and structure do not by themselves create equifinality.
+
+The equifinality object reports `parameterCombinationEquifinality`, `distinctCompatibleParameterCombinationCount`, and `structuralEquifinality` separately. It also reports `nuisanceParameterCompensation`: an unclaimed parameter is listed there when it takes multiple values across the compatible region and its own identifiability diagnostic remains non-identifying. This makes conditional/nuisance compensation explicit instead of allowing a successful narrow claim to erase it from the top-level interpretation.
 
 The pairwise surfaces are diagnostic summaries, not a substitute for adequate global sensitivity sampling. Strong ridges or broad surfaces indicate combinations that the current evidence constrains more strongly than their individual components.
 
