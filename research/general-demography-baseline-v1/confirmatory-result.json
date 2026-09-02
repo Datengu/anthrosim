@@ -1037,7 +1037,95 @@
       "uncertaintyCategory": "process_stochastic_monte_carlo"
     }
   },
-  "pairedHouseholdEffects": [],
+  "pairedHouseholdEffects": [
+    {
+      "demography": "negative_growth_control_v1",
+      "fissionHouseholdLifecycle": "deterministic_dependency_fission_v2",
+      "fissionMinusFixedLateGrowthRatePerYear": {
+        "ci95Lower": -0.012503107771042937,
+        "ci95Upper": -0.004092562701493482,
+        "mean": -0.00829783523626821,
+        "n": 103,
+        "sd": 0.02177532612524239
+      },
+      "fissionMinusFixedMateLimitationFraction": {
+        "ci95Lower": 0.12229039192113599,
+        "ci95Upper": 0.14971347119429573,
+        "mean": 0.13600193155771587,
+        "n": 130,
+        "sd": 0.07976452964042541
+      },
+      "fissionMinusFixedTerminalPopulation": {
+        "ci95Lower": -11.326577664698334,
+        "ci95Upper": -6.950345412224741,
+        "mean": -9.138461538461538,
+        "n": 130,
+        "sd": 12.728990196132525
+      },
+      "fixedHouseholdLifecycle": "fixed_founder_v1",
+      "founderAgeCeilingYears": 60,
+      "pairedReplicates": 130,
+      "resourceProductivityScalePermille": 1000
+    },
+    {
+      "demography": "positive_growth_control_v1",
+      "fissionHouseholdLifecycle": "deterministic_dependency_fission_v2",
+      "fissionMinusFixedLateGrowthRatePerYear": {
+        "ci95Lower": -0.010402552469720844,
+        "ci95Upper": -0.007835833685675506,
+        "mean": -0.009119193077698175,
+        "n": 127,
+        "sd": 0.007379077348646061
+      },
+      "fissionMinusFixedMateLimitationFraction": {
+        "ci95Lower": 0.29990772745405475,
+        "ci95Upper": 0.32329614146642177,
+        "mean": 0.31160193446023826,
+        "n": 130,
+        "sd": 0.06802904313367553
+      },
+      "fissionMinusFixedTerminalPopulation": {
+        "ci95Lower": -91.8176531624421,
+        "ci95Upper": -77.98234683755791,
+        "mean": -84.9,
+        "n": 130,
+        "sd": 40.24226055881703
+      },
+      "fixedHouseholdLifecycle": "fixed_founder_v1",
+      "founderAgeCeilingYears": 60,
+      "pairedReplicates": 130,
+      "resourceProductivityScalePermille": 1000
+    },
+    {
+      "demography": "replacement_control_v1",
+      "fissionHouseholdLifecycle": "deterministic_dependency_fission_v2",
+      "fissionMinusFixedLateGrowthRatePerYear": {
+        "ci95Lower": -0.014252159257464371,
+        "ci95Upper": -0.009915768996535583,
+        "mean": -0.012083964126999977,
+        "n": 120,
+        "sd": 0.012118277594849713
+      },
+      "fissionMinusFixedMateLimitationFraction": {
+        "ci95Lower": 0.2224672146490756,
+        "ci95Upper": 0.24946827662992127,
+        "mean": 0.23596774563949843,
+        "n": 130,
+        "sd": 0.07853702303964391
+      },
+      "fissionMinusFixedTerminalPopulation": {
+        "ci95Lower": -43.14135358451502,
+        "ci95Upper": -33.81249256933114,
+        "mean": -38.47692307692308,
+        "n": 130,
+        "sd": 27.1345243014099
+      },
+      "fixedHouseholdLifecycle": "fixed_founder_v1",
+      "founderAgeCeilingYears": 60,
+      "pairedReplicates": 130,
+      "resourceProductivityScalePermille": 1000
+    }
+  ],
   "recommendation": "no_universal_demographic_baseline",
   "researchId": "research-execution-v1-01b24567d4afddcc",
   "runCount": 780,
