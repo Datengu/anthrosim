@@ -1,0 +1,24 @@
+name: AV3-012 post-merge reverification
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v3-post-merge-test-equifinality-compensation.py"
+      - ".github/workflows/audit-v3-421-post-merge-reverification.yml"
+      - "scripts/research-identifiability.py"
+
+permissions:
+  contents: read
+
+jobs:
+  reverify-av3-012:
+    name: Reverify AV3-012 nuisance-compensation equifinality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Replay original AV3-012 nuisance-compensation adversary
+        run: python3 scripts/audit-v3-post-merge-test-equifinality-compensation.py
