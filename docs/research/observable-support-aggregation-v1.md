@@ -102,3 +102,8 @@ python scripts/research-observable-support.py derive \
 ## Scientific boundary
 
 This is research-analysis governance. It does not modify M1-M9 mechanisms, model semantics, spatial transformation semantics, RNG behavior, checkpoints, or benchmark reference values. It does not choose a historically correct polygon, phase, catchment, or temporal bin for a real study; those remain evidence-bearing study decisions.
+
+## Finalized-study execution requirement (Audit-v3 AV3-007)
+
+When a frozen protocol binds an `observable-support-plan-v1:*` identity, `anthrosim-study finalize` records a matching `analysisRequirements` entry of kind `observable_support_sensitivity` in `study-result-binding.json`. A post-result support assessment derived with `--study-result-binding` must resolve that exact requirement and records the source study execution, **study result identity**, and research execution. An unfinalized assessment may still be used to validate the support plan itself, but it is not sufficient input to a support-sensitivity execution report.
+

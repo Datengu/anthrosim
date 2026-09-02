@@ -176,3 +176,8 @@ A study-protocol or evidence-governance change is a change to the scientific cla
 ## Acceptance meaning
 
 After this contract is used, a confirmatory result can identify one immutable pre-execution protocol that says what was being tested, which outputs/windows count, how runs are treated and what result would support/reject the declared hypotheses. For evidence-bearing studies, the corresponding frozen research definition also identifies the authoritative provenance source behind every confirmatory evidence reference. Changing those rules or source bindings produces a new provenance-visible identity rather than silently changing the interpretation of the old result.
+
+## Observable-support downstream requirement (Audit-v3 AV3-007)
+
+A protocol observable that carries an `observable-support-plan-v1:<plan identity>` interpretation binding causes finalization to publish an `analysisRequirements` entry of kind `observable_support_sensitivity` for that exact plan. This does not assert that the downstream primary/alternative analyses have already run; it makes their execution an explicit provenance obligation of the finalized result. The post-result support assessment and sensitivity report must resolve that obligation through analysis provenance v2. Protocols without such a binding retain the pre-existing result-binding identity contract.
+

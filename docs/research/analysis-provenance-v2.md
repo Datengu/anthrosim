@@ -46,3 +46,8 @@ Definition and provenance identities use `analysis-definition-v2-sha256-*` and `
 ## Scientific boundary
 
 This provenance layer establishes which frozen study, executable argv, configuration-file bytes, code, environment specification, RNG declarations, evidence-role assessment inputs, and outputs form one reproducible downstream analysis lineage. It does not establish statistical validity, sufficient Monte Carlo precision, identifiability, empirical validity, evidence independence by itself, or archaeological truth; those remain separate research gates.
+
+## Observable-support sensitivity analyses (Audit-v3 AV3-007)
+
+The observable-support sensitivity gate uses this v2 wrapper as its execution proof. Primary and alternative support analyses must be scripted analyses with `executionStatus: executed_by_wrapper`; their exact plan-derived binning definition is a declared input and an argv token, and their support inference is a fingerprinted output. `research-observable-support-results.py` invokes the normal provenance verifier before accepting an `analysisIdentity`, so support-scale robustness cannot be certified by a fabricated identifier or an unexecuted declaration.
+
