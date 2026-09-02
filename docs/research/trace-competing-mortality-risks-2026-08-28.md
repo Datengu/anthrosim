@@ -47,7 +47,7 @@ This repair is model-structural, not calibration. Any future empirical mortality
 
 ## Protected M7.6 rebaseline review
 
-The protected v14 M7.6 source was CI run `33121918130`, head `fa8604452c267b918d7c542e96c8ec7f8d5152a9`, test-merge commit `d1df97e9e47dd1e252e683fc7cbc05ceedeec644`, sweep `anthrosim-sweep-v2-2435a2eee06d7132`. The reviewed v15 source was CI run `33129843888`, head `70b123afd685168b8dd5a4a38e6bebd380cbab6b`, test-merge commit `e86cef007694bdfae6377248b27f737b8fd7693e`, sweep `anthrosim-sweep-v2-f26b183e8d3eefbb`.
+The protected v14 M7.6 source was CI run `33121918130`, head `2801ee50d39137dd57ff1653990f5e67b522d055`, test-merge commit `d1df97e9e47dd1e252e683fc7cbc05ceedeec644`, sweep `anthrosim-sweep-v2-2435a2eee06d7132`. The reviewed v15 source was CI run `33129843888`, head `c74ab3d3330c210470a2f929700e2321f05c86b4`, test-merge commit `e86cef007694bdfae6377248b27f737b8fd7693e`, sweep `anthrosim-sweep-v2-f26b183e8d3eefbb`.
 
 Both sources used the same definition identity `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`, the same 18-point factorial design and paired seeds. All 144 runs completed and remained scientifically eligible in both versions; no run changed stop reason or censoring category.
 

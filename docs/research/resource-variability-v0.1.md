@@ -22,7 +22,7 @@ The current reference was deliberately regenerated after issue #188 corrected th
 Reviewed v13 execution:
 
 - CI run: `33095180014`;
-- branch head: `93c305d7b0b0c0570f9354f8aec03d0f52ee6171`;
+- branch head: `708ed24e5a046f0b660208581ab624bd6f9598dd`;
 - pull-request merge-ref build embedded in the run: `100558f92beec25cd20a6f7f17ee0b0cf7ff5f3e`;
 - definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
 - model version: `0.3.0`;
@@ -35,7 +35,7 @@ All **144/144** planned runs completed with provenance-valid, scientifically eli
 The immediate pre-#188 control is the final successful M7.6 artifact from PR #272:
 
 - CI run: `33091589580`;
-- branch head: `b24aaad2de5301c9f537d28433bf754bd2ffc72e`;
+- branch head: `7dcfa3550716d8b5e25148ff3f47b9784b4905bb`;
 - artifact: `9654873821`;
 - artifact SHA-256: `1dff62be5ebeacc6c7bad9d93dc54384eb18dd09da053c75ac5f74144c33bde4`.
 

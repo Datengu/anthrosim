@@ -111,7 +111,7 @@ The unchanged 18-point × 8-seed synthetic experiment completed all **144/144 ru
 Generation evidence:
 
 - workflow run: `32923009965`;
-- branch head: `dbd73404f2c2f9e65d58c32e4f495acee4bb7e30`;
+- branch head: `641cb1c1907f7679ccff20574924cb36dd5f8188`;
 - PR merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
 - artifact: `9590629317`;
 - artifact SHA-256: `799ce09b74cab05814593ed87e74da585cd6aee9982712385fc513b3346968d8`;
@@ -120,7 +120,7 @@ Generation evidence:
 
 The machine-readable reference records the unchanged definition and the changed v9 derived outputs. It is a synthetic regression snapshot, not calibration or empirical evidence.
 
-The regenerated reference was then independently accepted by the canonical M7.6 CI job on branch head `1570c211d629c932e9816cc41908e9503d41c479` (CI run `32924358049`).
+The regenerated reference was then independently accepted by the canonical M7.6 CI job on branch head `b887bc5857cbd243007fc98695f2c81d21700c93` (CI run `32924358049`).
 
 ### M8.6 evidence-grounded spatial benchmark
 
@@ -129,7 +129,7 @@ The four unchanged arms × eight declared seeds completed all **32/32 runs** und
 Generation evidence:
 
 - workflow run: `32923009999`;
-- branch head: `dbd73404f2c2f9e65d58c32e4f495acee4bb7e30`;
+- branch head: `641cb1c1907f7679ccff20574924cb36dd5f8188`;
 - PR merge-ref build: `4711431704948c8f9f842c968aa113243b8a41a0`;
 - artifact: `9590576288`;
 - artifact SHA-256: `909a4d1032c2f3da5a4c7f5c719008a70b6c04e268e9cdb2893f1cef7c04525d`;
@@ -144,7 +144,7 @@ The overall predeclared classification remains `fragile_spatial_structure`, with
 
 The migration-distance effect exceeds the strong-arm magnitude threshold but fails the sign/cross-arm consistency criteria. It is therefore retained as fragile rather than being promoted to a robust result. This is a scientifically meaningful downstream change after separating the M4 decision clock; the model was not tuned to preserve an older classification.
 
-The regenerated M8.6 reference was independently accepted on branch head `1570c211d629c932e9816cc41908e9503d41c479` (workflow run `32924358052`).
+The regenerated M8.6 reference was independently accepted on branch head `b887bc5857cbd243007fc98695f2c81d21700c93` (workflow run `32924358052`).
 
 ### Other downstream gates
 

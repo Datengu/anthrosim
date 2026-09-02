@@ -1,6 +1,6 @@
 # AnthroSim scientific audit v2 — status ledger
 
-Audit target at initialization: AnthroSim `v0.3.2`, protected-main commit `eb240ab482d9683b64081d3d1ea8e151592927ee`, model semantics `anthrosim-model-semantics-v19`.
+Audit target at initialization: AnthroSim `v0.3.2`, protected-main commit `1c3be46b68439bbb46017e95aa0ab2ccce8dafcb`, model semantics `anthrosim-model-semantics-v19`.
 
 Protocol: `docs/research/scientific-audit-protocol.md`
 
@@ -12,9 +12,9 @@ Purpose: durable repository-authoritative state for the second independent/adver
 |---|---|
 | Audit generation | v2 / second independent scientific audit |
 | Initial release | `v0.3.2` |
-| Initial protected-main SHA | `eb240ab482d9683b64081d3d1ea8e151592927ee` |
+| Initial protected-main SHA | `1c3be46b68439bbb46017e95aa0ab2ccce8dafcb` |
 | Initial v0.3.2 model semantics | `anthrosim-model-semantics-v19` |
-| Latest protected-main closure baseline examined | `0a808242e893a06993adea8b3b31d769477d31b1` (#317 scientific-documentation acceptance / PR #379 merged) |
+| Latest protected-main closure baseline examined | `0b29aaaf27f2c88c842fb2d3853898593df86285` (#317 scientific-documentation acceptance / PR #379 merged) |
 | Current model semantics | `anthrosim-model-semantics-v21` |
 | Current P0 findings | none |
 | Current P1 findings | none — #326, #334, #338, #340 and closure-discovered #350 repaired and reverified |
@@ -24,7 +24,7 @@ Purpose: durable repository-authoritative state for the second independent/adver
 | Coverage state | **A–N complete** |
 | Closure state | **complete — A–N covered, all AV2 findings repaired, and the final closure pass found no new scientific defect** |
 
-The v2 audit originally completed A–N coverage on the immutable `v0.3.2` baseline, whose tag points to `eb240ab482d9683b64081d3d1ea8e151592927ee` and whose executable `MODEL_SEMANTICS_ID` is v19. Repair of #326 intentionally advanced authoritative causal semantics to v20. Repair of #324 then advanced authoritative household-assignment semantics to v21; subsequent inference/provenance and fail-closed input-validity contracts remain explicitly versioned. Living current-facing documentation follows current v21, while historical v0.3.2 identity remains v19.
+The v2 audit originally completed A–N coverage on the immutable `v0.3.2` baseline, whose tag points to `1c3be46b68439bbb46017e95aa0ab2ccce8dafcb` and whose executable `MODEL_SEMANTICS_ID` is v19. Repair of #326 intentionally advanced authoritative causal semantics to v20. Repair of #324 then advanced authoritative household-assignment semantics to v21; subsequent inference/provenance and fail-closed input-validity contracts remain explicitly versioned. Living current-facing documentation follows current v21, while historical v0.3.2 identity remains v19.
 
 ## Coverage matrix
 
@@ -49,7 +49,7 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 
 | Finding | Severity | Area | Status | Issue | Reverification / repair evidence |
 |---|---|---|---|---|---|
-| AV2-001 — current-facing model-semantics identity drift | P2 | A/M/K | **fixed + protected verified** | #314 | PR #367 merged as `ece56b285604a64b83fc9d2f0a3c5dafa430888d`; immutable `v0.3.2` verified v19, living executable v21, source-derived documentation guard passed protected CI |
+| AV2-001 — current-facing model-semantics identity drift | P2 | A/M/K | **fixed + protected verified** | #314 | PR #367 merged as `7d61723c79bdaf1f5cc3810706abf67da1f6c367`; immutable `v0.3.2` verified v19, living executable v21, source-derived documentation guard passed protected CI |
 | AV2-002 — demographic-time contract retains superseded mortality execution | P2 | A/B/M | **fixed** | #315 | PR #364; current M2 contract now describes elapsed M2/M3 competing-risk execution and year-end fertility-only stage |
 | AV2-003 — founder genealogy admits impossible reproductive chronology | P2 | B/G/C | **fixed + independently reverified** | #320 | PR #360; one-day parent rejection; exact female/male boundaries; custom schedule; resealed-checkpoint resume adversary |
 | AV2-004 — household fission derives social composition from PersonId/birth order | P2 | C/N/I | **fixed + independently reverified** | #324 | PR #358; relabelling/newborn/dependency adversaries; M4/M9/checkpoint; #207 + 130-seed #304 evidence |
@@ -58,10 +58,10 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 | AV2-007 — M9.7 narrative provenance/statistics stale relative to reference | P2 | F/K/L/M | **fixed** | #329 | PR #365; narrative synchronized to reviewed current machine-readable reference while historical values remain labelled historical |
 | AV2-008 — year-zero checkpoint/resume injects extra day-zero metric snapshot | P2 | G/K/L | **fixed + regression verified** | #332 | PR #362; ordinary and transformed-spatial year-zero resume equivalence plus resealed nonconforming-checkpoint rejection |
 | AV2-009 — Monte Carlo quantile gate can certify under-covered intervals | **P1** | H/I/L/N | **fixed + independently reverified** | #334 | PR #352; exact binomial/order-statistic coverage; infeasible tails fail closed |
-| AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K/N | **fixed + adversarially reverified** | #336 | PR #371 merged as `304657199f545109774f62568c4cd933345ba4e0`; executable projection excludes non-causal identity/provenance metadata, metadata-only structural levels fail before publication/execution, and genuine executable enum/boolean/object alternatives remain representable |
+| AV2-010 — metadata-only coordinates can masquerade as structural sensitivity | P2 | I/K/N | **fixed + adversarially reverified** | #336 | PR #371 merged as `6735644a3641b5fb874d39694cc9f32e1973cd97`; executable projection excludes non-causal identity/provenance metadata, metadata-only structural levels fail before publication/execution, and genuine executable enum/boolean/object alternatives remain representable |
 | AV2-011 — identifiability gate ignores stochastic uncertainty in calibration outputs | **P1** | J/H/N | **fixed + independently reverified** | #338 | PR #353; ±0.20 unresolved vs identical estimates at ±0.01 identified |
 | AV2-012 — downstream analysis arguments are not bound to executed analysis | **P1** | K/L/N | **fixed + independently reverified** | #340 | PR #354; single authoritative argv/config binding; CLI/config/RNG/observation selectors rechecked |
-| AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L/N | **fixed + adversarially/protected verified** | #342 | PR #369 merged as `20c20fa916fea663c2d96e3ee60c96485e4ff5ce`; run/summary schema v6 + point schema v7; 1-vs-99 construction proves run-weighted 500 versus pooled per-move 990 and ranking reversal against point B=600; exact integer score totals/move denominator exposed |
+| AV2-013 — migration-quality point summaries leave run versus move weighting ambiguous | P2 | L/N | **fixed + adversarially/protected verified** | #342 | PR #369 merged as `63d238f7c4bc1d15e08d69a7cfbf5d7985c15922`; run/summary schema v6 + point schema v7; 1-vs-99 construction proves run-weighted 500 versus pooled per-move 990 and ranking reversal against point B=600; exact integer score totals/move denominator exposed |
 | AV2-014 — documented sweep derived-analysis schema versions lag executable contracts | P3 | M | **fixed** | #344 | PR #363; source-constant regression guard retained and advanced by #342 to current v6/v7 documentation |
 | AV2-015 — model-semantics changes can leave #304 confirmatory reference stale | **P1** | B/D/H/K/L/N | **fixed + independently reverified** | #350 | PR #351; clean v20 384-run rebaseline + semantics-aware workflow trigger |
 
@@ -154,11 +154,11 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 
 ### #314 / PR #367 — current versus release model-semantics identity
 
-- The immutable `v0.3.2` tag was independently resolved to `eb240ab482d9683b64081d3d1ea8e151592927ee`; its source declares `anthrosim-model-semantics-v19`.
-- Protected main at the repair baseline `b50ce8e2a0d86ea7520cd9560eff5c2ff565a855` declared `anthrosim-model-semantics-v21`.
+- The immutable `v0.3.2` tag was independently resolved to `1c3be46b68439bbb46017e95aa0ab2ccce8dafcb`; its source declares `anthrosim-model-semantics-v19`.
+- Protected main at the repair baseline `78c8349f9b377eaf478370d7903324c8a430adc5` declared `anthrosim-model-semantics-v21`.
 - Living scientific-model/ODD/ODD+D headers identify current v21 while separately naming immutable v0.3.2 as v19; release/versioning documentation preserves the true v0.3.2 v19 identity.
 - `scripts/test-current-model-semantics-docs.py` plus a Rust integration wrapper derive the living current semantics label from `MODEL_SEMANTICS_ID` and reject stale current/release v15 phrases.
-- Full protected CI, M8.6, M9.7, determinism, source-provenance, bundle, performance/memory and reference gates passed before PR #367 merged as `ece56b285604a64b83fc9d2f0a3c5dafa430888d`.
+- Full protected CI, M8.6, M9.7, determinism, source-provenance, bundle, performance/memory and reference gates passed before PR #367 merged as `7d61723c79bdaf1f5cc3810706abf67da1f6c367`.
 
 ### #342 / PR #369 — migration-quality weighting estimands
 
@@ -175,7 +175,7 @@ The v2 audit originally completed A–N coverage on the immutable `v0.3.2` basel
 - Known identity/provenance labels are removed from that projection, so changing only `scheduleId`, `modelId` or analogous metadata cannot create nominally distinct structural treatments.
 - Metadata-only levels fail closed before research points, manifests, execution or downstream analysis are published.
 - Genuine executable boolean/enum/object alternatives remain accepted, and whole typed sub-config replacements can still include labels when they also change executable causal fields.
-- Focused structural-validation tests, end-to-end rejection tests, full workspace/CI and the guarded scientific/reference suites passed before PR #371 merged as `304657199f545109774f62568c4cd933345ba4e0`. `MODEL_SEMANTICS_ID` remains v21.
+- Focused structural-validation tests, end-to-end rejection tests, full workspace/CI and the guarded scientific/reference suites passed before PR #371 merged as `6735644a3641b5fb874d39694cc9f32e1973cd97`. `MODEL_SEMANTICS_ID` remains v21.
 
 ## Cross-system integration matrix
 
@@ -214,13 +214,13 @@ These values record the original adversarial failures and should not be mistaken
 - #336 closed by PR #371; metadata-only structural treatments are rejected while real executable structural alternatives remain representable.
 - #342 closed by PR #369; migration-quality weighting estimands are explicit, separately named and reconstructible from exact support.
 - Current executable `MODEL_SEMANTICS_ID` remains `anthrosim-model-semantics-v21`; living current-facing scientific-model/ODD/ODD+D documentation identifies v21 while immutable `v0.3.2` remains v19.
-- From the final scientific repair merge `304657199f545109774f62568c4cd933345ba4e0` (#336 / PR #371) to closure baseline `0a808242e893a06993adea8b3b31d769477d31b1`, 36 subsequent commits changed only CI workflows, the conservative path classifier, CI documentation and the non-executable research-integrity documentation used for #317 acceptance. No simulator code, executable configuration, scenario, scientific-reference output or analysis machinery changed, so the protocol did not require restarting A–N.
+- From the final scientific repair merge `6735644a3641b5fb874d39694cc9f32e1973cd97` (#336 / PR #371) to closure baseline `0b29aaaf27f2c88c842fb2d3853898593df86285`, 36 subsequent commits changed only CI workflows, the conservative path classifier, CI documentation and the non-executable research-integrity documentation used for #317 acceptance. No simulator code, executable configuration, scenario, scientific-reference output or analysis machinery changed, so the protocol did not require restarting A–N.
 - No P0, P1, P2 or P3 scientific finding remains open.
 - #317 remains separate non-scientific CI infrastructure; PR #379 already proved the `scientific_documentation_only` route, and this ledger-only PR is the final `audit_status_only` acceptance proof.
 
 ## Final audit synthesis
 
-Audit v2 is **fully closed/passed as a software and scientific-validity audit**. Coverage A–N is complete; all 15 AV2 findings are repaired, with no open P0/P1/P2/P3 finding. The closure baseline is protected main `0a808242e893a06993adea8b3b31d769477d31b1`, current executable model semantics v21.
+Audit v2 is **fully closed/passed as a software and scientific-validity audit**. Coverage A–N is complete; all 15 AV2 findings are repaired, with no open P0/P1/P2/P3 finding. The closure baseline is protected main `0b29aaaf27f2c88c842fb2d3853898593df86285`, current executable model semantics v21.
 
 The audit result means the reviewed implementation, research-design controls, inference machinery, provenance/reproducibility contracts and current documentation survived the defined adversarial audit after the recorded repairs. It does **not** establish empirical validity for any prehistoric reconstruction, calibrated population or specific archaeological site.
 
