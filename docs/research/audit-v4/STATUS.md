@@ -38,16 +38,16 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 
 | ID | Audit area | Status | Fresh v4 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **in progress — first scheduler/collision adversary passed; broader Area-A attacks still required** | Closed evidence PR #483, head `879d08e7e59c0128c739238c49279e1722c9961b`, workflow run `33686718180`: exhaustive M3/M4 fixed-clock enumeration checked **133,225 period-count pairs**; same-day collision count ranged **1–365**, with **46,791** pairs having >1 collision. The merged dispatcher preserved the exact ordered set union with no skipped/duplicated boundaries; both `Simulation` and `SpatialLandscapeSimulation` exposed the same inspected order markers: temporary pre-boundary → M3 resource processing → resource-period completion → M4 migration → annual M2 demography. `failures=0`. No finding from this attack. |
+| A | Authoritative semantics and scheduler behaviour | **in progress — first scheduler/collision adversary passed; broader Area-A attacks still required** | Closed evidence PR #483, head `879d08e7e59c0128c739238c49279e1722c9961b`, workflow run `33686718180`: exhaustive M3/M4 fixed-clock enumeration checked **133,225 period-count pairs**; same-day collision count ranged **1–365**, with **128,400** pairs having >1 collision. The merged dispatcher preserved the exact ordered set union with no skipped/duplicated boundaries; both `Simulation` and `SpatialLandscapeSimulation` exposed the same inspected order markers: temporary pre-boundary → M3 resource processing → resource-period completion → M4 migration → annual M2 demography. `failures=0`. No finding from this attack. |
 | B | Demography, fertility, mortality, ageing, population structure | **incomplete** | — |
 | C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
 | E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | — |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
-| H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | — |
-| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | — |
-| J | Identifiability, equifinality, calibration, and discrimination | **incomplete** | — |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete** | — |
+| I | Sensitivity, uncertainty, convergence, robustness | **incomplete** | — |
+| J | Identifiability, equifinality, calibration, discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | — |
@@ -72,7 +72,7 @@ No Audit-v4 findings yet.
 - Live protected `main` after Audit-v4 initialization: `5655ec64393d4d849cc2261d34d91d42da13b925`; scientific discovery remained fixed to immutable `v0.3.4` / `8996e99...` / v25.
 - Closed unmerged evidence PR #483 targeted the frozen release rather than living `main` semantics.
 - Fresh checker exhaustively enumerated **365 × 365 = 133,225** supported M3/M4 period-count combinations.
-- Exact results: minimum same-day M3/M4 collisions **1**; maximum **365**; **46,791** period-count pairs had more than one same-day collision.
+- Exact results: minimum same-day M3/M4 collisions **1**; maximum **365**; **128,400** period-count pairs had more than one same-day collision.
 - Every merged dispatch matched the ordered union of the two boundary sets; configured M3 and M4 boundaries were each dispatched exactly once; day 365 was always a real shared M3/M4 boundary.
 - Source-order attack verified both authoritative simulation hosts exposed the same inspected scheduler ordering markers.
 - Dedicated workflow run `33686718180` completed successfully with `failures=0`.
