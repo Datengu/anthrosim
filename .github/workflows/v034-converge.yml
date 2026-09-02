@@ -22,6 +22,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Re-run after release-facing provenance reconciliation.
           python - <<'PY'
           import base64, json, os, re, subprocess, urllib.error, urllib.request
           from collections import defaultdict
