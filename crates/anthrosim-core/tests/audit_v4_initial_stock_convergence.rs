@@ -62,7 +62,10 @@ fn plausible_initial_stock_transient_converges_only_after_the_declared_regenerat
     assert_eq!(empty_initial, 0);
     assert!(stocked_initial > 0);
     assert!(empty_regen_one > 0);
-    assert_eq!(stocked_regen_one, 0, "the fully stocked arm starts at capacity");
+    assert_eq!(
+        stocked_regen_one, 0,
+        "the fully stocked arm starts at capacity"
+    );
     assert!(
         empty_final_one < stocked_final_one,
         "after one year the otherwise-identical runs must still retain the causal day-zero stock contrast"
@@ -79,7 +82,10 @@ fn plausible_initial_stock_transient_converges_only_after_the_declared_regenerat
         empty_final_ten, stocked_initial,
         "the converged stock should equal the declared fully stocked day-zero state under this controlled capacity/regeneration construction"
     );
-    assert_eq!(stocked_regen_ten, 0, "the stocked arm remains capacity-clipped");
+    assert_eq!(
+        stocked_regen_ten, 0,
+        "the stocked arm remains capacity-clipped"
+    );
     assert_eq!(
         empty_regen_ten, stocked_initial,
         "all stock in the empty arm must be accumulated regeneration under zero demand"
