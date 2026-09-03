@@ -666,13 +666,9 @@ impl Population {
         founder_population: Option<&FounderPopulationDefinition>,
     ) -> InitialStochasticBaseKey {
         let person = person_id_from_index(index);
-        let declared_last_birth_day = founder_population.and_then(|definition| {
-            definition
-                .people
-                .iter()
-                .find(|founder| founder.id == person)
-                .and_then(|founder| founder.last_birth_day)
-        });
+        let declared_last_birth_day = founder_population
+            .and_then(|definition| definition.person(person))
+            .and_then(|founder| founder.last_birth_day);
         InitialStochasticBaseKey {
             birth_day: self.birth_days[index],
             reproductive_sex_rank: match self.reproductive_sexes[index] {
@@ -1499,7 +1495,6 @@ impl Population {
                 &mut hash,
                 u64::from(self.condition_loss_remainder_thousandths[index]),
             );
-            digest_u64(&mut hash, self.stochastic_coupling_ranks[index]);
         }
         digest_u64(&mut hash, self.household_count() as u64);
         for &location in &self.household_locations {
