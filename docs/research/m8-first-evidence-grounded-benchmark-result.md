@@ -6,7 +6,54 @@ This document records the historical M8.6 terrain null-model result and the revi
 
 The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.
 
-## Current regression reference — model semantics v27
+## Current regression reference — model semantics v28
+
+Audit-v4 AV4-003 / #491 removes arbitrary `HouseholdId` order from same-seed M4 migration RNG assignment while preserving one shared pre-move snapshot and simultaneous move application. Because this correction changes permanent-migration trajectories, the frozen M8.6 experiment was rerun unchanged and its generated artifact was reviewed before replacing the scientific reference.
+
+Reviewed v28 execution:
+
+- workflow run: `33797427904`;
+- job: `100788648028`;
+- production branch head that generated the evidence: `4c5192bbc9fe8cfd40950268b3aa8c925ac6ba48`;
+- artifact: `9909898544`;
+- artifact SHA-256: `90bea073f0bf2a05abe70f45ffa729cf58f0090759c4f85753744a04edfa8c90`;
+- aggregate canonical SHA-256: `e988d86b8ea46f71da28d8240e21e1c07cc315129ff24f6083e0fd93acbdf4a0`;
+- model semantics: `anthrosim-model-semantics-v28`.
+
+All **32/32** declared runs completed the configured duration and all four arms remained non-degenerate. The overall predeclared classification remains:
+
+> **fragile spatial structure**
+
+The v28 primary-metric results are:
+
+| Primary metric | v28 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+| --- | --- | ---: | ---: |
+| total migration distance | not distinctive | 8.71% | 2 / 6 / 0 |
+| cell-time occupied | not distinctive | 0.99% | 4 / 3 / 1 |
+| terminal population Herfindahl | **fragile** | **12.91%** | 4 / 4 / 0 |
+| terminal largest-cell share | **robust** | **18.27%** | 2 / 6 / 0 |
+
+Relative to v27, terminal largest-cell share crosses from **fragile to robust** under the predeclared criteria, while terminal population Herfindahl remains fragile. Migration distance and cell-time occupancy remain not distinctive, and the overall benchmark class remains `fragile_spatial_structure`.
+
+### Causal review of the v28 rebaseline
+
+This reference was not refreshed merely because a regression check failed. AV4-003 changes which scientifically represented household receives each same-seed migration choice/uncertainty draw. Terrain inputs, spatial transformation semantics, and within-household M4 candidate ordering are unchanged, but corrected household-level draw coupling legitimately changes downstream migration and population histories.
+
+The reviewed v28 run preserves the benchmark design and interpretation boundaries:
+
+- declared seeds remain 8601–8608;
+- the same evidence content digest, evidence catalogue and `landscape-v2-6827044513b6c9fb` are used;
+- `anthrosim-spatial-transform-semantics-v3` is unchanged;
+- all mechanism-file canonical identities are unchanged;
+- all four arms remain non-degenerate;
+- the overall benchmark class remains `fragile_spatial_structure`;
+- terminal largest-cell share is robust under v28;
+- terminal population Herfindahl remains fragile;
+- migration distance and cell-time occupancy remain not distinctive.
+
+The robust largest-cell-share threshold crossing is scientifically meaningful and is preserved rather than tuned away. It is a downstream sensitivity to corrected permanent-migration stochastic coupling, not evidence that terrain mapping changed. This remains a result about the declared terrain-only null model under the complete v28 upstream model definition, not archaeological validation.
+
+## Historical reviewed reference — model semantics v27
 
 Audit-v4 AV4-002 / #488 changes the same-seed stochastic coupling used to assign background-demographic mortality draws across scientifically distinguishable person roles. Because that correction changes causal population trajectories, the frozen M8.6 experiment was rerun unchanged and its generated artifact was reviewed before replacing the scientific reference.
 
