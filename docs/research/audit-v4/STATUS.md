@@ -17,9 +17,9 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Target tag SHA | `8996e99ffc4c5b91b9e00d1048eedd4227ea1d09` |
 | Target software version | `0.3.4` |
 | Target model semantics | `anthrosim-model-semantics-v25` |
-| Coverage state | **3/14 Areas complete — Areas A-C complete; Area D next** |
+| Coverage state | **4/14 Areas complete — Areas A-D complete; Area E next** |
 | Current P0 findings | none discovered |
-| Current P1 findings | **7 open — AV4-001/#486; AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500** |
+| Current P1 findings | **8 open — AV4-001/#486; AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500; AV4-008/#514** |
 | Current P2 findings | none discovered |
 | Current P3 findings | none discovered |
 | Convergence classification | **non-clean candidate: v4 has discovered new P1 findings; full A–N discovery still pending** |
@@ -41,17 +41,17 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | A | Authoritative semantics and scheduler behaviour | **complete — 7 P1 findings open** | Pass 1 scheduler collision attack: PR #483 / run `33686718180`, exhaustive **133,225** M3/M4 period-count pairs, no skipped/duplicated/reordered boundaries or inspected host-order drift. Passes 2–7 demonstrated independent label/order coupling in fertility (**AV4-001/#486**), background mortality (**AV4-002/#488**), M4 migration (**AV4-003/#491**), newborn sex (**AV4-004/#493**), parentage (**AV4-005/#495**), and condition-mediated mortality (**AV4-006/#497**). Pass 8 attacked M9's non-sequential keyed equal-cost destination policy and demonstrated **AV4-007/#500**. Frozen-source RNG inventory accounted for the runtime named streams: four demography streams, two migration streams and one resource/condition-mortality stream; M9's destination symmetry breaker is keyed separately. Initialization/world-generation streams are deferred to Areas G/E rather than silently treated as Area-A closure evidence. |
 | B | Demography, fertility, mortality, ageing, population structure | **complete — AV4-001/002/004/005/006 cross-cutting** | Fresh v4 passes: PR #501 / run `33690928936` tested 30,000-person annual background mortality under 1/12/365 M3 partitions and found all observed death counts and pairwise differences well inside six-sigma binomial envelopes; PR #503 / run `33691311786` passed exact female fertility-age and executable birth-spacing boundaries; PR #505 / run `33693515792` passed exact background-mortality age-band boundaries; PR #506 / run `33694660962` measured finite-population extinction/censoring over 200 seeds × 120 years (N=20: 28/200 extinct, all-run terminal mean 11.240 vs survivor-only 13.070; N=200: 0/200 extinct, mean 119.255), retained as an explicit analysis obligation rather than a new defect; PR #507 / run `33696946835` passed mate presence and exact male `[18,70)` eligibility boundaries. Authoritative demography/config/founder chronology code was inspected; the existing no-universal-demographic-baseline policy remains the correct interpretation boundary. No additional Area-B defect beyond the cross-cutting Area-A findings was demonstrated. |
 | C | Households, kinship, social links, lifecycle structure | **complete — AV4-003/005/007 cross-cutting** | PR #509 / run `33697318347` passed the exact independent-age fission threshold: second anchor 18y−1d kept 1 household; exactly 18y and 18y+1d produced 2. PR #510 / run `33697866190` quantified declared temporary-presence phase dependence: a 12-person household returned before day 365 fissioned to 3 households, while the same household away on day 365 remained 1 because lifecycle eligibility is explicitly restricted to at-residence households. Frozen source inspection covered relationship-rank refinement, independent-anchor selection, dependent-to-parent group preference, deferred fission when anchors are insufficient, topology reconciliation and the declared at-residence gate. No additional Area-C defect beyond cross-cutting AV4-003/005/007 was demonstrated. |
-| D | Resources, condition, subsistence, depletion/recovery | **incomplete — AV4-006 cross-cutting** | — |
+| D | Resources, condition, subsistence, depletion/recovery | **complete — AV4-006/008 cross-cutting** | PR #512 / run `33698192834` passed a full-scarcity resource time-partition adversary exactly: 1/4/12/365 M3 periods all produced unmet need 7300, final stock 0 and mean condition 200. PR #513 final run `33699132098` demonstrated **AV4-008/#514**: three equal colocated one-person households competing for 6710 units against total need 6711 changed terminal fixed-person condition from `[1000,1000,996]` to `[1000,996,1000]` under pure cyclic HouseholdId relabelling. Frozen source inspection traced this to equal largest-remainder ties rotating over claim positions whose ordering is canonical household order; this is distinct from closed #182's repaired persistent lower-ID bias. Resource initialization/capacity, elapsed-day quantity apportionment, condition fixed-point remainder handling, regeneration/accounting and condition-mortality pathways were inspected. |
 | E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete — AV4-001/002/003/004/006/007 cross-cutting** | — |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete — AV4-001 through AV4-007 cross-cutting** | — |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete — AV4-001 through AV4-008 cross-cutting** | — |
 | I | Sensitivity, uncertainty, convergence, robustness | **incomplete** | — |
 | J | Identifiability, equifinality, calibration, discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | — |
-| N | Cross-system integration | **incomplete — AV4-001 through AV4-007 cross-cutting** | — |
+| N | Cross-system integration | **incomplete — AV4-001 through AV4-008 cross-cutting** | — |
 
 ## Finding register
 
@@ -64,6 +64,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | AV4-005 — parentage RNG assignment is sensitive to arbitrary male person labels | **P1** | A; B/C/H/N | **demonstrated; open; deliberately unrepaired** | #495 | Closed red PR #494 / run `33690127728`: genealogy-preserving male-ID swap changes whether the newborn selects the existing child's father. |
 | AV4-006 — condition-mediated mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/D/E/H/N | **demonstrated; open; deliberately unrepaired** | #497 | Closed red PR #496 / run `33690381210`, job `100447530200`: seed-1 condition-mediated death cell changes `CellId(2)` → `CellId(1)` with background mortality disabled. |
 | AV4-007 — M9 equal-cost destination key is sensitive to arbitrary household labels | **P1** | A; C/E/H/N | **demonstrated; open; deliberately unrepaired** | #500 | Closed red PR #499 / run `33690671581`, job `100448444144`: same center-origin physical household selects `CellId(8)` as `HouseholdId(1)` and `CellId(2)` as `HouseholdId(2)` at seed 1. |
+| AV4-008 — scarce-resource remainder assignment is sensitive to arbitrary household labels | **P1** | D; C/H/N | **demonstrated; open; deliberately unrepaired** | #514 | Closed red PR #513 / run `33699132098`, job `100474385648`: equal colocated household claims under a one-unit shortage change fixed-person terminal condition `[1000,1000,996]` → `[1000,996,1000]` under pure HouseholdId rotation. |
 
 ## Session log
 
@@ -97,3 +98,10 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 - PR #510 / run `33697866190`, job `100470569557`: temporary-presence phase produced the declared structural contrast. The oversized household returned well before day 365 split into 3 households; the same household away on day 365 remained 1 household. This is explicitly declared by the model's at-residence lifecycle gate, so it is retained as cross-system sensitivity evidence rather than a defect.
 - Frozen source inspection covered dependency-aware relationship ranking, independent anchors, dependent placement with living parents, group balancing/deferred fission, household identity creation and temporary-mobility topology reconciliation. Existing protected relationship-relabel and lifecycle-resume tests were treated as regression context rather than substituted for fresh v4 evidence.
 - **Area C discovery is complete. No new Area-C-specific finding was demonstrated beyond AV4-003/005/007 already preserved from Area A. Audit v4 advances to Area D.**
+
+### 2026-09-03 — Area D discovery
+
+- PR #512 / run `33698192834`, job `100471550310`: a controlled full-scarcity run produced exactly identical annual unmet need (7300), final stock (0), and mean condition (200) at 1, 4, 12 and 365 M3 partitions/year. No temporal-resolution defect was demonstrated in that regime.
+- PR #513 / run `33699132098`, job `100474385648`: after isolating initial-capacity and condition-visibility harness details, a three-household one-unit-shortage adversary demonstrated that pure HouseholdId rotation changes which fixed person receives the condition penalty: `[1000,1000,996]` versus `[1000,996,1000]`. Closed issue #182 was explicitly checked: its repair removed persistent lower-ID privilege but did not guarantee same-state relabel invariance. The distinct defect is preserved as **AV4-008/#514 (P1)**.
+- Frozen source inspection covered proportional largest-remainder allocation, exact-tie rotation, initial-stock/capacity clipping, regeneration, elapsed-day annual quantity allocation, fixed-point condition-loss remainders, condition recovery and condition-mediated mortality propagation.
+- **Area D discovery is complete with one new P1 finding, AV4-008/#514, deliberately unrepaired. Audit v4 advances to Area E.**
