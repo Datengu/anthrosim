@@ -101,7 +101,10 @@ fn active_m9_resource_and_demography_state_resumes_exactly_across_process_seeds(
 
         let expected = &uninterrupted.checkpoint;
         let actual = &resumed.checkpoint;
-        assert_eq!(actual.state_digest64, expected.state_digest64, "seed {seed}");
+        assert_eq!(
+            actual.state_digest64, expected.state_digest64,
+            "seed {seed}"
+        );
         assert_eq!(
             actual.continuation_digest64, expected.continuation_digest64,
             "seed {seed}: continuation identity drifted"
