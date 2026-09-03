@@ -2,7 +2,7 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**This source tree is on the post-v0.3.4 Scientific Audit v4 remediation line at current model semantics v26.** The immutable `v0.3.4` release remains the completed Audit-v3 remediation baseline at `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21. Audit-v4 repairs do not rewrite either historical release identity.
+**This source tree is on the post-v0.3.4 Scientific Audit v4 remediation line at current model semantics v27.** The immutable `v0.3.4` release remains the completed Audit-v3 remediation baseline at `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21. Audit-v4 repairs do not rewrite either historical release identity.
 
 **v0.3.4 preserves `anthrosim-model-semantics-v25`.** Scientific Audit v3 is complete: the immutable v0.3.3/v21 baseline was challenged across Areas A–N, 17 findings were demonstrated (1 P0, 6 P1 and 10 P2), and all 17 were repaired, merged through protected CI, independently post-merge reverified, and closed. No original Audit-v3 finding remains open. This is strong convergence evidence, not empirical validation or proof of scientific correctness; empirical/question-specific readiness must be assessed separately.
 
