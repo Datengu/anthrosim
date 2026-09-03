@@ -24,6 +24,8 @@ V033_SEMANTICS_ID = "anthrosim-model-semantics-v21"
 V033_SHORT = "v21"
 V034_SEMANTICS_ID = "anthrosim-model-semantics-v25"
 V034_SHORT = "v25"
+CURRENT_SEMANTICS_ID = "anthrosim-model-semantics-v26"
+CURRENT_SHORT = "v26"
 
 
 def current_semantics_id() -> str:
@@ -44,13 +46,16 @@ def short_version(identity: str) -> str:
 def main() -> None:
     current_id = current_semantics_id()
     current_short = short_version(current_id)
-    if current_id != V034_SEMANTICS_ID:
+    if current_id != CURRENT_SEMANTICS_ID:
         raise AssertionError(
-            f"v0.3.4 living-release guard expects {V034_SEMANTICS_ID}, got {current_id}"
+            f"post-v0.3.4 remediation guard expects {CURRENT_SEMANTICS_ID}, got {current_id}"
         )
+    if current_short != CURRENT_SHORT:
+        raise AssertionError(f"current short semantics should be {CURRENT_SHORT}, got {current_short}")
 
     current_phrase = f"current model semantics {current_short}"
-    release_phrase = f"immutable v0.3.3 release baseline: {V033_SHORT}"
+    release_phrase = f"immutable v0.3.4 release baseline: {V034_SHORT}"
+    prior_release_phrase = f"immutable v0.3.3 release baseline: {V033_SHORT}"
 
     for path in CURRENT_DOCS:
         text = path.read_text(encoding="utf-8")
@@ -61,8 +66,13 @@ def main() -> None:
             )
         if release_phrase not in text:
             raise AssertionError(
-                f"{path.relative_to(ROOT)} does not distinguish the immutable v0.3.3 "
-                f"release baseline ({V033_SHORT}) from the v0.3.4/current line"
+                f"{path.relative_to(ROOT)} does not distinguish the immutable v0.3.4 "
+                f"release baseline ({V034_SHORT}) from the current remediation line"
+            )
+        if prior_release_phrase not in text:
+            raise AssertionError(
+                f"{path.relative_to(ROOT)} does not preserve the immutable v0.3.3 "
+                f"release baseline ({V033_SHORT}) distinction"
             )
 
     v032_release_text = V032_RELEASE_DOC.read_text(encoding="utf-8")

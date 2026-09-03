@@ -25,7 +25,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Current P2 findings | **2 open — AV4-014/#546; AV4-015/#549** |
 | Current P3 findings | none discovered |
 | Convergence classification | **non-clean: Audit v4 discovery is complete with 13 P1 and 2 P2 findings on frozen v0.3.4/v25** |
-| Repair state | **discovery complete; all AV4 findings remain open and unrepaired; remediation may begin after this ledger closure is merged** |
+| Repair state | **post-discovery remediation in progress; AV4-001/#486 has production PR #553 under exact-head validation; all findings remain open until independent merged-main re-verification** |
 
 ## Discovery rule
 
@@ -62,7 +62,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 
 | Finding | Severity | Area | Status | Issue | Fresh evidence |
 |---|---|---|---|---|---|
-| AV4-001 — fertility RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #486 | PR #485 / run `33687262609`; Area-N propagation PR #551 / run `33747718724`, job `100623957213`. |
+| AV4-001 — fertility RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **remediation in progress; production PR #553; independent post-merge re-verification required** | #486 | PR #485 / run `33687262609`; Area-N propagation PR #551 / run `33747718724`, job `100623957213`. |
 | AV4-002 — background-mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #488 | PR #487 / run `33689235132`. |
 | AV4-003 — migration RNG assignment is sensitive to arbitrary household labels | **P1** | A; C/E/H/N | **demonstrated; open; deliberately unrepaired** | #491 | PR #490 / run `33689659272`. |
 | AV4-004 — newborn-sex RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #493 | PR #492 / run `33689950122`. |
@@ -77,6 +77,12 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | AV4-013 — study finalization can bind canonical analysis rows that contradict the immutable executed design | **P1** | K; J/L/N | **demonstrated; open; deliberately unrepaired** | #543 | PR #541 / run `33745315422`, job `100616318921`: immutable treatment values `[4,12]` were changed to `[999,12]` in canonical analysis rows and `anthrosim-study finalize` still succeeded with a fresh result identity. |
 | AV4-014 — survivor-conditioning gate accepts fabricated population observables by source substring | **P2** | L; M/N | **demonstrated; open; deliberately unrepaired** | #546 | PR #545 / run `33745956159`, job `100618351717`: genuine population source passes, unrelated source fails, but `derived.not_a_real_mortality_observable` passes with zero failures solely through substring matching. |
 | AV4-015 — living ODD/ODD+D retain superseded annual-boundary mortality semantics | **P2** | M; B/N | **demonstrated; open; deliberately unrepaired** | #549 | PR #548 / final head `3da64b46f91ceb22637ce5588a05f8e2e64e0b5a`, run `33746630336`, job `100620484701`: two stale ODD annual-mortality claims plus one ODD+D mortality-priority claim contradict frozen v25 competing-risk/year-end-finalizer semantics. |
+
+## Post-discovery remediation state
+
+- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a relabelling-invariant scientific-role ordering, while preserving the named fertility stream and exact RNG-position accounting.
+- The causal same-seed assignment change advances the current remediation line to `anthrosim-model-semantics-v26`; immutable discovery target `v0.3.4` remains `anthrosim-model-semantics-v25`.
+- #486 remains open until PR #553 is merged from an exact green head and the original Audit-v4 adversary is independently rerun against merged `main` in a separate evidence PR.
 
 ## Current discovery handoff
 
