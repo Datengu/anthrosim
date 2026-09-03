@@ -20,6 +20,7 @@ text = text.replace(
     '        resolve_two_cause_competing_mortality_from_triggers,\n',
     1,
 )
+text = text.replace('.zip(resolved_causes.into_iter())', '.zip(resolved_causes)', 1)
 p.write_text(text, encoding='utf-8')
 
 # The three standards-facing header lines already used Markdown hard-break whitespace. Because the
