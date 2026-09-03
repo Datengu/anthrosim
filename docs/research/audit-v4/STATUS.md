@@ -8,7 +8,7 @@ Charter: `docs/research/audit-v4/README.md`
 
 Purpose: durable repository-authoritative state for the fourth independent/adversarial comprehensive scientific audit and the fresh post-Audit-v3 convergence pass.
 
-> This ledger is intentionally compact current-state documentation. Earlier expanded per-session narratives remain preserved in Git history and the closed evidence PRs/issues referenced below.
+> This ledger is intentionally compact current-state documentation. Expanded prior session narratives remain preserved in Git history and the closed evidence PRs/issues referenced below.
 
 ## Current baseline and state
 
@@ -21,7 +21,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Target model semantics | `anthrosim-model-semantics-v25` |
 | Coverage state | **11/14 Areas complete — Areas A-K complete; Area L next** |
 | Current P0 findings | none discovered |
-| Current P1 findings | **12 open — AV4-001/#486; AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500; AV4-008/#514; AV4-009/#518; AV4-010/#528; AV4-011/#535; AV4-012/#539** |
+| Current P1 findings | **13 open — AV4-001/#486; AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500; AV4-008/#514; AV4-009/#518; AV4-010/#528; AV4-011/#535; AV4-012/#539; AV4-013/#543** |
 | Current P2 findings | none discovered |
 | Current P3 findings | none discovered |
 | Convergence classification | **non-clean candidate: v4 has discovered new P1 findings; full A–N discovery still pending** |
@@ -51,11 +51,11 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | G | Initialization, burn-in, path dependence, continuation state | **complete — no additional finding demonstrated** | PR #524 passed exact active-state continuation across **32 process seeds**. PR #525 / run `33740052632`, job `100599600258` quantified initial-stock path dependence: 743 vs 7430 after one year, exact 7430 vs 7430 convergence by the controlled ten-year horizon. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — AV4-001 through AV4-010 cross-cutting; new AV4-010 P1** | PR #527 / run `33740457897`, job `100600897791` demonstrated **AV4-010/#528**: binary64 conversion collapses exact integers around `2^53`, turning exact half-width `0.565792867038` into 0 and false `sufficient_stop`. PR #529 passed **136** safe-range estimator/seed-contract attacks. |
 | I | Sensitivity, uncertainty, convergence, robustness | **complete — AV4-010 cross-cutting; no additional finding demonstrated** | PR #531 / run `33741469209`, job `100604140981` passed **48** transformed expansions / **576** coordinate checks, retaining exactly 12 executable treatments under all dimension/value declaration orders; ancestor/descendant overlaps failed closed. |
-| J | Identifiability, equifinality, calibration, discrimination | **complete — new AV4-011 P1; AV4-010 cross-cutting** | PR #534 / run `33743566077`, job `100610814705` demonstrated **AV4-011/#535**: an invented downstream parameter `fabricated_theta` absent from the preserved executed design can be given range `[0,1]`, compatible `[0,0]`, `identified=true`, and top-level `declared_claim_identified`. PR #536 passed **122** clean decision-matrix assertions across repaired identifiability boundaries. |
-| K | Experiment orchestration, configuration, provenance, reproducibility | **complete — new AV4-012 P1; AV4-010/011 cross-cutting** | PR #538 / head `fb852797b22dc0913ba0b543e44a345c26074187`, run `33744613505`, job `100614126094` demonstrated **AV4-012/#539**: downstream analysis provenance capture+verify accepts a tampered `study-result-binding.json` whose identity-covered `researchId` changed while stale `resultIdentity` remained. PR #540 / head `842e7387ba5bdbc5c2e6129d397d5bd7959642c2`, run `33745069053`, job `100615547018` passed **11** fresh end-to-end `anthrosim-research` retry/tamper scenarios: exact retry and one-copy recovery controls succeeded, while contradictory immutable metadata, changed definitions, source identity, checkpoint digest, event/metric schemas, world dimensions and completion seed all failed closed. Central CI's only #540 failure was disposable-fixture rustfmt; dedicated scientific execution passed. |
-| L | Observability, analysis outputs, statistical summaries | **incomplete — AV4-010/012 cross-cutting** | — |
+| J | Identifiability, equifinality, calibration, discrimination | **complete — AV4-011 new; AV4-010/013 cross-cutting** | PR #534 / run `33743566077`, job `100610814705` demonstrated **AV4-011/#535**: an invented downstream parameter absent from the executed design can be given range `[0,1]`, compatible `[0,0]`, `identified=true` and top-level `declared_claim_identified`. PR #536 passed **122** clean decision-matrix assertions across repaired identifiability boundaries. |
+| K | Experiment orchestration, configuration, provenance, reproducibility | **complete — new AV4-012 and AV4-013 P1s; AV4-010/011 cross-cutting** | PR #538 / head `fb852797b22dc0913ba0b543e44a345c26074187`, run `33744613505`, job `100614126094` demonstrated **AV4-012/#539**: downstream analysis provenance capture+verify accepts a tampered `study-result-binding.json` whose identity-covered `researchId` changed while stale `resultIdentity` remained. PR #540 / head `842e7387ba5bdbc5c2e6129d397d5bd7959642c2`, run `33745069053`, job `100615547018` passed **11** end-to-end `anthrosim-research` retry/tamper scenarios. A later fresh adversary, PR #541 / head `bb52c0945aa0f5971c8574b4ae6078f82f66644f`, run `33745315422`, job `100616318921`, demonstrated **AV4-013/#543**: immutable plan values remained `[4,12]`, canonical `analysis/points.json` and `runs.json` were post-execution altered to `[999,12]`, and `anthrosim-study finalize` still exited 0 and issued `study-result-v1-8f240b47db18dcf8` binding the tampered files as result artifacts. Central CI on #541 failed only disposable-fixture rustfmt; dedicated scientific execution compiled and ran fully. |
+| L | Observability, analysis outputs, statistical summaries | **incomplete — AV4-010/012/013 cross-cutting** | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | — |
-| N | Cross-system integration | **incomplete — AV4-001 through AV4-012 cross-cutting** | — |
+| N | Cross-system integration | **incomplete — AV4-001 through AV4-013 cross-cutting** | — |
 
 ## Finding register
 
@@ -73,14 +73,16 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | AV4-010 — Monte Carlo precision gate can erase large exact-integer variance during float conversion | **P1** | H; I/J/K/L/N | **demonstrated; open; deliberately unrepaired** | #528 | PR #527 / run `33740457897`, job `100600897791`. |
 | AV4-011 — identifiability gate can certify a fabricated parameter coordinate not bound to the executed design | **P1** | J; I/K/N | **demonstrated; open; deliberately unrepaired** | #535 | PR #534 / run `33743566077`, job `100610814705`. |
 | AV4-012 — downstream analysis provenance accepts a study-result binding with stale self-identity | **P1** | K; J/L/N | **demonstrated; open; deliberately unrepaired** | #539 | PR #538 / run `33744613505`, job `100614126094`: tampered `researchId` with stale binding `resultIdentity` was captured and verified as valid provenance. |
+| AV4-013 — study finalization can bind canonical analysis rows that contradict the immutable executed design | **P1** | K; J/L/N | **demonstrated; open; deliberately unrepaired** | #543 | PR #541 / head `bb52c0945aa0f5971c8574b4ae6078f82f66644f`, run `33745315422`, job `100616318921`: immutable `[4,12]` treatment plan was represented as `[999,12]` in tampered canonical point/run indexes and successfully finalized into a fresh study-result binding. |
 
 ## Current discovery handoff
 
-### Area K closure — 2026-09-03
+### Area K closure — corrected after late evidence, 2026-09-03
 
 - Frozen v0.3.4 source inspection covered `anthrosim-research` root creation/retry/reconciliation, completed child-bundle validation, exact source identity, checkpoint/event/metric/world validation, `anthrosim-study` result-binding production, and downstream analysis provenance capture/verify/replay.
-- **AV4-012/#539 (P1)** is new and distinct: downstream provenance validates/fingerprints the exact binding bytes but does not recompute the producer-defined `StudyResultBinding.resultIdentity`, allowing a stale self-identity after an identity-covered field edit.
-- PR #540 independently passed an 11-scenario end-to-end retry/tamper matrix, showing the authoritative research execution/root-reuse layer itself fails closed across contradictory immutable metadata and multiple completed-bundle tamper seams.
+- **AV4-012/#539 (P1)**: downstream consumers can accept a finalized study-result binding whose producer-defined self-identity is stale after identity-covered fields are altered. Source inspection shows the same trust assumption also exists in the Monte Carlo study-binding consumer, so this is one cross-tool binding-validation defect rather than duplicate findings.
+- PR #540 independently passed **11** fresh retry/tamper scenarios, demonstrating the authoritative research root and completed child reconciliation fail closed across contradictory immutable metadata, changed definitions and source/checkpoint/events/metrics/world/completion mutations.
+- **AV4-013/#543 (P1)** was demonstrated after the first K closure ledger had already been prepared: `anthrosim-study finalize` validates standard point/run analysis artifacts only by schema/research identity before binding their current bytes, allowing scientifically altered coordinates/resulting configurations to be frozen as official result artifacts while the immutable research plan/child bundles remain unchanged.
 - AV4-010/#528 and AV4-011/#535 remain explicit cross-cutting K limitations for numeric inference fidelity and semantic binding of downstream identifiability coordinates.
 - All Area-K evidence PRs are closed unmerged after classification. No v4 finding was repaired.
-- **Area K discovery is complete with one new P1 finding, AV4-012/#539. Audit v4 advances to Area L — observability, analysis outputs, statistical summaries.**
+- **Area K remains complete, now with two new P1 findings, AV4-012/#539 and AV4-013/#543. Audit v4 advances to Area L — observability, analysis outputs, statistical summaries.**
