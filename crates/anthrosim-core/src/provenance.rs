@@ -33,7 +33,13 @@ use crate::time::DAYS_PER_YEAR;
 /// independently tracked condition-mediated stream remains on its pre-existing ordering pending
 /// its own Audit-v4 finding. Simultaneous triggers retain symmetric proportional cause attribution.
 /// A v26 checkpoint must therefore not resume under v27 with unchanged mortality RNG positions.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v27";
+///
+/// v28 removes arbitrary `HouseholdId` order from M4 sequential migration RNG assignment. Each
+/// non-empty household is scheduled by the minimum persistent stochastic-coupling rank among its
+/// living members while all decisions still observe one shared pre-move snapshot and relocations
+/// are still applied simultaneously. A v27 checkpoint must therefore not resume under v28 with
+/// unchanged migration RNG positions while silently changing which household receives each draw.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v28";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

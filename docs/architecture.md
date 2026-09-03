@@ -81,7 +81,7 @@ M3 keeps immutable environmental geography separate from dynamic renewable-resou
 
 M4 follows the same pattern. `MigrationSystem` owns reusable scratch arrays indexed by household and cell for living-member counts, condition totals, bounded kin-location hints, planned destinations, travel costs and pre/post-move occupancy counts. Candidate cells are generated from a bounded Manhattan radius into reusable buffers. The number of candidate destinations therefore depends on the configured local information radius, not on total world size.
 
-Selected household moves are evaluated against one shared pre-move snapshot and then applied simultaneously in one packed scan of the living population. This prevents household-ID evaluation order from changing the information available to later households and avoids scanning the whole population separately for every move.
+Selected household moves are evaluated against one shared pre-move snapshot and then applied simultaneously in one packed scan of the living population. Under v28, the sequential M4 RNG schedule is derived from the minimum persistent person stochastic-coupling rank among each non-empty household's living members instead of `HouseholdId`, so pure household relabelling cannot reassign migration draws while no second persisted household identity is introduced. The packed application still avoids scanning the whole population separately for every move.
 
 Dead records remain persistent. M4 permanent relocation changes residence only for living members. Under M9, a death can occur while a household is temporarily away: physical-presence accounting removes the deceased from the actual active journey/presence state, while `Death.cell` and M8 spatial death attribution remain explicitly tied to persistent residence rather than claiming a physical death location.
 
@@ -105,7 +105,7 @@ M1 consumes the `world` stream only to derive stable field seeds. Per-cell heter
 
 M2 uses separate streams for mortality, fertility, parentage and newborn reproductive sex. M3 adds `resources/scarcity_mortality`; deterministic resource regeneration/allocation itself consumes no random draws. M4 adds independent `migration/choice` and `migration/uncertainty` streams.
 
-Migration candidates are enumerated in a stable geometric order and household decisions are evaluated in stable household-ID order. Stochastic destination selection is therefore replayable without requiring global optimization.
+Migration candidates are enumerated in a stable geometric order. Under v28, household decisions consume the separate `migration/choice` and `migration/uncertainty` streams in a schedule keyed by the minimum persistent stochastic-coupling rank among living household members rather than canonical `HouseholdId`. Stochastic destination selection remains exactly replayable without requiring global optimization.
 
 Parallelism is introduced only with a declared deterministic strategy. Faster but nondeterministic execution may be offered later as a separate mode, never silently substituted for research runs.
 

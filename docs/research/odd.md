@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v27 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v28 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
@@ -90,7 +90,7 @@ Authoritative time is integer days.
 - M3 resource settlement occurs at the end of those configured intervals. Seasonal regeneration integrates the synthetic daily seasonal curve over the actual interval and normalizes it to preserve unconstrained annual potential.
 - M3 condition recovery/loss coefficients and the condition-mediated mortality probability are interpreted against four fixed reference-quarter intervals, then converted deterministically to the actual elapsed M3 interval. Changing only `P` therefore does not multiply the complete-year response budget or fixed-condition survival probability merely by creating more M3 boundaries.
 - For `D = migration.decisionPeriodsPerYear`, M4 permanent-migration opportunity `j` occurs at `floor((j+1)*365/D)` within the model year. The synthetic default is four opportunities/year. This clock is independent of M3 `P`.
-- M4 resource support allocates annual per-person need over its own current decision interval using the same cumulative elapsed-day allocation rule rather than requiring an M3 resource boundary.
+- M4 resource support allocates annual per-person need over its own current decision interval using the same cumulative elapsed-day allocation rule rather than requiring an M3 resource boundary. Under v28, households still evaluate one shared pre-move snapshot, while sequential migration choice/uncertainty draws are assigned by a HouseholdId-independent schedule keyed by the minimum persistent stochastic-coupling rank among living household members; selected relocations remain simultaneous.
 - M9 transitions and starts can occur on deterministic journey days and can span annual checkpoints.
 
 When M3 and M4 share a day, the declared subannual ordering is M3 settlement/condition/survival, then due M9 day processing, then M4 permanent migration. Either process may otherwise occur alone. The annual M2 transition follows the year's subannual processing. The annual M2 contract remains intentionally coarse and must not be described as continuous-time mortality/fertility hazard execution.

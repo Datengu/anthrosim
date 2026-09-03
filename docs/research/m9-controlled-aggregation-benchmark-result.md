@@ -5,6 +5,14 @@
 **Scientific status:** synthetic capability/verification benchmark, not archaeological validation  
 **Current classification:** `capability_distinguished`
 
+## Model-semantics v28 applicability re-verification — machine reference unchanged
+
+Audit-v4 AV4-003 / #491 changes permanent M4 migration RNG assignment. The frozen M9.7 design was therefore rerun on the v28 production branch as part of applicable scientific/security run `33797427904`, job `100788647970`.
+
+The complete M9.7 gate passed **without rebaselining**: paired ensembles, M9.6 observability, exact intermittent replay, active annual checkpoint/resume, aggregation, the preserved v27 scientific-reference comparison, and tamper rejection all succeeded. Every benchmark arm still records **zero permanent M4 migrations**, so AV4-003 is causally inapplicable to this benchmark's authoritative result.
+
+The machine-readable M9.7 reference therefore remains the reviewed v27 reference rather than being relabelled as v28 evidence. This explicit non-change is itself the v28 applicability result.
+
 ## Current regression reference — model semantics v27
 
 The current machine-readable regression reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`. Audit-v4 AV4-002 / #488 changes background-mortality stochastic coupling, so the frozen M9.7 design was rerun unchanged and its numerical result reviewed before replacement.
