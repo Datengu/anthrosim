@@ -20,7 +20,7 @@ Current confirmation:
 - founder age ceiling: **60 years**;
 - resource productivity: **1000 permille**;
 - current model semantics: `anthrosim-model-semantics-v28`;
-- current preserved research execution identity: `research-execution-v1-2a74837d17e12d37`.
+- current preserved research execution identity: `research-execution-v1-93503391ed6cd598`.
 
 The v28 causal semantics change in Audit-v4 AV4-003/#491 changes same-seed M4 migration draw assignment by removing arbitrary HouseholdId decision ordering while preserving the study's high-level conclusion. The canonical v28 result was reproduced by issue-304 workflow run `33797427793`, job `100788374930` (artifact `9909929317`, SHA-256 `f2c1929fd558eab3d6a003f2d1ff447f42c81b0585f81f315cca8b1f9430470c`); all 780 runs completed and all three predeclared Monte Carlo precision gates returned `sufficient_stop`. Historical v25, v26 and v27 results remain immutable provenance rather than being rewritten as v28 evidence.
 
