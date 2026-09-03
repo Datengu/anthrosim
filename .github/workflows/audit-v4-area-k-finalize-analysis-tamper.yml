@@ -1,0 +1,29 @@
+name: Audit v4 Area K finalize analysis tamper
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-cli/tests/audit_v4_area_k_finalize_analysis_tamper.rs"
+      - ".github/workflows/audit-v4-area-k-finalize-analysis-tamper.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  finalize-analysis-tamper:
+    name: Finalized analysis-row tamper adversary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact evidence head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 Area K finalize adversary
+        run: cargo test --locked -p anthrosim-cli --test audit_v4_area_k_finalize_analysis_tamper -- --nocapture
