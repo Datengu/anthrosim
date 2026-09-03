@@ -8,6 +8,8 @@ Because this changes which represented kin role receives a same-seed parentage r
 
 `crates/anthrosim-core/tests/parentage_label_invariance.rs` covers the original-style 1,000-seed genealogy-preserving male-label swap, a 256-seed three-role cyclic relabel, and a 256-seed two-year propagation check. The pinned Rust 1.97.1 production regression passed all three before final-candidate assembly.
 
+The production PR does not itself close #495. After merge, the exact immutable PR #494 test/workflow blobs must be restored unchanged in a fresh evidence-only PR from the merged `main` commit and rerun across seeds 1..=1000; #495 closes only if that independent merged-main adversary reports 0/1000 divergences.
+
 ## Frozen scientific surfaces reviewed
 
 ### Issue #304 demographic confirmation
