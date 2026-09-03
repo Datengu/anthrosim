@@ -29,21 +29,19 @@ jobs:
           repository: Datengu/anthrosim
           run-id: 33816687527
           github-token: ${{ github.token }}
-      - name: Materialize reviewed v29 reference
-        run: python3 scripts/av4-005-m7-v29-rebaseline.py
-      - name: Validate and commit reviewed reference
+      - name: Materialize and validate reviewed v29 reference
         run: |
           set -euo pipefail
+          python3 scripts/av4-005-m7-v29-rebaseline.py
           git diff --check
-          rm .github/workflows/av4-005-m7-v29-rebaseline.yml
-          rm scripts/av4-005-m7-v29-rebaseline.py
-          git add .github/workflows/ci.yml \
-            experiments/v0.1-resource-variability-reference.json \
+          git checkout -- .github/workflows/ci.yml
+      - name: Commit artifact-derived non-workflow outputs
+        run: |
+          set -euo pipefail
+          git add experiments/v0.1-resource-variability-reference.json \
             docs/research/resource-variability-v0.1.md \
-            research/general-demography-baseline-v1/model-semantics-v29-reverification.md \
-            .github/workflows/av4-005-m7-v29-rebaseline.yml \
-            scripts/av4-005-m7-v29-rebaseline.py
+            research/general-demography-baseline-v1/model-semantics-v29-reverification.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "research: rebaseline M7.6 for v29"
+          git commit -m "research: materialize reviewed M7.6 v29 outputs"
           git push origin HEAD:repair/av4-005-parentage-coupling
