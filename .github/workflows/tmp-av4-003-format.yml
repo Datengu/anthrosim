@@ -1,0 +1,30 @@
+name: AV4-003 format helper
+
+on:
+  push:
+    branches:
+      - repair/av4-003-migration-household-coupling
+    paths:
+      - '.github/workflows/tmp-av4-003-format.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-003-migration-household-coupling
+          persist-credentials: true
+          fetch-depth: 0
+      - run: python3 scripts/tmp_fmt_av4_003.py
+      - run: |
+          set -euo pipefail
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'style: format AV4-003 regression test'
+          git push origin HEAD:repair/av4-003-migration-household-coupling
