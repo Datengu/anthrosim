@@ -1,0 +1,39 @@
+name: AV4-002 separation check
+
+on:
+  push:
+    branches:
+      - repair/av4-002-background-mortality-coupling
+    paths:
+      - '.github/workflows/tmp-av4-002-separation-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preserve-av4-006:
+    name: Preserve independent AV4-006 failure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Require original AV4-006 scientific assertion to remain failing
+        shell: bash
+        run: |
+          set +e
+          output=$(cargo test -p anthrosim-core --test tmp_audit_v4_condition_mortality_relabel --locked -- --nocapture 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -eq 0 ]; then
+            echo 'AV4-006 unexpectedly passed; AV4-002 repair overreached.' >&2
+            exit 1
+          fi
+          grep -F 'scientifically identical unlabeled founder states diverged under person-label permutation for condition-mediated mortality at seed 1' <<<"$output"
