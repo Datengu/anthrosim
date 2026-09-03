@@ -1,4 +1,4 @@
-name: Sync AV4-001 living docs
+name: Sync AV4-001 final cleanup
 
 on:
   pull_request:
@@ -20,9 +20,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           persist-credentials: true
           fetch-depth: 0
-      - name: Synchronize living v26 documentation
-        shell: python
+      - name: Synchronize living docs and founder lookup
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
 
           def replace_once(path, old, new):
@@ -38,11 +39,7 @@ jobs:
               '**This source tree is prepared as the AnthroSim v0.3.4 release baseline.** It preserves the completed Scientific Audit v3 remediation state at `anthrosim-model-semantics-v25`. The immutable `v0.3.3` release remains model semantics v21; v0.3.4 names the later repaired line rather than rewriting that historical identity.',
               '**This source tree is on the post-v0.3.4 Scientific Audit v4 remediation line at current model semantics v26.** The immutable `v0.3.4` release remains the completed Audit-v3 remediation baseline at `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21. Audit-v4 repairs do not rewrite either historical release identity.'
           )
-          replace_once(
-              'README.md',
-              'AnthroSim v0.3.4 includes:',
-              'The current post-v0.3.4 remediation line retains the v0.3.4 capability set:'
-          )
+          replace_once('README.md', 'AnthroSim v0.3.4 includes:', 'The current post-v0.3.4 remediation line retains the v0.3.4 capability set:')
           replace_once(
               'README.md',
               '- **Next validation phase:** perform a separate empirical/question-specific readiness assessment and then question-led model interrogation; do not infer archaeological validity merely from Audit-v3 closure. No fixed M10 feature list is declared.',
@@ -72,16 +69,32 @@ jobs:
               '- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a relabelling-invariant scientific-role ordering, while preserving the named fertility stream and exact RNG-position accounting.',
               '- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a persistent person-level stochastic coupling rank canonicalized from represented day-zero scientific state, while preserving the named fertility stream, checkpoint/replay identity and exact RNG-position accounting.'
           )
-      - name: Validate current model-semantics documentation
-        run: python scripts/test-current-model-semantics-docs.py
-      - name: Commit synchronized living documentation
+
+          replace_once(
+              'crates/anthrosim-core/src/population.rs',
+              "        let declared_last_birth_day = founder_population.and_then(|definition| {\n            definition\n                .people\n                .iter()\n                .find(|founder| founder.id == person)\n                .and_then(|founder| founder.last_birth_day)\n        });",
+              "        let declared_last_birth_day = founder_population\n            .and_then(|definition| definition.person(person))\n            .and_then(|founder| founder.last_birth_day);"
+          )
+          PY
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Format and targeted validation
+        run: |
+          cargo fmt --all
+          python scripts/test-current-model-semantics-docs.py
+          cargo test -p anthrosim-core --test fertility_label_invariance --test fertility_person_label_invariance
+          cargo test -p anthrosim-core demography_observability
+      - name: Commit synchronized cleanup
         run: |
           if git diff --quiet; then
-            echo 'Living documentation already synchronized.'
+            echo 'Cleanup already synchronized.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md docs/research/README.md docs/roadmap.md crates/anthrosim-core/src/provenance.rs docs/research/audit-v4/STATUS.md
-          git commit -m 'docs: synchronize Audit-v4 v26 remediation line'
+          git add README.md docs/research/README.md docs/roadmap.md crates/anthrosim-core/src/provenance.rs docs/research/audit-v4/STATUS.md crates/anthrosim-core/src/population.rs
+          git commit -m 'chore: finalize AV4-001 repair integration'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
