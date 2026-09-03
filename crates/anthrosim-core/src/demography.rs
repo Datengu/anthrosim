@@ -360,18 +360,11 @@ fn process_demographic_year_recorded_internal(
         &same_day_migration_origins,
     )?;
     let executable_birth_spacing_days = effective_birth_spacing_days(config);
-    let role_ranks = demographic_role_ranks(
-        population,
-        records_at_boundary_start,
-        day,
-        &same_day_migration_origins,
-        founder_population,
-    )?;
-
     // Freeze the eligible-female set before any birth is appended, matching the historical annual
-    // boundary semantics, but assign the shared fertility stream in a scientific-state order rather
-    // than packed-record/PersonId order. The final PersonId tie-break is reached only for records
-    // that remain indistinguishable under the complete relabelling-invariant role refinement.
+    // boundary semantics, but assign the shared fertility stream by persistent scientific coupling
+    // identity rather than packed-record/PersonId order. The rank is canonicalized from day-zero
+    // represented state and persisted through checkpoints, so later condition/migration differences
+    // cannot make independent replay lose the RNG-to-person coupling.
     let mut fertility_candidates = Vec::new();
     for female_index in 0..records_at_boundary_start {
         if !population.is_alive_index(female_index)
@@ -413,8 +406,13 @@ fn process_demographic_year_recorded_internal(
                 reason: "living female is missing a stable person ID while ordering fertility candidates",
             },
         )?;
+        let stochastic_coupling_rank = population
+            .stochastic_coupling_rank_at_index(female_index)
+            .ok_or(PopulationError::InternalInvariant {
+            reason: "living female is missing stochastic coupling identity",
+        })?;
         fertility_candidates.push((
-            role_ranks[female_index],
+            stochastic_coupling_rank,
             female,
             female_index,
             fertility_probability,
@@ -534,230 +532,6 @@ fn prior_birth_elapsed_days(
     let current_day = i64::try_from(day).ok()?;
     let elapsed = current_day.checked_sub(last_birth_day)?;
     u64::try_from(elapsed).ok()
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct DemographicRoleBaseKey {
-    alive: bool,
-    birth_day: i64,
-    death_day: Option<u64>,
-    reproductive_sex_rank: u8,
-    exposure_location: CellId,
-    current_location: CellId,
-    condition_permille: u16,
-    condition_loss_remainder_thousandths: u16,
-    prior_birth_elapsed_days: Option<u64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct DemographicRoleSignature {
-    prior_rank: u64,
-    female_parent_rank: Option<u64>,
-    male_parent_rank: Option<u64>,
-    children: Vec<(u8, u64)>,
-    living_household_members: Vec<u64>,
-}
-
-fn reproductive_sex_rank(sex: ReproductiveSex) -> u8 {
-    match sex {
-        ReproductiveSex::Female => 0,
-        ReproductiveSex::Male => 1,
-    }
-}
-
-fn demographic_person_index(person: PersonId, records_at_boundary_start: usize) -> Option<usize> {
-    if person == PersonId::INVALID {
-        return None;
-    }
-    usize::try_from(person.0.checked_sub(1)?)
-        .ok()
-        .filter(|&index| index < records_at_boundary_start)
-}
-
-/// Derive stable, relabelling-invariant scientific role classes for the complete pre-birth
-/// demographic state. The refinement includes local scalar state, spatial exposure, parent/child
-/// roles, and the multiset of living household-member roles. Because each iteration includes the
-/// prior rank, the partition only refines and converges after at most one split per represented
-/// record. Canonical PersonId is intentionally absent from every signature.
-fn demographic_role_ranks(
-    population: &Population,
-    records_at_boundary_start: usize,
-    day: u64,
-    same_day_migration_origins: &BTreeMap<HouseholdId, CellId>,
-    founder_population: Option<&FounderPopulationDefinition>,
-) -> Result<Vec<u64>, PopulationError> {
-    let mut female_parent_indices = vec![None; records_at_boundary_start];
-    let mut male_parent_indices = vec![None; records_at_boundary_start];
-    let mut child_links = vec![Vec::<(u8, usize)>::new(); records_at_boundary_start];
-    let mut living_households = BTreeMap::<HouseholdId, Vec<usize>>::new();
-    let mut base_keys = Vec::with_capacity(records_at_boundary_start);
-
-    for index in 0..records_at_boundary_start {
-        let person_id =
-            population
-                .person_id_at_index(index)
-                .ok_or(PopulationError::InternalInvariant {
-                    reason: "demographic role refinement found a record without stable PersonId",
-                })?;
-        let person = population
-            .person(person_id)
-            .ok_or(PopulationError::InternalInvariant {
-                reason: "demographic role refinement could not materialize a person record",
-            })?;
-        let household =
-            population
-                .household_at_index(index)
-                .ok_or(PopulationError::InternalInvariant {
-                    reason: "demographic role refinement found a record without household",
-                })?;
-        if person.is_alive() {
-            living_households.entry(household).or_default().push(index);
-        }
-
-        let female_parent =
-            population
-                .female_parent_at_index(index)
-                .ok_or(PopulationError::InternalInvariant {
-                    reason: "demographic role refinement could not read female-parent state",
-                })?;
-        let male_parent =
-            population
-                .male_parent_at_index(index)
-                .ok_or(PopulationError::InternalInvariant {
-                    reason: "demographic role refinement could not read male-parent state",
-                })?;
-        female_parent_indices[index] =
-            demographic_person_index(female_parent, records_at_boundary_start);
-        male_parent_indices[index] =
-            demographic_person_index(male_parent, records_at_boundary_start);
-        if female_parent != PersonId::INVALID && female_parent_indices[index].is_none() {
-            return Err(PopulationError::InternalInvariant {
-                reason: "female-parent reference is outside the demographic boundary record set",
-            });
-        }
-        if male_parent != PersonId::INVALID && male_parent_indices[index].is_none() {
-            return Err(PopulationError::InternalInvariant {
-                reason: "male-parent reference is outside the demographic boundary record set",
-            });
-        }
-
-        let current_location =
-            population
-                .location_at_index(index)
-                .ok_or(PopulationError::InternalInvariant {
-                    reason: "demographic role refinement found a record without residence",
-                })?;
-        let exposure_location =
-            demographic_exposure_location(population, index, same_day_migration_origins).ok_or(
-                PopulationError::InternalInvariant {
-                    reason: "demographic role refinement found a record without exposure residence",
-                },
-            )?;
-        let condition_permille =
-            population
-                .condition_at_index(index)
-                .ok_or(PopulationError::InternalInvariant {
-                    reason: "demographic role refinement could not read condition",
-                })?;
-        let condition_loss_remainder_thousandths = population
-            .condition_loss_remainder_thousandths_at_index(index)
-            .ok_or(PopulationError::InternalInvariant {
-                reason: "demographic role refinement could not read condition remainder",
-            })?;
-        let prior_birth = (person.reproductive_sex == ReproductiveSex::Female)
-            .then(|| prior_birth_elapsed_days(population, index, day, founder_population))
-            .flatten();
-        base_keys.push(DemographicRoleBaseKey {
-            alive: person.is_alive(),
-            birth_day: person.birth_day,
-            death_day: person.death_day,
-            reproductive_sex_rank: reproductive_sex_rank(person.reproductive_sex),
-            exposure_location,
-            current_location,
-            condition_permille,
-            condition_loss_remainder_thousandths,
-            prior_birth_elapsed_days: prior_birth,
-        });
-    }
-
-    for child_index in 0..records_at_boundary_start {
-        if let Some(parent_index) = female_parent_indices[child_index] {
-            child_links[parent_index].push((0, child_index));
-        }
-        if let Some(parent_index) = male_parent_indices[child_index] {
-            child_links[parent_index].push((1, child_index));
-        }
-    }
-
-    let mut unique_base_keys = base_keys.clone();
-    unique_base_keys.sort();
-    unique_base_keys.dedup();
-    let mut ranks = base_keys
-        .iter()
-        .map(|key| {
-            let position = unique_base_keys
-                .binary_search(key)
-                .expect("demographic base role must be represented");
-            u64::try_from(position).expect("demographic role-rank space must fit u64")
-        })
-        .collect::<Vec<_>>();
-
-    for _ in 0..records_at_boundary_start {
-        let mut household_rank_multisets = BTreeMap::<HouseholdId, Vec<u64>>::new();
-        for (&household, members) in &living_households {
-            let mut member_ranks = members
-                .iter()
-                .map(|&index| ranks[index])
-                .collect::<Vec<_>>();
-            member_ranks.sort_unstable();
-            household_rank_multisets.insert(household, member_ranks);
-        }
-
-        let mut signatures = Vec::with_capacity(records_at_boundary_start);
-        for index in 0..records_at_boundary_start {
-            let mut children = child_links[index]
-                .iter()
-                .map(|&(role, child_index)| (role, ranks[child_index]))
-                .collect::<Vec<_>>();
-            children.sort_unstable();
-            let household =
-                population
-                    .household_at_index(index)
-                    .ok_or(PopulationError::InternalInvariant {
-                        reason: "demographic role refinement lost household state",
-                    })?;
-            let living_household_members = household_rank_multisets
-                .get(&household)
-                .cloned()
-                .unwrap_or_default();
-            signatures.push(DemographicRoleSignature {
-                prior_rank: ranks[index],
-                female_parent_rank: female_parent_indices[index].map(|parent| ranks[parent]),
-                male_parent_rank: male_parent_indices[index].map(|parent| ranks[parent]),
-                children,
-                living_household_members,
-            });
-        }
-
-        let mut unique_signatures = signatures.clone();
-        unique_signatures.sort();
-        unique_signatures.dedup();
-        let next_ranks = signatures
-            .iter()
-            .map(|signature| {
-                let position = unique_signatures
-                    .binary_search(signature)
-                    .expect("demographic role signature must be represented");
-                u64::try_from(position).expect("demographic role-rank space must fit u64")
-            })
-            .collect::<Vec<_>>();
-        if next_ranks == ranks {
-            return Ok(ranks);
-        }
-        ranks = next_ranks;
-    }
-
-    Ok(ranks)
 }
 
 fn same_day_migration_origins(events: &EventLog, day: u64) -> BTreeMap<HouseholdId, CellId> {

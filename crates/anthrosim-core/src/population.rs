@@ -168,6 +168,25 @@ pub(crate) struct HouseholdFissionOutcome {
     pub fissions: Vec<HouseholdFissionRecord>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct InitialStochasticBaseKey {
+    birth_day: i64,
+    reproductive_sex_rank: u8,
+    location: CellId,
+    condition_permille: u16,
+    condition_loss_remainder_thousandths: u16,
+    declared_last_birth_day: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct InitialStochasticSignature {
+    prior_rank: u64,
+    female_parent_rank: Option<u64>,
+    male_parent_rank: Option<u64>,
+    children: Vec<(u8, u64)>,
+    household_members: Vec<u64>,
+}
+
 /// Authoritative persistent person/household state.
 ///
 /// Hot per-person fields are stored as parallel contiguous arrays rather than
@@ -193,13 +212,19 @@ pub struct Population {
     /// Unmaterialized M3 under-supply deterioration in thousandths of one condition point.
     /// This causal remainder is carried across resource boundaries and bound into checkpoints.
     condition_loss_remainder_thousandths: Vec<u16>,
+    /// Persistent person-level coupling identity for sequential scientific RNG streams.
+    /// The initial assignment is canonicalized from represented scientific state rather than
+    /// canonical PersonId/packed-record order; model births receive subsequent ranks.
+    #[serde(default)]
+    stochastic_coupling_ranks: Vec<u64>,
     household_locations: Vec<CellId>,
     occupancy: CellOccupancy,
 }
 
 impl Population {
-    /// v4 binds per-person fractional M3 condition-loss remainder into causal population state.
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    /// v5 binds persistent person-level stochastic coupling identity into causal population
+    /// state so checkpoint/resume preserves relabelling-invariant RNG assignment.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 
     /// Initialize the frozen synthetic-validation founder preset.
     ///
@@ -284,8 +309,9 @@ impl Population {
             condition_permille.push(person.condition_permille);
         }
 
+        let stochastic_coupling_ranks = vec![0_u64; person_count];
         let occupancy = CellOccupancy::build(&locations, world.cell_count())?;
-        let population = Self {
+        let mut population = Self {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             initial_population: config.initial_population,
             births_since_start: 0,
@@ -301,9 +327,11 @@ impl Population {
             male_parents,
             condition_permille,
             condition_loss_remainder_thousandths,
+            stochastic_coupling_ranks,
             household_locations,
             occupancy,
         };
+        population.assign_initial_stochastic_coupling_ranks(Some(definition));
         population.validate(world)?;
         Ok(population)
     }
@@ -381,8 +409,9 @@ impl Population {
             condition_loss_remainder_thousandths.push(0);
         }
 
+        let stochastic_coupling_ranks = vec![0_u64; person_count];
         let occupancy = CellOccupancy::build(&locations, world.cell_count())?;
-        let population = Self {
+        let mut population = Self {
             schema_version: Self::CURRENT_SCHEMA_VERSION,
             initial_population: config.initial_population,
             births_since_start: 0,
@@ -398,9 +427,11 @@ impl Population {
             male_parents,
             condition_permille,
             condition_loss_remainder_thousandths,
+            stochastic_coupling_ranks,
             household_locations,
             occupancy,
         };
+        population.assign_initial_stochastic_coupling_ranks(None);
         population.validate(world)?;
         Ok(population)
     }
@@ -523,6 +554,11 @@ impl Population {
             .copied()
     }
 
+    #[must_use]
+    pub(crate) fn stochastic_coupling_rank_at_index(&self, index: usize) -> Option<u64> {
+        self.stochastic_coupling_ranks.get(index).copied()
+    }
+
     pub(crate) fn set_condition_with_loss_remainder_at_index(
         &mut self,
         index: usize,
@@ -600,6 +636,14 @@ impl Population {
         let birth_day =
             i64::try_from(day).map_err(|_| PopulationError::SimulationDayTooLarge { day })?;
         let id = person_id_from_index(self.person_count());
+        let stochastic_coupling_rank = u64::try_from(self.person_count())
+            .map_err(|_| PopulationError::InternalInvariant {
+                reason: "person count does not fit stochastic coupling rank space",
+            })?
+            .checked_add(1)
+            .ok_or(PopulationError::InternalInvariant {
+                reason: "stochastic coupling rank space is exhausted",
+            })?;
         self.birth_days.push(birth_day);
         self.death_days.push(NO_EVENT_DAY);
         self.last_birth_days.push(NO_EVENT_DAY);
@@ -610,8 +654,141 @@ impl Population {
         self.male_parents.push(male_parent);
         self.condition_permille.push(PERMILLE_MAX);
         self.condition_loss_remainder_thousandths.push(0);
+        self.stochastic_coupling_ranks
+            .push(stochastic_coupling_rank);
         self.births_since_start = self.births_since_start.saturating_add(1);
         Ok(id)
+    }
+
+    fn initial_stochastic_base_key(
+        &self,
+        index: usize,
+        founder_population: Option<&FounderPopulationDefinition>,
+    ) -> InitialStochasticBaseKey {
+        let person = person_id_from_index(index);
+        let declared_last_birth_day = founder_population.and_then(|definition| {
+            definition
+                .people
+                .iter()
+                .find(|founder| founder.id == person)
+                .and_then(|founder| founder.last_birth_day)
+        });
+        InitialStochasticBaseKey {
+            birth_day: self.birth_days[index],
+            reproductive_sex_rank: match self.reproductive_sexes[index] {
+                ReproductiveSex::Female => 0,
+                ReproductiveSex::Male => 1,
+            },
+            location: self.locations[index],
+            condition_permille: self.condition_permille[index],
+            condition_loss_remainder_thousandths: self.condition_loss_remainder_thousandths[index],
+            declared_last_birth_day,
+        }
+    }
+
+    /// Canonicalize day-zero represented people into persistent coupling ranks without using
+    /// canonical PersonId as a scientific distinction. Refinement incorporates scalar state,
+    /// genealogy, and household-role multisets globally. PersonId is used only to order records
+    /// that remain scientifically indistinguishable after the refinement; swapping such records
+    /// leaves the unlabeled scientific state unchanged.
+    fn assign_initial_stochastic_coupling_ranks(
+        &mut self,
+        founder_population: Option<&FounderPopulationDefinition>,
+    ) {
+        let person_count = self.person_count();
+        if person_count == 0 {
+            return;
+        }
+
+        let base_keys = (0..person_count)
+            .map(|index| self.initial_stochastic_base_key(index, founder_population))
+            .collect::<Vec<_>>();
+        let mut unique_base_keys = base_keys.clone();
+        unique_base_keys.sort();
+        unique_base_keys.dedup();
+        let mut ranks = base_keys
+            .iter()
+            .map(|key| {
+                u64::try_from(
+                    unique_base_keys
+                        .binary_search(key)
+                        .expect("initial stochastic base key must be represented"),
+                )
+                .expect("initial stochastic base-rank space must fit u64")
+            })
+            .collect::<Vec<_>>();
+
+        let mut child_links = vec![Vec::<(u8, usize)>::new(); person_count];
+        for child_index in 0..person_count {
+            for (role, parent) in [
+                (0_u8, self.female_parents[child_index]),
+                (1_u8, self.male_parents[child_index]),
+            ] {
+                if let Some(parent_index) = person_index(parent, person_count) {
+                    child_links[parent_index].push((role, child_index));
+                }
+            }
+        }
+
+        for _ in 0..person_count {
+            let mut household_members = vec![Vec::<u64>::new(); self.household_count()];
+            for index in 0..person_count {
+                let household_index = usize::try_from(self.households[index].0 - 1)
+                    .expect("validated initial household ID must fit usize");
+                household_members[household_index].push(ranks[index]);
+            }
+            for members in &mut household_members {
+                members.sort_unstable();
+            }
+
+            let signatures = (0..person_count)
+                .map(|index| {
+                    let parent_rank = |parent: PersonId| {
+                        person_index(parent, person_count).map(|parent_index| ranks[parent_index])
+                    };
+                    let mut children = child_links[index]
+                        .iter()
+                        .map(|&(role, child_index)| (role, ranks[child_index]))
+                        .collect::<Vec<_>>();
+                    children.sort_unstable();
+                    let household_index = usize::try_from(self.households[index].0 - 1)
+                        .expect("validated initial household ID must fit usize");
+                    InitialStochasticSignature {
+                        prior_rank: ranks[index],
+                        female_parent_rank: parent_rank(self.female_parents[index]),
+                        male_parent_rank: parent_rank(self.male_parents[index]),
+                        children,
+                        household_members: household_members[household_index].clone(),
+                    }
+                })
+                .collect::<Vec<_>>();
+            let mut unique_signatures = signatures.clone();
+            unique_signatures.sort();
+            unique_signatures.dedup();
+            let next_ranks = signatures
+                .iter()
+                .map(|signature| {
+                    u64::try_from(
+                        unique_signatures
+                            .binary_search(signature)
+                            .expect("initial stochastic signature must be represented"),
+                    )
+                    .expect("initial stochastic signature-rank space must fit u64")
+                })
+                .collect::<Vec<_>>();
+            if next_ranks == ranks {
+                break;
+            }
+            ranks = next_ranks;
+        }
+
+        let mut order = (0..person_count).collect::<Vec<_>>();
+        order.sort_by_key(|&index| (ranks[index], person_id_from_index(index).0));
+        for (ordinal, index) in order.into_iter().enumerate() {
+            self.stochastic_coupling_ranks[index] = u64::try_from(ordinal)
+                .expect("initial stochastic coupling ordinal must fit u64")
+                + 1;
+        }
     }
 
     /// Derives deterministic, PersonId-independent relationship-role classes for the living
@@ -981,12 +1158,31 @@ impl Population {
             self.male_parents.len(),
             self.condition_permille.len(),
             self.condition_loss_remainder_thousandths.len(),
+            self.stochastic_coupling_ranks.len(),
         ];
         if lengths.iter().any(|&length| length != person_count) {
             return Err(PopulationValidationError::ColumnLengthMismatch);
         }
 
         let records = person_count as u64;
+        let mut seen_stochastic_coupling_ranks = vec![false; person_count];
+        for (index, &rank) in self.stochastic_coupling_ranks.iter().enumerate() {
+            let Some(rank_index) = rank
+                .checked_sub(1)
+                .and_then(|value| usize::try_from(value).ok())
+                .filter(|&value| value < person_count)
+            else {
+                return Err(PopulationValidationError::InvalidStochasticCouplingRank {
+                    person: person_id_from_index(index),
+                    rank,
+                    records,
+                });
+            };
+            if seen_stochastic_coupling_ranks[rank_index] {
+                return Err(PopulationValidationError::DuplicateStochasticCouplingRank { rank });
+            }
+            seen_stochastic_coupling_ranks[rank_index] = true;
+        }
         let expected_records = u64::from(self.initial_population)
             .checked_add(self.births_since_start)
             .ok_or(PopulationValidationError::PopulationAccountingOverflow)?;
@@ -1303,6 +1499,7 @@ impl Population {
                 &mut hash,
                 u64::from(self.condition_loss_remainder_thousandths[index]),
             );
+            digest_u64(&mut hash, self.stochastic_coupling_ranks[index]);
         }
         digest_u64(&mut hash, self.household_count() as u64);
         for &location in &self.household_locations {
@@ -1430,6 +1627,14 @@ pub enum PopulationValidationError {
     ColumnLengthMismatch,
     #[error("population accounting overflowed")]
     PopulationAccountingOverflow,
+    #[error("person {person:?} has stochastic coupling rank {rank} outside 1..={records}")]
+    InvalidStochasticCouplingRank {
+        person: PersonId,
+        rank: u64,
+        records: u64,
+    },
+    #[error("stochastic coupling rank {rank} is assigned to multiple person records")]
+    DuplicateStochasticCouplingRank { rank: u64 },
     #[error("persistent person records {records} do not match expected {expected}")]
     PersonRecordAccountingMismatch { records: u64, expected: u64 },
     #[error("living population {living} does not match expected {expected}")]
