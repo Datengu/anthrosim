@@ -1,0 +1,62 @@
+name: AV4-002 exact v27 rebaseline
+
+on:
+  push:
+    branches:
+      - repair/av4-002-background-mortality-coupling
+    paths:
+      - '.github/workflows/tmp-av4-002-rebaseline.yml'
+      - 'scripts/tmp_rebaseline_av4_002.py'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  rebaseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-002-background-mortality-coupling
+          persist-credentials: true
+      - name: Download exact scientific artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf /tmp/a304 /tmp/m8 /tmp/m9
+          mkdir -p /tmp/a304 /tmp/m8 /tmp/m9
+          gh run download 33785448601 --name issue-304-demographic-baseline-confirmatory --dir /tmp/a304
+          gh run download 33785449208 --name m8-evidence-grounded-benchmark --dir /tmp/m8
+          gh run download 33785449208 --name m9-controlled-aggregation-benchmark --dir /tmp/m9
+      - name: Generate reviewed v27 references and living documentation
+        run: python3 scripts/tmp_rebaseline_av4_002.py
+      - name: Verify generated scientific references
+        run: |
+          python3 scripts/verify-m8-spatial-benchmark-reference.py --actual /tmp/m8/m8-benchmark-output/benchmark-summary.json --reference examples/m8-first-evidence-grounded-benchmark/reference-result.json
+          python3 scripts/verify-m9-aggregation-benchmark-reference.py --actual /tmp/m9/m9-benchmark-output/benchmark-summary.json --reference examples/m9-controlled-aggregation-benchmark/reference-result.json
+          python3 scripts/test-current-model-semantics-docs.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          actual=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
+          expected=json.loads(Path('/tmp/a304/expected-result.json').read_text())
+          assert actual == expected
+          PY
+          git diff --check
+      - name: Commit exact reviewed rebaseline
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/general-demography-baseline-v1/confirmatory-result.json \
+                  research/general-demography-baseline-v1/model-semantics-v27-reverification.md \
+                  docs/research/general-scientific-demographic-baseline-v1.md \
+                  examples/m8-first-evidence-grounded-benchmark/reference-result.json \
+                  docs/research/m8-first-evidence-grounded-benchmark-result.md \
+                  examples/m9-controlled-aggregation-benchmark/reference-result.json \
+                  docs/research/m9-controlled-aggregation-benchmark-result.md \
+                  docs/roadmap.md
+          git diff --cached --quiet && { echo 'No rebaseline changes produced' >&2; exit 1; }
+          git commit -m 'research: rebaseline v27 scientific references for AV4-002'
+          git push origin HEAD:repair/av4-002-background-mortality-coupling
