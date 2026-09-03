@@ -419,8 +419,8 @@ fn process_demographic_year_recorded_internal(
         let stochastic_coupling_rank = population
             .stochastic_coupling_rank_at_index(female_index)
             .ok_or(PopulationError::InternalInvariant {
-                reason: "living female is missing stochastic coupling identity",
-            })?;
+            reason: "living female is missing stochastic coupling identity",
+        })?;
         fertility_candidates.push((
             stochastic_coupling_rank,
             female,
@@ -833,7 +833,8 @@ mod tests {
     fn model_born_child_receives_age_zero_mortality_interval() {
         let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(91)).unwrap();
         let mut population =
-            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(91)).unwrap();
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(91))
+                .unwrap();
         let female_index = (0..population.person_count())
             .find(|&index| {
                 population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Female)

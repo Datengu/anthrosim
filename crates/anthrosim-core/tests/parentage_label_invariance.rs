@@ -57,7 +57,9 @@ fn founder(
     }
 }
 
-fn two_male_founders(swapped_labels: bool) -> (FounderPopulationDefinition, [(PersonId, MaleRole); 2]) {
+fn two_male_founders(
+    swapped_labels: bool,
+) -> (FounderPopulationDefinition, [(PersonId, MaleRole); 2]) {
     let (existing_father, unrelated) = if swapped_labels { (3, 2) } else { (2, 3) };
     let people = vec![
         founder(1, 30, ReproductiveSex::Female, None),
@@ -188,8 +190,16 @@ fn original_parentage_relabel_sweep_is_invariant() {
     for seed in 1..=1_000 {
         let a = run_two_males(seed, 1, false);
         let b = run_two_males(seed, 1, true);
-        assert_eq!(a.selected_roles.len(), 1, "forced fertility must produce one birth at seed {seed}");
-        assert_eq!(b.selected_roles.len(), 1, "forced fertility must produce one relabelled birth at seed {seed}");
+        assert_eq!(
+            a.selected_roles.len(),
+            1,
+            "forced fertility must produce one birth at seed {seed}"
+        );
+        assert_eq!(
+            b.selected_roles.len(),
+            1,
+            "forced fertility must produce one relabelled birth at seed {seed}"
+        );
         assert_eq!(
             a, b,
             "parentage role, newborn sex, or demography RNG positions changed under pure eligible-male PersonId relabelling at seed {seed}"
@@ -217,8 +227,16 @@ fn parentage_relabel_invariance_propagates_through_two_demographic_years() {
     for seed in 1..=256 {
         let a = run_two_males(seed, 2, false);
         let b = run_two_males(seed, 2, true);
-        assert_eq!(a.selected_roles.len(), 2, "forced fertility must produce two births at seed {seed}");
-        assert_eq!(b.selected_roles.len(), 2, "forced fertility must produce two relabelled births at seed {seed}");
+        assert_eq!(
+            a.selected_roles.len(),
+            2,
+            "forced fertility must produce two births at seed {seed}"
+        );
+        assert_eq!(
+            b.selected_roles.len(),
+            2,
+            "forced fertility must produce two relabelled births at seed {seed}"
+        );
         assert_eq!(
             a, b,
             "two-year genealogy role sequence or demography RNG positions changed under pure eligible-male PersonId relabelling at seed {seed}"

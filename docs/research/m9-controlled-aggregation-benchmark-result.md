@@ -5,7 +5,25 @@
 **Scientific status:** synthetic capability/verification benchmark, not archaeological validation  
 **Current classification:** `capability_distinguished`
 
-## Model-semantics v28 applicability re-verification — machine reference unchanged
+## Current regression reference — model semantics v29
+
+Audit-v4 AV4-005 / #495 changes which scientifically represented eligible male receives a same-seed M2 parentage realization. The unchanged M9.7 design was therefore rerun and reviewed rather than assuming that disabled permanent migration made genealogy causally irrelevant.
+
+Reviewed v29 execution:
+
+- evidence-generating workflow run: `33813559006`, job `100840645688`;
+- evidence-generating production head: `0e69401b82c512c1f66d15303bc98a8dc75da7e5`;
+- artifact: `9915799402`;
+- artifact SHA-256: `8e14622e26728c6e4a300c6c834c6085aa9c2e84013704f237e4aaa4a1221a4c`;
+- aggregate canonical SHA-256: `be17795b0ed35aba0c39a6c76b1d45934dd165d75199551464dcbdc589c9294b`;
+- reference model semantics: `anthrosim-model-semantics-v29`;
+- subsequent checked-reference verification: applicable-gates run `33815769032` passed the canonical comparison, replay/resume checks and tamper rejection.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume remain equivalent.
+
+Unlike the v28 applicability result, the v29 machine reference does change: continuous and intermittent terminal state digests change because parentage/genealogy is authoritative state even when permanent M4 migration is disabled. The paired temporary-mobility capability metrics remain unchanged, so the rebaseline records the corrected complete model state without strengthening the archaeological claim.
+
+## Historical model-semantics v28 applicability re-verification — machine reference unchanged
 
 Audit-v4 AV4-003 / #491 changes permanent M4 migration RNG assignment. The frozen M9.7 design was therefore rerun on the v28 production branch as part of applicable scientific/security run `33797427904`, job `100788647970`.
 
@@ -13,7 +31,7 @@ The complete M9.7 gate passed **without rebaselining**: paired ensembles, M9.6 o
 
 The machine-readable M9.7 reference therefore remains the reviewed v27 reference rather than being relabelled as v28 evidence. This explicit non-change is itself the v28 applicability result.
 
-## Current regression reference — model semantics v27
+## Historical reviewed reference — model semantics v27
 
 The current machine-readable regression reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`. Audit-v4 AV4-002 / #488 changes background-mortality stochastic coupling, so the frozen M9.7 design was rerun unchanged and its numerical result reviewed before replacement.
 

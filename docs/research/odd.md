@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v28 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v29 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
@@ -66,6 +66,8 @@ A living person's persistent **residence** is distinct from M9 **physical presen
 ### Households
 
 Households are persistent resource-sharing and mobility units. They are not asserted to be tribes, clans, lineages, marriages or universal nuclear families. Living household members normally share persistent residence; newborns join the female parent's household. M4 permanent migration moves the living household as a unit. M9 temporary mobility moves the household through a temporary journey state while preserving residence.
+
+Under v29, residence-local eligible male parentage candidates are coupled to the independent `demography/parentage` stream through persistent person stochastic-coupling rank rather than canonical `PersonId`/record order; the existing uniform reservoir-selection rule is otherwise unchanged.
 
 Household formation/dissolution remains intentionally minimal in the baseline and is therefore a model limitation to be evaluated when household lifecycle could affect a research claim.
 
