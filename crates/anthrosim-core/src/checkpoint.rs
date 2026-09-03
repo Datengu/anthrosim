@@ -68,7 +68,8 @@ impl SimulationCheckpoint {
     pub const PRE_STOCHASTIC_COUPLING_SCHEMA_VERSION: u32 = 13;
     pub const PRE_BACKGROUND_MORTALITY_COUPLING_SCHEMA_VERSION: u32 = 14;
     pub const PRE_MIGRATION_HOUSEHOLD_COUPLING_SCHEMA_VERSION: u32 = 15;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 16;
+    pub const PRE_PARENTAGE_COUPLING_SCHEMA_VERSION: u32 = 16;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 17;
 
     /// Seal a newly constructed checkpoint with its complete continuation identity.
     #[must_use]
