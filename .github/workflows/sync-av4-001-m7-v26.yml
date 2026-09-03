@@ -26,108 +26,92 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
-
           ci_path = Path('.github/workflows/ci.yml')
           ci = ci_path.read_text(encoding='utf-8')
           old = "assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v20'"
           new = "assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v26'"
           assert ci.count(old) == 1, ci.count(old)
           ci_path.write_text(ci.replace(old, new, 1), encoding='utf-8')
-
-          ref_path = Path('experiments/v0.1-resource-variability-reference.json')
-          reference = json.loads(ref_path.read_text(encoding='utf-8'))
+          reference = json.loads(Path('experiments/v0.1-resource-variability-reference.json').read_text(encoding='utf-8'))
           assert reference['schemaVersion'] == 3
           assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v26'
-          assert reference['plannedRuns'] == 144
-          assert reference['completedRuns'] == 144
+          assert reference['plannedRuns'] == reference['completedRuns'] == 144
           assert reference['nonCompletedRuns'] == 0
           assert len(reference['pointResults']) == 18
           assert reference['referenceCiRunId'] == 33761813921
           assert reference['referenceHeadCommit'] == '5d73176f9c26a9701193cfa46db9f7d341af7d8a'
-
           doc_path = Path('docs/research/resource-variability-v0.1.md')
           doc = doc_path.read_text(encoding='utf-8')
           marker = '## Current v13 reference and provenance\n'
           assert marker in doc
           assert '## Current v26 reference and provenance' not in doc
-          prefix, history = doc.split(marker, 1)
-          history = marker + history
+          prefix, history_tail = doc.split(marker, 1)
+          history = marker + history_tail
           history = history.replace('## Current v13 reference and provenance', '## Historical v13 reference and provenance', 1)
           history = history.replace('The current reference was deliberately regenerated after issue #188 corrected the M4 kin-residence proxy.', 'The v13 reference was deliberately regenerated after issue #188 corrected the M4 kin-residence proxy.', 1)
           history = history.replace('## Current v13 point results', '## Historical v13 point results', 1)
           history = history.replace('## Observations within this synthetic model', '## Historical v13 observations within this synthetic model', 1)
-
           def fmt(value):
               if value is None:
                   return '—'
               if isinstance(value, float):
                   return f'{value:.3f}'.rstrip('0').rstrip('.')
               return str(value)
-
           table = [
               '| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |',
               '| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |',
           ]
           for row in reference['pointResults']:
-              table.append(
-                  f"| {row['resourceProductivityScalePermille']} | {row['resourceSeasonalityScalePermille']} | "
-                  f"{'on' if row['migrationEnabled'] else 'off'} | {row['durationReachedRuns']} duration / {row['populationExtinctRuns']} extinct | "
-                  f"{fmt(row['meanFinalLivingPopulationCompletedOnly'])} | {fmt(row['meanFinalLivingOccupiedCellCountCompletedOnly'])} | "
-                  f"{fmt(row['meanConditionMortalityDeathsCompletedOnly'])} | {fmt(row['meanResourceUnmetNeedCompletedOnly'])} | "
-                  f"{fmt(row['meanMigrationMovesCompletedOnly'])} | {fmt(row['pooledMeanMigrationDistanceCellsPerMoveCompletedOnly'])} |"
-              )
-
-          current = f'''## Current v26 reference and provenance
-
-Audit-v4 AV4-001 / #486 changes the causal same-seed fertility coupling: annual fertility draws are no longer assigned by arbitrary canonical `PersonId` record order. Because that correction can propagate through births, household composition, resources and migration, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v20 values.
-
-Reviewed v26 execution:
-
-- CI run: `33761813921`;
-- M7.6 job: `100674851272`;
-- exact production head used by the archived run: `5d73176f9c26a9701193cfa46db9f7d341af7d8a`;
-- artifact: `9896479783` (`m7-6-resource-variability-derived`, `sha256:75445419e242e39c77804356216558490a58c62dd30c3c7df36c736f91cdbe82`);
-- definition SHA-256: `{reference['definitionSha256']}`;
-- model version: `{reference['modelVersion']}`;
-- model semantics: `{reference['modelSemanticsId']}`;
-- sweep ID: `{reference['referenceSweepId']}`.
-
-All **144/144** planned runs completed and were scientifically eligible. The workflow job failed only after execution when the then-current CI assertion still required the frozen v20 machine reference; that stale-reference assertion is not scientific evidence against the v26 execution.
-
-The source definition is unchanged: 18 factorial points × 8 paired seeds. The reviewed v26 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls. Quantitative values move because the corrected fertility coupling changes downstream trajectories.
-
-## Current v26 point results
-
-The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path and are not uniquely attributable to resource scarcity.
-
-{chr(10).join(table)}
-
-## Current v26 interpretation
-
-### Productivity remains the strongest resource control
-
-The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are now those generated under the corrected v26 fertility coupling.
-
-### Migration remains strongly associated with persistence in this synthetic design
-
-At productivity `250`, all nine migration-disabled point/season combinations are represented by three seasonality points whose eight paired runs each become extinct, while all matched migration-enabled runs reach the requested duration. The persistence contrast also remains large at productivity `500` and `1000`.
-
-### Seasonality remains non-monotonic
-
-Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
-
-### Interpretation boundary
-
-This remains a synthetic mechanism-validation experiment, not calibration evidence. The v26 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary fertility-draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
-
-'''
-          doc_path.write_text(prefix + current + history, encoding='utf-8')
-
-          # Fail closed on accidental stale-current identity or malformed reference.
+              table.append(f"| {row['resourceProductivityScalePermille']} | {row['resourceSeasonalityScalePermille']} | {'on' if row['migrationEnabled'] else 'off'} | {row['durationReachedRuns']} duration / {row['populationExtinctRuns']} extinct | {fmt(row['meanFinalLivingPopulationCompletedOnly'])} | {fmt(row['meanFinalLivingOccupiedCellCountCompletedOnly'])} | {fmt(row['meanConditionMortalityDeathsCompletedOnly'])} | {fmt(row['meanResourceUnmetNeedCompletedOnly'])} | {fmt(row['meanMigrationMovesCompletedOnly'])} | {fmt(row['pooledMeanMigrationDistanceCellsPerMoveCompletedOnly'])} |")
+          current_lines = [
+              '## Current v26 reference and provenance',
+              '',
+              'Audit-v4 AV4-001 / #486 changes the causal same-seed fertility coupling: annual fertility draws are no longer assigned by arbitrary canonical `PersonId` record order. Because that correction can propagate through births, household composition, resources and migration, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v20 values.',
+              '',
+              'Reviewed v26 execution:',
+              '',
+              '- CI run: `33761813921`;',
+              '- M7.6 job: `100674851272`;',
+              '- exact production head used by the archived run: `5d73176f9c26a9701193cfa46db9f7d341af7d8a`;',
+              '- artifact: `9896479783` (`m7-6-resource-variability-derived`, `sha256:75445419e242e39c77804356216558490a58c62dd30c3c7df36c736f91cdbe82`);',
+              f"- definition SHA-256: `{reference['definitionSha256']}`;",
+              f"- model version: `{reference['modelVersion']}`;",
+              f"- model semantics: `{reference['modelSemanticsId']}`;",
+              f"- sweep ID: `{reference['referenceSweepId']}`.",
+              '',
+              'All **144/144** planned runs completed and were scientifically eligible. The workflow job failed only after execution when the then-current CI assertion still required the frozen v20 machine reference; that stale-reference assertion is not scientific evidence against the v26 execution.',
+              '',
+              'The source definition is unchanged: 18 factorial points × 8 paired seeds. The reviewed v26 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls. Quantitative values move because the corrected fertility coupling changes downstream trajectories.',
+              '',
+              '## Current v26 point results',
+              '',
+              'The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model condition-mediated mortality path and are not uniquely attributable to resource scarcity.',
+              '',
+              *table,
+              '',
+              '## Current v26 interpretation',
+              '',
+              '### Productivity remains the strongest resource control',
+              '',
+              'The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are now those generated under the corrected v26 fertility coupling.',
+              '',
+              '### Migration remains strongly associated with persistence in this synthetic design',
+              '',
+              'At productivity `250`, all three migration-disabled seasonality points become extinct in all eight paired seeds, while all matched migration-enabled runs reach the requested duration. The persistence contrast also remains large at productivity `500` and `1000`.',
+              '',
+              '### Seasonality remains non-monotonic',
+              '',
+              'Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.',
+              '',
+              '### Interpretation boundary',
+              '',
+              'This remains a synthetic mechanism-validation experiment, not calibration evidence. The v26 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary fertility-draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.',
+              '',
+          ]
+          doc_path.write_text(prefix + '\n'.join(current_lines) + '\n' + history, encoding='utf-8')
           updated_ci = ci_path.read_text(encoding='utf-8')
           updated_doc = doc_path.read_text(encoding='utf-8')
-          assert "reference['modelSemanticsId'] == 'anthrosim-model-semantics-v26'" in updated_ci
-          assert "reference['modelSemanticsId'] == 'anthrosim-model-semantics-v20'" not in updated_ci
+          assert new in updated_ci and old not in updated_ci
           assert '## Current v26 reference and provenance' in updated_doc
           assert '## Historical v13 reference and provenance' in updated_doc
           print('M7.6 v26 workflow/reference/report synchronization validated.')
