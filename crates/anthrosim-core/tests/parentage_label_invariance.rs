@@ -26,7 +26,12 @@ fn demography() -> DemographyConfig {
         band.annual_probability_per_million = 0;
     }
     for band in &mut config.fertility_bands {
-        band.annual_probability_per_million = 1_000_000;
+        band.annual_probability_per_million =
+            if band.end_age_years_exclusive > 18 && band.start_age_years < 50 {
+                1_000_000
+            } else {
+                0
+            };
     }
     config.minimum_birth_spacing_days = 0;
     config.male_parent_min_age_years = 18;
