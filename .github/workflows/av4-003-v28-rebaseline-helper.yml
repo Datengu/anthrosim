@@ -1,0 +1,428 @@
+name: AV4-003 v28 rebaseline helper
+
+on:
+  push:
+    branches:
+      - repair/av4-003-migration-household-coupling
+    paths:
+      - .github/workflows/av4-003-v28-rebaseline-helper.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  rebaseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Download reviewed v28 artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/a304 /tmp/m8
+          mkdir -p /tmp/a304 /tmp/m8
+          gh run download 33797427793 -n issue-304-demographic-baseline-confirmatory -D /tmp/a304
+          gh run download 33797427904 -n m8-evidence-grounded-benchmark -D /tmp/m8
+          test -f /tmp/a304/expected-result.json
+          test -f /tmp/m8/m8-benchmark-output/benchmark-summary.json
+
+      - name: Project exact artifacts into v28 references and docs
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import re
+          import shutil
+          from pathlib import Path
+
+          HEAD = "4c5192bbc9fe8cfd40950268b3aa8c925ac6ba48"
+          A304_RUN = 33797427793
+          A304_JOB = 100788374930
+          A304_ARTIFACT = 9909929317
+          A304_ARTIFACT_SHA = "f2c1929fd558eab3d6a003f2d1ff447f42c81b0585f81f315cca8b1f9430470c"
+          M8_RUN = 33797427904
+          M8_JOB = 100788648028
+          M8_ARTIFACT = 9909898544
+          M8_ARTIFACT_SHA = "90bea073f0bf2a05abe70f45ffa729cf58f0090759c4f85753744a04edfa8c90"
+
+          a304_path = Path("/tmp/a304/expected-result.json")
+          a304 = json.loads(a304_path.read_text())
+          assert a304["modelSemanticsId"] == "anthrosim-model-semantics-v28"
+          assert a304["runCount"] == 780
+          assert a304["recommendation"] == "no_universal_demographic_baseline"
+          assert a304["longRun"]["researchGateStatus"] == "failed"
+          assert a304["longRun"]["multipleStableRegimesDetected"] is True
+          assert a304["longRun"]["environmentDependenceDetected"] is False
+          assert a304["longRun"]["initializationDependenceDetected"] is False
+          assert a304["longRun"]["primaryClassificationCounts"] == {
+              "drifting": 744,
+              "insufficient_data": 32,
+              "stable": 4,
+          }
+          assert all(
+              value["decision"] == "sufficient_stop"
+              for value in a304["monteCarloPrecision"].values()
+          )
+          assert all(
+              effect["fissionMinusFixedTerminalPopulation"]["mean"] < 0
+              and effect["fissionMinusFixedLateGrowthRatePerYear"]["mean"] < 0
+              and effect["fissionMinusFixedMateLimitationFraction"]["mean"] > 0
+              for effect in a304["pairedHouseholdEffects"]
+          )
+          shutil.copyfile(
+              a304_path,
+              "research/general-demography-baseline-v1/confirmatory-result.json",
+          )
+
+          m8_path = Path("/tmp/m8/m8-benchmark-output/benchmark-summary.json")
+          m8 = json.loads(m8_path.read_text())
+          assert m8["schemaVersion"] == 2
+          assert m8["declaredSeeds"] == list(range(8601, 8609))
+          assert m8["classification"] == {
+              "benchmarkClass": "fragile_spatial_structure",
+              "degenerateArms": [],
+              "robustMetrics": ["terminalLargestCellSharePermille"],
+              "fragileMetrics": ["terminalPopulationHerfindahlPerMillion"],
+          }
+          assert all(m8["arms"][arm]["terminalDegenerateRuns"] == 0 for arm in ("flat", "weak", "moderate", "strong"))
+          assert all(
+              run["modelSemanticsId"] == "anthrosim-model-semantics-v28"
+              for arm in ("flat", "weak", "moderate", "strong")
+              for run in m8["arms"][arm]["runs"].values()
+          )
+
+          metric_keys = (
+              "medianEffect",
+              "medianAbsoluteRelativeEffect",
+              "positiveEffects",
+              "negativeEffects",
+              "zeroEffects",
+          )
+          primary_metrics = {}
+          for metric, result in m8["primaryMetrics"].items():
+              projected = {
+                  "classification": result["classification"],
+                  "robustCriteria": result["robustCriteria"],
+              }
+              for arm in ("weak", "moderate", "strong"):
+                  comparison = result["comparisonsToFlat"][arm]
+                  projected[arm] = {key: comparison[key] for key in metric_keys}
+              primary_metrics[metric] = projected
+
+          flat_first = m8["arms"]["flat"]["runs"]["8601"]
+          m8_reference = {
+              "schemaVersion": 2,
+              "benchmarkId": m8["benchmarkId"],
+              "referenceExecution": {
+                  "workflowRunId": M8_RUN,
+                  "artifactId": M8_ARTIFACT,
+                  "artifactSha256": M8_ARTIFACT_SHA,
+                  "branchHeadSha": HEAD,
+                  "pullRequestMergeRefBuildSha": None,
+                  "fullAggregateCanonicalSha256": m8["aggregateCanonicalSha256"],
+                  "pullRequestMergeRefBuildStatus": "pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite",
+              },
+              "source": {
+                  "contentDigest": m8["arms"]["flat"]["sourceContentDigests"][0],
+                  "landscapeIdentity": flat_first["landscapeIdentity"],
+                  "landscapeDigest64": flat_first["landscapeDigest64"],
+                  "evidenceCatalogCanonicalSha256": m8["arms"]["flat"]["evidenceCanonicalSha256"],
+                  "modelSemanticsId": flat_first["modelSemanticsId"],
+                  "spatialModelSemanticsId": flat_first["spatialModelSemanticsId"],
+              },
+              "declaredSeeds": m8["declaredSeeds"],
+              "classification": m8["classification"],
+              "primaryMetrics": primary_metrics,
+              "arms": {},
+          }
+          for arm in ("flat", "weak", "moderate", "strong"):
+              arm_result = m8["arms"][arm]
+              first = arm_result["runs"]["8601"]
+              m8_reference["arms"][arm] = {
+                  "experimentId": arm_result["experimentId"],
+                  "mechanismsCanonicalSha256": arm_result["mechanismsCanonicalSha256"],
+                  "spatialConfigIdentity": first["spatialConfigIdentity"],
+                  "terminalDegenerateRuns": arm_result["terminalDegenerateRuns"],
+                  "runStateDigest64": {
+                      str(seed): arm_result["runs"][str(seed)]["stateDigest64"]
+                      for seed in m8["declaredSeeds"]
+                  },
+              }
+          Path("examples/m8-first-evidence-grounded-benchmark/reference-result.json").write_text(
+              json.dumps(m8_reference, separators=(",", ":")) + "\n"
+          )
+
+          general_path = Path("docs/research/general-scientific-demographic-baseline-v1.md")
+          general = general_path.read_text()
+          general = general.replace(
+              "- current model semantics: `anthrosim-model-semantics-v27`;",
+              "- current model semantics: `anthrosim-model-semantics-v28`;",
+          )
+          general = re.sub(
+              r"- current preserved research execution identity: `research-execution-v1-[0-9a-f]{16}`;",
+              f"- current preserved research execution identity: `{a304['researchId']}`;",
+              general,
+              count=1,
+          )
+          old_rebaseline = re.compile(
+              r"The v27 causal semantics change in Audit-v4 AV4-002/#488 changes same-seed background-mortality draw assignment while preserving the study's high-level conclusion\..*?Historical v25 and v26 results remain immutable provenance rather than being rewritten as v27 evidence\.",
+              re.S,
+          )
+          new_rebaseline = (
+              f"The v28 causal semantics change in Audit-v4 AV4-003/#491 changes same-seed M4 migration draw assignment "
+              f"by removing arbitrary HouseholdId decision ordering while preserving the study's high-level conclusion. "
+              f"The canonical v28 result was reproduced by issue-304 workflow run `{A304_RUN}`, job `{A304_JOB}` "
+              f"(artifact `{A304_ARTIFACT}`, SHA-256 `{A304_ARTIFACT_SHA}`); all 780 runs completed and all three "
+              f"predeclared Monte Carlo precision gates returned `sufficient_stop`. Historical v25, v26 and v27 "
+              f"results remain immutable provenance rather than being rewritten as v28 evidence."
+          )
+          general, n = old_rebaseline.subn(new_rebaseline, general, count=1)
+          assert n == 1
+
+          def pct(x):
+              return f"{100*x:.3f}"
+
+          arms = {(a["demography"], a["householdLifecycle"]): a for a in a304["arms"]}
+          arm_order = [
+              ("negative_growth_control_v1", "deterministic_dependency_fission_v2"),
+              ("negative_growth_control_v1", "fixed_founder_v1"),
+              ("positive_growth_control_v1", "deterministic_dependency_fission_v2"),
+              ("positive_growth_control_v1", "fixed_founder_v1"),
+              ("replacement_control_v1", "deterministic_dependency_fission_v2"),
+              ("replacement_control_v1", "fixed_founder_v1"),
+          ]
+          rows = [
+              "| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N240 | Extinction | Mate limitation |",
+              "|---|---|---:|---:|---:|---:|",
+          ]
+          for key in arm_order:
+              arm = arms[key]
+              late = arm["lateGrowthRatePerYear"]
+              rows.append(
+                  f"| `{key[0]}` | `{key[1]}` | {pct(late['mean'])} "
+                  f"[{pct(late['ci95Lower'])}, {pct(late['ci95Upper']):+}] | "
+                  f"{arm['terminalPopulation']['mean']:.1f} | {100*arm['extinction']['estimate']:.1f}% | "
+                  f"{100*arm['mateLimitationFraction']['mean']:.1f}% |"
+              )
+          table_re = re.compile(
+              r"\| Demography \| Household lifecycle \| Late growth %/yr \(95% MC CI\) \| Mean N240 \| Extinction \| Mate limitation \|\n"
+              r"\|---\|---\|---:\|---:\|---:\|---:\|\n"
+              r"(?:\|.*\n){6}"
+          )
+          general, n = table_re.subn("\n".join(rows) + "\n", general, count=1)
+          assert n == 1
+
+          effects = {p["demography"]: p for p in a304["pairedHouseholdEffects"]}
+          paired_block_re = re.compile(
+              r"- `negative_growth_control_v1`: fission-minus-fixed mean N240 = \*\*[-0-9.]+ people\*\* across 130 same-seed pairs\.\n"
+              r"- `positive_growth_control_v1`: fission-minus-fixed mean N240 = \*\*[-0-9.]+ people\*\* across 130 same-seed pairs\.\n"
+              r"- `replacement_control_v1`: fission-minus-fixed mean N240 = \*\*[-0-9.]+ people\*\* across 130 same-seed pairs\."
+          )
+          paired_lines = "\n".join(
+              f"- `{name}`: fission-minus-fixed mean N240 = "
+              f"**{effects[name]['fissionMinusFixedTerminalPopulation']['mean']:.1f} people** across 130 same-seed pairs."
+              for name in ("negative_growth_control_v1", "positive_growth_control_v1", "replacement_control_v1")
+          )
+          general, n = paired_block_re.subn(paired_lines, general, count=1)
+          assert n == 1
+          general = general.replace(
+              "The paired v27 effects retain the established directions in all three schedules:",
+              "The paired v28 effects retain the established directions in all three schedules:",
+          )
+
+          pos_fiss = arms[("positive_growth_control_v1", "deterministic_dependency_fission_v2")]
+          pos_fixed = arms[("positive_growth_control_v1", "fixed_founder_v1")]
+          interpretation_re = re.compile(
+              r"The experiments separate \*\*intrinsic demographic tendency\*\* from \*\*realized population growth\*\*\..*?AnthroSim deliberately contains no target-population feedback that would increase fertility or reduce mortality merely because population is falling\.",
+              re.S,
+          )
+          interpretation = (
+              "The experiments separate **intrinsic demographic tendency** from **realized population growth**. "
+              f"Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware "
+              f"household-fission treatment is enabled: mean late realized growth changes from "
+              f"{100*pos_fixed['lateGrowthRatePerYear']['mean']:.3f}%/year under fixed-founder households to "
+              f"{100*pos_fiss['lateGrowthRatePerYear']['mean']:.3f}%/year under `deterministic_dependency_fission_v2`, "
+              f"while mate limitation rises from {100*pos_fixed['mateLimitationFraction']['mean']:.1f}% to "
+              f"{100*pos_fiss['mateLimitationFraction']['mean']:.1f}% and mean N240 falls from "
+              f"{pos_fixed['terminalPopulation']['mean']:.1f} to {pos_fiss['terminalPopulation']['mean']:.1f}.\n\n"
+              "This does not by itself prove that dependency-aware household fission is scientifically wrong. It establishes "
+              "that household/mating structure is a major structural treatment on realized demography and therefore cannot be "
+              "hidden behind a universal demographic default. Other contributing mechanisms may include founder age structure, "
+              "stochastic sex composition, spatial separation, migration, kin/mate eligibility, spacing and compounding "
+              "small-population effects. AnthroSim deliberately contains no target-population feedback that would increase "
+              "fertility or reduce mortality merely because population is falling."
+          )
+          general, n = interpretation_re.subn(interpretation, general, count=1)
+          assert n == 1
+
+          counts = a304["longRun"]["primaryClassificationCounts"]
+          longrun_re = re.compile(
+              r"The v27 long-run analysis still detects multiple stable regimes, with primary classifications `drifting=\d+`, `insufficient_data=\d+`, `stable=\d+`; one treatment context meets the stochastic multi-regime criterion\..*?These diagnostics reinforce the same design conclusion: there is no defensible universal demographic baseline hidden in the current synthetic controls\.",
+              re.S,
+          )
+          longrun = (
+              f"The v28 long-run analysis still detects multiple stable regimes, with primary classifications "
+              f"`drifting={counts['drifting']}`, `insufficient_data={counts['insufficient_data']}`, "
+              f"`stable={counts['stable']}`; {a304['longRun']['stochasticMultiRegimeContextCount']} treatment context "
+              f"meets the stochastic multi-regime criterion. Environment-dependence and initialization-dependence flags remain "
+              f"false. These diagnostics reinforce the same design conclusion: there is no defensible universal demographic "
+              f"baseline hidden in the current synthetic controls."
+          )
+          general, n = longrun_re.subn(longrun, general, count=1)
+          assert n == 1
+          general = general.replace(
+              "Historical v25 and v26 evidence likewise remains attached to its original semantics rather than being relabelled as v27 output.",
+              "Historical v25, v26 and v27 evidence likewise remains attached to its original semantics rather than being relabelled as v28 output.",
+          )
+          general_path.write_text(general)
+
+          Path("research/general-demography-baseline-v1/model-semantics-v28-reverification.md").write_text(
+              f"""# Model-semantics v28 reverification
+
+          Audit-v4 AV4-003 / issue #491 changes the causal same-seed assignment of M4 migration RNG draws by replacing arbitrary `HouseholdId` decision order with a schedule derived from persistent person stochastic-coupling identities. Within-household candidate enumeration remains unchanged for AV4-009/#518, and all households still observe one shared pre-move snapshot before simultaneous move application. Because AV4-003 changes deterministic continuation semantics, the current model advances from `anthrosim-model-semantics-v27` to `anthrosim-model-semantics-v28` and the frozen issue #304 demographic baseline must be scientifically re-executed rather than relabelled.
+
+          Issue-304 workflow run `{A304_RUN}`, job `{A304_JOB}`, re-executed the unchanged confirmatory design under v28. Artifact `{A304_ARTIFACT}` (`issue-304-demographic-baseline-confirmatory`, SHA-256 `{A304_ARTIFACT_SHA}`) contains the exact workflow-generated `expected-result.json` copied byte-for-byte into the canonical `confirmatory-result.json`.
+
+          Reverification outcome:
+
+          - all **780/780** declared runs completed;
+          - all three predeclared Monte Carlo precision gates returned `sufficient_stop`;
+          - the recommendation remains **`no_universal_demographic_baseline`**;
+          - long-run analysis still rejects a universal stable regime (`researchGateStatus = failed`) and still detects multiple stable regimes;
+          - environment dependence and initialization dependence remain undetected in this design;
+          - for every demographic schedule, dependency-aware fission still lowers terminal population and late realized growth and increases mate limitation relative to the fixed-founder control.
+
+          Representative v28 values are expected to differ from v27 because permanent-migration draws are now coupled to scientifically invariant household composition rather than arbitrary canonical household labels:
+
+          - negative-growth fission-minus-fixed mean terminal population: `{effects['negative_growth_control_v1']['fissionMinusFixedTerminalPopulation']['mean']:.4f}` people;
+          - positive-growth fission-minus-fixed mean terminal population: `{effects['positive_growth_control_v1']['fissionMinusFixedTerminalPopulation']['mean']:.4f}` people;
+          - replacement fission-minus-fixed mean terminal population: `{effects['replacement_control_v1']['fissionMinusFixedTerminalPopulation']['mean']:.4f}` people;
+          - positive-growth fixed-founder mean late growth rate/year: `{pos_fixed['lateGrowthRatePerYear']['mean']:.8f}`;
+          - primary long-run classifications: `drifting={counts['drifting']}, insufficient_data={counts['insufficient_data']}, stable={counts['stable']}`;
+          - stochastic multi-regime treatment contexts: `{a304['longRun']['stochasticMultiRegimeContextCount']}` while `multipleStableRegimesDetected` remains `true`.
+
+          This is therefore a **causal v28 scientific-reference rebaseline**, not a silent rewrite of v27 evidence. The immutable Audit-v4 discovery target `v0.3.4` / `anthrosim-model-semantics-v25` and reviewed v26/v27 references retain their original provenance. The v28 canonical result is copied byte-for-byte from the exact workflow artifact after validating its semantics ID, run count, recommendation, precision decisions, long-run conclusion and paired-effect directions.
+          """.replace("\n          ", "\n").lstrip()
+          )
+
+          m8_doc_path = Path("docs/research/m8-first-evidence-grounded-benchmark-result.md")
+          m8_doc = m8_doc_path.read_text()
+          marker = "## Current regression reference — model semantics v27"
+          assert m8_doc.count(marker) == 1
+          def strong(metric):
+              return m8["primaryMetrics"][metric]["comparisonsToFlat"]["strong"]
+          m8_section = f"""## Current regression reference — model semantics v28
+
+          Audit-v4 AV4-003 / #491 removes arbitrary `HouseholdId` order from same-seed M4 migration RNG assignment while preserving one shared pre-move snapshot and simultaneous move application. Because this correction changes permanent-migration trajectories, the frozen M8.6 experiment was rerun unchanged and its generated artifact was reviewed before replacing the scientific reference.
+
+          Reviewed v28 execution:
+
+          - workflow run: `{M8_RUN}`;
+          - job: `{M8_JOB}`;
+          - production branch head that generated the evidence: `{HEAD}`;
+          - artifact: `{M8_ARTIFACT}`;
+          - artifact SHA-256: `{M8_ARTIFACT_SHA}`;
+          - aggregate canonical SHA-256: `{m8['aggregateCanonicalSha256']}`;
+          - model semantics: `anthrosim-model-semantics-v28`.
+
+          All **32/32** declared runs completed the configured duration and all four arms remained non-degenerate. The overall predeclared classification remains:
+
+          > **fragile spatial structure**
+
+          The v28 primary-metric results are:
+
+          | Primary metric | v28 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+          | --- | --- | ---: | ---: |
+          | total migration distance | not distinctive | {strong('migrationTotalDistanceCells')['medianAbsoluteRelativeEffectDisplay']} | {strong('migrationTotalDistanceCells')['positiveEffects']} / {strong('migrationTotalDistanceCells')['negativeEffects']} / {strong('migrationTotalDistanceCells')['zeroEffects']} |
+          | cell-time occupied | not distinctive | {strong('cellTimeOccupiedPermille')['medianAbsoluteRelativeEffectDisplay']} | {strong('cellTimeOccupiedPermille')['positiveEffects']} / {strong('cellTimeOccupiedPermille')['negativeEffects']} / {strong('cellTimeOccupiedPermille')['zeroEffects']} |
+          | terminal population Herfindahl | **fragile** | **{strong('terminalPopulationHerfindahlPerMillion')['medianAbsoluteRelativeEffectDisplay']}** | {strong('terminalPopulationHerfindahlPerMillion')['positiveEffects']} / {strong('terminalPopulationHerfindahlPerMillion')['negativeEffects']} / {strong('terminalPopulationHerfindahlPerMillion')['zeroEffects']} |
+          | terminal largest-cell share | **robust** | **{strong('terminalLargestCellSharePermille')['medianAbsoluteRelativeEffectDisplay']}** | {strong('terminalLargestCellSharePermille')['positiveEffects']} / {strong('terminalLargestCellSharePermille')['negativeEffects']} / {strong('terminalLargestCellSharePermille')['zeroEffects']} |
+
+          Relative to v27, terminal largest-cell share crosses from **fragile to robust** under the predeclared criteria, while terminal population Herfindahl remains fragile. Migration distance and cell-time occupancy remain not distinctive, and the overall benchmark class remains `fragile_spatial_structure`.
+
+          ### Causal review of the v28 rebaseline
+
+          This reference was not refreshed merely because a regression check failed. AV4-003 changes which scientifically represented household receives each same-seed migration choice/uncertainty draw. Terrain inputs, spatial transformation semantics, and within-household M4 candidate ordering are unchanged, but corrected household-level draw coupling legitimately changes downstream migration and population histories.
+
+          The reviewed v28 run preserves the benchmark design and interpretation boundaries:
+
+          - declared seeds remain 8601–8608;
+          - the same evidence content digest, evidence catalogue and `landscape-v2-6827044513b6c9fb` are used;
+          - `anthrosim-spatial-transform-semantics-v3` is unchanged;
+          - all mechanism-file canonical identities are unchanged;
+          - all four arms remain non-degenerate;
+          - the overall benchmark class remains `fragile_spatial_structure`;
+          - terminal largest-cell share is robust under v28;
+          - terminal population Herfindahl remains fragile;
+          - migration distance and cell-time occupancy remain not distinctive.
+
+          The robust largest-cell-share threshold crossing is scientifically meaningful and is preserved rather than tuned away. It is a downstream sensitivity to corrected permanent-migration stochastic coupling, not evidence that terrain mapping changed. This remains a result about the declared terrain-only null model under the complete v28 upstream model definition, not archaeological validation.
+
+          """
+          m8_doc = m8_doc.replace(
+              marker,
+              m8_section.replace("\n          ", "\n") + "## Historical reviewed reference — model semantics v27",
+              1,
+          )
+          m8_doc_path.write_text(m8_doc)
+
+          m9_doc_path = Path("docs/research/m9-controlled-aggregation-benchmark-result.md")
+          m9_doc = m9_doc_path.read_text()
+          m9_marker = "## Current regression reference — model semantics v27"
+          assert m9_doc.count(m9_marker) == 1
+          m9_note = f"""## Model-semantics v28 applicability re-verification — machine reference unchanged
+
+          Audit-v4 AV4-003 / #491 changes permanent M4 migration RNG assignment. The frozen M9.7 design was therefore rerun on the v28 production branch as part of applicable scientific/security run `{M8_RUN}`, job `100788647970`.
+
+          The complete M9.7 gate passed **without rebaselining**: paired ensembles, M9.6 observability, exact intermittent replay, active annual checkpoint/resume, aggregation, the preserved v27 scientific-reference comparison, and tamper rejection all succeeded. Every benchmark arm still records **zero permanent M4 migrations**, so AV4-003 is causally inapplicable to this benchmark's authoritative result.
+
+          The machine-readable M9.7 reference therefore remains the reviewed v27 reference rather than being relabelled as v28 evidence. This explicit non-change is itself the v28 applicability result.
+
+          """
+          m9_doc = m9_doc.replace(
+              m9_marker,
+              m9_note.replace("\n          ", "\n") + m9_marker,
+              1,
+          )
+          m9_doc_path.write_text(m9_doc)
+          PY
+
+      - name: Validate projected references before commit
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-m8-spatial-benchmark-reference.py \
+            --actual /tmp/m8/m8-benchmark-output/benchmark-summary.json \
+            --reference examples/m8-first-evidence-grounded-benchmark/reference-result.json
+          python3 scripts/test-current-model-semantics-docs.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path("/tmp/a304/expected-result.json").read_text())
+          b = json.loads(Path("research/general-demography-baseline-v1/confirmatory-result.json").read_text())
+          assert a == b
+          assert Path("/tmp/a304/expected-result.json").read_bytes() == Path(
+              "research/general-demography-baseline-v1/confirmatory-result.json"
+          ).read_bytes()
+          PY
+
+      - name: Commit exact reviewed v28 rebaselines
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            research/general-demography-baseline-v1/confirmatory-result.json \
+            research/general-demography-baseline-v1/model-semantics-v28-reverification.md \
+            examples/m8-first-evidence-grounded-benchmark/reference-result.json \
+            docs/research/general-scientific-demographic-baseline-v1.md \
+            docs/research/m8-first-evidence-grounded-benchmark-result.md \
+            docs/research/m9-controlled-aggregation-benchmark-result.md
+          git diff --cached --check
+          git commit -m "research: rebaseline v28 causal references"
+          git push origin HEAD:repair/av4-003-migration-household-coupling
