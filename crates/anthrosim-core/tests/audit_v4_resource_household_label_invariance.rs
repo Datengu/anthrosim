@@ -46,7 +46,10 @@ fn initial_stock() -> u64 {
         .initial_food_stock
 }
 
-fn founder_definition(household_count: u64, rotate_household_labels: bool) -> FounderPopulationDefinition {
+fn founder_definition(
+    household_count: u64,
+    rotate_household_labels: bool,
+) -> FounderPopulationDefinition {
     let households = (1..=household_count)
         .map(|id| FounderHousehold {
             id: HouseholdId::new(id),
@@ -84,7 +87,7 @@ fn founder_definition(household_count: u64, rotate_household_labels: bool) -> Fo
             "audit-v4-resource-label-canonical"
         },
         ParameterProvenance::SyntheticValidation,
-        FounderGenealogyStatus::Unknown,
+        FounderGenealogyStatus::Unspecified,
         households,
         people,
     )
