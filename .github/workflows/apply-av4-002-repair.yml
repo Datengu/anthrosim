@@ -6,6 +6,8 @@ on:
       - repair/av4-002-background-mortality-coupling
     paths:
       - '.github/workflows/apply-av4-002-repair.yml'
+      - 'scripts/tmp_apply_av4_002_repair.py'
+      - 'scripts/tmp_fix_av4_002_candidate.py'
 
 permissions:
   contents: write
