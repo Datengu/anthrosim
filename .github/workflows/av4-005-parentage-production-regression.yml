@@ -1,4 +1,4 @@
-name: AV4-005 v29 reference regeneration
+name: AV4-005 final candidate cleanup
 
 on:
   push:
@@ -6,136 +6,313 @@ on:
       - repair/av4-005-parentage-coupling
     paths:
       - ".github/workflows/av4-005-parentage-production-regression.yml"
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  regenerate-reference:
-    name: Regenerate exact v29 issue-304 reference
+  finalize:
+    name: Format and synchronize v29 evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - name: Checkout branch head
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: repair/av4-005-parentage-coupling
-      - name: Install pinned Rust toolchain
+      - name: Install pinned Rust formatter
         run: |
           rustup set profile minimal
-          rustup toolchain install 1.97.1
+          rustup toolchain install 1.97.1 --component rustfmt
           rustup default 1.97.1
-      - name: Validate permanent parentage regression
-        run: cargo test -p anthrosim-core --test parentage_label_invariance --locked -- --nocapture
-      - name: Validate predeclared precision plans
+      - name: Apply canonical Rust formatting
+        run: cargo fmt --all
+      - name: Synchronize living v29 documentation from machine results
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+          import json
+          import re
+          from pathlib import Path
+
+          def read(path: str) -> str:
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path: str, text: str) -> None:
+              Path(path).write_text(text, encoding="utf-8")
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"missing expected {label}: {old!r}")
+              return text.replace(old, new, 1)
+
+          # The three formal living descriptions must advertise the actual current semantics.
+          for path in ("docs/scientific-model.md", "docs/research/odd.md", "docs/research/odd-d.md"):
+              text = read(path)
+              text = replace_once(text, "current model semantics v28", "current model semantics v29", path)
+              write(path, text)
+
+          # Record only the AV4-005 parentage change here. AV4-015's independent mortality-doc
+          # finding is deliberately left for its own remediation issue.
+          path = "docs/scientific-model.md"
+          text = read(path)
+          marker = "Parent eligibility likewise uses residence rather than visitor co-presence.\n"
+          paragraph = (
+              "Under v29, each residence cell's living male parentage candidates are ordered by their "
+              "persisted person `stochastic_coupling_rank` before the existing age/sex eligibility filter "
+              "and uniform `demography/parentage` reservoir sample are consumed. Canonical `PersonId` or "
+              "packed-record order is therefore not a causal parent-selection input; locality, eligibility, "
+              "uniform selection probability and the independent parentage RNG stream are unchanged.\n"
+          )
+          if paragraph not in text:
+              text = replace_once(text, marker, marker + "\n" + paragraph, "scientific-model parentage marker")
+          write(path, text)
+
+          path = "docs/research/odd.md"
+          text = read(path)
+          marker = (
+              "Households are persistent resource-sharing and mobility units. They are not asserted to be tribes, clans, "
+              "lineages, marriages or universal nuclear families. Living household members normally share persistent "
+              "residence; newborns join the female parent's household. M4 permanent migration moves the living household "
+              "as a unit. M9 temporary mobility moves the household through a temporary journey state while preserving residence.\n"
+          )
+          paragraph = (
+              "Under v29, residence-local eligible male parentage candidates are coupled to the independent "
+              "`demography/parentage` stream through persistent person stochastic-coupling rank rather than canonical "
+              "`PersonId`/record order; the existing uniform reservoir-selection rule is otherwise unchanged.\n"
+          )
+          if paragraph not in text:
+              text = replace_once(text, marker, marker + "\n" + paragraph, "ODD household marker")
+          write(path, text)
+
+          result_path = "research/general-demography-baseline-v1/confirmatory-result.json"
+          result = json.loads(read(result_path))
+          if result["modelSemanticsId"] != "anthrosim-model-semantics-v29":
+              raise SystemExit("#304 machine result is not v29")
+          if result["recommendation"] != "no_universal_demographic_baseline" or result["runCount"] != 780:
+              raise SystemExit("unexpected #304 scientific conclusion/design")
+
+          # Regenerate the living #304 markdown values from the exact checked-in machine result.
+          path = "docs/research/general-scientific-demographic-baseline-v1.md"
+          text = read(path)
+          confirmation = f'''Current confirmation:
+
+- fixed household control: `fixed_founder_v1`;
+- structural treatment: `deterministic_dependency_fission_v2`;
+- fresh process seeds per arm: **130** (`3042001..3042130`);
+- design: **3 demography schedules × 2 household-lifecycle arms × 130 seeds = 780 completed runs**;
+- founder age ceiling: **60 years**;
+- resource productivity: **1000 permille**;
+- current model semantics: `anthrosim-model-semantics-v29`;
+- current preserved research execution identity: `{result["researchId"]}`.
+
+The v29 causal semantics change in Audit-v4 AV4-005/#495 removes arbitrary canonical male-person ordering from M2 parentage RNG assignment while preserving the study's high-level conclusion. The unchanged confirmatory design was reviewed under v29 in issue-304 workflow run `33813558679`, job `100840609676` (artifact `9915805924`, SHA-256 `607dbdf2e86db582fe7b519c1bf9ea1ad8d69ba02ffc282f934c4f5d4240d45c`); all 780 runs completed and all three predeclared Monte Carlo precision gates returned `sufficient_stop`. Historical v25, v26, v27 and v28 results remain immutable provenance rather than being relabelled as v29 evidence.'''
+          text, n = re.subn(
+              r"Current confirmation:\n\n.*?\n\nThe numerical table below",
+              confirmation + "\n\nThe numerical table below",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("failed to replace #304 confirmation block")
+
+          arms = {(a["demography"], a["householdLifecycle"]): a for a in result["arms"]}
+          order = (
+              ("negative_growth_control_v1", "deterministic_dependency_fission_v2"),
+              ("negative_growth_control_v1", "fixed_founder_v1"),
+              ("positive_growth_control_v1", "deterministic_dependency_fission_v2"),
+              ("positive_growth_control_v1", "fixed_founder_v1"),
+              ("replacement_control_v1", "deterministic_dependency_fission_v2"),
+              ("replacement_control_v1", "fixed_founder_v1"),
+          )
+          rows = [
+              "| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N240 | Extinction | Mate limitation |",
+              "|---|---|---:|---:|---:|---:|",
+          ]
+          for key in order:
+              arm = arms[key]
+              g = arm["lateGrowthRatePerYear"]
+              e = arm["extinction"]
+              m = arm["mateLimitationFraction"]
+              rows.append(
+                  f'| `{key[0]}` | `{key[1]}` | {100*g["mean"]:.3f} [{100*g["ci95Lower"]:.3f}, {100*g["ci95Upper"]:.3f}] | '
+                  f'{arm["terminalPopulation"]["mean"]:.1f} | {100*e["estimate"]:.1f}% | {100*m["mean"]:.1f}% |'
+              )
+          table = "\n".join(rows)
+          text, n = re.subn(
+              r"\| Demography \| Household lifecycle \| Late growth %/yr \(95% MC CI\) \| Mean N240 \| Extinction \| Mate limitation \|\n.*?\n\n## Same-seed household-lifecycle effects",
+              table + "\n\n## Same-seed household-lifecycle effects",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("failed to replace #304 numerical table")
+
+          paired = {p["demography"]: p for p in result["pairedHouseholdEffects"]}
+          bullets = "\n".join(
+              f'- `{name}`: fission-minus-fixed mean N240 = **{paired[name]["fissionMinusFixedTerminalPopulation"]["mean"]:.1f} people** across 130 same-seed pairs.'
+              for name in ("negative_growth_control_v1", "positive_growth_control_v1", "replacement_control_v1")
+          )
+          text, n = re.subn(
+              r"The current paired summary represents every declared fixed-versus-v2 same-seed contrast: \*\*3 groups × 130 pairs = 390/390 contrasts\*\*\.\n\n.*?\n\nThese paired effects",
+              "The current paired summary represents every declared fixed-versus-v2 same-seed contrast: **3 groups × 130 pairs = 390/390 contrasts**.\n\n" + bullets + "\n\nThese paired effects",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("failed to replace #304 paired effects")
+          text = text.replace("The paired v28 effects", "The paired v29 effects", 1)
+
+          pos_fixed = arms[("positive_growth_control_v1", "fixed_founder_v1")]
+          pos_fiss = arms[("positive_growth_control_v1", "deterministic_dependency_fission_v2")]
+          interpretation = (
+              "The experiments separate **intrinsic demographic tendency** from **realized population growth**. Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: "
+              f'mean late realized growth changes from {100*pos_fixed["lateGrowthRatePerYear"]["mean"]:.3f}%/year under fixed-founder households to {100*pos_fiss["lateGrowthRatePerYear"]["mean"]:.3f}%/year under `deterministic_dependency_fission_v2`, '
+              f'while mate limitation rises from {100*pos_fixed["mateLimitationFraction"]["mean"]:.1f}% to {100*pos_fiss["mateLimitationFraction"]["mean"]:.1f}% and mean N240 falls from {pos_fixed["terminalPopulation"]["mean"]:.1f} to {pos_fiss["terminalPopulation"]["mean"]:.1f}.'
+          )
+          text, n = re.subn(
+              r"The experiments separate \*\*intrinsic demographic tendency\*\* from \*\*realized population growth\*\*\..*?\n\nThis does not by itself prove",
+              interpretation + "\n\nThis does not by itself prove",
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("failed to replace #304 interpretation")
+
+          lr = result["longRun"]
+          c = lr["primaryClassificationCounts"]
+          longrun = (
+              f'The v29 long-run analysis still detects multiple stable regimes, with primary classifications `drifting={c.get("drifting", 0)}`, `insufficient_data={c.get("insufficient_data", 0)}`, `stable={c.get("stable", 0)}`; '
+              f'{lr["stochasticMultiRegimeContextCount"]} treatment contexts meet the stochastic multi-regime criterion. Environment-dependence and initialization-dependence flags remain false. These diagnostics reinforce the same design conclusion: there is no defensible universal demographic baseline hidden in the current synthetic controls.'
+          )
+          text, n = re.subn(
+              r"The v28 long-run analysis still detects multiple stable regimes,.*?current synthetic controls\.",
+              longrun,
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("failed to replace #304 long-run paragraph")
+          text = text.replace("rather than being relabelled as v28 output.", "rather than being relabelled as v29 output.", 1)
+          write(path, text)
+
+          # Add reviewed v29 M8.6 provenance while preserving v28 and older sections as history.
+          path = "docs/research/m8-first-evidence-grounded-benchmark-result.md"
+          text = read(path)
+          text = text.replace("## Current regression reference — model semantics v28", "## Historical reviewed reference — model semantics v28", 1)
+          marker = "The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.\n\n"
+          section = '''## Current regression reference — model semantics v29
+
+Audit-v4 AV4-005 / #495 removes arbitrary canonical male-person ordering from M2 parentage RNG assignment while preserving locality, age/sex eligibility, uniform reservoir selection and the separate `demography/parentage` RNG stream. Because genealogy can propagate into household, kin and migration histories, the frozen M8.6 experiment was rerun unchanged and reviewed before its reference was replaced.
+
+Reviewed v29 execution:
+
+- evidence-generating workflow run: `33813559006`, job `100840645788`;
+- evidence-generating production head: `0e69401b82c512c1f66d15303bc98a8dc75da7e5`;
+- artifact: `9915797546`;
+- artifact SHA-256: `27cf02539a53a4a21e2cd13e223f70ae00166ecc6972441500447d9248f52ef3`;
+- aggregate canonical SHA-256: `978ed2342509d9cbca1a647055f1d794ba513bcb1fdaee01fd26f5e6c7ed4b44`;
+- model semantics: `anthrosim-model-semantics-v29`;
+- subsequent checked-reference verification: applicable-gates run `33815769032` passed both the canonical comparison and tamper rejection.
+
+All **32/32** declared runs completed and all four arms remained non-degenerate. The overall benchmark class remains **`fragile_spatial_structure`**. The v29 primary results are:
+
+| Primary metric | v29 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+| --- | --- | ---: | ---: |
+| total migration distance | not distinctive | 6.96% | 6 / 2 / 0 |
+| cell-time occupied | not distinctive | 2.02% | 3 / 5 / 0 |
+| terminal population Herfindahl | **fragile** | **14.17%** | 4 / 4 / 0 |
+| terminal largest-cell share | **fragile** | **33.47%** | 5 / 3 / 0 |
+
+Relative to v28, terminal largest-cell share crosses from robust back to **fragile** under the unchanged predeclared criteria; Herfindahl remains fragile, while migration distance and cell-time occupancy remain not distinctive. This threshold/classification change is retained as a legitimate downstream consequence of corrected genealogy stochastic coupling rather than tuned away. Terrain inputs, evidence identity and `anthrosim-spatial-transform-semantics-v3` are unchanged, so this remains a result about the declared terrain-only null model, not archaeological validation.
+
+'''
+          if section not in text:
+              text = replace_once(text, marker, marker + section, "M8 current-reference marker")
+          write(path, text)
+
+          # v29 changes M9 authoritative genealogy/state digests even though the capability metrics
+          # remain numerically unchanged and permanent M4 migration is disabled.
+          path = "docs/research/m9-controlled-aggregation-benchmark-result.md"
+          text = read(path)
+          text = text.replace("## Model-semantics v28 applicability re-verification — machine reference unchanged", "## Historical model-semantics v28 applicability re-verification — machine reference unchanged", 1)
+          text = text.replace("## Current regression reference — model semantics v27", "## Historical reviewed reference — model semantics v27", 1)
+          marker = "**Current classification:** `capability_distinguished`\n\n"
+          section = '''## Current regression reference — model semantics v29
+
+Audit-v4 AV4-005 / #495 changes which scientifically represented eligible male receives a same-seed M2 parentage realization. The unchanged M9.7 design was therefore rerun and reviewed rather than assuming that disabled permanent migration made genealogy causally irrelevant.
+
+Reviewed v29 execution:
+
+- evidence-generating workflow run: `33813559006`, job `100840645688`;
+- evidence-generating production head: `0e69401b82c512c1f66d15303bc98a8dc75da7e5`;
+- artifact: `9915799402`;
+- artifact SHA-256: `8e14622e26728c6e4a300c6c834c6085aa9c2e84013704f237e4aaa4a1221a4c`;
+- aggregate canonical SHA-256: `be17795b0ed35aba0c39a6c76b1d45934dd165d75199551464dcbdc589c9294b`;
+- reference model semantics: `anthrosim-model-semantics-v29`;
+- subsequent checked-reference verification: applicable-gates run `33815769032` passed the canonical comparison, replay/resume checks and tamper rejection.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume remain equivalent.
+
+Unlike the v28 applicability result, the v29 machine reference does change: continuous and intermittent terminal state digests change because parentage/genealogy is authoritative state even when permanent M4 migration is disabled. The paired temporary-mobility capability metrics remain unchanged, so the rebaseline records the corrected complete model state without strengthening the archaeological claim.
+
+'''
+          if section not in text:
+              text = replace_once(text, marker, marker + section, "M9 current-class marker")
+          write(path, text)
+
+          reverify = f'''# Model-semantics v29 reverification
+
+Audit-v4 AV4-005 / issue #495 removes arbitrary canonical male `PersonId`/record ordering from M2 parentage RNG assignment. Residence-local living male candidates are now ordered by persistent person stochastic-coupling rank before the existing eligibility filter and uniform `demography/parentage` reservoir sample. Locality, age/sex eligibility, stream separation and uniform selection are unchanged.
+
+Because this changes which represented kin role receives a same-seed parentage realization, the current remediation line advances from `anthrosim-model-semantics-v28` to `anthrosim-model-semantics-v29`; checkpoint schema advances from 16 to 17.
+
+## Permanent regression
+
+`crates/anthrosim-core/tests/parentage_label_invariance.rs` covers the original-style 1,000-seed genealogy-preserving male-label swap, a 256-seed three-role cyclic relabel, and a 256-seed two-year propagation check. The pinned Rust 1.97.1 production regression passed all three before final-candidate assembly.
+
+## Frozen scientific surfaces reviewed
+
+### Issue #304 demographic confirmation
+
+The unchanged 3 × 2 × 130 design completed all **780** runs under v29 and all three predeclared precision gates returned `sufficient_stop`. The recommendation remains `no_universal_demographic_baseline`. Reviewed run `33813558679`, job `100840609676`, artifact `9915805924`, SHA-256 `607dbdf2e86db582fe7b519c1bf9ea1ad8d69ba02ffc282f934c4f5d4240d45c`. The checked-in current research identity is `{result["researchId"]}`.
+
+### M8.6 terrain null model
+
+Reviewed applicable-gates run `33813559006`, job `100840645788`, artifact `9915797546`, SHA-256 `27cf02539a53a4a21e2cd13e223f70ae00166ecc6972441500447d9248f52ef3`. The overall class remains `fragile_spatial_structure`; both terminal Herfindahl and terminal largest-cell share are fragile under v29. Aggregate canonical SHA-256: `978ed2342509d9cbca1a647055f1d794ba513bcb1fdaee01fd26f5e6c7ed4b44`.
+
+### M9.7 controlled aggregation
+
+Reviewed applicable-gates run `33813559006`, job `100840645688`, artifact `9915799402`, SHA-256 `8e14622e26728c6e4a300c6c834c6085aa9c2e84013704f237e4aaa4a1221a4c`. All 8/8 paired criteria, exact replay and active checkpoint/resume remain green and the class remains `capability_distinguished`; authoritative terminal state digests change under v29. Aggregate canonical SHA-256: `be17795b0ed35aba0c39a6c76b1d45934dd165d75199551464dcbdc589c9294b`.
+
+These are reviewed upstream-semantics rebaselines, not new empirical validation. Historical v25–v28 results remain bound to their original semantics in Git history and the living result documents.
+'''
+          write("research/general-demography-baseline-v1/model-semantics-v29-reverification.md", reverify)
+          PY
+      - name: Validate synchronized docs and formatting
+        run: |
+          cargo fmt --all -- --check
+          python3 scripts/test-current-model-semantics-docs.py
+          python3 -m py_compile scripts/test-current-model-semantics-docs.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          assert json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())['modelSemanticsId'] == 'anthrosim-model-semantics-v29'
+          assert json.loads(Path('examples/m8-first-evidence-grounded-benchmark/reference-result.json').read_text())['source']['modelSemanticsId'] == 'anthrosim-model-semantics-v29'
+          assert json.loads(Path('examples/m9-controlled-aggregation-benchmark/reference-result.json').read_text())['referenceExecution']['modelSemanticsId'] == 'anthrosim-model-semantics-v29'
+          PY
+      - name: Remove temporary workflow and commit final candidate
         run: |
           set -euo pipefail
-          for p in research/general-demography-baseline-v1/precision-v2/*-plan.json; do
-            python3 scripts/research-monte-carlo-sufficiency.py validate-plan "$p"
-          done
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          expected=list(range(3042001,3042131))
-          plans=list(Path('research/general-demography-baseline-v1/precision-v2').glob('*-plan.json'))
-          assert len(plans)==3
-          for p in plans:
-              d=json.loads(p.read_text())
-              assert d['design']['mode']=='fixed'
-              assert d['design']['seedBatches']==[expected]
-          PY
-      - name: Build research binaries
-        run: |
-          export ANTHROSIM_GIT_COMMIT="$(git rev-parse HEAD)"
-          cargo build --locked --release -p anthrosim-cli --bin anthrosim-research --bin anthrosim-demography-observability
-      - name: Freeze central confirmatory design
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          d=json.loads(Path('research/general-demography-baseline-v1/exploratory-definition.json').read_text())
-          seeds=list(range(3042001,3042131)); d['seeds']=seeds; d['base']['experiment']['seed']=seeds[0]
-          d['base']['experiment']['population']['syntheticMaxAgeYears']=60
-          d['base']['experiment']['resources']['productivityScalePermille']=1000
-          for x in d['dimensions']:
-              if x['id']=='founder_age_ceiling_years': x['values']=[60]
-              if x['id']=='resource_productivity_scale_permille': x['values']=[1000]
-          Path('/tmp/confirm-source.json').write_text(json.dumps(d,separators=(',',':'))+'\n')
-          p=json.loads(Path('research/general-demography-baseline-v1/long-run-protocol.json').read_text())
-          p['studyId']='issue-304-general-demography-baseline-confirmatory-v2'
-          p['rationale']='130 fresh paired process seeds over the central 3x2 contrast at founder age ceiling 60 and resource productivity 1000 permille. This v2 confirmatory revision was predeclared after the fixed 64-seed v21 replication failed only the positive-fission extinction Monte Carlo precision gate: n=130 is the minimum fixed count that guarantees a two-sided 95% Wilson probability interval has maximum half-width <= 0.085 even at worst-case p=0.5. No outcomes from seeds 3042001..3042130 were inspected before fixing this count. Long-run thresholds/windows are unchanged.'
-          Path('/tmp/confirm-long-run.json').write_text(json.dumps(p,indent=2,sort_keys=True)+'\n')
-          PY
-          python3 scripts/prepare-general-demography-baseline-definition.py /tmp/confirm-source.json /tmp/confirm-definition.json
-          cmp /tmp/confirm-definition.json research/general-demography-baseline-v1/confirmatory-definition.json
-          cmp /tmp/confirm-long-run.json research/general-demography-baseline-v1/confirmatory-long-run-protocol.json
-      - name: Execute and summarize 780 confirmatory runs
-        run: |
-          rm -rf /tmp/c304 /tmp/o304 /tmp/a304
-          target/release/anthrosim-research --definition /tmp/confirm-definition.json --run-dir /tmp/c304
-          mkdir -p /tmp/o304 /tmp/a304/precision
-          python3 - <<'PY' >/tmp/runs304.tsv
-          import json
-          from pathlib import Path
-          rows=json.loads(Path('/tmp/c304/analysis/runs.json').read_text())['runs']; assert len(rows)==780
-          for r in rows:
-              assert r['state']=='completed'; print(f"{r['runId']}\t{r['relativeDir']}")
-          PY
-          while IFS=$'\t' read -r id rel; do target/release/anthrosim-demography-observability --run-dir "/tmp/c304/$rel" --output "/tmp/o304/$id.json" >/dev/null; done </tmp/runs304.tsv
-          python3 scripts/research-long-run-diagnostics.py /tmp/c304 /tmp/confirm-long-run.json --output /tmp/a304/long-run.json
-          python3 scripts/research-general-demography-baseline.py /tmp/c304 /tmp/o304 /tmp/a304/summary.json --definition /tmp/confirm-definition.json --long-run /tmp/a304/long-run.json
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          summary=json.loads(Path('/tmp/a304/summary.json').read_text())
-          paired=summary['pairedHouseholdEffects']
-          assert len(paired)==3
-          assert all(effect['pairedReplicates']==130 for effect in paired)
-          assert sum(effect['pairedReplicates'] for effect in paired)==390
-          PY
-      - name: Apply Monte Carlo precision gates
-        run: |
-          python3 - <<'PY'
-          import json,shutil
-          from pathlib import Path
-          s=json.loads(Path('/tmp/a304/summary.json').read_text()); seeds=list(range(3042001,3042131)); root=Path('/tmp/a304/precision')
-          def runs(life): return {r['seed']:r for r in s['runs'] if r['demography']=='positive_growth_control_v1' and r['householdLifecycle']==life}
-          fixed=runs('fixed_founder_v1'); fiss=runs('deterministic_dependency_fission_v2'); assert set(fixed)==set(seeds)==set(fiss)
-          samples={
-            'positive-fixed-growth':{'schemaVersion':1,'groups':[{'id':'positive-fixed','replicates':[{'seed':x,'value':fixed[x]['lateGrowthRatePerYear']} for x in seeds]}]},
-            'positive-fission-extinction':{'schemaVersion':1,'groups':[{'id':'positive-fission-extinction','replicates':[{'seed':x,'value':fiss[x]['extinct']} for x in seeds]}]},
-            'positive-household-population-effect':{'schemaVersion':1,'groups':[{'id':'fission','replicates':[{'seed':x,'value':fiss[x]['terminalPopulation']} for x in seeds]},{'id':'fixed','replicates':[{'seed':x,'value':fixed[x]['terminalPopulation']} for x in seeds]}]},
-          }
-          for name,sample in samples.items():
-              shutil.copyfile(f'research/general-demography-baseline-v1/precision-v2/{name}-plan.json',root/f'{name}-plan.json')
-              (root/f'{name}-samples.json').write_text(json.dumps(sample,indent=2,sort_keys=True)+'\n')
-          PY
-          for p in /tmp/a304/precision/*-plan.json; do s="${p%-plan.json}"; python3 scripts/research-monte-carlo-sufficiency.py diagnose "$p" "${s}-samples.json" "${s}-diagnostic.json"; done
-      - name: Materialize exact v29 reference
-        run: |
-          python3 - <<'PY'
-          import json,re
-          from pathlib import Path
-          s=json.loads(Path('/tmp/a304/summary.json').read_text())
-          prec={p.stem:json.loads(p.read_text()) for p in Path('/tmp/a304/precision').glob('*-diagnostic.json')}
-          provenance=Path('crates/anthrosim-core/src/provenance.rs').read_text()
-          match=re.search(r'pub const MODEL_SEMANTICS_ID: &str = "([^"]+)"', provenance)
-          assert match
-          expected={'schemaVersion':1,'scientificStatus':'confirmatory_synthetic_model_analysis','modelSemanticsId':match.group(1),'recommendation':'no_universal_demographic_baseline','researchId':s['researchId'],'runCount':s['runCount'],'arms':s['arms'],'pairedHouseholdEffects':s['pairedHouseholdEffects'],'longRun':s['longRun'],'monteCarloPrecision':prec}
-          assert expected['modelSemanticsId']=='anthrosim-model-semantics-v29'
-          assert expected['recommendation']=='no_universal_demographic_baseline'
-          Path('research/general-demography-baseline-v1/confirmatory-result.json').write_text(json.dumps(expected,indent=2,sort_keys=True)+'\n')
-          PY
-      - name: Commit only the generated reference
-        run: |
-          set -euo pipefail
-          git add research/general-demography-baseline-v1/confirmatory-result.json
-          if git diff --cached --quiet; then
-            echo "Reference already current"
-            exit 0
-          fi
+          git rm .github/workflows/av4-005-parentage-production-regression.yml
+          git add crates/anthrosim-core/src/demography.rs crates/anthrosim-core/tests/parentage_label_invariance.rs docs/scientific-model.md docs/research/odd.md docs/research/odd-d.md docs/research/general-scientific-demographic-baseline-v1.md docs/research/m8-first-evidence-grounded-benchmark-result.md docs/research/m9-controlled-aggregation-benchmark-result.md research/general-demography-baseline-v1/model-semantics-v29-reverification.md
+          git diff --cached --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "research: rebaseline issue 304 for v29"
+          git commit -m "docs: finalize v29 parentage remediation evidence"
           git push origin HEAD:repair/av4-005-parentage-coupling
