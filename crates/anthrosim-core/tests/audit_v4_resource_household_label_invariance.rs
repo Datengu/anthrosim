@@ -1,8 +1,9 @@
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, FounderGenealogyStatus, FounderHousehold, FounderPerson,
     FounderPopulationDefinition, MigrationConfig, ParameterProvenance, PopulationConfig,
-    ReproductiveSex, ResourceConfig, Simulation, WorldConfig,
+    ReproductiveSex, ResourceConfig, Simulation, World, WorldConfig,
     ids::{CellId, HouseholdId, PersonId},
+    rng::RngFactory,
 };
 
 fn quiet_demography() -> DemographyConfig {
@@ -28,36 +29,34 @@ fn resource_config(annual_need: u32) -> ResourceConfig {
     config
 }
 
-fn find_positive_stock_seed() -> (u64, u64) {
+fn find_productive_cell() -> (u64, CellId, u64) {
     for seed in 78_101..78_301 {
-        let config = ExperimentConfig::new(seed, 1)
-            .with_world(WorldConfig::new(1, 1))
-            .with_population(PopulationConfig::new(1).with_max_person_records(10))
-            .with_demography(quiet_demography())
-            .with_resources(resource_config(0))
-            .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
-        let stock = Simulation::new(config)
-            .unwrap()
-            .run_recorded()
-            .unwrap()
-            .manifest
-            .resources
-            .initial_food_stock;
-        if stock > 0 {
-            return (seed, stock);
+        let world = World::generate(WorldConfig::new(2, 2), RngFactory::new(seed)).unwrap();
+        if let Some((index, cell)) = world
+            .cells()
+            .iter()
+            .enumerate()
+            .find(|(_, cell)| cell.food_stock > 0)
+        {
+            return (
+                seed,
+                CellId::new(u64::try_from(index).unwrap() + 1),
+                u64::from(cell.food_stock),
+            );
         }
     }
-    panic!("audit seed search found no positive-stock one-cell synthetic environment");
+    panic!("audit seed search found no productive cell in tested synthetic environments");
 }
 
 fn founder_definition(
     household_count: u64,
+    residence: CellId,
     rotate_household_labels: bool,
 ) -> FounderPopulationDefinition {
     let households = (1..=household_count)
         .map(|id| FounderHousehold {
             id: HouseholdId::new(id),
-            location: CellId::new(1),
+            location: residence,
         })
         .collect::<Vec<_>>();
     let people = (1..=household_count)
@@ -97,10 +96,16 @@ fn founder_definition(
     )
 }
 
-fn conditions(seed: u64, household_count: u64, annual_need: u32, rotate: bool) -> Vec<u16> {
-    let definition = founder_definition(household_count, rotate);
+fn conditions(
+    seed: u64,
+    residence: CellId,
+    household_count: u64,
+    annual_need: u32,
+    rotate: bool,
+) -> Vec<u16> {
+    let definition = founder_definition(household_count, residence, rotate);
     let config = ExperimentConfig::new(seed, 1)
-        .with_world(WorldConfig::new(1, 1))
+        .with_world(WorldConfig::new(2, 2))
         .with_population(
             PopulationConfig::new(u32::try_from(household_count).unwrap())
                 .with_max_person_records(100),
@@ -123,7 +128,7 @@ fn conditions(seed: u64, household_count: u64, annual_need: u32, rotate: bool) -
 
 #[test]
 fn equal_resource_claims_are_invariant_to_pure_household_label_rotation() {
-    let (seed, stock) = find_positive_stock_seed();
+    let (seed, residence, stock) = find_productive_cell();
 
     let household_count = [2_u64, 3, 5, 7]
         .into_iter()
@@ -131,11 +136,11 @@ fn equal_resource_claims_are_invariant_to_pure_household_label_rotation() {
         .expect("one tested household count must leave a resource-allocation remainder");
     let annual_need = u32::try_from(stock / household_count + 1).unwrap();
 
-    let canonical = conditions(seed, household_count, annual_need, false);
-    let rotated = conditions(seed, household_count, annual_need, true);
+    let canonical = conditions(seed, residence, household_count, annual_need, false);
+    let rotated = conditions(seed, residence, household_count, annual_need, true);
 
     println!(
-        "seed={seed} initial_stock={stock} households={household_count} annual_need={annual_need} canonical={canonical:?} rotated={rotated:?}"
+        "seed={seed} residence={residence:?} cell_stock={stock} households={household_count} annual_need={annual_need} canonical={canonical:?} rotated={rotated:?}"
     );
 
     assert_eq!(
