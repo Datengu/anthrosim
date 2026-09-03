@@ -39,7 +39,14 @@ use crate::time::DAYS_PER_YEAR;
 /// living members while all decisions still observe one shared pre-move snapshot and relocations
 /// are still applied simultaneously. A v27 checkpoint must therefore not resume under v28 with
 /// unchanged migration RNG positions while silently changing which household receives each draw.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v28";
+///
+/// v29 removes arbitrary canonical `PersonId`/packed-record order from M2 male-parent selection.
+/// Parentage candidates within the preserved demographic exposure residence are ordered by the
+/// persistent person stochastic-coupling rank before the existing uniform reservoir sampler
+/// consumes the independent `demography/parentage` stream. A v28 checkpoint must therefore not
+/// resume under v29 with unchanged parentage RNG positions while silently changing which scientific
+/// kin role receives each parentage realization.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v29";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
