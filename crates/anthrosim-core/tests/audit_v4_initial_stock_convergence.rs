@@ -17,7 +17,7 @@ fn no_event_demography() -> DemographyConfig {
     }
 }
 
-fn run(seed: u64, years: u32, initial_stock: u32) -> (u64, u64, u64) {
+fn run(seed: u64, years: u64, initial_stock: u32) -> (u64, u64, u64) {
     let mut resources = ResourceConfig::synthetic_validation_v1()
         .with_initial_stock_units_per_productivity(initial_stock)
         .with_annual_regeneration_units_per_productivity(1)
