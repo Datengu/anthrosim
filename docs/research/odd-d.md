@@ -1,7 +1,7 @@
 # AnthroSim ODD+D human decision-making supplement
 
 **Protocol:** ODD+D (Müller et al. 2013)  
-**AnthroSim baseline:** completed M9 / post-v0.3.4 Audit-v4 remediation line / current model semantics v27 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** completed M9 / post-v0.3.4 Audit-v4 remediation line / current model semantics v28 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living supplement to [`odd.md`](odd.md)  
 **Scientific status:** current human-decision mechanisms are synthetic / unvalidated
 
@@ -40,7 +40,7 @@ Important exogenous/model-fixed factors include utility weights, pressure thresh
 
 ### I.iii Process overview and scheduling
 
-At each configured M4 decision boundary, households are first tested for relocation pressure. Pressured households compare the utility of staying with bounded local alternatives using a shared pre-move snapshot. The stay action evaluates residence-state terms only; candidate actions evaluate the same destination residence terms and then pay relocation-only travel, uncertainty and relocation-risk costs. Alternatives that exceed the configured minimum improvement over the stay action become eligible; one is selected through weighted deterministic stochastic choice. Selected moves are then applied simultaneously.
+At each configured M4 decision boundary, households are first tested for relocation pressure. Under v28 the household evaluation schedule is independent of arbitrary `HouseholdId`: non-empty households are ordered by the minimum persistent stochastic-coupling rank among their living members. Pressured households compare the utility of staying with bounded local alternatives using one shared pre-move snapshot. The stay action evaluates residence-state terms only; candidate actions evaluate the same destination residence terms and then pay relocation-only travel, uncertainty and relocation-risk costs. Alternatives that exceed the configured minimum improvement over the stay action become eligible; one is selected through weighted deterministic stochastic choice. Selected moves are then applied simultaneously.
 
 M4 decision opportunities are scheduled independently from M3 resource integration. `migration.decisionPeriodsPerYear` controls the M4 opportunity count, while `resources.periodsPerYear` controls M3 resource settlement. M4's resource-support cue allocates annual per-person need over the current **M4 decision interval** using the same elapsed-day annual-allocation rule as M3. Changing only M3 partition therefore does not automatically add more permanent-migration decisions.
 

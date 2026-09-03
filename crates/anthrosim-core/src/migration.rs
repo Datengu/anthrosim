@@ -195,10 +195,11 @@ impl MigrationRngs {
 
 /// M4 local migration state and compact explanatory metrics.
 ///
-/// Decisions are evaluated in stable household-ID order against one shared
-/// pre-move snapshot. Selected household moves are then applied simultaneously
-/// in a packed population pass. This prevents earlier households in a boundary
-/// from changing the information seen by later households.
+/// Decisions are evaluated against one shared pre-move snapshot in a schedule derived from
+/// persistent person-level stochastic coupling identities rather than arbitrary `HouseholdId`
+/// order. Selected household moves are then applied simultaneously in a packed population pass.
+/// This preserves simultaneous information while making sequential migration RNG assignment
+/// invariant to pure household relabelling.
 #[derive(Debug)]
 pub struct MigrationSystem {
     model_id: String,
@@ -241,6 +242,12 @@ pub struct MigrationSystem {
     /// child's residence. Same-household relatives add no spatial anchor because M4 moves that
     /// household as one unit. There is no record-order-dependent truncation.
     kin_locations: Vec<Vec<CellId>>,
+    /// Household decision key: minimum persistent stochastic-coupling rank among living members.
+    /// Person ranks are globally unique causal identities, so non-empty households have unique
+    /// keys without introducing a second persisted household identity.
+    household_coupling_keys: Vec<u64>,
+    /// Reusable HouseholdId-index schedule sorted by `household_coupling_keys` at each boundary.
+    decision_order: Vec<usize>,
     planned_destinations: Vec<CellId>,
     planned_condition_costs: Vec<u16>,
     planned_realized_condition_losses: Vec<u64>,
@@ -290,6 +297,8 @@ impl MigrationSystem {
             boundary_demand_living: vec![0; cells],
             post_move_cell_living: vec![0; cells],
             kin_locations: vec![Vec::new(); households],
+            household_coupling_keys: vec![u64::MAX; households],
+            decision_order: Vec::with_capacity(households),
             planned_destinations: vec![CellId::INVALID; households],
             planned_condition_costs: vec![0; households],
             planned_realized_condition_losses: vec![0; households],
@@ -374,7 +383,16 @@ impl MigrationSystem {
             ));
         }
 
-        for household_index in 0..population.household_count() {
+        self.decision_order.clear();
+        self.decision_order.extend(
+            (0..population.household_count())
+                .filter(|&household_index| self.living_members[household_index] > 0),
+        );
+        self.decision_order
+            .sort_unstable_by_key(|&household_index| self.household_coupling_keys[household_index]);
+
+        for decision_ordinal in 0..self.decision_order.len() {
+            let household_index = self.decision_order[decision_ordinal];
             let members = self.living_members[household_index];
             if members == 0 {
                 continue;
@@ -557,6 +575,9 @@ impl MigrationSystem {
         self.living_conditions
             .resize_with(household_count, Vec::new);
         self.kin_locations.resize_with(household_count, Vec::new);
+        self.household_coupling_keys
+            .resize(household_count, u64::MAX);
+        self.decision_order.clear();
         self.planned_destinations
             .resize(household_count, CellId::INVALID);
         self.planned_condition_costs.resize(household_count, 0);
@@ -567,6 +588,7 @@ impl MigrationSystem {
             || self.condition_sums.len() != household_count
             || self.living_conditions.len() != household_count
             || self.kin_locations.len() != household_count
+            || self.household_coupling_keys.len() != household_count
             || self.planned_destinations.len() != household_count
             || self.planned_condition_costs.len() != household_count
             || self.planned_realized_condition_losses.len() != household_count
@@ -586,6 +608,7 @@ impl MigrationSystem {
         for locations in &mut self.kin_locations {
             locations.clear();
         }
+        self.household_coupling_keys.fill(u64::MAX);
         self.planned_destinations.fill(CellId::INVALID);
         self.planned_condition_costs.fill(0);
         self.planned_realized_condition_losses.fill(0);
@@ -598,6 +621,13 @@ impl MigrationSystem {
                 MigrationError::InternalInvariant("living person has no household"),
             )?;
             let household_index = household_index(household, population.household_count())?;
+            let coupling_rank = population
+                .stochastic_coupling_rank_at_index(person_index)
+                .ok_or(MigrationError::InternalInvariant(
+                    "living person has no stochastic coupling rank",
+                ))?;
+            self.household_coupling_keys[household_index] =
+                self.household_coupling_keys[household_index].min(coupling_rank);
             let location = population.location_at_index(person_index).ok_or(
                 MigrationError::InternalInvariant("living person has no location"),
             )?;
