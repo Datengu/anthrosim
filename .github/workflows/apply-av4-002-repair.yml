@@ -19,12 +19,15 @@ jobs:
         with:
           ref: repair/av4-002-background-mortality-coupling
       - name: Apply repair patch
-        run: python3 scripts/tmp_apply_av4_002_repair.py
+        run: |
+          python3 scripts/tmp_apply_av4_002_repair.py
+          python3 scripts/tmp_fix_av4_002_candidate.py
       - name: Format and targeted verification
         run: |
           cargo fmt --all -- --check || cargo fmt --all
           cargo test -p anthrosim-core --test background_mortality_label_invariance --locked -- --nocapture
           cargo test -p anthrosim-core mortality::tests --locked
+          cargo clippy -p anthrosim-core --all-targets -- -D warnings
           python3 scripts/test-current-model-semantics-docs.py
       - name: Commit repair candidate
         run: |
