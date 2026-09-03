@@ -21,10 +21,15 @@ fn resource_config(annual_need: u32) -> ResourceConfig {
     let mut config = ResourceConfig::synthetic_validation_v1();
     config.periods_per_year = 1;
     config.annual_need_units_per_person = annual_need;
-    config.annual_regeneration_units_per_productivity = 0;
+    // Keep enough carrying capacity to preserve the synthetic initial stock while filling that
+    // capacity exactly, so annual regeneration contributes zero additional units in this pass.
+    config.annual_regeneration_units_per_productivity = 1;
+    config.cell_stock_capacity_years = 10;
     config.seasonality_scale_permille = 0;
     config.condition_recovery_per_period = 0;
-    config.max_condition_loss_per_period = 200;
+    // Amplify a one-permille supply difference into visible condition state without enabling
+    // scarcity mortality. This does not change which resource claim receives a remainder unit.
+    config.max_condition_loss_per_period = 1_000;
     config.max_scarcity_mortality_probability_per_million = 0;
     config
 }
