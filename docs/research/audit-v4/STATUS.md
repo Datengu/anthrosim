@@ -80,7 +80,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 
 ## Post-discovery remediation state
 
-- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a relabelling-invariant scientific-role ordering, while preserving the named fertility stream and exact RNG-position accounting.
+- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a persistent person-level stochastic coupling rank canonicalized from represented day-zero scientific state, while preserving the named fertility stream, checkpoint/replay identity and exact RNG-position accounting.
 - The causal same-seed assignment change advances the current remediation line to `anthrosim-model-semantics-v26`; immutable discovery target `v0.3.4` remains `anthrosim-model-semantics-v25`.
 - #486 remains open until PR #553 is merged from an exact green head and the original Audit-v4 adversary is independently rerun against merged `main` in a separate evidence PR.
 

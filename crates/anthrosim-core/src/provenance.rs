@@ -22,10 +22,11 @@ use crate::time::DAYS_PER_YEAR;
 /// tie-breaking, so scientifically equivalent PersonId relabellings preserve unlabelled kin
 /// composition when age and sex are equal but parent/child roles differ.
 ///
-/// v26 makes annual fertility RNG assignment depend on a relabelling-invariant scientific role
-/// ordering rather than canonical packed-record/PersonId order. A v25 checkpoint must therefore
-/// not continue under v26 with the same RNG positions while silently changing which represented
-/// person/household receives a subsequent fertility realization.
+/// v26 persists a person-level stochastic coupling rank canonicalized from represented day-zero
+/// scientific state, then consumes annual fertility draws in that rank order instead of canonical
+/// packed-record/PersonId order. A v25 checkpoint must therefore not continue under v26 with the
+/// same RNG positions while silently changing which represented person/household receives a
+/// subsequent fertility realization.
 pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v26";
 
 /// Exact software/source identity for one segment of authoritative execution.
