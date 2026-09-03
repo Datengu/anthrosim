@@ -363,7 +363,6 @@ fn process_demographic_year_recorded_internal(
     let role_ranks = demographic_role_ranks(
         population,
         records_at_boundary_start,
-        interval_start_day,
         day,
         &same_day_migration_origins,
         founder_population,
@@ -578,12 +577,11 @@ fn demographic_person_index(person: PersonId, records_at_boundary_start: usize) 
 /// Derive stable, relabelling-invariant scientific role classes for the complete pre-birth
 /// demographic state. The refinement includes local scalar state, spatial exposure, parent/child
 /// roles, and the multiset of living household-member roles. Because each iteration includes the
-/// prior rank, the partition only refines and converges in at most one step per represented record.
-/// Canonical PersonId is intentionally absent from every signature.
+/// prior rank, the partition only refines and converges after at most one split per represented
+/// record. Canonical PersonId is intentionally absent from every signature.
 fn demographic_role_ranks(
     population: &Population,
     records_at_boundary_start: usize,
-    interval_start_day: u64,
     day: u64,
     same_day_migration_origins: &BTreeMap<HouseholdId, CellId>,
     founder_population: Option<&FounderPopulationDefinition>,
@@ -624,7 +622,8 @@ fn demographic_role_ranks(
                 reason: "demographic role refinement could not read male-parent state",
             },
         )?;
-        female_parent_indices[index] = demographic_person_index(female_parent, records_at_boundary_start);
+        female_parent_indices[index] =
+            demographic_person_index(female_parent, records_at_boundary_start);
         male_parent_indices[index] = demographic_person_index(male_parent, records_at_boundary_start);
         if female_parent != PersonId::INVALID && female_parent_indices[index].is_none() {
             return Err(PopulationError::InternalInvariant {
@@ -642,14 +641,12 @@ fn demographic_role_ranks(
                 reason: "demographic role refinement found a record without residence",
             },
         )?;
-        let exposure_location = demographic_exposure_location(
-            population,
-            index,
-            same_day_migration_origins,
-        )
-        .ok_or(PopulationError::InternalInvariant {
-            reason: "demographic role refinement found a record without exposure residence",
-        })?;
+        let exposure_location =
+            demographic_exposure_location(population, index, same_day_migration_origins).ok_or(
+                PopulationError::InternalInvariant {
+                    reason: "demographic role refinement found a record without exposure residence",
+                },
+            )?;
         let condition_permille = population.condition_at_index(index).ok_or(
             PopulationError::InternalInvariant {
                 reason: "demographic role refinement could not read condition",
@@ -749,7 +746,6 @@ fn demographic_role_ranks(
         ranks = next_ranks;
     }
 
-    let _ = interval_start_day;
     Ok(ranks)
 }
 
@@ -868,8 +864,6 @@ fn male_is_eligible(
 pub enum DemographyConfigError {
     #[error("demography schema {found} is unsupported; supported schema is {supported}")]
     UnsupportedSchema { found: u32, supported: u32 },
-    #[error("demography schedule ID must not be empty")]
-    EmptySchedule { schedule: &'static str },
     #[error("demography schedule ID must not be empty")]
     EmptyScheduleId,
     #[error("{schedule} schedule must contain at least one age band")]
