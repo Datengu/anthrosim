@@ -1,0 +1,54 @@
+name: "One-shot AV4-001 clippy fix"
+
+on:
+  push:
+    branches:
+      - fix/486-fertility-label-invariance
+    paths:
+      - .github/workflows/fix-av4-001-clippy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: fix/486-fertility-label-invariance
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Apply exact Clippy-only source correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('crates/anthrosim-core/src/population.rs')
+          text = path.read_text(encoding='utf-8')
+          old = '''            for index in 0..person_count {\n                let household_index = usize::try_from(self.households[index].0 - 1)\n                    .expect("validated initial household ID must fit usize");\n                household_members[household_index].push(ranks[index]);\n            }\n'''
+          new = '''            for (index, &rank) in ranks.iter().enumerate() {\n                let household_index = usize::try_from(self.households[index].0 - 1)\n                    .expect("validated initial household ID must fit usize");\n                household_members[household_index].push(rank);\n            }\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one target loop, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Verify formatting and Clippy
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component clippy --component rustfmt
+          rustup default 1.97.1
+          cargo fmt --all -- --check
+          cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+      - name: Commit correction and remove helper
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/fix-av4-001-clippy.yml
+          git add crates/anthrosim-core/src/population.rs
+          git diff --cached --check
+          git commit -m 'fix: satisfy clippy in stochastic rank refinement'
+          git push origin HEAD:fix/486-fertility-label-invariance
