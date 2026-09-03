@@ -1,0 +1,27 @@
+name: Audit v4 Area G initial-stock convergence
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-core/tests/audit_v4_initial_stock_convergence.rs"
+      - ".github/workflows/audit-v4-area-g-initial-stock-convergence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  initial-stock-convergence-adversary:
+    name: Initial-stock convergence adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 initial-stock convergence adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v4_initial_stock_convergence -- --nocapture
