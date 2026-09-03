@@ -51,7 +51,11 @@ fn person(id: u64, household: u64) -> FounderPerson {
 
 fn two_household_founders(swapped_labels: bool) -> FounderPopulationDefinition {
     let (household_one_cell, household_two_cell, person_one_household, person_two_household) =
-        if swapped_labels { (4, 1, 2, 1) } else { (1, 4, 1, 2) };
+        if swapped_labels {
+            (4, 1, 2, 1)
+        } else {
+            (1, 4, 1, 2)
+        };
     FounderPopulationDefinition::new(
         if swapped_labels {
             "migration-relabel-b"
@@ -136,7 +140,10 @@ fn migration_moves_and_rng_positions_are_household_label_invariant() {
             "M4 migration diverged under pure HouseholdId relabelling at seed {seed}"
         );
     }
-    assert!(informative > 0, "regression did not exercise a migration outcome");
+    assert!(
+        informative > 0,
+        "regression did not exercise a migration outcome"
+    );
 }
 
 fn three_household_founders(rotation: u64) -> FounderPopulationDefinition {
