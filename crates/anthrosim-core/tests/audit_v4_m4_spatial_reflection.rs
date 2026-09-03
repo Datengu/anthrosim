@@ -92,7 +92,7 @@ fn resources() -> ResourceConfig {
     let mut config = ResourceConfig::synthetic_validation_v1()
         .with_annual_need_units_per_person(10_000)
         .with_initial_stock_units_per_productivity(10)
-        .with_annual_regeneration_units_per_productivity(0)
+        .with_annual_regeneration_units_per_productivity(1)
         .with_productivity_scale_permille(1_000);
     config.periods_per_year = 1;
     config.max_scarcity_mortality_probability_per_million = 0;
