@@ -1,0 +1,29 @@
+name: Audit v4 Area K retry tamper matrix
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-cli/tests/audit_v4_area_k_retry_tamper_matrix.rs"
+      - ".github/workflows/audit-v4-area-k-retry-tamper-matrix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retry-tamper-matrix:
+    name: Research retry tamper matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact evidence head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 Area K retry/tamper matrix
+        run: cargo test --locked -p anthrosim-cli --test audit_v4_area_k_retry_tamper_matrix -- --nocapture
