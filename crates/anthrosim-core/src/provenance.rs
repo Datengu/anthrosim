@@ -27,7 +27,13 @@ use crate::time::DAYS_PER_YEAR;
 /// packed-record/PersonId order. A v25 checkpoint must therefore not continue under v26 with the
 /// same RNG positions while silently changing which represented person/household receives a
 /// subsequent fertility realization.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v26";
+///
+/// v27 extends that scientific coupling identity to the background-demographic side of M3/M2
+/// competing mortality. Background latent triggers are assigned in coupling-rank order, while the
+/// independently tracked condition-mediated stream remains on its pre-existing ordering pending
+/// its own Audit-v4 finding. Simultaneous triggers retain symmetric proportional cause attribution.
+/// A v26 checkpoint must therefore not resume under v27 with unchanged mortality RNG positions.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v27";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -138,6 +138,7 @@ pub(crate) fn draw_probability_fraction<R: Rng + ?Sized>(
 /// stream supplies both an exchange-reversing orientation and a commutative XOR base. Exchanging
 /// cause labels/streams therefore complements the bounded tie draw and exchanges attribution
 /// exactly without consuming extra ordinary-case RNG words.
+#[cfg(test)]
 pub(crate) fn resolve_two_cause_competing_mortality(
     condition_probability: ProbabilityFraction,
     background_probability: ProbabilityFraction,
@@ -146,7 +147,28 @@ pub(crate) fn resolve_two_cause_competing_mortality(
 ) -> Result<Option<CompetingMortalityCause>, MortalityMathError> {
     let condition_trigger = draw_probability_fraction(condition_rng, condition_probability)?;
     let background_trigger = draw_probability_fraction(background_rng, background_probability)?;
+    resolve_two_cause_competing_mortality_from_triggers(
+        condition_trigger,
+        background_trigger,
+        condition_probability,
+        background_probability,
+        condition_rng,
+        background_rng,
+    )
+}
 
+/// Resolve already-sampled independent cause triggers using the same symmetric tie rule as the
+/// ordinary two-cause resolver. Splitting trigger assignment from tie attribution lets each named
+/// cause stream couple its latent trigger to the scientifically appropriate entity order without
+/// introducing first-called cause priority.
+pub(crate) fn resolve_two_cause_competing_mortality_from_triggers(
+    condition_trigger: bool,
+    background_trigger: bool,
+    condition_probability: ProbabilityFraction,
+    background_probability: ProbabilityFraction,
+    condition_rng: &mut ChaCha8Rng,
+    background_rng: &mut ChaCha8Rng,
+) -> Result<Option<CompetingMortalityCause>, MortalityMathError> {
     match (condition_trigger, background_trigger) {
         (false, false) => Ok(None),
         (true, false) => Ok(Some(CompetingMortalityCause::ConditionMediated)),

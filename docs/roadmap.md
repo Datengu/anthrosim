@@ -124,7 +124,7 @@ Visualisation remains downstream from authoritative state. A visually realistic 
 
 The first Level-D benchmark runs four terrain-to-movement-cost alternatives across eight paired seeds through ordinary M7 ensemble machinery on one pinned, open, provenance-tracked terrain input.
 
-All 32 runs reached the configured 100-year duration. The predeclared aggregate classification is **fragile spatial structure**: total migration distance and terminal largest-cell share showed material paired effects under the strong terrain mapping, but effect direction was not stable across seeds; cell-time occupancy and terminal Herfindahl concentration were not distinctive under the predeclared threshold.
+All 32 runs reached the configured 100-year duration. Under the current v27 reference, the predeclared aggregate classification remains **fragile spatial structure** with no robust primary metric: terminal Herfindahl concentration and terminal largest-cell share are fragile, while total migration distance and cell-time occupancy are not distinctive. The metric-level classifications are sensitive to upstream causal-demographic semantics and are therefore preserved as reviewed regression evidence rather than calibration targets.
 
 This is a result about the declared terrain-only null model, not a reconstruction or validation of a historical population. See `docs/research/m8-first-evidence-grounded-benchmark-result.md` and the machine-readable `examples/m8-first-evidence-grounded-benchmark/reference-result.json`.
 

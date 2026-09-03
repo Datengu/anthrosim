@@ -6,7 +6,54 @@ This document records the historical M8.6 terrain null-model result and the revi
 
 The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.
 
-## Current regression reference — model semantics v26
+## Current regression reference — model semantics v27
+
+Audit-v4 AV4-002 / #488 changes the same-seed stochastic coupling used to assign background-demographic mortality draws across scientifically distinguishable person roles. Because that correction changes causal population trajectories, the frozen M8.6 experiment was rerun unchanged and its generated artifact was reviewed before replacing the scientific reference.
+
+Reviewed v27 execution:
+
+- workflow run: `33785449208`;
+- branch head: `14b5290525f97c6404432e53fd91af5760f400cc`;
+- pull-request merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
+- artifact: `9905356901`;
+- artifact SHA-256: `f7a8fe383d05826cb1ea52d7c5c0721381c55eddb7eb1853da5535e4448d6d41`;
+- aggregate canonical SHA-256: `cdb68674436e5eb571445b3e86b18737f960c959c1041bff2ba99657f2ce1dfe`;
+- model semantics: `anthrosim-model-semantics-v27`.
+
+All **32/32** declared runs completed the configured duration and all four arms remained non-degenerate. The overall predeclared classification remains:
+
+> **fragile spatial structure**
+
+The v27 primary-metric results are:
+
+| Primary metric | v27 result | Strong-vs-flat median absolute paired effect | Strong paired signs (+ / - / 0) |
+| --- | --- | ---: | ---: |
+| total migration distance | not distinctive | 8.08% | 6 / 2 / 0 |
+| cell-time occupied | not distinctive | 1.17% | 2 / 6 / 0 |
+| terminal population Herfindahl | **fragile** | **10.29%** | 5 / 3 / 0 |
+| terminal largest-cell share | **fragile** | **14.02%** | 5 / 3 / 0 |
+
+No primary metric is robust under v27. Relative to v26, terminal population Herfindahl crosses the predeclared 10% median-absolute-effect threshold in the opposite direction—from **9.50% / not distinctive** to **10.29% / fragile**—while its paired sign split remains insufficiently stable for robustness. Terminal largest-cell share remains fragile; migration distance and cell-time occupancy remain not distinctive.
+
+### Causal review of the v27 rebaseline
+
+This reference was not refreshed merely because a regression check failed. AV4-002 changes which scientifically represented person receives each same-seed background-mortality draw. The benchmark's terrain inputs and spatial transformation semantics are unchanged, but corrected mortality coupling legitimately changes downstream population and migration histories.
+
+The reviewed v27 run preserves the benchmark design and interpretation boundaries:
+
+- declared seeds remain 8601–8608;
+- the same evidence content digest, evidence catalogue and `landscape-v2-6827044513b6c9fb` are used;
+- `anthrosim-spatial-transform-semantics-v3` is unchanged;
+- all mechanism-file canonical identities are unchanged;
+- all four arms remain non-degenerate;
+- the overall benchmark class remains `fragile_spatial_structure`;
+- terminal population Herfindahl changes from not distinctive under v26 to fragile under v27;
+- terminal largest-cell share remains fragile;
+- no metric becomes robust.
+
+The Herfindahl threshold crossing is scientifically meaningful and is preserved rather than tuned away. It is a downstream sensitivity to a causal demographic repair, not evidence that the terrain mapping itself changed. This remains a result about the declared terrain-only null model under the complete v27 upstream model definition, not archaeological validation.
+
+## Historical reviewed reference — model semantics v26
 
 Audit-v4 AV4-001 / #486 changes the same-seed stochastic coupling used to assign annual fertility draws across scientifically distinguishable founder roles. Because that correction changes causal demographic trajectories, the frozen M8.6 experiment was rerun unchanged and its generated artifact was reviewed before replacing the scientific reference.
 

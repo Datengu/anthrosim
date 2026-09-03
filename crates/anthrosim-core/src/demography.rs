@@ -303,10 +303,20 @@ fn process_demographic_year_recorded_internal(
     let same_day_migration_origins = same_day_migration_origins(events, day);
 
     if apply_background_mortality {
+        let mut mortality_order = Vec::new();
         for index in 0..records_at_boundary_start {
             if !population.is_alive_index(index) {
                 continue;
             }
+            let stochastic_coupling_rank = population
+                .stochastic_coupling_rank_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "living person is missing stochastic coupling identity at mortality boundary",
+                })?;
+            mortality_order.push((stochastic_coupling_rank, index));
+        }
+        mortality_order.sort_unstable();
+        for (_, index) in mortality_order {
             let age_days = population
                 .age_days_at_index(index, interval_start_day)
                 .ok_or(PopulationError::InternalInvariant {

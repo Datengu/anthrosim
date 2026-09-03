@@ -12,7 +12,7 @@ use crate::{
     mortality::{
         CompetingMortalityCause, MortalityMathError, ProbabilityFraction,
         annual_probability_for_interval, draw_probability_fraction,
-        probability_fraction_per_million_ceil, resolve_two_cause_competing_mortality,
+        probability_fraction_per_million_ceil, resolve_two_cause_competing_mortality_from_triggers,
     },
     population::{Population, PopulationError},
     rng::{RngFactory, RngStreamPosition},
@@ -778,12 +778,24 @@ impl ResourceSystem {
 
         let condition_after_resource_response = condition_distribution(population)?;
 
+        #[derive(Clone, Copy)]
+        struct MortalityCandidate {
+            person_index: usize,
+            stochastic_coupling_rank: u64,
+            condition: u16,
+            condition_probability: ProbabilityFraction,
+            condition_probability_per_million: u32,
+            background_probability: ProbabilityFraction,
+            background_probability_per_million: u32,
+        }
+
         let people_at_mortality_boundary = population.person_count();
         let year_start_day =
             day.checked_sub(period_end)
                 .ok_or(ResourceError::InternalInvariant(
                     "resource mortality boundary precedes its model-year interval",
                 ))?;
+        let mut mortality_candidates = Vec::new();
         for person_index in 0..people_at_mortality_boundary {
             if !population.is_alive_index(person_index) {
                 continue;
@@ -804,9 +816,14 @@ impl ResourceSystem {
             )?;
             let condition_probability_per_million =
                 probability_fraction_per_million_ceil(condition_probability)?;
+            let stochastic_coupling_rank = population
+                .stochastic_coupling_rank_at_index(person_index)
+                .ok_or(ResourceError::InternalInvariant(
+                    "living person has no stochastic coupling identity",
+                ))?;
 
-            let (resolved_cause, background_probability_per_million) =
-                if let Some(background) = background_mortality.as_mut() {
+            let (background_probability, background_probability_per_million) =
+                if let Some(background) = background_mortality.as_ref() {
                     let age_days = population
                         .age_days_at_index(person_index, year_start_day)
                         .ok_or(ResourceError::InternalInvariant(
@@ -821,26 +838,70 @@ impl ResourceSystem {
                     )?;
                     let background_probability_per_million =
                         probability_fraction_per_million_ceil(background_probability)?;
-                    (
-                        resolve_two_cause_competing_mortality(
-                            condition_probability,
-                            background_probability,
-                            scarcity_rng,
-                            &mut *background.mortality_rng,
-                        )?,
-                        background_probability_per_million,
-                    )
+                    (background_probability, background_probability_per_million)
                 } else {
-                    (
-                        draw_probability_fraction(scarcity_rng, condition_probability)?
-                            .then_some(CompetingMortalityCause::ConditionMediated),
-                        0,
-                    )
+                    (ProbabilityFraction::ZERO, 0)
                 };
 
+            mortality_candidates.push(MortalityCandidate {
+                person_index,
+                stochastic_coupling_rank,
+                condition,
+                condition_probability,
+                condition_probability_per_million,
+                background_probability,
+                background_probability_per_million,
+            });
+        }
+
+        let mut resolved_causes = vec![None; mortality_candidates.len()];
+        if let Some(background) = background_mortality.as_mut() {
+            let mut condition_triggers = Vec::with_capacity(mortality_candidates.len());
+            for candidate in &mortality_candidates {
+                condition_triggers.push(draw_probability_fraction(
+                    scarcity_rng,
+                    candidate.condition_probability,
+                )?);
+            }
+
+            let mut background_order = (0..mortality_candidates.len()).collect::<Vec<_>>();
+            background_order.sort_unstable_by_key(|&candidate_index| {
+                let candidate = mortality_candidates[candidate_index];
+                (candidate.stochastic_coupling_rank, candidate.person_index)
+            });
+            let mut background_triggers = vec![false; mortality_candidates.len()];
+            for &candidate_index in &background_order {
+                background_triggers[candidate_index] = draw_probability_fraction(
+                    &mut *background.mortality_rng,
+                    mortality_candidates[candidate_index].background_probability,
+                )?;
+            }
+
+            for &candidate_index in &background_order {
+                let candidate = mortality_candidates[candidate_index];
+                resolved_causes[candidate_index] =
+                    resolve_two_cause_competing_mortality_from_triggers(
+                        condition_triggers[candidate_index],
+                        background_triggers[candidate_index],
+                        candidate.condition_probability,
+                        candidate.background_probability,
+                        scarcity_rng,
+                        &mut *background.mortality_rng,
+                    )?;
+            }
+        } else {
+            for (candidate_index, candidate) in mortality_candidates.iter().enumerate() {
+                resolved_causes[candidate_index] =
+                    draw_probability_fraction(scarcity_rng, candidate.condition_probability)?
+                        .then_some(CompetingMortalityCause::ConditionMediated);
+            }
+        }
+
+        for (candidate, resolved_cause) in mortality_candidates.iter().zip(resolved_causes) {
             let Some(resolved_cause) = resolved_cause else {
                 continue;
             };
+            let person_index = candidate.person_index;
             let person = population.person_id_at_index(person_index).ok_or(
                 ResourceError::InternalInvariant("living person has no stable ID"),
             )?;
@@ -859,12 +920,12 @@ impl ResourceSystem {
                             .ok_or(ResourceError::AccountingOverflow)?;
                         (
                             DeathCause::ResourceScarcity,
-                            condition_probability_per_million,
+                            candidate.condition_probability_per_million,
                         )
                     }
                     CompetingMortalityCause::Background => (
                         DeathCause::DemographicMortality,
-                        background_probability_per_million,
+                        candidate.background_probability_per_million,
                     ),
                 };
                 events.push_authoritative(
@@ -874,7 +935,7 @@ impl ResourceSystem {
                         household,
                         cell,
                         cause,
-                        condition_permille: condition,
+                        condition_permille: candidate.condition,
                         probability_per_million,
                     },
                 );

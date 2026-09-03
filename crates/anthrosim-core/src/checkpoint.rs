@@ -66,7 +66,8 @@ impl SimulationCheckpoint {
     pub const PRE_TRAVEL_CONDITION_OBSERVABILITY_SCHEMA_VERSION: u32 = 11;
     pub const PRE_M4_CHOICE_WEIGHT_TRACE_SCHEMA_VERSION: u32 = 12;
     pub const PRE_STOCHASTIC_COUPLING_SCHEMA_VERSION: u32 = 13;
-    pub const CURRENT_SCHEMA_VERSION: u32 = 14;
+    pub const PRE_BACKGROUND_MORTALITY_COUPLING_SCHEMA_VERSION: u32 = 14;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 15;
 
     /// Seal a newly constructed checkpoint with its complete continuation identity.
     #[must_use]
