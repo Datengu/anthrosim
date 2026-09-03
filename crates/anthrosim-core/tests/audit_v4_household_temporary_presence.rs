@@ -36,7 +36,7 @@ fn base(seed: u64) -> ExperimentConfig {
         )
 }
 
-fn mobility(config: &ExperimentConfig, departure_day: u64, duration_days: u64) -> TemporaryMobilityConfig {
+fn mobility(config: &ExperimentConfig, departure_day: u64, duration_days: u32) -> TemporaryMobilityConfig {
     let factory = RngFactory::new(config.seed);
     let world = World::generate(config.world, factory).unwrap();
     let population = Population::initialize(config.population, &world, factory).unwrap();
@@ -67,7 +67,7 @@ fn mobility(config: &ExperimentConfig, departure_day: u64, duration_days: u64) -
     .unwrap()
 }
 
-fn household_count_at_year_end(departure_day: u64, duration_days: u64) -> usize {
+fn household_count_at_year_end(departure_day: u64, duration_days: u32) -> usize {
     let config = base(77_001);
     let mobility = mobility(&config, departure_day, duration_days);
     Simulation::new(config.with_temporary_mobility(mobility))
