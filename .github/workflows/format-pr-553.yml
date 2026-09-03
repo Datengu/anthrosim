@@ -1,0 +1,40 @@
+name: Format PR 553
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/format-pr-553.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 553
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Format workspace
+        run: cargo fmt --all
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            echo 'Already formatted.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add crates/anthrosim-core/src/demography.rs crates/anthrosim-core/tests/fertility_label_invariance.rs crates/anthrosim-core/tests/fertility_person_label_invariance.rs
+          git commit -m 'style: format AV4-001 repair'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
