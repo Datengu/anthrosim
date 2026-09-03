@@ -1,0 +1,220 @@
+name: Optimize AV4-001 founder coupling memory
+
+on:
+  push:
+    branches:
+      - fix/486-fertility-label-invariance
+    paths:
+      - .github/workflows/optimize-av4-001-memory.yml
+
+permissions:
+  contents: write
+
+jobs:
+  optimize-test-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: fix/486-fertility-label-invariance
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Apply exact-equivalent synthetic founder refinement
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('crates/anthrosim-core/src/population.rs')
+          text = path.read_text(encoding='utf-8')
+
+          marker = '''    /// Canonicalize day-zero represented people into persistent coupling ranks without using
+    /// canonical PersonId as a scientific distinction. Refinement incorporates scalar state,
+'''
+          assert marker in text
+
+          helper = r'''    /// Memory-bounded exact equivalent of the general refinement for the synthetic preset.
+    /// Synthetic founders have no parent/child links, so the general signature reduces to
+    /// `(prior_rank, household_members)`. We canonicalize each sorted household-member multiset
+    /// once and replace it with its lexicographic ordinal. Because that ordinal preserves the
+    /// ordering and equality of the original vectors, every refinement rank and final coupling
+    /// rank is identical to the general algorithm without cloning one household vector per person.
+    fn assign_initial_synthetic_stochastic_coupling_ranks(&mut self) {
+        let person_count = self.person_count();
+        if person_count == 0 {
+            return;
+        }
+
+        let mut order = (0..person_count).collect::<Vec<_>>();
+        order.sort_unstable_by(|&left, &right| {
+            self.initial_stochastic_base_key(left, None)
+                .cmp(&self.initial_stochastic_base_key(right, None))
+                .then_with(|| left.cmp(&right))
+        });
+
+        let mut ranks = vec![0_u64; person_count];
+        let mut current_rank = 0_u64;
+        let mut previous_key: Option<InitialStochasticBaseKey> = None;
+        for &index in &order {
+            let key = self.initial_stochastic_base_key(index, None);
+            if let Some(previous) = previous_key.as_ref()
+                && previous != &key
+            {
+                current_rank = current_rank
+                    .checked_add(1)
+                    .expect("initial stochastic base-rank space must fit u64");
+            }
+            ranks[index] = current_rank;
+            previous_key = Some(key);
+        }
+
+        let household_count = self.household_count();
+        let mut household_member_counts = vec![0_usize; household_count];
+        for &household in &self.households {
+            let household_index = usize::try_from(household.0 - 1)
+                .expect("validated initial household ID must fit usize");
+            household_member_counts[household_index] += 1;
+        }
+        let mut household_signatures = household_member_counts
+            .into_iter()
+            .map(Vec::<u64>::with_capacity)
+            .collect::<Vec<_>>();
+        let mut household_order = (0..household_count).collect::<Vec<_>>();
+        let mut household_ranks = vec![0_u64; household_count];
+        let mut next_ranks = vec![0_u64; person_count];
+
+        for _ in 0..person_count {
+            for members in &mut household_signatures {
+                members.clear();
+            }
+            for (index, &rank) in ranks.iter().enumerate() {
+                let household_index = usize::try_from(self.households[index].0 - 1)
+                    .expect("validated initial household ID must fit usize");
+                household_signatures[household_index].push(rank);
+            }
+            for members in &mut household_signatures {
+                members.sort_unstable();
+            }
+
+            household_order.sort_unstable_by(|&left, &right| {
+                household_signatures[left]
+                    .cmp(&household_signatures[right])
+                    .then_with(|| left.cmp(&right))
+            });
+            let mut current_household_rank = 0_u64;
+            let mut previous_household: Option<usize> = None;
+            for &household_index in &household_order {
+                if let Some(previous_index) = previous_household
+                    && household_signatures[previous_index] != household_signatures[household_index]
+                {
+                    current_household_rank = current_household_rank
+                        .checked_add(1)
+                        .expect("initial stochastic household-signature space must fit u64");
+                }
+                household_ranks[household_index] = current_household_rank;
+                previous_household = Some(household_index);
+            }
+
+            order.sort_unstable_by(|&left, &right| {
+                let left_household = usize::try_from(self.households[left].0 - 1)
+                    .expect("validated initial household ID must fit usize");
+                let right_household = usize::try_from(self.households[right].0 - 1)
+                    .expect("validated initial household ID must fit usize");
+                (ranks[left], household_ranks[left_household])
+                    .cmp(&(ranks[right], household_ranks[right_household]))
+                    .then_with(|| left.cmp(&right))
+            });
+
+            let mut current_signature_rank = 0_u64;
+            let mut previous_signature: Option<(u64, u64)> = None;
+            for &index in &order {
+                let household_index = usize::try_from(self.households[index].0 - 1)
+                    .expect("validated initial household ID must fit usize");
+                let signature = (ranks[index], household_ranks[household_index]);
+                if let Some(previous) = previous_signature
+                    && previous != signature
+                {
+                    current_signature_rank = current_signature_rank
+                        .checked_add(1)
+                        .expect("initial stochastic signature-rank space must fit u64");
+                }
+                next_ranks[index] = current_signature_rank;
+                previous_signature = Some(signature);
+            }
+
+            if next_ranks == ranks {
+                break;
+            }
+            std::mem::swap(&mut ranks, &mut next_ranks);
+        }
+
+        order.sort_unstable_by_key(|&index| (ranks[index], person_id_from_index(index).0));
+        for (ordinal, index) in order.into_iter().enumerate() {
+            self.stochastic_coupling_ranks[index] = u64::try_from(ordinal)
+                .expect("initial stochastic coupling ordinal must fit u64")
+                + 1;
+        }
+    }
+
+'''
+          text = text.replace(marker, helper + marker, 1)
+
+          needle = '''    fn assign_initial_stochastic_coupling_ranks(
+        &mut self,
+        founder_population: Option<&FounderPopulationDefinition>,
+    ) {
+        let person_count = self.person_count();
+'''
+          replacement = '''    fn assign_initial_stochastic_coupling_ranks(
+        &mut self,
+        founder_population: Option<&FounderPopulationDefinition>,
+    ) {
+        if founder_population.is_none() {
+            self.assign_initial_synthetic_stochastic_coupling_ranks();
+            return;
+        }
+
+        let person_count = self.person_count();
+'''
+          assert needle in text
+          text = text.replace(needle, replacement, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          cargo fmt --all
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+
+      - name: Verify AV4-001 regressions and core tests
+        run: |
+          cargo test --locked -p anthrosim-core --test fertility_label_invariance
+          cargo test --locked -p anthrosim-core --test fertility_person_label_invariance
+          cargo test --locked -p anthrosim-core
+
+      - name: Build release and enforce one-million-founder memory gate
+        run: |
+          cargo build --locked --release -p anthrosim-cli
+          /usr/bin/time -v -o /tmp/anthrosim-million-founder-time.txt target/release/anthrosim run \
+            --years 0 \
+            --world-width 64 \
+            --world-height 64 \
+            --population 1000000 \
+            --max-person-records 1000000 \
+            --output /tmp/anthrosim-m5-memory.json
+          cat /tmp/anthrosim-million-founder-time.txt
+          max_rss_kib=$(awk -F: '/Maximum resident set size/ {gsub(/^[ \t]+/, "", $2); print $2}' /tmp/anthrosim-million-founder-time.txt)
+          test -n "$max_rss_kib"
+          test "$max_rss_kib" -le 163840
+
+      - name: Commit verified production refinement
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add crates/anthrosim-core/src/population.rs
+          git diff --cached --check
+          git commit -m 'perf: bound synthetic coupling-rank initialization memory'
+          git push origin HEAD:fix/486-fertility-label-invariance
