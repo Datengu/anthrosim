@@ -105,9 +105,22 @@ fn active_m9_resource_and_demography_state_resumes_exactly_across_process_seeds(
             actual.state_digest64, expected.state_digest64,
             "seed {seed}"
         );
+        assert!(
+            expected.continuation_identity_is_valid(),
+            "seed {seed}: uninterrupted continuation identity must validate"
+        );
+        assert!(
+            actual.continuation_identity_is_valid(),
+            "seed {seed}: resumed continuation identity must validate"
+        );
+        assert!(
+            expected.resume_lineage.boundaries.is_empty(),
+            "seed {seed}: uninterrupted run should not gain resume lineage"
+        );
         assert_eq!(
-            actual.continuation_digest64, expected.continuation_digest64,
-            "seed {seed}: continuation identity drifted"
+            actual.resume_lineage.boundaries.len(),
+            1,
+            "seed {seed}: resumed run must preserve exactly one resume boundary"
         );
         assert_eq!(actual.population, expected.population, "seed {seed}");
         assert_eq!(
