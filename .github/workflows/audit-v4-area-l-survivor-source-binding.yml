@@ -1,0 +1,32 @@
+name: Audit v4 Area L survivor source binding
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-core/tests/audit_v4_area_l_survivor_source_binding.rs"
+      - "scripts/audit-v4-test-survivor-source-binding.py"
+      - ".github/workflows/audit-v4-area-l-survivor-source-binding.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  survivor-source-binding:
+    name: Survivor source semantic-binding adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact evidence head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Prove the full StudyProtocol accepts the free-form fake source
+        run: cargo test --locked -p anthrosim-core --test audit_v4_area_l_survivor_source_binding -- --nocapture
+      - name: Run fresh survivor-conditioning semantic-binding adversary
+        run: python3 scripts/audit-v4-test-survivor-source-binding.py
