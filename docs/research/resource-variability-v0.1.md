@@ -15,7 +15,71 @@ The canonical definition is unchanged: 100 years, 5,000 founders, 64 × 64 synth
 
 These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.
 
-## Current v26 reference and provenance
+## Current v27 reference and provenance
+
+Audit-v4 AV4-002 / #488 changes the causal same-seed background-mortality coupling: background mortality draws are no longer assigned by arbitrary canonical `PersonId` record order. Because that correction can propagate through deaths, household composition, resources, fertility and migration, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v26 values.
+
+Reviewed v27 execution:
+
+- CI run: `33789214317`;
+- M7.6 job: `100766028843`;
+- exact production head used by the archived run: `0442c7d8a42402713195b24420f722a5d7226392`;
+- artifact: `9907214330` (`m7-6-resource-variability-derived`, `sha256:c43a3a920e8c2ac440beb793c448fd39ecd81f1ca23e3ec934e318901f1eea82`);
+- definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
+- model version: `0.3.4`;
+- model semantics: `anthrosim-model-semantics-v27`;
+- sweep ID: `anthrosim-sweep-v2-71270161787bc7ca`.
+
+All **144/144** planned runs completed and were scientifically eligible, with no operational censoring. The workflow job failed only after execution when the then-current CI assertion compared the generated v27 point summaries with the frozen v26 machine reference; that stale-reference assertion is not scientific evidence against the v27 execution.
+
+The source definition is unchanged: 18 factorial points × 8 paired seeds. The reviewed v27 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls. Quantitative values move because corrected background-mortality coupling changes downstream trajectories.
+
+## Current v27 point results
+
+The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
+
+| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |
+| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 0 | on | 8 duration / 0 extinct | 1640.25 | 340.875 | 270.125 | 35091.25 | 28500.375 | 2.045 |
+| 250 | 0 | off | 0 duration / 8 extinct | 0 | 0 | 4896.25 | 548877.5 | 0 | — |
+| 250 | 500 | on | 8 duration / 0 extinct | 1653.25 | 345.25 | 287.75 | 36771.25 | 28660.5 | 2.048 |
+| 250 | 500 | off | 0 duration / 8 extinct | 0 | 0 | 4891.875 | 551466.75 | 0 | — |
+| 250 | 1000 | on | 8 duration / 0 extinct | 1627 | 339.5 | 288.625 | 39066.625 | 28588.875 | 2.049 |
+| 250 | 1000 | off | 0 duration / 8 extinct | 0 | 0 | 4890 | 550569 | 0 | — |
+| 500 | 0 | on | 8 duration / 0 extinct | 1816.5 | 342 | 24.25 | 2227 | 6868.25 | 1.981 |
+| 500 | 0 | off | 8 duration / 0 extinct | 24.375 | 15.75 | 3680.25 | 328961.875 | 0 | — |
+| 500 | 500 | on | 8 duration / 0 extinct | 1796.75 | 343.375 | 24.625 | 2537.75 | 6868.125 | 1.983 |
+| 500 | 500 | off | 8 duration / 0 extinct | 18.75 | 13.875 | 3704.5 | 330508.125 | 0 | — |
+| 500 | 1000 | on | 8 duration / 0 extinct | 1810 | 344.875 | 32.625 | 3609.25 | 6889.875 | 1.988 |
+| 500 | 1000 | off | 8 duration / 0 extinct | 19.625 | 14.875 | 3706.5 | 335893.25 | 0 | — |
+| 1000 | 0 | on | 8 duration / 0 extinct | 1911.75 | 341.25 | 2.75 | 56.625 | 1133.5 | 1.874 |
+| 1000 | 0 | off | 8 duration / 0 extinct | 575.875 | 207.875 | 1623.375 | 124508.125 | 0 | — |
+| 1000 | 500 | on | 8 duration / 0 extinct | 1878.125 | 350.375 | 2.875 | 56 | 1125.875 | 1.904 |
+| 1000 | 500 | off | 8 duration / 0 extinct | 590.625 | 211.25 | 1684.625 | 132043.5 | 0 | — |
+| 1000 | 1000 | on | 8 duration / 0 extinct | 1847.5 | 344.75 | 4.5 | 213.75 | 1112.125 | 1.925 |
+| 1000 | 1000 | off | 8 duration / 0 extinct | 605.375 | 215.375 | 1647.625 | 134348.375 | 0 | — |
+
+Full unrounded point values are preserved in the machine-readable reference.
+
+## Current v27 interpretation
+
+### Productivity remains the strongest resource control
+
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are now those generated under the corrected v27 background-mortality coupling.
+
+### Migration remains strongly associated with persistence in this synthetic design
+
+At productivity `250`, all three migration-disabled seasonality points become extinct in all eight paired seeds, while all matched migration-enabled runs reach the requested duration. The persistence contrast also remains large at productivity `500` and `1000`.
+
+### Seasonality remains non-monotonic
+
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+
+### Interpretation boundary
+
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v27 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary background-mortality draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+
+## Historical v26 reference and provenance
 
 Audit-v4 AV4-001 / #486 changes the causal same-seed fertility coupling: annual fertility draws are no longer assigned by arbitrary canonical `PersonId` record order. Because that correction can propagate through births, household composition, resources and migration, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v20 values.
 
@@ -34,7 +98,7 @@ All **144/144** planned runs completed and were scientifically eligible. The wor
 
 The source definition is unchanged: 18 factorial points × 8 paired seeds. The reviewed v26 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls. Quantitative values move because the corrected fertility coupling changes downstream trajectories.
 
-## Current v26 point results
+## Historical v26 point results
 
 The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
 
@@ -61,7 +125,7 @@ The table reports descriptive means over the eight scientifically eligible seeds
 
 Full unrounded point values are preserved in the machine-readable reference.
 
-## Current v26 interpretation
+## Historical v26 interpretation
 
 ### Productivity remains the strongest resource control
 
