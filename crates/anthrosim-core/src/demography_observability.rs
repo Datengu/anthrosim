@@ -123,6 +123,7 @@ pub enum DemographyObservabilityError {
 #[derive(Debug, Clone)]
 struct ReplayPerson {
     id: PersonId,
+    stochastic_coupling_rank: u64,
     birth_day: i64,
     death_day: Option<u64>,
     last_birth_day: Option<u64>,
@@ -224,12 +225,15 @@ pub fn derive_demography_observability(
         let max_records = checkpoint.experiment.population.max_person_records;
         let mut stop_boundary = false;
 
-        for female_index in 0..records_at_boundary_start {
-            if !people[female_index].alive()
-                || people[female_index].reproductive_sex != ReproductiveSex::Female
-            {
-                continue;
-            }
+        let mut fertility_order = (0..records_at_boundary_start)
+            .filter(|&index| {
+                people[index].alive() && people[index].reproductive_sex == ReproductiveSex::Female
+            })
+            .map(|index| (people[index].stochastic_coupling_rank, index))
+            .collect::<Vec<_>>();
+        fertility_order.sort_unstable_by_key(|&(rank, _)| rank);
+
+        for (_, female_index) in fertility_order {
             let female_id = people[female_index].id;
             let age_days = replay_age(&people[female_index], interval_start_day)?;
             let band_index = schedule_band_index(&config.fertility_bands, age_days)?;
@@ -488,8 +492,16 @@ fn replay_people_from_initial(
         let person = population
             .person(id)
             .ok_or_else(|| invalid(format!("initial population is missing {id:?}")))?;
+        let stochastic_coupling_rank = population
+            .stochastic_coupling_rank_at_index(index)
+            .ok_or_else(|| {
+                invalid(format!(
+                    "initial population is missing stochastic coupling rank for {id:?}"
+                ))
+            })?;
         people.push(ReplayPerson {
             id,
+            stochastic_coupling_rank,
             birth_day: person.birth_day,
             death_day: person.death_day,
             last_birth_day: person.last_birth_day,
@@ -800,8 +812,15 @@ fn apply_birth(
     }
     let birth_day =
         i64::try_from(day).map_err(|_| invalid("birth day does not fit i64".to_owned()))?;
+    let stochastic_coupling_rank = u64::try_from(people.len())
+        .map_err(|_| {
+            invalid("replay person count does not fit stochastic coupling rank space".to_owned())
+        })?
+        .checked_add(1)
+        .ok_or_else(|| invalid("replay stochastic coupling rank space is exhausted".to_owned()))?;
     people.push(ReplayPerson {
         id: birth.person,
+        stochastic_coupling_rank,
         birth_day,
         death_day: None,
         last_birth_day: None,
@@ -974,6 +993,27 @@ fn reconcile_final_population(
         let final_person = final_population
             .person(person.id)
             .ok_or_else(|| invalid(format!("final population is missing {:?}", person.id)))?;
+        let final_index =
+            replay_index(person.id, final_population.person_count()).ok_or_else(|| {
+                invalid(format!(
+                    "final population is missing index for {:?}",
+                    person.id
+                ))
+            })?;
+        let final_stochastic_coupling_rank = final_population
+            .stochastic_coupling_rank_at_index(final_index)
+            .ok_or_else(|| {
+                invalid(format!(
+                    "final population is missing stochastic coupling rank for {:?}",
+                    person.id
+                ))
+            })?;
+        if final_stochastic_coupling_rank != person.stochastic_coupling_rank {
+            return Err(invalid(format!(
+                "replayed stochasticCouplingRank does not match final population for {:?}",
+                person.id
+            )));
+        }
         let checks = [
             (final_person.birth_day == person.birth_day, "birthDay"),
             (final_person.death_day == person.death_day, "deathDay"),

@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** v0.3.4 release baseline / current model semantics v25 (immutable v0.3.3 release baseline: v21)  
+**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v26 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)  
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 

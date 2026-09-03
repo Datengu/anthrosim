@@ -15,9 +15,73 @@ The canonical definition is unchanged: 100 years, 5,000 founders, 64 × 64 synth
 
 These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.
 
-## Current v13 reference and provenance
+## Current v26 reference and provenance
 
-The current reference was deliberately regenerated after issue #188 corrected the M4 kin-residence proxy. The experiment definition was **not changed**.
+Audit-v4 AV4-001 / #486 changes the causal same-seed fertility coupling: annual fertility draws are no longer assigned by arbitrary canonical `PersonId` record order. Because that correction can propagate through births, household composition, resources and migration, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v20 values.
+
+Reviewed v26 execution:
+
+- CI run: `33761813921`;
+- M7.6 job: `100674851272`;
+- exact production head used by the archived run: `5d73176f9c26a9701193cfa46db9f7d341af7d8a`;
+- artifact: `9896479783` (`m7-6-resource-variability-derived`, `sha256:75445419e242e39c77804356216558490a58c62dd30c3c7df36c736f91cdbe82`);
+- definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
+- model version: `0.3.4`;
+- model semantics: `anthrosim-model-semantics-v26`;
+- sweep ID: `anthrosim-sweep-v2-00d722b4c9bee97f`.
+
+All **144/144** planned runs completed and were scientifically eligible. The workflow job failed only after execution when the then-current CI assertion still required the frozen v20 machine reference; that stale-reference assertion is not scientific evidence against the v26 execution.
+
+The source definition is unchanged: 18 factorial points × 8 paired seeds. The reviewed v26 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls. Quantitative values move because the corrected fertility coupling changes downstream trajectories.
+
+## Current v26 point results
+
+The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
+
+| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |
+| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 0 | on | 8 duration / 0 extinct | 1616.625 | 344.625 | 283.375 | 35793.375 | 28498.5 | 2.048 |
+| 250 | 0 | off | 0 duration / 8 extinct | 0 | 0 | 4882.875 | 546282.25 | 0 | — |
+| 250 | 500 | on | 8 duration / 0 extinct | 1637.5 | 351.375 | 261 | 34715.125 | 28509.625 | 2.045 |
+| 250 | 500 | off | 0 duration / 8 extinct | 0 | 0 | 4897.375 | 551156.75 | 0 | — |
+| 250 | 1000 | on | 8 duration / 0 extinct | 1601 | 341.375 | 291.875 | 39558.25 | 28580 | 2.047 |
+| 250 | 1000 | off | 0 duration / 8 extinct | 0 | 0 | 4889.125 | 548478.875 | 0 | — |
+| 500 | 0 | on | 8 duration / 0 extinct | 1833.125 | 345.75 | 22 | 1997.125 | 6877.625 | 1.978 |
+| 500 | 0 | off | 8 duration / 0 extinct | 18.625 | 13.25 | 3693.75 | 328863.375 | 0 | — |
+| 500 | 500 | on | 8 duration / 0 extinct | 1826.125 | 345.875 | 24.875 | 2272.125 | 6914.125 | 1.984 |
+| 500 | 500 | off | 8 duration / 0 extinct | 24.5 | 17.25 | 3697.125 | 329621.75 | 0 | — |
+| 500 | 1000 | on | 8 duration / 0 extinct | 1840.125 | 351.5 | 26.125 | 3003 | 6872.875 | 1.987 |
+| 500 | 1000 | off | 8 duration / 0 extinct | 25.5 | 18.375 | 3737.75 | 337138.875 | 0 | — |
+| 1000 | 0 | on | 8 duration / 0 extinct | 1852 | 344 | 2 | 17.875 | 1081.875 | 1.892 |
+| 1000 | 0 | off | 8 duration / 0 extinct | 631.875 | 219.625 | 1617.125 | 124574.75 | 0 | — |
+| 1000 | 500 | on | 8 duration / 0 extinct | 1867 | 343.25 | 2.375 | 99 | 1102 | 1.901 |
+| 1000 | 500 | off | 8 duration / 0 extinct | 618 | 218.5 | 1594.625 | 124008.125 | 0 | — |
+| 1000 | 1000 | on | 8 duration / 0 extinct | 1879.5 | 347.875 | 4.25 | 272 | 1105.125 | 1.918 |
+| 1000 | 1000 | off | 8 duration / 0 extinct | 619.625 | 218.5 | 1588.125 | 128760.875 | 0 | — |
+
+Full unrounded point values are preserved in the machine-readable reference.
+
+## Current v26 interpretation
+
+### Productivity remains the strongest resource control
+
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are now those generated under the corrected v26 fertility coupling.
+
+### Migration remains strongly associated with persistence in this synthetic design
+
+At productivity `250`, all three migration-disabled seasonality points become extinct in all eight paired seeds, while all matched migration-enabled runs reach the requested duration. The persistence contrast also remains large at productivity `500` and `1000`.
+
+### Seasonality remains non-monotonic
+
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+
+### Interpretation boundary
+
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v26 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary fertility-draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+
+## Historical v13 reference and provenance
+
+The v13 reference was deliberately regenerated after issue #188 corrected the M4 kin-residence proxy. The experiment definition was **not changed**.
 
 Reviewed v13 execution:
 
@@ -58,7 +122,7 @@ That on/off control isolates the changed reference values to M4 migration semant
 
 This does not imply that every downstream difference is a direct kin effect of the same magnitude. Once an early migration decision changes, later resource access, condition, births, deaths and migration history can diverge. The reference preserves that causal propagation rather than tuning the model to recover v12 aggregates.
 
-## Current v13 point results
+## Historical v13 point results
 
 The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
 
@@ -83,9 +147,9 @@ The table reports descriptive means over the eight scientifically eligible seeds
 | 1000 | 1000 | on | 8 duration / 0 extinct | 1791.25 | 344.5 | 3.375 | 269.375 | 1140 | 1.92 |
 | 1000 | 1000 | off | 8 duration / 0 extinct | 570.625 | 206.25 | 1687.75 | 137699.375 | 0 | — |
 
-Full unrounded point values are preserved in the machine-readable reference.
+Full unrounded point values are preserved in the historical machine-readable reference preserved in Git history.
 
-## Observations within this synthetic model
+## Historical v13 observations within this synthetic model
 
 ### Productivity remains the strongest resource control
 
@@ -116,11 +180,13 @@ Earlier exact references remain preserved in Git history.
 - later v11-era reference updates corrected derived/nullability semantics without changing authoritative model trajectories.
 - v12 is the immediate pre-#188 control used here; its M7.6 artifact passed the then-current frozen reference.
 - v13 is different in a diagnostically M4-specific way: migration-enabled runs change while migration-disabled controls remain stable.
+- v20 followed issue #326's fixed-point resource-condition response repair and is preserved in Git history as the immediate pre-v26 scientific reference.
+- v26 records the expected downstream consequences of correcting arbitrary founder-person fertility draw assignment in AV4-001/#486.
 
 Historical snapshots are model-evaluation history, not targets that later corrected implementations must reproduce.
 
-## Interpretation boundary
+## Historical interpretation boundary
 
-This experiment supports reproducible comparison of explicit synthetic assumptions, paired multi-seed execution, provenance-preserving factorial analysis, controlled mechanism attribution and detection of changes caused by upstream semantic repairs.
+The historical v13 experiment supports reproducible comparison of explicit synthetic assumptions, paired multi-seed execution, provenance-preserving factorial analysis, controlled mechanism attribution and detection of changes caused by upstream semantic repairs.
 
-It does **not** support claims about real prehistoric population size, carrying capacity, calories/biomass, climate reconstruction, migration frequency/distance, settlement duration, physiology, kinship organization or any specific archaeological site. The v13 kin repair improves symmetry and scientific interpretability of the null model; it does not make the synthetic resource or migration model empirically validated.
+It does **not** support claims about real prehistoric population size, carrying capacity, calories/biomass, climate reconstruction, migration frequency/distance, settlement duration, physiology, kinship organization or any specific archaeological site. The v13 kin repair improved symmetry and scientific interpretability of the null model; it did not make the synthetic resource or migration model empirically validated.

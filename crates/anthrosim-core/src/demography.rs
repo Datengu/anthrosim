@@ -325,10 +325,10 @@ fn process_demographic_year_recorded_internal(
                     },
                 )?;
                 let cell = population.location_at_index(index).ok_or(
-                PopulationError::InternalInvariant {
-                    reason: "living person is missing a current residence at mortality boundary",
-                },
-            )?;
+                    PopulationError::InternalInvariant {
+                        reason: "living person is missing a current residence at mortality boundary",
+                    },
+                )?;
                 let condition = population.condition_at_index(index).ok_or(
                     PopulationError::InternalInvariant {
                         reason: "living person is missing condition at mortality boundary",
@@ -360,8 +360,12 @@ fn process_demographic_year_recorded_internal(
         &same_day_migration_origins,
     )?;
     let executable_birth_spacing_days = effective_birth_spacing_days(config);
-
-    let mut births_added = false;
+    // Freeze the eligible-female set before any birth is appended, matching the historical annual
+    // boundary semantics, but assign the shared fertility stream by persistent scientific coupling
+    // identity rather than packed-record/PersonId order. The rank is canonicalized from day-zero
+    // represented state and persisted through checkpoints, so later condition/migration differences
+    // cannot make independent replay lose the RNG-to-person coupling.
+    let mut fertility_candidates = Vec::new();
     for female_index in 0..records_at_boundary_start {
         if !population.is_alive_index(female_index)
             || population.reproductive_sex_at_index(female_index) != Some(ReproductiveSex::Female)
@@ -397,6 +401,30 @@ fn process_demographic_year_recorded_internal(
         if !has_eligible_male(eligible_males, population, interval_start_day, config) {
             continue;
         }
+        let female = population.person_id_at_index(female_index).ok_or(
+            PopulationError::InternalInvariant {
+                reason: "living female is missing a stable person ID while ordering fertility candidates",
+            },
+        )?;
+        let stochastic_coupling_rank = population
+            .stochastic_coupling_rank_at_index(female_index)
+            .ok_or(PopulationError::InternalInvariant {
+            reason: "living female is missing stochastic coupling identity",
+        })?;
+        fertility_candidates.push((
+            stochastic_coupling_rank,
+            female,
+            female_index,
+            fertility_probability,
+            parentage_location,
+        ));
+    }
+    fertility_candidates.sort_by_key(|candidate| (candidate.0, candidate.1));
+
+    let mut births_added = false;
+    for (_, female_parent, female_index, fertility_probability, parentage_location) in
+        fertility_candidates
+    {
         if !draw_per_million(&mut rngs.fertility, fertility_probability) {
             continue;
         }
@@ -408,6 +436,10 @@ fn process_demographic_year_recorded_internal(
             return Ok(DemographyStepOutcome::PersonRecordLimitReached);
         }
 
+        let eligible_males = parentage_occupancy
+            .get(&parentage_location)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
         let male_parent = select_male_parent(
             eligible_males,
             population,
@@ -418,11 +450,6 @@ fn process_demographic_year_recorded_internal(
         .ok_or(PopulationError::InternalInvariant {
             reason: "eligible pre-boundary local male disappeared during a demographic boundary",
         })?;
-        let female_parent = population.person_id_at_index(female_index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "living female is missing a stable person ID",
-            },
-        )?;
         let household = population.household_at_index(female_index).ok_or(
             PopulationError::InternalInvariant {
                 reason: "living female is missing a household",
