@@ -1,27 +1,28 @@
-name: Rebaseline #304 for AV4-001 v26
+name: "Restore exact v26 issue 304 baseline"
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches:
+      - fix/486-fertility-label-invariance
     paths:
-      - '.github/workflows/rebaseline-av4-001-issue304.yml'
+      - .github/workflows/rebaseline-av4-001-issue304.yml
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  rebaseline:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 553
+  restore:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR branch
+      - name: Checkout repair branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: fix/486-fertility-label-invariance
           persist-credentials: true
           fetch-depth: 0
-      - name: Download exact v26 #304 confirmatory artifact
+
+      - name: Download exact v26 issue 304 artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: issue-304-demographic-baseline-confirmatory
@@ -29,173 +30,44 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: Datengu/anthrosim
           run-id: 33756260873
-      - name: Validate and install v26 scientific result
-        shell: python
+
+      - name: Validate and restore exact scientific result
         run: |
+          python3 - <<'PY'
           import json
-          import re
           import shutil
           from pathlib import Path
 
           artifact = Path('/tmp/issue304-v26/expected-result.json')
-          if not artifact.exists():
-              raise SystemExit('expected-result.json missing from exact #304 workflow artifact')
+          if not artifact.is_file():
+              raise SystemExit('expected-result.json missing from run 33756260873 artifact')
+
           result = json.loads(artifact.read_text(encoding='utf-8'))
-          if result.get('modelSemanticsId') != 'anthrosim-model-semantics-v26':
-              raise SystemExit(f"unexpected artifact semantics: {result.get('modelSemanticsId')}")
-          if result.get('recommendation') != 'no_universal_demographic_baseline':
-              raise SystemExit(f"#304 recommendation changed unexpectedly: {result.get('recommendation')}")
-          if result.get('runCount') != 780:
-              raise SystemExit(f"unexpected #304 run count: {result.get('runCount')}")
-          if result.get('longRun', {}).get('researchGateStatus') != 'failed':
-              raise SystemExit('long-run universality gate unexpectedly changed status')
-          if result.get('longRun', {}).get('multipleStableRegimesDetected') is not True:
-              raise SystemExit('multiple-regime conclusion unexpectedly disappeared')
-          precision = result.get('monteCarloPrecision', {})
-          if len(precision) != 3 or any(item.get('decision') != 'sufficient_stop' for item in precision.values()):
-              raise SystemExit('one or more predeclared Monte Carlo precision gates are not sufficient_stop')
+          assert result['modelSemanticsId'] == 'anthrosim-model-semantics-v26'
+          assert result['researchId'] == 'research-execution-v1-2187fac3eabf3d3c'
+          assert result['recommendation'] == 'no_universal_demographic_baseline'
+          assert result['runCount'] == 780
+          assert result['longRun']['researchGateStatus'] == 'failed'
+          assert result['longRun']['multipleStableRegimesDetected'] is True
+          assert all(v['decision'] == 'sufficient_stop' for v in result['monteCarloPrecision'].values())
 
-          # Every same-seed household effect must retain the previously established direction.
-          paired = result.get('pairedHouseholdEffects', [])
-          if len(paired) != 3:
-              raise SystemExit(f'unexpected paired-effect group count: {len(paired)}')
+          paired = result['pairedHouseholdEffects']
+          assert len(paired) == 3
           for effect in paired:
-              if effect['fissionMinusFixedTerminalPopulation']['mean'] >= 0:
-                  raise SystemExit(f"terminal-population effect changed sign for {effect['demography']}")
-              if effect['fissionMinusFixedLateGrowthRatePerYear']['mean'] >= 0:
-                  raise SystemExit(f"late-growth effect changed sign for {effect['demography']}")
-              if effect['fissionMinusFixedMateLimitationFraction']['mean'] <= 0:
-                  raise SystemExit(f"mate-limitation effect changed sign for {effect['demography']}")
+              assert effect['fissionMinusFixedTerminalPopulation']['mean'] < 0
+              assert effect['fissionMinusFixedLateGrowthRatePerYear']['mean'] < 0
+              assert effect['fissionMinusFixedMateLimitationFraction']['mean'] > 0
 
-          canonical = Path('research/general-demography-baseline-v1/confirmatory-result.json')
-          shutil.copyfile(artifact, canonical)
-
-          doc_path = Path('docs/research/general-scientific-demographic-baseline-v1.md')
-          doc = doc_path.read_text(encoding='utf-8')
-          research_id = result['researchId']
-          doc, count = re.subn(
-              r'- current preserved research execution identity: `[^`]+`\.',
-              f'- current preserved research execution identity: `{research_id}`.',
-              doc,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit('could not update living #304 research identity')
-          identity_line = f'- current preserved research execution identity: `{research_id}`.'
-          if '- current model semantics:' not in doc:
-              doc = doc.replace(
-                  identity_line,
-                  identity_line + '\n- current model semantics: `anthrosim-model-semantics-v26` (causal AV4-001/#486 rebaseline; see [`model-semantics-v26-reverification.md`](../../research/general-demography-baseline-v1/model-semantics-v26-reverification.md)).',
-                  1,
-              )
-
-          def signed_percent(value):
-              return f'{float(value) * 100:+.3f}'
-
-          arms = {(a['demography'], a['householdLifecycle']): a for a in result['arms']}
-          order = [
-              ('negative_growth_control_v1', 'fixed_founder_v1'),
-              ('negative_growth_control_v1', 'deterministic_dependency_fission_v2'),
-              ('replacement_control_v1', 'fixed_founder_v1'),
-              ('replacement_control_v1', 'deterministic_dependency_fission_v2'),
-              ('positive_growth_control_v1', 'fixed_founder_v1'),
-              ('positive_growth_control_v1', 'deterministic_dependency_fission_v2'),
-          ]
-          rows = []
-          for key in order:
-              arm = arms[key]
-              growth = arm['lateGrowthRatePerYear']
-              rows.append(
-                  f"| `{arm['demography']}` | `{arm['householdLifecycle']}` | "
-                  f"{signed_percent(growth['mean'])} "
-                  f"[{signed_percent(growth['ci95Lower'])}, {signed_percent(growth['ci95Upper'])}] | "
-                  f"{float(arm['terminalPopulation']['mean']):.1f} | "
-                  f"{float(arm['extinction']['estimate']) * 100:.1f}% | "
-                  f"{float(arm['mateLimitationFraction']['mean']) * 100:.1f}% |"
-              )
-          table = (
-              '| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N240 | Extinction | Mate limitation |\n'
-              '|---|---|---:|---:|---:|---:|\n' + '\n'.join(rows)
-          )
-          doc, count = re.subn(
-              r'\| Demography \| Household lifecycle \| Late growth %/yr \(95% MC CI\) \| Mean N240 \| Extinction \| Mate limitation \|\n'
-              r'\|---\|---\|---:\|---:\|---:\|---:\|\n'
-              r'(?:\|.*\|\n){6}',
-              table + '\n',
-              doc,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit('could not regenerate living #304 numerical table')
-
-          paired_by_demo = {e['demography']: e for e in paired}
-          paired_lines = []
-          for demo in ['negative_growth_control_v1', 'replacement_control_v1', 'positive_growth_control_v1']:
-              effect = paired_by_demo[demo]
-              paired_lines.append(
-                  f"- `{demo}`: fission-minus-fixed mean N240 = "
-                  f"**{float(effect['fissionMinusFixedTerminalPopulation']['mean']):+.1f} people** "
-                  f"across {int(effect['pairedReplicates'])} same-seed pairs."
-              )
-          start = doc.index('- `negative_growth_control_v1`: fission-minus-fixed mean N240')
-          end_marker = '\n\nThese paired effects are bound to the household-lifecycle contrast'
-          end = doc.index(end_marker, start)
-          doc = doc[:start] + '\n'.join(paired_lines) + doc[end:]
-
-          fixed = arms[('positive_growth_control_v1', 'fixed_founder_v1')]
-          fission = arms[('positive_growth_control_v1', 'deterministic_dependency_fission_v2')]
-          interpretation = (
-              'The experiments separate **intrinsic demographic tendency** from **realized population growth**. '
-              'Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: '
-              f"mean late realized growth changes from {float(fixed['lateGrowthRatePerYear']['mean']) * 100:+.3f}%/year under fixed-founder households "
-              f"to {float(fission['lateGrowthRatePerYear']['mean']) * 100:+.3f}%/year under `deterministic_dependency_fission_v2`, "
-              f"while mate limitation rises from {float(fixed['mateLimitationFraction']['mean']) * 100:.1f}% to {float(fission['mateLimitationFraction']['mean']) * 100:.1f}% "
-              f"and mean N240 falls from {float(fixed['terminalPopulation']['mean']):.1f} to {float(fission['terminalPopulation']['mean']):.1f}."
-          )
-          doc, count = re.subn(
-              r'The experiments separate \*\*intrinsic demographic tendency\*\* from \*\*realized population growth\*\*\..*?mean N240 falls from [^.]+\.',
-              interpretation,
-              doc,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1:
-              raise SystemExit('could not regenerate living #304 interpretation paragraph')
-          doc_path.write_text(doc, encoding='utf-8')
-
-          note = f'''# Model-semantics v26 reverification
-
-Audit-v4 AV4-001 / issue #486 re-executed the frozen issue #304 780-run confirmatory design on PR #553 after the causal fertility-coupling repair advanced the executable line from `anthrosim-model-semantics-v25` to `anthrosim-model-semantics-v26`. Workflow run `33756260873` completed all 780 runs and all three predeclared Monte Carlo precision gates returned `sufficient_stop`.
-
-The high-level recommendation remains **`no_universal_demographic_baseline`**, and every same-seed household-lifecycle effect retains its established direction. Representative changes versus the v25 reference are:
-
-- positive-growth / fixed-founder mean terminal population: `106.9769` -> `{fixed['terminalPopulation']['mean']:.4f}`;
-- positive-growth / fixed-founder mean late growth rate/year: `-0.000832533` -> `{fixed['lateGrowthRatePerYear']['mean']:.9f}`;
-- positive-growth fission-minus-fixed terminal-population effect: `-84.9` -> `{paired_by_demo['positive_growth_control_v1']['fissionMinusFixedTerminalPopulation']['mean']:.4f}`;
-- long-run `multipleStableRegimesDetected`: `true` -> `true`;
-- primary long-run classifications: `drifting=738, insufficient_data=39, stable=3` -> `drifting={result['longRun']['primaryClassificationCounts']['drifting']}, insufficient_data={result['longRun']['primaryClassificationCounts']['insufficient_data']}, stable={result['longRun']['primaryClassificationCounts']['stable']}`.
-
-This is a causal v26 scientific-reference rebaseline, not an analysis-method compatibility update. The canonical result is copied byte-for-byte from the exact PR workflow artifact `issue-304-demographic-baseline-confirmatory` (artifact `9893726528`) produced by run `33756260873`; its execution-specific `researchId` is `{research_id}`. The v25 release/audit baseline remains immutable historical provenance.
-'''
-          Path('research/general-demography-baseline-v1/model-semantics-v26-reverification.md').write_text(note, encoding='utf-8')
-      - name: Verify synchronized v26 baseline documentation
-        run: |
-          python3 -m py_compile scripts/test-current-demographic-baseline-docs.py
-          python3 scripts/test-current-demographic-baseline-docs.py
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          current=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
-          expected=json.loads(Path('/tmp/issue304-v26/expected-result.json').read_text())
-          assert current == expected
-          assert current['modelSemanticsId']=='anthrosim-model-semantics-v26'
-          assert current['recommendation']=='no_universal_demographic_baseline'
-          assert all(v['decision']=='sufficient_stop' for v in current['monteCarloPrecision'].values())
+          target = Path('research/general-demography-baseline-v1/confirmatory-result.json')
+          shutil.copyfile(artifact, target)
+          assert target.read_bytes() == artifact.read_bytes()
           PY
-      - name: Commit exact v26 rebaseline
+
+      - name: Commit byte-exact artifact restoration
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add research/general-demography-baseline-v1/confirmatory-result.json docs/research/general-scientific-demographic-baseline-v1.md research/general-demography-baseline-v1/model-semantics-v26-reverification.md
-          git commit -m 'research: reverify #304 under model semantics v26'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git add research/general-demography-baseline-v1/confirmatory-result.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'research: restore exact v26 issue 304 baseline artifact'
+          git push origin HEAD:fix/486-fertility-label-invariance
