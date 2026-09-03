@@ -20,7 +20,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           persist-credentials: true
           fetch-depth: 0
-      - name: Synchronize living docs and founder lookup
+      - name: Synchronize living docs and coupling integration
         shell: bash
         run: |
           python - <<'PY'
@@ -74,6 +74,11 @@ jobs:
               'crates/anthrosim-core/src/population.rs',
               "        let declared_last_birth_day = founder_population.and_then(|definition| {\n            definition\n                .people\n                .iter()\n                .find(|founder| founder.id == person)\n                .and_then(|founder| founder.last_birth_day)\n        });",
               "        let declared_last_birth_day = founder_population\n            .and_then(|definition| definition.person(person))\n            .and_then(|founder| founder.last_birth_day);"
+          )
+          replace_once(
+              'crates/anthrosim-core/src/population.rs',
+              '            digest_u64(&mut hash, self.stochastic_coupling_ranks[index]);\n',
+              ''
           )
           PY
       - name: Install pinned Rust toolchain
