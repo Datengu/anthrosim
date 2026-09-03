@@ -5,8 +5,6 @@ use anthrosim_core::{
     ids::{CellId, HouseholdId, PersonId},
 };
 
-const SEED: u64 = 78_101;
-
 fn quiet_demography() -> DemographyConfig {
     let mut config = DemographyConfig::synthetic_validation_v1();
     for band in &mut config.mortality_bands {
@@ -30,20 +28,26 @@ fn resource_config(annual_need: u32) -> ResourceConfig {
     config
 }
 
-fn initial_stock() -> u64 {
-    let config = ExperimentConfig::new(SEED, 1)
-        .with_world(WorldConfig::new(1, 1))
-        .with_population(PopulationConfig::new(1).with_max_person_records(10))
-        .with_demography(quiet_demography())
-        .with_resources(resource_config(0))
-        .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
-    Simulation::new(config)
-        .unwrap()
-        .run_recorded()
-        .unwrap()
-        .manifest
-        .resources
-        .initial_food_stock
+fn find_positive_stock_seed() -> (u64, u64) {
+    for seed in 78_101..78_301 {
+        let config = ExperimentConfig::new(seed, 1)
+            .with_world(WorldConfig::new(1, 1))
+            .with_population(PopulationConfig::new(1).with_max_person_records(10))
+            .with_demography(quiet_demography())
+            .with_resources(resource_config(0))
+            .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false));
+        let stock = Simulation::new(config)
+            .unwrap()
+            .run_recorded()
+            .unwrap()
+            .manifest
+            .resources
+            .initial_food_stock;
+        if stock > 0 {
+            return (seed, stock);
+        }
+    }
+    panic!("audit seed search found no positive-stock one-cell synthetic environment");
 }
 
 fn founder_definition(
@@ -93,9 +97,9 @@ fn founder_definition(
     )
 }
 
-fn conditions(household_count: u64, annual_need: u32, rotate: bool) -> Vec<u16> {
+fn conditions(seed: u64, household_count: u64, annual_need: u32, rotate: bool) -> Vec<u16> {
     let definition = founder_definition(household_count, rotate);
-    let config = ExperimentConfig::new(SEED, 1)
+    let config = ExperimentConfig::new(seed, 1)
         .with_world(WorldConfig::new(1, 1))
         .with_population(
             PopulationConfig::new(u32::try_from(household_count).unwrap())
@@ -119,8 +123,7 @@ fn conditions(household_count: u64, annual_need: u32, rotate: bool) -> Vec<u16> 
 
 #[test]
 fn equal_resource_claims_are_invariant_to_pure_household_label_rotation() {
-    let stock = initial_stock();
-    assert!(stock > 0);
+    let (seed, stock) = find_positive_stock_seed();
 
     let household_count = [2_u64, 3, 5, 7]
         .into_iter()
@@ -128,11 +131,11 @@ fn equal_resource_claims_are_invariant_to_pure_household_label_rotation() {
         .expect("one tested household count must leave a resource-allocation remainder");
     let annual_need = u32::try_from(stock / household_count + 1).unwrap();
 
-    let canonical = conditions(household_count, annual_need, false);
-    let rotated = conditions(household_count, annual_need, true);
+    let canonical = conditions(seed, household_count, annual_need, false);
+    let rotated = conditions(seed, household_count, annual_need, true);
 
     println!(
-        "initial_stock={stock} households={household_count} annual_need={annual_need} canonical={canonical:?} rotated={rotated:?}"
+        "seed={seed} initial_stock={stock} households={household_count} annual_need={annual_need} canonical={canonical:?} rotated={rotated:?}"
     );
 
     assert_eq!(
