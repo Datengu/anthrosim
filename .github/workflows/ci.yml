@@ -404,7 +404,7 @@ jobs:
           assert summary['scientificallyEligibleRuns'] == 144
           assert summary['operationallyCensoredRuns'] == 0
           assert reference['schemaVersion'] == 3
-          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v20'
+          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v26'
           assert record['sweepId'] == manifest['sweepId']
           assert record['modelVersion'] == manifest['modelVersion']
           assert record['gitCommit'] == manifest['gitCommit']
