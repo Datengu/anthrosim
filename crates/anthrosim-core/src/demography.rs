@@ -419,8 +419,8 @@ fn process_demographic_year_recorded_internal(
         let stochastic_coupling_rank = population
             .stochastic_coupling_rank_at_index(female_index)
             .ok_or(PopulationError::InternalInvariant {
-            reason: "living female is missing stochastic coupling identity",
-        })?;
+                reason: "living female is missing stochastic coupling identity",
+            })?;
         fertility_candidates.push((
             stochastic_coupling_rank,
             female,
@@ -581,7 +581,7 @@ fn build_parentage_occupancy(
     records_at_boundary_start: usize,
     same_day_migration_origins: &BTreeMap<HouseholdId, CellId>,
 ) -> Result<BTreeMap<CellId, Vec<PersonId>>, PopulationError> {
-    let mut occupancy: BTreeMap<CellId, Vec<PersonId>> = BTreeMap::new();
+    let mut ranked_occupancy: BTreeMap<CellId, Vec<(u64, PersonId)>> = BTreeMap::new();
     for index in 0..records_at_boundary_start {
         if !population.is_alive_index(index) {
             continue;
@@ -591,11 +591,28 @@ fn build_parentage_occupancy(
                 reason: "living person is missing a stable ID while building parentage occupancy",
             },
         )?;
+        let stochastic_coupling_rank = population
+            .stochastic_coupling_rank_at_index(index)
+            .ok_or(PopulationError::InternalInvariant {
+                reason: "living person is missing stochastic coupling identity while building parentage occupancy",
+            })?;
         let location = demographic_exposure_location(population, index, same_day_migration_origins)
             .ok_or(PopulationError::InternalInvariant {
                 reason: "living person is missing a residence while building parentage occupancy",
             })?;
-        occupancy.entry(location).or_default().push(person);
+        ranked_occupancy
+            .entry(location)
+            .or_default()
+            .push((stochastic_coupling_rank, person));
+    }
+
+    let mut occupancy = BTreeMap::new();
+    for (location, mut people) in ranked_occupancy {
+        people.sort_unstable();
+        occupancy.insert(
+            location,
+            people.into_iter().map(|(_, person)| person).collect(),
+        );
     }
     Ok(occupancy)
 }
@@ -816,8 +833,7 @@ mod tests {
     fn model_born_child_receives_age_zero_mortality_interval() {
         let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(91)).unwrap();
         let mut population =
-            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(91))
-                .unwrap();
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(91)).unwrap();
         let female_index = (0..population.person_count())
             .find(|&index| {
                 population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Female)
