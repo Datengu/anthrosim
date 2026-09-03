@@ -1,0 +1,29 @@
+name: Audit v4 Area N cross-system propagation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v4_area_n_label_propagation.rs'
+      - '.github/workflows/audit-v4-area-n-cross-system-propagation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cross-system-propagation:
+    name: Demography-household-resource propagation adversary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact evidence head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 Area N propagation adversary
+        run: cargo test -p anthrosim-core --test audit_v4_area_n_label_propagation --locked -- --nocapture
