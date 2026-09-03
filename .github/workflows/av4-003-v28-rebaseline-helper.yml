@@ -206,7 +206,7 @@ jobs:
               late = arm["lateGrowthRatePerYear"]
               rows.append(
                   f"| `{key[0]}` | `{key[1]}` | {pct(late['mean'])} "
-                  f"[{pct(late['ci95Lower'])}, {pct(late['ci95Upper']):+}] | "
+                  f"[{pct(late['ci95Lower'])}, {100*late['ci95Upper']:+.3f}] | "
                   f"{arm['terminalPopulation']['mean']:.1f} | {100*arm['extinction']['estimate']:.1f}% | "
                   f"{100*arm['mateLimitationFraction']['mean']:.1f}% |"
               )
