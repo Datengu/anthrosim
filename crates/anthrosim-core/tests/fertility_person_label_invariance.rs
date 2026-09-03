@@ -51,7 +51,11 @@ fn two_household_founders(swapped_labels: bool) -> FounderPopulationDefinition {
     };
 
     FounderPopulationDefinition::new(
-        if swapped_labels { "relabel-b" } else { "relabel-a" },
+        if swapped_labels {
+            "relabel-b"
+        } else {
+            "relabel-a"
+        },
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::Unspecified,
         vec![
@@ -107,7 +111,12 @@ fn three_household_founders(rotated_labels: bool) -> FounderPopulationDefinition
     )
 }
 
-fn run(seed: u64, founders: FounderPopulationDefinition, population: u32, width: u32) -> Vec<CellId> {
+fn run(
+    seed: u64,
+    founders: FounderPopulationDefinition,
+    population: u32,
+    width: u32,
+) -> Vec<CellId> {
     let config = ExperimentConfig::new(seed, 1)
         .with_world(WorldConfig::new(width, 1))
         .with_population(

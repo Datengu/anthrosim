@@ -55,7 +55,11 @@ fn simple_founders(swapped_labels: bool) -> FounderPopulationDefinition {
         ]
     };
     FounderPopulationDefinition::new(
-        if swapped_labels { "relabel-b" } else { "relabel-a" },
+        if swapped_labels {
+            "relabel-b"
+        } else {
+            "relabel-a"
+        },
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::Unspecified,
         vec![

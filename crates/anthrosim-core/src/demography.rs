@@ -593,38 +593,43 @@ fn demographic_role_ranks(
     let mut base_keys = Vec::with_capacity(records_at_boundary_start);
 
     for index in 0..records_at_boundary_start {
-        let person_id = population.person_id_at_index(index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "demographic role refinement found a record without stable PersonId",
-            },
-        )?;
+        let person_id =
+            population
+                .person_id_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "demographic role refinement found a record without stable PersonId",
+                })?;
         let person = population
             .person(person_id)
             .ok_or(PopulationError::InternalInvariant {
                 reason: "demographic role refinement could not materialize a person record",
             })?;
-        let household = population.household_at_index(index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "demographic role refinement found a record without household",
-            },
-        )?;
+        let household =
+            population
+                .household_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "demographic role refinement found a record without household",
+                })?;
         if person.is_alive() {
             living_households.entry(household).or_default().push(index);
         }
 
-        let female_parent = population.female_parent_at_index(index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "demographic role refinement could not read female-parent state",
-            },
-        )?;
-        let male_parent = population.male_parent_at_index(index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "demographic role refinement could not read male-parent state",
-            },
-        )?;
+        let female_parent =
+            population
+                .female_parent_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "demographic role refinement could not read female-parent state",
+                })?;
+        let male_parent =
+            population
+                .male_parent_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "demographic role refinement could not read male-parent state",
+                })?;
         female_parent_indices[index] =
             demographic_person_index(female_parent, records_at_boundary_start);
-        male_parent_indices[index] = demographic_person_index(male_parent, records_at_boundary_start);
+        male_parent_indices[index] =
+            demographic_person_index(male_parent, records_at_boundary_start);
         if female_parent != PersonId::INVALID && female_parent_indices[index].is_none() {
             return Err(PopulationError::InternalInvariant {
                 reason: "female-parent reference is outside the demographic boundary record set",
@@ -636,22 +641,24 @@ fn demographic_role_ranks(
             });
         }
 
-        let current_location = population.location_at_index(index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "demographic role refinement found a record without residence",
-            },
-        )?;
+        let current_location =
+            population
+                .location_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "demographic role refinement found a record without residence",
+                })?;
         let exposure_location =
             demographic_exposure_location(population, index, same_day_migration_origins).ok_or(
                 PopulationError::InternalInvariant {
                     reason: "demographic role refinement found a record without exposure residence",
                 },
             )?;
-        let condition_permille = population.condition_at_index(index).ok_or(
-            PopulationError::InternalInvariant {
-                reason: "demographic role refinement could not read condition",
-            },
-        )?;
+        let condition_permille =
+            population
+                .condition_at_index(index)
+                .ok_or(PopulationError::InternalInvariant {
+                    reason: "demographic role refinement could not read condition",
+                })?;
         let condition_loss_remainder_thousandths = population
             .condition_loss_remainder_thousandths_at_index(index)
             .ok_or(PopulationError::InternalInvariant {
@@ -698,7 +705,10 @@ fn demographic_role_ranks(
     for _ in 0..records_at_boundary_start {
         let mut household_rank_multisets = BTreeMap::<HouseholdId, Vec<u64>>::new();
         for (&household, members) in &living_households {
-            let mut member_ranks = members.iter().map(|&index| ranks[index]).collect::<Vec<_>>();
+            let mut member_ranks = members
+                .iter()
+                .map(|&index| ranks[index])
+                .collect::<Vec<_>>();
             member_ranks.sort_unstable();
             household_rank_multisets.insert(household, member_ranks);
         }
@@ -710,11 +720,12 @@ fn demographic_role_ranks(
                 .map(|&(role, child_index)| (role, ranks[child_index]))
                 .collect::<Vec<_>>();
             children.sort_unstable();
-            let household = population.household_at_index(index).ok_or(
-                PopulationError::InternalInvariant {
-                    reason: "demographic role refinement lost household state",
-                },
-            )?;
+            let household =
+                population
+                    .household_at_index(index)
+                    .ok_or(PopulationError::InternalInvariant {
+                        reason: "demographic role refinement lost household state",
+                    })?;
             let living_household_members = household_rank_multisets
                 .get(&household)
                 .cloned()
@@ -1021,7 +1032,8 @@ mod tests {
     fn model_born_child_receives_age_zero_mortality_interval() {
         let world = World::generate(WorldConfig::new(1, 1), RngFactory::new(91)).unwrap();
         let mut population =
-            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(91)).unwrap();
+            Population::initialize(PopulationConfig::new(100), &world, RngFactory::new(91))
+                .unwrap();
         let female_index = (0..population.person_count())
             .find(|&index| {
                 population.reproductive_sex_at_index(index) == Some(ReproductiveSex::Female)
