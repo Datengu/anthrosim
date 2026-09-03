@@ -1,0 +1,35 @@
+name: AV4-003 core patch helper
+
+on:
+  push:
+    branches:
+      - repair/av4-003-migration-household-coupling
+    paths:
+      - '.github/workflows/tmp-av4-003-core-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-003-migration-household-coupling
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Apply reviewed patch
+        run: python3 scripts/tmp_patch_av4_003.py
+      - name: Verify patch shape and commit
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only
+          test ! -e scripts/tmp_patch_av4_003.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: make M4 household RNG assignment label-invariant'
+          git push origin HEAD:repair/av4-003-migration-household-coupling
