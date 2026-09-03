@@ -24,28 +24,38 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('crates/anthrosim-core/src/population.rs')
           text = path.read_text(encoding='utf-8')
 
-          old_lookup = """        let declared_last_birth_day = founder_population.and_then(|definition| {
-              definition
-                  .people
-                  .iter()
-                  .find(|founder| founder.id == person)
-                  .and_then(|founder| founder.last_birth_day)
-          });"""
-          new_lookup = """        let declared_last_birth_day = founder_population
-              .and_then(|definition| definition.person(person))
-              .and_then(|founder| founder.last_birth_day);"""
-          if text.count(old_lookup) != 1:
-              raise SystemExit(f'founder lookup: expected one old form, found {text.count(old_lookup)}')
-          text = text.replace(old_lookup, new_lookup, 1)
+          pattern = re.compile(
+              r"        let declared_last_birth_day = founder_population\.and_then\(\|definition\| \{\n"
+              r"\s+definition\n"
+              r"\s+\.people\n"
+              r"\s+\.iter\(\)\n"
+              r"\s+\.find\(\|founder\| founder\.id == person\)\n"
+              r"\s+\.and_then\(\|founder\| founder\.last_birth_day\)\n"
+              r"\s+\}\);"
+          )
+          replacement = (
+              "        let declared_last_birth_day = founder_population\n"
+              "            .and_then(|definition| definition.person(person))\n"
+              "            .and_then(|founder| founder.last_birth_day);"
+          )
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'founder lookup: expected one structural old form, found {count}')
 
           digest_line = '            digest_u64(&mut hash, self.stochastic_coupling_ranks[index]);\n'
           if text.count(digest_line) != 1:
               raise SystemExit(f'coupling state digest: expected one line, found {text.count(digest_line)}')
           text = text.replace(digest_line, '', 1)
+
+          if '.find(|founder| founder.id == person)' in text:
+              raise SystemExit('old linear founder lookup remains')
+          if 'digest_u64(&mut hash, self.stochastic_coupling_ranks[index]);' in text:
+              raise SystemExit('coupling rank remains in scientific state digest')
           path.write_text(text, encoding='utf-8')
       - name: Install pinned Rust toolchain
         run: |
