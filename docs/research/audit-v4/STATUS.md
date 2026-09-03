@@ -21,12 +21,12 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Target model semantics | `anthrosim-model-semantics-v25` |
 | Coverage state | **14/14 Areas complete — Areas A-N complete; discovery complete** |
 | Current P0 findings | none discovered |
-| Current P1 findings | **12 open — AV4-002/#488; AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500; AV4-008/#514; AV4-009/#518; AV4-010/#528; AV4-011/#535; AV4-012/#539; AV4-013/#543** |
-| Verified remediated findings | **1 — AV4-001/#486 closed after production PR #553 and independent merged-main evidence PR #554** |
+| Current P1 findings | **11 open — AV4-003/#491; AV4-004/#493; AV4-005/#495; AV4-006/#497; AV4-007/#500; AV4-008/#514; AV4-009/#518; AV4-010/#528; AV4-011/#535; AV4-012/#539; AV4-013/#543** |
+| Verified remediated findings | **2 — AV4-001/#486 and AV4-002/#488 closed after production repair plus independent merged-main re-verification** |
 | Current P2 findings | **2 open — AV4-014/#546; AV4-015/#549** |
 | Current P3 findings | none discovered |
 | Convergence classification | **non-clean: Audit v4 discovery is complete with 13 P1 and 2 P2 findings on frozen v0.3.4/v25** |
-| Repair state | **post-discovery remediation in progress; AV4-001/#486 is verified closed; 12 P1 and 2 P2 findings remain open** |
+| Repair state | **post-discovery remediation in progress; AV4-001/#486 and AV4-002/#488 are verified closed; 11 P1 and 2 P2 findings remain open** |
 
 ## Discovery rule
 
@@ -64,7 +64,7 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 | Finding | Severity | Area | Status | Issue | Fresh evidence |
 |---|---|---|---|---|---|
 | AV4-001 — fertility RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **verified repaired; closed after independent merged-main re-verification** | #486 | Discovery PR #485 / run `33687262609`; Area-N propagation PR #551 / run `33747718724`, job `100623957213`; production PR #553 final head `a64bfcd1f204b7efef8806f8fa796113a406c7aa`, merged as `1480dbea1033733df3d84770b4d0ee2193fc8377`; exact original adversary restored in evidence PR #554 head `c98ae837a1d076674e07527fae7162b22a01cd44`, run `33769505785`, job `100695811795`: **0/1000 divergent pairs**; PR #554 closed unmerged. |
-| AV4-002 — background-mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #488 | PR #487 / run `33689235132`. |
+| AV4-002 — background-mortality RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **verified repaired; closed after independent merged-main re-verification** | #488 | Discovery PR #487 / run `33689235132`, job `100443882649`; production PR #556 final head `af3a4ff30f962b8ccd0212fe163d5aebf327601a`, merged as `72f961bdfcbb96551483887129100ca2de4e2db1`; exact original adversary restored in evidence PR #557 head `a5adc861b5d908ccc48fe299ee4dca1299b4a4a1`, run `33793498002`, job `100775494294`: **0/1000 divergent pairs** across the full original seed range; PR #557 closed unmerged. |
 | AV4-003 — migration RNG assignment is sensitive to arbitrary household labels | **P1** | A; C/E/H/N | **demonstrated; open; deliberately unrepaired** | #491 | PR #490 / run `33689659272`. |
 | AV4-004 — newborn-sex RNG assignment is sensitive to arbitrary founder person labels | **P1** | A; B/E/H/N | **demonstrated; open; deliberately unrepaired** | #493 | PR #492 / run `33689950122`. |
 | AV4-005 — parentage RNG assignment is sensitive to arbitrary male person labels | **P1** | A; B/C/H/N | **demonstrated; open; deliberately unrepaired** | #495 | PR #494 / run `33690127728`. |
@@ -82,9 +82,10 @@ Purpose: durable repository-authoritative state for the fourth independent/adver
 ## Post-discovery remediation state
 
 - **AV4-001/#486 is verified closed.** Production PR #553 final head `a64bfcd1f204b7efef8806f8fa796113a406c7aa` passed all protected/applicable gates and was squash-merged as `1480dbea1033733df3d84770b4d0ee2193fc8377`. The repair removes canonical PersonId record order from annual fertility RNG assignment using a persistent person-level stochastic coupling rank canonicalized from represented day-zero scientific state, while preserving the named fertility stream, checkpoint/replay identity and exact RNG-position accounting.
-- The causal same-seed assignment change advances the current remediation line to `anthrosim-model-semantics-v26`; immutable discovery target `v0.3.4` remains `anthrosim-model-semantics-v25`.
-- Independent evidence PR #554 restored the exact original PR #485 adversary blobs and ran against merged main. Run `33769505785`, job `100695811795` passed seeds `1..=1000`, giving **0/1000 divergent pairs** versus the original **747/1000** measured defect; #554 was closed unmerged.
-- **Remaining remediation backlog:** 12 P1 findings (AV4-002 through AV4-013) and 2 P2 findings (AV4-014/015) remain independently open.
+- AV4-001 advanced the current remediation line to `anthrosim-model-semantics-v26`. Independent evidence PR #554 restored the exact original PR #485 adversary blobs and ran against merged main. Run `33769505785`, job `100695811795` passed seeds `1..=1000`, giving **0/1000 divergent pairs** versus the original **747/1000** measured defect; #554 was closed unmerged.
+- **AV4-002/#488 is verified closed.** Production PR #556 final head `af3a4ff30f962b8ccd0212fe163d5aebf327601a` passed every exact-head protected/applicable gate and was squash-merged as `72f961bdfcbb96551483887129100ca2de4e2db1`. The repair assigns background-demographic mortality draws by the persistent person-level stochastic coupling rank instead of arbitrary canonical PersonId record order, preserving competing-risk attribution and named RNG streams. The causal same-seed assignment change advances the current remediation line to `anthrosim-model-semantics-v27` and checkpoint schema 15; immutable discovery target `v0.3.4` remains `anthrosim-model-semantics-v25`.
+- Independent evidence PR #557 restored the exact original PR #487 adversary test/workflow blobs and ran against merged main. Run `33793498002`, job `100775494294` passed the full seeds `1..=1000` loop with **0/1000 same-seed relabel divergences** and the informative asymmetric-mortality guard. PR #557 was closed unmerged. Its central CI format check failed only because current rustfmt would reflow one assertion in the deliberately exact historical test blob; the dedicated pinned-Rust adversary compiled and passed unchanged, so that formatting-only evidence-PR failure is not scientific evidence.
+- **Remaining remediation backlog:** 11 P1 findings (AV4-003 through AV4-013) and 2 P2 findings (AV4-014/015) remain independently open.
 
 ## Current discovery handoff
 
@@ -109,4 +110,4 @@ Fresh Area-N integration explicitly covered every coupling required by the proto
 
 PR #551 was closed unmerged after classification. Its central CI stopped at rustfmt, which is not scientific evidence; the dedicated exact-head job independently compiled and executed the test through the intended scientific assertion under pinned Rust 1.97.1.
 
-**Area N is complete with no additional independent defect beyond the existing AV4-001 through AV4-015 backlog. Audit-v4 A–N discovery closed non-clean with 13 P1 and 2 P2 findings on the immutable v0.3.4/v25 target. Post-discovery remediation has now verified and closed AV4-001/#486, leaving 12 P1 and 2 P2 findings open; each remaining finding still requires production repair plus independent post-merge re-verification.**
+**Area N is complete with no additional independent defect beyond the existing AV4-001 through AV4-015 backlog. Audit-v4 A–N discovery closed non-clean with 13 P1 and 2 P2 findings on the immutable v0.3.4/v25 target. Post-discovery remediation has now verified and closed AV4-001/#486 and AV4-002/#488, leaving 11 P1 and 2 P2 findings open; each remaining finding still requires production repair plus independent post-merge re-verification.**
