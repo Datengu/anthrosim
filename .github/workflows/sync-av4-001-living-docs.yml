@@ -1,0 +1,87 @@
+name: Sync AV4-001 living docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-av4-001-living-docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 553
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Synchronize living v26 documentation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'README.md',
+              '**This source tree is prepared as the AnthroSim v0.3.4 release baseline.** It preserves the completed Scientific Audit v3 remediation state at `anthrosim-model-semantics-v25`. The immutable `v0.3.3` release remains model semantics v21; v0.3.4 names the later repaired line rather than rewriting that historical identity.',
+              '**This source tree is on the post-v0.3.4 Scientific Audit v4 remediation line at current model semantics v26.** The immutable `v0.3.4` release remains the completed Audit-v3 remediation baseline at `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21. Audit-v4 repairs do not rewrite either historical release identity.'
+          )
+          replace_once(
+              'README.md',
+              'AnthroSim v0.3.4 includes:',
+              'The current post-v0.3.4 remediation line retains the v0.3.4 capability set:'
+          )
+          replace_once(
+              'README.md',
+              '- **Next validation phase:** perform a separate empirical/question-specific readiness assessment and then question-led model interrogation; do not infer archaeological validity merely from Audit-v3 closure. No fixed M10 feature list is declared.',
+              '- **Scientific Audit v4 remediation:** discovery is complete with 13 P1 and 2 P2 findings on immutable v0.3.4/v25. Repair and independent post-merge re-verification take priority before any empirical/question-specific readiness assessment or question-led model interrogation. No fixed M10 feature list is declared.'
+          )
+
+          replace_once(
+              'docs/research/README.md',
+              'Scientific Audit v3 then restarted full A–N coverage from zero against that frozen release. It demonstrated 17 findings (1 P0, 6 P1 and 10 P2). The post-discovery remediation programme repaired all 17 through protected production changes and independently re-ran the original adversaries against merged `main` before closing each finding. The resulting living line is `anthrosim-model-semantics-v25`, and `v0.3.4` is the intended named freeze for that state. This is strong framework-verification convergence evidence, not proof of correctness or empirical archaeological validity.',
+              'Scientific Audit v3 then restarted full A–N coverage from zero against that frozen release. It demonstrated 17 findings (1 P0, 6 P1 and 10 P2). The post-discovery remediation programme repaired all 17 through protected production changes and independently re-ran the original adversaries against merged `main` before closing each finding. That repaired line froze as immutable `v0.3.4` / `anthrosim-model-semantics-v25`. Scientific Audit v4 has since completed a fresh A–N discovery pass and entered remediation; AV4-001/#486 advances the current remediation line to `anthrosim-model-semantics-v26` without rewriting the v0.3.4/v25 release identity. This is framework-verification evidence, not proof of correctness or empirical archaeological validity.'
+          )
+
+          replace_once(
+              'docs/roadmap.md',
+              '`v0.3.4` therefore freezes the resulting `anthrosim-model-semantics-v25` convergence line as the next patch baseline. This is materially stronger framework-verification evidence than v0.3.3, but it is still not proof of correctness and does not establish empirical archaeological validity. The immediate sequence is now **freeze v0.3.4 -> perform a separate empirical/question-specific readiness assessment -> begin question-led model interrogation only within the resulting evidence/validation boundaries**. This remains deliberately distinct from a predetermined M10 feature package.',
+              '`v0.3.4` froze the resulting `anthrosim-model-semantics-v25` Audit-v3 convergence line as an immutable patch baseline. Scientific Audit v4 then restarted A–N coverage from zero, demonstrated 13 P1 and 2 P2 findings on that frozen target, and moved the repository into post-discovery remediation. The current sequence is therefore **repair and independently reverify Audit-v4 findings -> reassess empirical/question-specific readiness -> begin question-led model interrogation only within the resulting evidence/validation boundaries**. AV4-001/#486 advances the remediation line to model semantics v26 without changing the historical v0.3.4/v25 identity. This remains deliberately distinct from a predetermined M10 feature package.'
+          )
+
+          replace_once(
+              'crates/anthrosim-core/src/provenance.rs',
+              '/// v26 makes annual fertility RNG assignment depend on a relabelling-invariant scientific role\n/// ordering rather than canonical packed-record/PersonId order. A v25 checkpoint must therefore\n/// not continue under v26 with the same RNG positions while silently changing which represented\n/// person/household receives a subsequent fertility realization.',
+              '/// v26 persists a person-level stochastic coupling rank canonicalized from represented day-zero\n/// scientific state, then consumes annual fertility draws in that rank order instead of canonical\n/// packed-record/PersonId order. A v25 checkpoint must therefore not continue under v26 with the\n/// same RNG positions while silently changing which represented person/household receives a\n/// subsequent fertility realization.'
+          )
+
+          replace_once(
+              'docs/research/audit-v4/STATUS.md',
+              '- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a relabelling-invariant scientific-role ordering, while preserving the named fertility stream and exact RNG-position accounting.',
+              '- **AV4-001/#486:** production repair is under review in PR #553. The proposed repair removes canonical PersonId record order from annual fertility RNG assignment using a persistent person-level stochastic coupling rank canonicalized from represented day-zero scientific state, while preserving the named fertility stream, checkpoint/replay identity and exact RNG-position accounting.'
+          )
+      - name: Validate current model-semantics documentation
+        run: python scripts/test-current-model-semantics-docs.py
+      - name: Commit synchronized living documentation
+        run: |
+          if git diff --quiet; then
+            echo 'Living documentation already synchronized.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/research/README.md docs/roadmap.md crates/anthrosim-core/src/provenance.rs docs/research/audit-v4/STATUS.md
+          git commit -m 'docs: synchronize Audit-v4 v26 remediation line'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
