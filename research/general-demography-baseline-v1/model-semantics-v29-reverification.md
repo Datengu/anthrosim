@@ -24,4 +24,8 @@ Reviewed applicable-gates run `33813559006`, job `100840645788`, artifact `99157
 
 Reviewed applicable-gates run `33813559006`, job `100840645688`, artifact `9915799402`, SHA-256 `8e14622e26728c6e4a300c6c834c6085aa9c2e84013704f237e4aaa4a1221a4c`. All 8/8 paired criteria, exact replay and active checkpoint/resume remain green and the class remains `capability_distinguished`; authoritative terminal state digests change under v29. Aggregate canonical SHA-256: `be17795b0ed35aba0c39a6c76b1d45934dd165d75199551464dcbdc589c9294b`.
 
+### M7.6 resource-variability reference
+
+Reviewed exact-head central CI run `33816687527`, job `100852554519`, artifact `9917067903`, SHA-256 `202a464f058a80e7c1b788a5de9bd2f7ab30434a747524f0d7df66fcf7174f48`. All 144/144 runs completed and were scientifically eligible. All 9/9 migration-disabled point summaries are exactly unchanged from v28, while all 9/9 migration-enabled summaries change; the predeclared persistence/resource contrasts remain intact. Sweep ID `anthrosim-sweep-v2-ab941059524ac327`. The checked reference therefore advances deliberately to v29 rather than treating the expected genealogy/migration propagation as a regression.
+
 These are reviewed upstream-semantics rebaselines, not new empirical validation. Historical v25–v28 results remain bound to their original semantics in Git history and the living result documents.

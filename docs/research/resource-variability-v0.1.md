@@ -15,7 +15,73 @@ The canonical definition is unchanged: 100 years, 5,000 founders, 64 × 64 synth
 
 These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.
 
-## Current v28 reference and provenance
+## Current v29 reference and provenance
+
+Audit-v4 AV4-005 / #495 changes causal same-seed M2 parentage assignment: eligible residence-local males are no longer coupled to `demography/parentage` draws through arbitrary canonical `PersonId`/record order. Because genealogy can propagate into kin eligibility, household composition and migration histories, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v28 values.
+
+Reviewed v29 execution:
+
+- CI run: `33816687527`;
+- M7.6 job: `100852554519`;
+- exact production head: `f8c806a811d104c17f32864dd4abee2d123cfa2d`;
+- artifact: `9917067903` (`m7-6-resource-variability-derived`, `sha256:202a464f058a80e7c1b788a5de9bd2f7ab30434a747524f0d7df66fcf7174f48`);
+- definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
+- model version: `0.3.4`;
+- model semantics: `anthrosim-model-semantics-v29`;
+- sweep ID: `anthrosim-sweep-v2-ab941059524ac327`.
+
+All **144/144** planned runs completed and were scientifically eligible, with no failed, incomplete, record-limit or otherwise operationally censored runs. The exact-head workflow failed only at its final equality assertion against the then-current frozen v28 point-results reference; the complete derived artifact was archived successfully.
+
+The on/off control is again diagnostic: all **9/9 migration-disabled point summaries are numerically identical to v28**, while all **9/9 migration-enabled point summaries change**. The source definition, 18-point factorial design, paired seeds, M3 resource settings, completion/censoring rules and declared endpoints are unchanged. This pattern is consistent with corrected parentage/genealogy coupling becoming consequential when residence and household histories can diverge through M4 migration, rather than unexplained resource-process drift.
+
+The reviewed v29 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls.
+
+## Current v29 point results
+
+The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
+
+| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |
+| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 0 | on | 8 duration / 0 extinct | 1618.375 | 339.5 | 281.125 | 35961.5 | 28573 | 2.045 |
+| 250 | 0 | off | 0 duration / 8 extinct | 0 | 0 | 4896.25 | 548877.5 | 0 | — |
+| 250 | 500 | on | 8 duration / 0 extinct | 1602.125 | 343.375 | 269.125 | 35746.125 | 28574.875 | 2.046 |
+| 250 | 500 | off | 0 duration / 8 extinct | 0 | 0 | 4891.875 | 551466.75 | 0 | — |
+| 250 | 1000 | on | 8 duration / 0 extinct | 1633.375 | 336.875 | 292.75 | 39449.625 | 28643.5 | 2.050 |
+| 250 | 1000 | off | 0 duration / 8 extinct | 0 | 0 | 4890 | 550569 | 0 | — |
+| 500 | 0 | on | 8 duration / 0 extinct | 1851.625 | 347.125 | 27.625 | 2914.75 | 7031.5 | 1.985 |
+| 500 | 0 | off | 8 duration / 0 extinct | 24.375 | 15.75 | 3680.25 | 328961.875 | 0 | — |
+| 500 | 500 | on | 8 duration / 0 extinct | 1834.25 | 344.375 | 26.375 | 2560.75 | 6866 | 1.982 |
+| 500 | 500 | off | 8 duration / 0 extinct | 18.75 | 13.875 | 3704.5 | 330508.125 | 0 | — |
+| 500 | 1000 | on | 8 duration / 0 extinct | 1822 | 350.25 | 29.625 | 3366.75 | 6900.5 | 1.992 |
+| 500 | 1000 | off | 8 duration / 0 extinct | 19.625 | 14.875 | 3706.5 | 335893.25 | 0 | — |
+| 1000 | 0 | on | 8 duration / 0 extinct | 1868.25 | 340 | 3.375 | 64.5 | 1107 | 1.900 |
+| 1000 | 0 | off | 8 duration / 0 extinct | 575.875 | 207.875 | 1623.375 | 124508.125 | 0 | — |
+| 1000 | 500 | on | 8 duration / 0 extinct | 1861.875 | 346.125 | 2.75 | 74.875 | 1142.75 | 1.901 |
+| 1000 | 500 | off | 8 duration / 0 extinct | 590.625 | 211.25 | 1684.625 | 132043.5 | 0 | — |
+| 1000 | 1000 | on | 8 duration / 0 extinct | 1918.75 | 350.25 | 3.625 | 206.375 | 1161.5 | 1.913 |
+| 1000 | 1000 | off | 8 duration / 0 extinct | 605.375 | 215.375 | 1647.625 | 134348.375 | 0 | — |
+
+Full unrounded point values are preserved in the machine-readable reference.
+
+## Current v29 interpretation
+
+### Productivity remains the strongest resource control
+
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while exact migration-enabled trajectories now reflect both HouseholdId-invariant M4 scheduling and PersonId-invariant M2 parentage stochastic coupling.
+
+### Migration remains strongly associated with persistence in this synthetic design
+
+At productivity `250`, all three migration-disabled seasonality points become extinct in all eight paired seeds, while all matched migration-enabled runs reach the requested duration. The persistence contrast also remains large at productivity `500` and `1000`.
+
+### Seasonality remains non-monotonic
+
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+
+### Interpretation boundary
+
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v29 rebaseline preserves the experiment design and scientific question while recording the expected downstream consequences of corrected parentage stochastic coupling. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+
+## Historical v28 reference and provenance
 
 Audit-v4 AV4-003 / #491 changes causal same-seed M4 migration draw assignment: shared sequential `migration/choice` and `migration/uncertainty` draws are no longer attached to households by arbitrary canonical `HouseholdId` iteration order. Because that correction can alter migration decisions and propagate through residence, resources, condition and later demographic state, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v27 values.
 
@@ -36,7 +102,7 @@ The on/off control is exact and diagnostic for this M4-only repair: all **9/9 mi
 
 The reviewed v28 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls.
 
-## Current v28 point results
+## Historical v28 point results
 
 The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
 
@@ -63,7 +129,7 @@ The table reports descriptive means over the eight scientifically eligible seeds
 
 Full unrounded point values are preserved in the machine-readable reference.
 
-## Current v28 interpretation
+## Historical v28 interpretation
 
 ### Productivity remains the strongest resource control
 
