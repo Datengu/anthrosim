@@ -123,7 +123,7 @@ fn sex_key(sex: ReproductiveSex) -> usize {
 
 fn run(
     seed: u64,
-    years: u32,
+    years: u64,
     width: u32,
     initial_population: u32,
     founders: FounderPopulationDefinition,
@@ -185,7 +185,7 @@ fn run(
 
 fn run_two_households(
     seed: u64,
-    years: u32,
+    years: u64,
     swapped_labels: bool,
     male_birth_permille: u16,
 ) -> PhysicalOutcome {
