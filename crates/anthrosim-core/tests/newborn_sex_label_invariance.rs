@@ -200,14 +200,7 @@ fn run_two_households(
 }
 
 fn run_three_households(seed: u64, rotated_labels: bool) -> PhysicalOutcome {
-    run(
-        seed,
-        1,
-        3,
-        6,
-        three_household_founders(rotated_labels),
-        500,
-    )
+    run(seed, 1, 3, 6, three_household_founders(rotated_labels), 500)
 }
 
 #[test]
@@ -215,8 +208,16 @@ fn original_two_household_newborn_sex_relabel_sweep_is_invariant() {
     for seed in 1..=1_000 {
         let a = run_two_households(seed, 1, false, 500);
         let b = run_two_households(seed, 1, true, 500);
-        assert_eq!(a.births.len(), 2, "forced fertility must produce two births at seed {seed}");
-        assert_eq!(b.births.len(), 2, "forced fertility must produce two births after relabelling at seed {seed}");
+        assert_eq!(
+            a.births.len(),
+            2,
+            "forced fertility must produce two births at seed {seed}"
+        );
+        assert_eq!(
+            b.births.len(),
+            2,
+            "forced fertility must produce two births after relabelling at seed {seed}"
+        );
         assert_eq!(
             a, b,
             "newborn-sex physical outcomes or demography RNG positions changed under pure founder PersonId relabelling at seed {seed}"
@@ -255,7 +256,10 @@ fn configured_newborn_sex_probability_endpoints_remain_exact_and_label_invariant
         for seed in 1..=64 {
             let a = run_two_households(seed, 1, false, male_birth_permille);
             let b = run_two_households(seed, 1, true, male_birth_permille);
-            assert_eq!(a, b, "probability endpoint changed under relabelling at seed {seed}");
+            assert_eq!(
+                a, b,
+                "probability endpoint changed under relabelling at seed {seed}"
+            );
             assert_eq!(a.births.len(), 2);
             assert!(
                 a.births.iter().all(|(_, _, sex)| *sex == expected_sex),
