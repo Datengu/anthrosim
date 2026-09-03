@@ -728,10 +728,10 @@ impl Population {
 
         for _ in 0..person_count {
             let mut household_members = vec![Vec::<u64>::new(); self.household_count()];
-            for index in 0..person_count {
+            for (index, &rank) in ranks.iter().enumerate() {
                 let household_index = usize::try_from(self.households[index].0 - 1)
                     .expect("validated initial household ID must fit usize");
-                household_members[household_index].push(ranks[index]);
+                household_members[household_index].push(rank);
             }
             for members in &mut household_members {
                 members.sort_unstable();
