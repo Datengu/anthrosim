@@ -36,7 +36,11 @@ fn base(seed: u64) -> ExperimentConfig {
         )
 }
 
-fn mobility(config: &ExperimentConfig, departure_day: u64, duration_days: u32) -> TemporaryMobilityConfig {
+fn mobility(
+    config: &ExperimentConfig,
+    departure_day: u64,
+    duration_days: u32,
+) -> TemporaryMobilityConfig {
     let factory = RngFactory::new(config.seed);
     let world = World::generate(config.world, factory).unwrap();
     let population = Population::initialize(config.population, &world, factory).unwrap();
@@ -81,7 +85,9 @@ fn household_count_at_year_end(departure_day: u64, duration_days: u32) -> usize 
 
 #[test]
 fn temporary_absence_on_the_annual_boundary_defers_household_fission() {
-    let returned_before_boundary = household_count_at_year_end(360, 3);
+    // Leave enough clearance for outbound travel, the three-day stay and return travel to finish
+    // well before the annual boundary in the control arm.
+    let returned_before_boundary = household_count_at_year_end(350, 3);
     let away_on_boundary = household_count_at_year_end(364, 3);
 
     println!(
