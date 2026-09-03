@@ -14,8 +14,8 @@ fn cell(x: u32, y: u32) -> CellId {
     CellId::new(u64::from(y * WIDTH + x + 1))
 }
 
-fn mirror_cell(cell: CellId) -> CellId {
-    let index = u32::try_from(cell.0 - 1).unwrap();
+fn mirror_cell(source_cell: CellId) -> CellId {
+    let index = u32::try_from(source_cell.0 - 1).unwrap();
     let x = index % WIDTH;
     let y = index / WIDTH;
     cell(WIDTH - 1 - x, y)
