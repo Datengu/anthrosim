@@ -1,0 +1,309 @@
+name: Rebaseline reviewed v26 M8 and M9 references
+
+on:
+  push:
+    branches:
+      - fix/486-fertility-label-invariance
+    paths:
+      - .github/workflows/rebaseline-av4-001-m8-m9.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  rebaseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: fix/486-fertility-label-invariance
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Download exact reviewed M8 and M9 artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf _rebaseline
+          mkdir -p _rebaseline/m8 _rebaseline/m9
+          gh run download 33759420404 -n m8-evidence-grounded-benchmark -D _rebaseline/m8
+          gh run download 33759420404 -n m9-controlled-aggregation-benchmark -D _rebaseline/m9
+
+      - name: Project reviewed v26 references and update provenance narratives
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          RUN_ID = 33759420404
+          HEAD_SHA = "b1553c3d3eb2273a831e517fde3daa0c35d0d6c3"
+          M8_ARTIFACT_ID = 9894955334
+          M8_ARTIFACT_SHA256 = "7b64a4d18e05359bafd0b0a23e6c57c50e5383166ebdbd217883488875178e39"
+          M9_ARTIFACT_ID = 9894957071
+          M9_ARTIFACT_SHA256 = "22ea8985687e7cdff2ad0a231a6765751a9889863f2481de8130c1cd6491e265"
+          SEMANTICS = "anthrosim-model-semantics-v26"
+          MERGE_REF_STATUS = "pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite"
+
+          m8_path = Path("_rebaseline/m8/m8-benchmark-output/benchmark-summary.json")
+          m9_path = Path("_rebaseline/m9/m9-benchmark-output/benchmark-summary.json")
+          m8 = json.loads(m8_path.read_text(encoding="utf-8"))
+          m9 = json.loads(m9_path.read_text(encoding="utf-8"))
+
+          # Scientific review assertions: fail closed rather than treating any changed
+          # reference as automatically acceptable.
+          assert m8["classification"] == {
+              "benchmarkClass": "fragile_spatial_structure",
+              "degenerateArms": [],
+              "robustMetrics": [],
+              "fragileMetrics": ["terminalLargestCellSharePermille"],
+          }
+          assert all(arm["terminalDegenerateRuns"] == 0 for arm in m8["arms"].values())
+          assert m8["primaryMetrics"]["terminalPopulationHerfindahlPerMillion"]["classification"] == "not_distinctive"
+          assert m8["primaryMetrics"]["terminalLargestCellSharePermille"]["classification"] == "fragile"
+          assert {
+              run["modelSemanticsId"]
+              for arm in m8["arms"].values()
+              for run in arm["runs"].values()
+          } == {SEMANTICS}
+
+          assert m9["classification"] == {
+              "benchmarkClass": "capability_distinguished",
+              "allPredeclaredPairedCriteriaPassed": True,
+              "replayAndResumeChecks": "workflow-gated-separately",
+          }
+          assert m9["aggregate"]["pairedSeedsPassing"] == 8
+          assert m9["aggregate"]["pairedSeedsTotal"] == 8
+          assert all(pair["pass"] for pair in m9["pairs"])
+          assert all(pair["continuous"]["permanentMigrations"] == 0 for pair in m9["pairs"])
+          assert all(pair["intermittent"]["permanentMigrations"] == 0 for pair in m9["pairs"])
+          assert all(pair["continuous"]["conditionMortalityDeaths"] == 0 for pair in m9["pairs"])
+          assert all(pair["intermittent"]["conditionMortalityDeaths"] == 0 for pair in m9["pairs"])
+
+          # M9 travel-burden accounting is intentionally not rebaselined if v26 did
+          # not change it. Require exact equality to the existing travel reference.
+          travel_keys = (
+              "plannedRoundTripTravelDays",
+              "observedTransitDays",
+              "unrealizedPlannedTransitDays",
+              "plannedRoundTripTravelCostUnits",
+              "realizedTravelCostUnits",
+              "unrealizedPlannedTravelCostUnits",
+              "plannedRoundTripRouteDistanceEdges",
+              "realizedRouteDistanceEdges",
+              "unrealizedPlannedRouteDistanceEdges",
+          )
+          travel_ref = json.loads(Path("examples/m9-controlled-aggregation-benchmark/travel-burden-reference.json").read_text(encoding="utf-8"))
+          actual_travel = {
+              str(pair["seed"]): {key: pair["intermittent"][key] for key in travel_keys}
+              for pair in m9["pairs"]
+          }
+          assert actual_travel == travel_ref["intermittentBySeed"]
+
+          # M8 verifier projection.
+          flat_first = m8["arms"]["flat"]["runs"][str(m8["declaredSeeds"][0])]
+          m8_ref = {
+              "schemaVersion": 2,
+              "benchmarkId": m8["benchmarkId"],
+              "referenceExecution": {
+                  "workflowRunId": RUN_ID,
+                  "artifactId": M8_ARTIFACT_ID,
+                  "artifactSha256": M8_ARTIFACT_SHA256,
+                  "branchHeadSha": HEAD_SHA,
+                  "pullRequestMergeRefBuildSha": None,
+                  "fullAggregateCanonicalSha256": m8["aggregateCanonicalSha256"],
+                  "pullRequestMergeRefBuildStatus": MERGE_REF_STATUS,
+              },
+              "source": {
+                  "contentDigest": m8["arms"]["flat"]["sourceContentDigests"][0],
+                  "landscapeIdentity": flat_first["landscapeIdentity"],
+                  "landscapeDigest64": flat_first["landscapeDigest64"],
+                  "evidenceCatalogCanonicalSha256": m8["arms"]["flat"]["evidenceCanonicalSha256"],
+                  "modelSemanticsId": flat_first["modelSemanticsId"],
+                  "spatialModelSemanticsId": flat_first["spatialModelSemanticsId"],
+              },
+              "declaredSeeds": m8["declaredSeeds"],
+              "classification": m8["classification"],
+              "primaryMetrics": {},
+              "arms": {},
+          }
+          for metric, result in m8["primaryMetrics"].items():
+              projected = {
+                  "classification": result["classification"],
+                  "robustCriteria": result["robustCriteria"],
+              }
+              for arm in ("weak", "moderate", "strong"):
+                  comparison = result["comparisonsToFlat"][arm]
+                  projected[arm] = {
+                      key: comparison[key]
+                      for key in (
+                          "medianEffect",
+                          "medianAbsoluteRelativeEffect",
+                          "positiveEffects",
+                          "negativeEffects",
+                          "zeroEffects",
+                      )
+                  }
+              m8_ref["primaryMetrics"][metric] = projected
+          for arm in ("flat", "weak", "moderate", "strong"):
+              result = m8["arms"][arm]
+              first = result["runs"][str(m8["declaredSeeds"][0])]
+              m8_ref["arms"][arm] = {
+                  "experimentId": result["experimentId"],
+                  "mechanismsCanonicalSha256": result["mechanismsCanonicalSha256"],
+                  "spatialConfigIdentity": first["spatialConfigIdentity"],
+                  "terminalDegenerateRuns": result["terminalDegenerateRuns"],
+                  "runStateDigest64": {
+                      str(seed): result["runs"][str(seed)]["stateDigest64"]
+                      for seed in m8["declaredSeeds"]
+                  },
+              }
+          Path("examples/m8-first-evidence-grounded-benchmark/reference-result.json").write_text(
+              json.dumps(m8_ref, separators=(",", ":")) + "\n", encoding="utf-8"
+          )
+
+          # M9 legacy verifier projection. The richer schema-v3 artifact remains the
+          # source; reference schema v2 intentionally stores the projection consumed
+          # by the existing scientific regression verifier.
+          continuous_keys = (
+              "residentPersonDays", "visitorPersonDays", "daysWithAnyVisitors",
+              "peakVisitors", "permanentMigrations", "conditionMortalityDeaths",
+              "journeysStarted", "journeysCompleted",
+          )
+          intermittent_keys = continuous_keys + (
+              "transitPersonDays", "notStartedTotal", "notStartedUnreachable", "originCatchmentCells",
+          )
+          def project_pair(pair):
+              intermittent = {key: pair["intermittent"][key] for key in intermittent_keys}
+              intermittent.update({
+                  "totalTravelDays": pair["intermittent"]["plannedRoundTripTravelDays"],
+                  "totalRoundTripTravelCostUnits": pair["intermittent"]["plannedRoundTripTravelCostUnits"],
+                  "totalRoundTripRouteDistanceEdges": pair["intermittent"]["plannedRoundTripRouteDistanceEdges"],
+              })
+              return {
+                  "seed": pair["seed"],
+                  "continuous": {key: pair["continuous"][key] for key in continuous_keys},
+                  "intermittent": intermittent,
+                  "totalFocalPersonDayDifferencePermilleExact": pair["totalFocalPersonDayDifferencePermilleExact"],
+                  "totalFocalPersonDayDifferencePermilleRounded": pair["totalFocalPersonDayDifferencePermilleRounded"],
+                  "intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact": pair["intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact"],
+                  "intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleRounded": pair["intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleRounded"],
+                  "criteria": pair["criteria"],
+                  "pass": pair["pass"],
+              }
+          m9_ref = {
+              "schemaVersion": 2,
+              "benchmarkId": m9["benchmarkId"],
+              "referenceExecution": {
+                  "workflowRunId": RUN_ID,
+                  "artifactId": M9_ARTIFACT_ID,
+                  "artifactSha256": M9_ARTIFACT_SHA256,
+                  "branchHeadSha": HEAD_SHA,
+                  "pullRequestMergeRefBuildSha": None,
+                  "fullAggregateCanonicalSha256": m9["aggregateCanonicalSha256"],
+                  "modelSemanticsId": SEMANTICS,
+                  "pullRequestMergeRefBuildStatus": MERGE_REF_STATUS,
+              },
+              "definitionCanonicalSha256": m9["definitionCanonicalSha256"],
+              "declaredSeeds": m9["declaredSeeds"],
+              "classification": m9["classification"],
+              "aggregate": m9["aggregate"],
+              "arms": {
+                  arm: {
+                      "experimentId": m9["arms"][arm]["experimentId"],
+                      "configCanonicalSha256": m9["arms"][arm]["configCanonicalSha256"],
+                      "stateDigests": m9["arms"][arm]["stateDigests"],
+                  }
+                  for arm in ("continuous", "intermittent")
+              },
+              "pairs": [project_pair(pair) for pair in m9["pairs"]],
+          }
+          Path("examples/m9-controlled-aggregation-benchmark/reference-result.json").write_text(
+              json.dumps(m9_ref, separators=(",", ":")) + "\n", encoding="utf-8"
+          )
+
+          m8_doc = Path("docs/research/m8-first-evidence-grounded-benchmark-result.md")
+          text = m8_doc.read_text(encoding="utf-8")
+          marker = "## Current regression reference — model semantics v13\n"
+          assert marker in text
+          section = f'''## Current regression reference — model semantics v26
+
+Audit-v4 AV4-001 / #486 changes only the same-seed stochastic coupling used to assign annual fertility draws across scientifically distinguishable founder roles. Because that changes causal demographic trajectories, the frozen M8.6 experiment was rerun unchanged and reviewed before replacing the machine reference.
+
+Reviewed v26 execution:
+
+- workflow run: `{RUN_ID}`;
+- branch head: `{HEAD_SHA}`;
+- artifact: `{M8_ARTIFACT_ID}`;
+- artifact SHA-256: `{M8_ARTIFACT_SHA256}`;
+- aggregate canonical SHA-256: `{m8["aggregateCanonicalSha256"]}`;
+- model semantics: `{SEMANTICS}`.
+
+All **32/32** declared runs completed and all four arms remained non-degenerate. The overall predeclared classification remains **`fragile_spatial_structure`**. Under v26, terminal largest-cell share remains fragile; migration distance and cell-time occupancy remain not distinctive; terminal population Herfindahl moves from the immediate v20 reference's fragile classification to **not distinctive** because its strong-vs-flat median absolute relative effect is now **9.50%**, below the predeclared 10% threshold. No metric is robust.
+
+Strong-vs-flat v26 summaries are: migration distance **3.40%** (5 / 3 / 0 signs), cell-time occupied **2.45%** (3 / 5 / 0), terminal Herfindahl **9.50%** (3 / 5 / 0), and terminal largest-cell share **16.71%** (2 / 6 / 0). The changed Herfindahl classification is preserved rather than tuned away because the v26 fertility-coupling repair legitimately changes downstream population histories while leaving the terrain inputs, evidence package, spatial-transform semantics, declared seeds, and benchmark criteria unchanged.
+
+This rebaseline therefore preserves the benchmark's scientific interpretation while recording a real secondary sensitivity change. It is not archaeological validation and it does not imply that the exact v20 trajectory should be reproduced under corrected v26 causal semantics.
+
+## Historical reviewed rebaseline — model semantics v13
+'''
+          text = text.replace(marker, section, 1)
+          m8_doc.write_text(text, encoding="utf-8")
+
+          m9_doc = Path("docs/research/m9-controlled-aggregation-benchmark-result.md")
+          text = m9_doc.read_text(encoding="utf-8")
+          marker = "## Current regression reference — model semantics v20\n"
+          assert marker in text
+          section = f'''## Current regression reference — model semantics v26
+
+Audit-v4 AV4-001 / #486 changes same-seed fertility draw assignment and therefore population histories even in this frozen temporary-mobility capability benchmark. The M9.7 design was rerun unchanged and its generated artifact was reviewed before rebaselining.
+
+Reviewed v26 execution:
+
+- workflow run: `{RUN_ID}`;
+- branch head: `{HEAD_SHA}`;
+- artifact: `{M9_ARTIFACT_ID}`;
+- artifact SHA-256: `{M9_ARTIFACT_SHA256}`;
+- aggregate canonical SHA-256: `{m9["aggregateCanonicalSha256"]}`;
+- model semantics: `{SEMANTICS}`.
+
+The scientific capability conclusion is unchanged: **8/8 paired seeds pass**, the benchmark remains **`capability_distinguished`**, continuous and intermittent resident person-days remain exactly paired, continuous controls have no visitors or temporary journeys, intermittent arms have exactly 270 visitor-presence days, permanent migration remains zero, and condition-mediated deaths remain zero. The workflow separately verified exact intermittent replay and active-journey checkpoint/resume equivalence before the reference comparison.
+
+The v26 population-dependent aggregate values are a median focal-person-day difference of **32 permille** (v20: 31), maximum **37 permille** (unchanged), median intermittent peak-visitor share **441 permille** (v20: 432), and minimum **398 permille** (v20: 405). All predeclared paired criteria still pass. The independently stored M9.6 travel-burden reference is **not** rebaselined: every planned/observed travel-day, travel-cost, and route-distance value remains exactly equal to the existing reference for all eight seeds.
+
+The numeric shift is therefore preserved as the expected downstream consequence of corrected v26 demographic coupling, while the benchmark's capability claim and travel-accounting semantics remain intact.
+
+## Historical reviewed reference — model semantics v20
+'''
+          text = text.replace(marker, section, 1)
+          m9_doc.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Verify projected references against exact reviewed artifacts
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-m8-spatial-benchmark-reference.py \
+            --actual _rebaseline/m8/m8-benchmark-output/benchmark-summary.json \
+            --reference examples/m8-first-evidence-grounded-benchmark/reference-result.json
+          python3 scripts/verify-m9-aggregation-benchmark-reference.py \
+            --actual _rebaseline/m9/m9-benchmark-output/benchmark-summary.json \
+            --reference examples/m9-controlled-aggregation-benchmark/reference-result.json
+          git diff --check
+
+      - name: Commit reviewed references and remove helper
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/rebaseline-av4-001-m8-m9.yml
+          git add \
+            examples/m8-first-evidence-grounded-benchmark/reference-result.json \
+            docs/research/m8-first-evidence-grounded-benchmark-result.md \
+            examples/m9-controlled-aggregation-benchmark/reference-result.json \
+            docs/research/m9-controlled-aggregation-benchmark-result.md
+          git diff --cached --check
+          git commit -m 'test: rebaseline reviewed v26 spatial references'
+          git push origin HEAD:fix/486-fertility-label-invariance
