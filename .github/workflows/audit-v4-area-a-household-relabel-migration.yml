@@ -1,0 +1,28 @@
+name: Audit v4 Area A migration household relabel adversary
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-core/tests/audit_v4_household_relabel_migration.rs"
+      - ".github/workflows/audit-v4-area-a-household-relabel-migration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-household-label-invariance:
+    name: Migration household-label invariance adversary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 migration household relabel adversary
+        run: cargo test -p anthrosim-core --test audit_v4_household_relabel_migration --locked -- --nocapture
