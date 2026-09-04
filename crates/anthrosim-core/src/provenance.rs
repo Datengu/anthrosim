@@ -53,7 +53,15 @@ use crate::time::DAYS_PER_YEAR;
 /// schedule as background mortality while retaining independent named RNG streams and the
 /// exchange-symmetric competing-risk resolver. A v29 checkpoint must therefore not resume
 /// under v30 with unchanged mortality RNG positions.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v30";
+///
+/// v31 removes canonical `HouseholdId` from the explicit M9 equal-cost destination tie key.
+/// Authoritative M9 execution now keys ties by the minimum persistent person stochastic-coupling
+/// rank among a household's living members, while a versioned label-neutral compatibility resolver
+/// remains available for callers that do not carry scientific household coupling identity. The
+/// tie-policy identifier is bound into the travel-table/program identity and each tied departure
+/// records the scientific coupling key used for observability verification. A v30 checkpoint must
+/// therefore not resume under v31 while silently changing future tied M9 destinations.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v31";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

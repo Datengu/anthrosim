@@ -75,7 +75,7 @@ fn tied_households_do_not_systematically_choose_lower_cell_id() {
     for household in 1..=512 {
         match destination(
             table
-                .resolution_for(origin, HouseholdId::new(household), 0)
+                .resolution_for_coupling_key(origin, household, 0)
                 .unwrap(),
         ) {
             cell if cell == CellId::new(1) => lower += 1,
@@ -108,7 +108,7 @@ fn horizontal_and_vertical_symmetries_have_no_fixed_directional_winner() {
     for household in 1..=512 {
         match destination(
             horizontal_table
-                .resolution_for(origin, HouseholdId::new(household), 1)
+                .resolution_for_coupling_key(origin, household, 1)
                 .unwrap(),
         ) {
             cell if cell == CellId::new(4) => left += 1,
@@ -117,7 +117,7 @@ fn horizontal_and_vertical_symmetries_have_no_fixed_directional_winner() {
         }
         match destination(
             vertical_table
-                .resolution_for(origin, HouseholdId::new(household), 1)
+                .resolution_for_coupling_key(origin, household, 1)
                 .unwrap(),
         ) {
             cell if cell == CellId::new(2) => top += 1,
@@ -143,11 +143,7 @@ fn varying_seed_can_select_either_symmetric_destination_for_same_household() {
         let table = TemporaryTravelModel::default()
             .derive_table_with_tie_seed(&focal, &world, seed)
             .unwrap();
-        match destination(
-            table
-                .resolution_for(origin, HouseholdId::new(1), 0)
-                .unwrap(),
-        ) {
+        match destination(table.resolution_for_coupling_key(origin, 1, 0).unwrap()) {
             cell if cell == CellId::new(1) => seen_lower = true,
             cell if cell == CellId::new(3) => seen_upper = true,
             cell => panic!("unexpected seeded destination {cell:?}"),

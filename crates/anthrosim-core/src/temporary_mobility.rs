@@ -18,8 +18,8 @@ use crate::{
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 2;
-const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-keyed-v1";
+const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
+const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-scientific-coupling-v2";
 
 /// Authoritative M9 physical-presence state for one household.
 ///
@@ -332,7 +332,7 @@ pub struct TemporaryTravelTable {
 }
 
 impl TemporaryTravelTable {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
     pub fn new(
         resolutions: Vec<TemporaryTravelResolution>,
@@ -423,12 +423,28 @@ impl TemporaryTravelTable {
             .map(|candidate| candidate.route_distance_edges)
     }
 
-    /// Resolve one household/trigger destination without consuming a mutable RNG stream.
+    /// Compatibility resolver for callers that only have a canonical HouseholdId.
+    ///
+    /// Canonical household numbering is deliberately non-causal under the v2 tie policy, so this
+    /// surface uses a neutral scientific coupling key. Authoritative simulation execution calls
+    /// `resolution_for_coupling_key` with the persistent household coupling key derived from living
+    /// person stochastic-coupling ranks.
     #[must_use]
     pub fn resolution_for(
         &self,
         origin: CellId,
-        household: HouseholdId,
+        _household: HouseholdId,
+        trigger_index: u32,
+    ) -> Option<TemporaryTravelResolution> {
+        self.resolution_for_coupling_key(origin, 0, trigger_index)
+    }
+
+    /// Resolve one scientific household/trigger destination without consuming a mutable RNG stream.
+    #[must_use]
+    pub fn resolution_for_coupling_key(
+        &self,
+        origin: CellId,
+        household_coupling_key: u64,
         trigger_index: u32,
     ) -> Option<TemporaryTravelResolution> {
         let base = self.resolution(origin)?;
@@ -450,7 +466,7 @@ impl TemporaryTravelTable {
         digest_str(&mut hash, M9_DESTINATION_TIE_POLICY_ID);
         digest_u64(&mut hash, self.destination_tie_seed.unwrap_or(0));
         digest_u64(&mut hash, origin.0);
-        digest_u64(&mut hash, household.0);
+        digest_u64(&mut hash, household_coupling_key);
         digest_u64(&mut hash, u64::from(trigger_index));
         hash = avalanche64(hash);
         let index = usize::try_from(hash % candidates.len() as u64).ok()?;
@@ -606,6 +622,7 @@ impl TemporaryTravelTable {
 
     fn digest_into(&self, hash: &mut u64) {
         digest_u64(hash, u64::from(self.schema_version));
+        digest_str(hash, M9_DESTINATION_TIE_POLICY_ID);
         digest_u64(hash, self.resolutions.len() as u64);
         for resolution in &self.resolutions {
             match *resolution {
@@ -1590,9 +1607,11 @@ impl TemporaryMobilityState {
         let residence = population
             .household_location(household)
             .ok_or(TemporaryMobilityExecutionError::InvalidHousehold { household })?;
+        let destination_tie_coupling_key =
+            household_stochastic_coupling_key(population, household)?;
         let resolution = program
             .travel
-            .resolution_for(residence, household, trigger_index)
+            .resolution_for_coupling_key(residence, destination_tie_coupling_key, trigger_index)
             .ok_or(TemporaryMobilityExecutionError::MissingTravelResolution { residence })?;
         let TemporaryTravelResolution::Reachable {
             destination,
@@ -1723,6 +1742,11 @@ impl TemporaryMobilityState {
                 region_identity: active.region_identity.clone(),
                 residence,
                 destination,
+                destination_tie_coupling_key: program
+                    .travel
+                    .equal_cost_destination_count(residence)
+                    .is_some_and(|count| count > 1)
+                    .then_some(destination_tie_coupling_key),
                 travel_model_identity,
                 accumulated_travel_cost_units,
                 people_affected,
@@ -2072,6 +2096,25 @@ fn validate_presence(
     Ok(())
 }
 
+fn household_stochastic_coupling_key(
+    population: &Population,
+    household: HouseholdId,
+) -> Result<u64, TemporaryMobilityExecutionError> {
+    let mut key: Option<u64> = None;
+    for index in 0..population.person_count() {
+        if !population.is_alive_index(index)
+            || population.household_at_index(index) != Some(household)
+        {
+            continue;
+        }
+        let rank = population
+            .stochastic_coupling_rank_at_index(index)
+            .ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })?;
+        key = Some(key.map_or(rank, |prior| prior.min(rank)));
+    }
+    key.ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })
+}
+
 fn household_living_count(population: &Population, household: HouseholdId) -> u32 {
     u32::try_from(
         (0..population.person_count())
@@ -2318,6 +2361,8 @@ pub enum TemporaryMobilityExecutionError {
     InvalidJourney(TemporaryMobilityError),
     #[error("temporary mobility references invalid household {household:?}")]
     InvalidHousehold { household: HouseholdId },
+    #[error("temporary mobility household {household:?} has no living scientific coupling key")]
+    MissingHouseholdCouplingKey { household: HouseholdId },
     #[error("temporary mobility travel table has no entry for residence {residence:?}")]
     MissingTravelResolution { residence: CellId },
     #[error(

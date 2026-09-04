@@ -109,6 +109,8 @@ pub enum EventKind {
         residence: CellId,
         destination: CellId,
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        destination_tie_coupling_key: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         travel_model_identity: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         accumulated_travel_cost_units: Option<u64>,
@@ -169,9 +171,10 @@ pub struct EventLog {
 }
 
 impl EventLog {
-    /// v3 makes M4's nominal per-person travel decrement explicit and records the exact realized
-    /// bounded condition loss for every authoritative household-migration event.
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    /// v4 records the scientific household coupling key used when M9 resolves an exact-cost
+    /// destination tie, so authoritative temporary-mobility choices remain auditable without
+    /// treating canonical HouseholdId as a causal input.
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
     #[must_use]
     pub const fn new() -> Self {
