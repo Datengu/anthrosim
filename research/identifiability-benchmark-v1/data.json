@@ -1,6 +1,13 @@
 {
   "schemaVersion": 2,
   "monteCarloDiagnostics": {},
+  "executedDesignBinding": {
+    "schemaVersion": 1,
+    "bindingType": "anthrosim-identifiability-executed-design",
+    "sourceKind": "synthetic_fixture",
+    "sourceIdentity": "identifiability-benchmark-v1",
+    "pointDigest": "sha256:9cc9ffb8bdc8f7bad23653d1fa1e4bd881eaccd7597cd10ed1a2a59c8be15a47"
+  },
   "points": [
     {"id":"o1-n1","parameters":{"opportunity_scale":1,"need_scale":1},"structure":"ratio_model_v1","outputs":{"ratio_pattern":1.0,"independent_sum_pattern":2.0,"heldout_difference_pattern":0.0},"outputEvidence":{"ratio_pattern":{"kind":"deterministic"},"independent_sum_pattern":{"kind":"deterministic"},"heldout_difference_pattern":{"kind":"deterministic"}}},
     {"id":"o1-n2","parameters":{"opportunity_scale":1,"need_scale":2},"structure":"ratio_model_v1","outputs":{"ratio_pattern":0.5,"independent_sum_pattern":3.0,"heldout_difference_pattern":-1.0},"outputEvidence":{"ratio_pattern":{"kind":"deterministic"},"independent_sum_pattern":{"kind":"deterministic"},"heldout_difference_pattern":{"kind":"deterministic"}}},
