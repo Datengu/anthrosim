@@ -24,8 +24,8 @@ V033_SEMANTICS_ID = "anthrosim-model-semantics-v21"
 V033_SHORT = "v21"
 V034_SEMANTICS_ID = "anthrosim-model-semantics-v25"
 V034_SHORT = "v25"
-CURRENT_SEMANTICS_ID = "anthrosim-model-semantics-v31"
-CURRENT_SHORT = "v31"
+CURRENT_SEMANTICS_ID = "anthrosim-model-semantics-v32"
+CURRENT_SHORT = "v32"
 
 
 def current_semantics_id() -> str:
