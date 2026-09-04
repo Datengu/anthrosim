@@ -179,6 +179,7 @@ pub(crate) struct BackgroundMortalityContext<'a> {
 #[derive(Debug, Clone, Copy)]
 struct ResourceDemandClaim {
     household_index: usize,
+    household_coupling_key: u64,
     cell_index: usize,
     need: u64,
 }
@@ -238,7 +239,11 @@ fn apportion_resource_claims(
             .cell_index
             .cmp(&right_claim.cell_index)
             .then_with(|| claim_remainder[right_index].cmp(&claim_remainder[left_index]))
-            .then_with(|| left_index.cmp(&right_index))
+            .then_with(|| {
+                left_claim
+                    .household_coupling_key
+                    .cmp(&right_claim.household_coupling_key)
+            })
     });
 
     let mut cell_group_start = 0_usize;
@@ -261,6 +266,16 @@ fn apportion_resource_claims(
                 && claim_remainder[remainder_order[remainder_group_end]] == remainder
             {
                 remainder_group_end += 1;
+            }
+
+            for pair in remainder_order[remainder_group_start..remainder_group_end].windows(2) {
+                let left = claims[pair[0]];
+                let right = claims[pair[1]];
+                if left.household_coupling_key == right.household_coupling_key {
+                    return Err(ResourceError::InternalInvariant(
+                        "equal resource claims share a household scientific coupling key",
+                    ));
+                }
             }
 
             let group_len = remainder_group_end - remainder_group_start;
@@ -545,6 +560,7 @@ impl ResourceSystem {
             )?;
         }
         let mut living_members = vec![0_u64; household_count];
+        let mut household_coupling_keys = vec![u64::MAX; household_count];
         for person_index in 0..population.person_count() {
             if !population.is_alive_index(person_index) {
                 continue;
@@ -558,6 +574,13 @@ impl ResourceSystem {
             living_members[household_index] = living_members[household_index]
                 .checked_add(1)
                 .ok_or(ResourceError::AccountingOverflow)?;
+            let coupling_rank = population
+                .stochastic_coupling_rank_at_index(person_index)
+                .ok_or(ResourceError::InternalInvariant(
+                    "living person has no stochastic coupling rank",
+                ))?;
+            household_coupling_keys[household_index] =
+                household_coupling_keys[household_index].min(coupling_rank);
         }
 
         let per_person_need = fixed_annual_quantity_for_period(
@@ -608,6 +631,7 @@ impl ResourceSystem {
                         .ok_or(ResourceError::AccountingOverflow)?;
                     claims.push(ResourceDemandClaim {
                         household_index: household_index_value,
+                        household_coupling_key: household_coupling_keys[household_index_value],
                         cell_index: residence_index,
                         need: home_need,
                     });
@@ -630,6 +654,7 @@ impl ResourceSystem {
                         .ok_or(ResourceError::AccountingOverflow)?;
                     claims.push(ResourceDemandClaim {
                         household_index: household_index_value,
+                        household_coupling_key: household_coupling_keys[household_index_value],
                         cell_index: destination_index,
                         need: visiting_need,
                     });
@@ -640,6 +665,7 @@ impl ResourceSystem {
                     .ok_or(ResourceError::AccountingOverflow)?;
                 claims.push(ResourceDemandClaim {
                     household_index: household_index_value,
+                    household_coupling_key: household_coupling_keys[household_index_value],
                     cell_index: residence_index,
                     need,
                 });
@@ -1919,11 +1945,13 @@ mod tests {
         let claims = [
             ResourceDemandClaim {
                 household_index: 0,
+                household_coupling_key: 10,
                 cell_index: 0,
                 need: 1,
             },
             ResourceDemandClaim {
                 household_index: 1,
+                household_coupling_key: 20,
                 cell_index: 0,
                 need: 2,
             },
@@ -1942,11 +1970,13 @@ mod tests {
         let claims = [
             ResourceDemandClaim {
                 household_index: 0,
+                household_coupling_key: 10,
                 cell_index: 0,
                 need: 1,
             },
             ResourceDemandClaim {
                 household_index: 1,
+                household_coupling_key: 20,
                 cell_index: 0,
                 need: 1,
             },
@@ -1974,16 +2004,19 @@ mod tests {
         let original = [
             ResourceDemandClaim {
                 household_index: 0,
+                household_coupling_key: 10,
                 cell_index: 0,
                 need: 1,
             },
             ResourceDemandClaim {
                 household_index: 1,
+                household_coupling_key: 20,
                 cell_index: 0,
                 need: 1,
             },
             ResourceDemandClaim {
                 household_index: 2,
+                household_coupling_key: 30,
                 cell_index: 0,
                 need: 1,
             },
