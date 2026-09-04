@@ -117,12 +117,13 @@ new = '''            fill_candidate_cells(
                 .sort_unstable_by_key(candidate_scientific_key);
 
             // A deterministic same-seed function cannot choose one unique member of a true
-            // automorphism orbit equivariantly. If M4's deterministic choice/outcome quantities
-            // are identical for two cells, using CellId, coordinates, or vector position would
-            // merely hide the arbitrary orientation under another label. Fail closed for this
-            // household decision instead of inventing an unmodelled directional preference.
+            // automorphism orbit equivariantly. Only deterministically eligible duplicates matter:
+            // candidate uncertainty is a non-negative penalty, so an ineligible deterministic
+            // candidate cannot later become selectable. Ineligible duplicate context therefore
+            // must not suppress a unique scientifically better destination.
             if self.evaluations.windows(2).any(|pair| {
-                candidate_scientific_key(&pair[0]) == candidate_scientific_key(&pair[1])
+                pair[0].utility.total_utility > required
+                    && candidate_scientific_key(&pair[0]) == candidate_scientific_key(&pair[1])
             }) {
                 continue;
             }
