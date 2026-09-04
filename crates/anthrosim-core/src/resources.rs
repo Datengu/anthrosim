@@ -854,30 +854,33 @@ impl ResourceSystem {
             });
         }
 
+        // Couple every mortality-stream draw and simultaneous-trigger attribution to the
+        // represented scientific person rather than canonical PersonId/record position.
+        // Persistent person stochastic-coupling ranks are globally unique.
+        let mut mortality_order = (0..mortality_candidates.len()).collect::<Vec<_>>();
+        mortality_order.sort_unstable_by_key(|&candidate_index| {
+            mortality_candidates[candidate_index].stochastic_coupling_rank
+        });
+
         let mut resolved_causes = vec![None; mortality_candidates.len()];
         if let Some(background) = background_mortality.as_mut() {
-            let mut condition_triggers = Vec::with_capacity(mortality_candidates.len());
-            for candidate in &mortality_candidates {
-                condition_triggers.push(draw_probability_fraction(
+            let mut condition_triggers = vec![false; mortality_candidates.len()];
+            for &candidate_index in &mortality_order {
+                condition_triggers[candidate_index] = draw_probability_fraction(
                     scarcity_rng,
-                    candidate.condition_probability,
-                )?);
+                    mortality_candidates[candidate_index].condition_probability,
+                )?;
             }
 
-            let mut background_order = (0..mortality_candidates.len()).collect::<Vec<_>>();
-            background_order.sort_unstable_by_key(|&candidate_index| {
-                let candidate = mortality_candidates[candidate_index];
-                (candidate.stochastic_coupling_rank, candidate.person_index)
-            });
             let mut background_triggers = vec![false; mortality_candidates.len()];
-            for &candidate_index in &background_order {
+            for &candidate_index in &mortality_order {
                 background_triggers[candidate_index] = draw_probability_fraction(
                     &mut *background.mortality_rng,
                     mortality_candidates[candidate_index].background_probability,
                 )?;
             }
 
-            for &candidate_index in &background_order {
+            for &candidate_index in &mortality_order {
                 let candidate = mortality_candidates[candidate_index];
                 resolved_causes[candidate_index] =
                     resolve_two_cause_competing_mortality_from_triggers(
@@ -890,7 +893,8 @@ impl ResourceSystem {
                     )?;
             }
         } else {
-            for (candidate_index, candidate) in mortality_candidates.iter().enumerate() {
+            for &candidate_index in &mortality_order {
+                let candidate = mortality_candidates[candidate_index];
                 resolved_causes[candidate_index] =
                     draw_probability_fraction(scarcity_rng, candidate.condition_probability)?
                         .then_some(CompetingMortalityCause::ConditionMediated);

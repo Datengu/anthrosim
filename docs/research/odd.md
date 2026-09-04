@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v29 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v30 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
@@ -90,7 +90,7 @@ Authoritative time is integer days.
 - Declared founders may carry signed pre-run birth-history timing before day 0; this initial-condition chronology can constrain later M2 birth spacing without being recorded as a model-period birth event.
 - For `P = resources.periodsPerYear`, M3 resource interval `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within the model year. Fixed annual integer quantities are allocated by cumulative elapsed days so their complete-year shares conserve exactly.
 - M3 resource settlement occurs at the end of those configured intervals. Seasonal regeneration integrates the synthetic daily seasonal curve over the actual interval and normalizes it to preserve unconstrained annual potential.
-- M3 condition recovery/loss coefficients and the condition-mediated mortality probability are interpreted against four fixed reference-quarter intervals, then converted deterministically to the actual elapsed M3 interval. Changing only `P` therefore does not multiply the complete-year response budget or fixed-condition survival probability merely by creating more M3 boundaries.
+- M3 condition recovery/loss coefficients and the condition-mediated mortality probability are interpreted against four fixed reference-quarter intervals, then converted deterministically to the actual elapsed M3 interval. Changing only `P` therefore does not multiply the complete-year response budget or fixed-condition survival probability merely by creating more M3 boundaries. Under v30, both condition-mediated and background latent mortality triggers, plus simultaneous-trigger attribution, are coupled to persistent person stochastic-coupling-rank order rather than canonical `PersonId`/record order; the two named RNG streams and symmetric competing-risk mathematics remain distinct.
 - For `D = migration.decisionPeriodsPerYear`, M4 permanent-migration opportunity `j` occurs at `floor((j+1)*365/D)` within the model year. The synthetic default is four opportunities/year. This clock is independent of M3 `P`.
 - M4 resource support allocates annual per-person need over its own current decision interval using the same cumulative elapsed-day allocation rule rather than requiring an M3 resource boundary. Under v28, households still evaluate one shared pre-move snapshot, while sequential migration choice/uncertainty draws are assigned by a HouseholdId-independent schedule keyed by the minimum persistent stochastic-coupling rank among living household members; selected relocations remain simultaneous.
 - M9 transitions and starts can occur on deterministic journey days and can span annual checkpoints.

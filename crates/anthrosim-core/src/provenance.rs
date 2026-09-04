@@ -46,7 +46,14 @@ use crate::time::DAYS_PER_YEAR;
 /// consumes the independent `demography/parentage` stream. A v28 checkpoint must therefore not
 /// resume under v29 with unchanged parentage RNG positions while silently changing which scientific
 /// kin role receives each parentage realization.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v29";
+///
+/// v30 removes the remaining arbitrary canonical `PersonId`/packed-record ordering from
+/// M3 condition-mediated mortality. Condition latent triggers and simultaneous-trigger
+/// cause-attribution draws now follow the same persistent person stochastic-coupling-rank
+/// schedule as background mortality while retaining independent named RNG streams and the
+/// exchange-symmetric competing-risk resolver. A v29 checkpoint must therefore not resume
+/// under v30 with unchanged mortality RNG positions.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v30";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
