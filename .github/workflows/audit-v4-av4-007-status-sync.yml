@@ -1,0 +1,49 @@
+name: Audit v4 AV4-007 status sync
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/audit-v4-av4-007-status-sync.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+      - name: Record verified AV4-007 remediation
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("docs/research/audit-v4/STATUS.md")
+          text = path.read_text()
+          replacements = {
+              "| Current P1 findings | **7 open — AV4-007/#500; AV4-008/#514; AV4-009/#518; AV4-010/#528; AV4-011/#535; AV4-012/#539; AV4-013/#543** |": "| Current P1 findings | **6 open — AV4-008/#514; AV4-009/#518; AV4-010/#528; AV4-011/#535; AV4-012/#539; AV4-013/#543** |",
+              "| Verified remediated findings | **6 — AV4-001/#486 through AV4-006/#497 closed after production repair plus independent merged-main re-verification** |": "| Verified remediated findings | **7 — AV4-001/#486 through AV4-007/#500 closed after production repair plus independent merged-main re-verification** |",
+              "| Current remediation line | `anthrosim-model-semantics-v30`; checkpoint schema `18` |": "| Current remediation line | `anthrosim-model-semantics-v31`; checkpoint schema `19` |",
+              "| Repair state | **post-discovery remediation in progress; AV4-001/#486 through AV4-006/#497 are verified closed; 7 P1 and 2 P2 findings remain open** |": "| Repair state | **post-discovery remediation in progress; AV4-001/#486 through AV4-007/#500 are verified closed; 6 P1 and 2 P2 findings remain open** |",
+              "| AV4-007 — M9 equal-cost destination key is sensitive to arbitrary household labels | **P1** | A; C/E/H/N | **demonstrated; open; deliberately unrepaired** | #500 | PR #499 / run `33690671581`, job `100448444144`. |": "| AV4-007 — M9 equal-cost destination key is sensitive to arbitrary household labels | **P1** | A; C/E/H/N | **verified repaired; closed after independent merged-main re-verification** | #500 | Discovery PR #499 / run `33690671581`, job `100448444144`; production PR #571 final head `f1032809145df11997e18206b8d7b66692acfbb1`, squash-merged as `e15357a8b88866814ad2d7d4c6fa166f11fa3d8e`; exact original adversary restored byte-for-byte in evidence PR #572 head `3f0af9c670db99d86526cff82982885087ed6517`, run `33843557976`, job `100930568470`: all seeds `1..=1000` passed the household-label equality oracle and the immutable test failed only at its stale terminal defect-presence guard; PR #572 closed unmerged. |",
+              "- **Remaining remediation backlog:** 7 P1 findings (AV4-007 through AV4-013) and 2 P2 findings (AV4-014/015) remain independently open.": "- **AV4-007/#500 is verified closed.** Production PR #571 final head `f1032809145df11997e18206b8d7b66692acfbb1` passed the complete exact-head protected/applicable matrix and was squash-merged as `e15357a8b88866814ad2d7d4c6fa166f11fa3d8e`. The repair replaces arbitrary canonical HouseholdId coupling in authoritative M9 equal-cost destination selection with a persistent scientific household coupling key derived from living-member `stochastic_coupling_rank`, persists that key through active journeys/events, versions the tie policy, and advances the remediation line to `anthrosim-model-semantics-v31`, checkpoint schema 19 and temporary-mobility state schema 5. Reviewed protected references were explicitly rebound to v31 without changing the M7.6 protected point results; exact-head central CI run `33842586939`, applicable-gate run `33842587293`, and Issue-304 run `33842586899` all succeeded.\n- Independent evidence PR #572 restored the exact original PR #499 adversary blobs byte-for-byte (test blob `ae6826df17a135f9b56d275ec9222ecd8c7a57d9`, workflow blob `84e28c636123e9aae6925cbbff892a37471c3ffb`) against merged main. Run `33843557976`, job `100930568470` executed the full seeds `1..=1000` equality oracle without a single HouseholdId-dependent destination divergence, then failed only at the immutable discovery-era terminal guard requiring `informative_seeds > 0`; that expected stale guard was documented rather than edited. PR #572 was closed unmerged.\n- **Remaining remediation backlog:** 6 P1 findings (AV4-008 through AV4-013) and 2 P2 findings (AV4-014/015) remain independently open.",
+              "**AV4-003/#491** is now independently verified repaired; **AV4-007/#500** remains open for M9 arbitrary-HouseholdId tie selection.": "**AV4-003/#491** and **AV4-007/#500** are now independently verified repaired.",
+              "Post-discovery remediation has now verified and closed AV4-001/#486 through AV4-006/#497, leaving 7 P1 and 2 P2 findings open; each remaining finding still requires production repair plus independent post-merge re-verification.": "Post-discovery remediation has now verified and closed AV4-001/#486 through AV4-007/#500, leaving 6 P1 and 2 P2 findings open; each remaining finding still requires production repair plus independent post-merge re-verification."
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one match, got {count}: {old[:100]}")
+              text = text.replace(old, new)
+          path.write_text(text)
+      - name: Commit ledger update and remove helper
+        run: |
+          rm .github/workflows/audit-v4-av4-007-status-sync.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/research/audit-v4/STATUS.md .github/workflows/audit-v4-av4-007-status-sync.yml
+          git commit -m "docs: record verified AV4-007 remediation"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
