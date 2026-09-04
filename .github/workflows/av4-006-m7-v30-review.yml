@@ -1,0 +1,67 @@
+name: AV4-006 M7.6 v30 review
+
+on:
+  push:
+    branches:
+      - evidence/av4-006-m7-v30-review-helper
+    paths:
+      - ".github/workflows/av4-006-m7-v30-review.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Run canonical M7.6 on exact AV4-006 production head
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact production candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 340e57ca7a864f6ae3b689f927ecda5e67db1a98
+          persist-credentials: false
+      - name: Prove exact production source
+        run: test "$(git rev-parse HEAD)" = "340e57ca7a864f6ae3b689f927ecda5e67db1a98"
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Build exact production binary
+        env:
+          ANTHROSIM_GIT_COMMIT: 340e57ca7a864f6ae3b689f927ecda5e67db1a98
+        run: cargo build --locked --workspace --release
+      - name: Execute canonical M7.6 design
+        run: |
+          rm -rf /tmp/anthrosim-m7-6-v30
+          python3 scripts/run-versioned-sweep.py \
+            experiments/v0.1-resource-variability.json \
+            --binary target/release/anthrosim \
+            --run-dir /tmp/anthrosim-m7-6-v30
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/anthrosim-m7-6-v30')
+          runs=json.loads((root/'analysis/runs.json').read_text())
+          points=json.loads((root/'analysis/points.json').read_text())
+          summary=json.loads((root/'analysis/summary.json').read_text())
+          assert len(runs)==144 and len(points)==18
+          assert all(r['state']=='completed' for r in runs)
+          assert all(p['scientificallyEligibleRuns']==8 and p['operationallyCensoredRuns']==0 for p in points)
+          assert summary['completedRuns']==144 and summary['scientificallyEligibleRuns']==144
+          assert summary['operationallyCensoredRuns']==0
+          print((root/'reproduction-record.json').read_text())
+          print((root/'analysis/points.csv').read_text())
+          PY
+      - name: Archive exact v30 M7.6 result
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: av4-006-m7-v30-review
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            /tmp/anthrosim-m7-6-v30/source-definition.json
+            /tmp/anthrosim-m7-6-v30/reproduction-record.json
+            /tmp/anthrosim-m7-6-v30/sweep-manifest.json
+            /tmp/anthrosim-m7-6-v30/analysis/
