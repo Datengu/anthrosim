@@ -8,9 +8,11 @@ M9.4 can find more than one focal-region destination with exactly the same minim
 
 M9.4 now preserves the complete canonical set of exactly equal minimum-cost destinations for every origin. The set is sorted only for stable serialization; ordering is not the causal choice rule. Each candidate also retains the minimum route-edge count among paths achieving that same minimum cost.
 
-When a household actually evaluates a trigger from a tied origin, AnthroSim chooses one candidate using the versioned keyed policy `m9/equal-cost-destination-keyed-v1`. The key contains the authoritative M9 tie seed, origin cell, household identity and trigger index and is passed through a fixed integer avalanche before reduction to the candidate count. Core runs use the experiment seed for this role; spatial runs use the resolved process seed from the spatial-realization provenance contract.
+Model semantics v31 replaces the original canonical-`HouseholdId` component of that rule with the versioned policy `m9/equal-cost-destination-scientific-coupling-v2`. Authoritative execution keys a tied destination from the authoritative M9 tie seed, origin cell, trigger index and the household's scientific coupling key: the minimum persistent person `stochastic_coupling_rank` among its living members. Canonical `HouseholdId` is bookkeeping only and is not a causal input. Core runs use the experiment seed for the tie-seed role; spatial runs use the resolved process seed from the spatial-realization provenance contract.
 
-This choice is deterministic and platform independent, but it consumes no sequential RNG draw. Therefore adding or removing a tied journey cannot shift M2, M3, M4 or other stochastic streams. Replaying the same experiment/household/trigger produces the same destination exactly.
+The policy identifier is bound into the travel-table/program identity, and authoritative tied-departure events record the scientific coupling key used so observability can independently verify the selected destination. A label-neutral compatibility resolver exists for callers that have only a canonical household ID; authoritative simulation execution never uses that ID as the tie key.
+
+This choice is deterministic and platform independent, but it consumes no sequential RNG draw. Therefore adding or removing a tied journey cannot shift M2, M3, M4 or other stochastic streams. Replaying the same scientific household/trigger under the same program reproduces the same destination exactly.
 
 The keyed policy is a neutral ambiguity resolver, not evidence that historical households chose destinations randomly. If evidence supports destination preference, that preference requires a separate explicit model.
 
@@ -35,4 +37,4 @@ Downstream observability regeneration reads the authoritative tie seed preserved
 
 ## Provenance boundary
 
-This changes authoritative M9 destination behavior and advances `MODEL_SEMANTICS_ID` from v17 to v18. It does not change travel-cost equations, travel-duration conversion, M4 migration decisions, mortality, resource allocation rules, or any sequential RNG stream.
+The original equal-minimum preservation advanced `MODEL_SEMANTICS_ID` from v17 to v18. Audit-v4 AV4-007 remediation advances the current line from v30 to v31 because future tied M9 destinations now use scientific household coupling identity rather than canonical `HouseholdId`. It does not change travel-cost equations, travel-duration conversion, M4 migration decisions, mortality, resource allocation rules, or any sequential RNG stream.
