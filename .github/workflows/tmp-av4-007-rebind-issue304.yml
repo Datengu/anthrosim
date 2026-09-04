@@ -1,0 +1,34 @@
+name: Temporary AV4-007 Issue 304 reference rebind
+on:
+  push:
+    branches:
+      - repair/av4-007-m9-household-tie-key
+permissions:
+  contents: write
+jobs:
+  rebind:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-007-m9-household-tie-key
+      - name: Rebind preserved Issue 304 model semantics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('research/general-demography-baseline-v1/confirmatory-result.json')
+          text = path.read_text()
+          old = '"modelSemanticsId": "anthrosim-model-semantics-v30"'
+          new = '"modelSemanticsId": "anthrosim-model-semantics-v31"'
+          assert text.count(old) == 1, 'expected exactly one v30 modelSemanticsId binding'
+          assert new not in text, 'v31 binding already present'
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          git diff --exit-code -- . ':(exclude)research/general-demography-baseline-v1/confirmatory-result.json' || exit 1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/general-demography-baseline-v1/confirmatory-result.json
+          git commit -m 'test: rebind Issue 304 reference to v31'
+          git push origin HEAD:repair/av4-007-m9-household-tie-key
