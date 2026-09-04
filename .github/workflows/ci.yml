@@ -404,7 +404,12 @@ jobs:
           assert summary['scientificallyEligibleRuns'] == 144
           assert summary['operationallyCensoredRuns'] == 0
           assert reference['schemaVersion'] == 3
-          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v29'
+          semantics_line = next(
+              line for line in Path('crates/anthrosim-core/src/provenance.rs').read_text().splitlines()
+              if line.startswith('pub const MODEL_SEMANTICS_ID: &str = ')
+          )
+          current_semantics = semantics_line.split('"')[1]
+          assert reference['modelSemanticsId'] == current_semantics
           assert record['sweepId'] == manifest['sweepId']
           assert record['modelVersion'] == manifest['modelVersion']
           assert record['gitCommit'] == manifest['gitCommit']

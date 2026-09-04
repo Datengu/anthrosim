@@ -146,3 +146,7 @@ That does **not** establish invariance to all resource, demographic, condition o
 The benchmark is not evidence that intermittent aggregation, continuous residence or any social motive explains a real archaeological site. The focal region, schedule, travel model and population are synthetic validation inputs. Archaeological interpretation would require question-specific evidence, uncertainty propagation, structural sensitivity, calibration/corroboration separation and domain review.
 
 Reference maintenance after a declared causal/model-semantics change is reproducibility work, not empirical calibration. A later model-semantics generation should replace this reference only after its benchmark execution and numerical scientific result have been independently reviewed.
+
+## v30 condition-mortality-coupling re-verification
+
+Audit-v4 AV4-006 / #497 reran the complete M9.7 applicable gate under `anthrosim-model-semantics-v30`; the preserved scientific reference matched exactly, including replay and active checkpoint/resume checks. No M9.7 machine rebaseline was required. Exact v30 provenance is recorded in [`condition-mortality-coupling-v30-reverification.md`](condition-mortality-coupling-v30-reverification.md).
