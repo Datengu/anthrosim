@@ -388,3 +388,7 @@ Historical snapshots are model-evaluation history, not targets that later correc
 The historical v13 experiment supports reproducible comparison of explicit synthetic assumptions, paired multi-seed execution, provenance-preserving factorial analysis, controlled mechanism attribution and detection of changes caused by upstream semantic repairs.
 
 It does **not** support claims about real prehistoric population size, carrying capacity, calories/biomass, climate reconstruction, migration frequency/distance, settlement duration, physiology, kinship organization or any specific archaeological site. The v13 kin repair improved symmetry and scientific interpretability of the null model; it did not make the synthetic resource or migration model empirically validated.
+
+## v30 condition-mortality-coupling re-verification
+
+Audit-v4 AV4-006 / #497 reran the canonical 144-run M7.6 design on the exact production candidate. Exact point summaries change under corrected condition-mortality coupling, while all pre-existing qualitative synthetic-validation contrasts remain intact. Exact v30 results and provenance are recorded in [`condition-mortality-coupling-v30-reverification.md`](condition-mortality-coupling-v30-reverification.md).

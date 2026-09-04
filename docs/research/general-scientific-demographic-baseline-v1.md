@@ -62,3 +62,7 @@ A future focused model-interrogation study should decompose missed reproductive 
 The result demonstrates **model-form dependence, not prehistoric calibration**. The demography schedules and the dependency-aware household lifecycle are synthetic/structural controls, not empirically calibrated prehistoric presets. The broad result is therefore a study-design constraint: future confirmatory studies must name and justify both demographic and household structure, propagate relevant uncertainty, and test structural alternatives when the conclusion depends on them.
 
 The historical 64-seed/v1 result remains available only as provenance in the explicitly superseded historical page linked above; it must not be used as the current #304 quantitative result. Historical v25, v26 and v27 evidence likewise remains attached to its original semantics rather than being relabelled as v29 output.
+
+## v30 condition-mortality-coupling re-verification
+
+Audit-v4 AV4-006 / #497 deliberately reran the complete 780-run confirmatory design under `anthrosim-model-semantics-v30`. All three Monte Carlo precision gates remained sufficient and the high-level recommendation remains `no_universal_demographic_baseline`. Exact v30 results and provenance are recorded in [`condition-mortality-coupling-v30-reverification.md`](condition-mortality-coupling-v30-reverification.md).

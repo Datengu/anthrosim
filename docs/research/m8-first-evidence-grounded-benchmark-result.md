@@ -340,3 +340,7 @@ The dedicated workflow preserves its generated artifact even when a frozen-refer
 ## M8 scientific conclusion
 
 M8 continues to demonstrate the generic evidence-grounded spatial execution path. The v6→v7→v8→v9→v10→v11→v12→v13→v20→v26 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal or numerical semantics must be allowed to change those results, but any rebaseline must be causally reviewed rather than automatically accepted.
+
+## v30 condition-mortality-coupling re-verification
+
+Audit-v4 AV4-006 / #497 reran the full M8.6 benchmark under `anthrosim-model-semantics-v30`. Exact trajectories and paired effects changed, but the declared classification remains `fragile_spatial_structure`, with the same two fragile metrics and no robust metrics. Exact v30 results and provenance are recorded in [`condition-mortality-coupling-v30-reverification.md`](condition-mortality-coupling-v30-reverification.md).
