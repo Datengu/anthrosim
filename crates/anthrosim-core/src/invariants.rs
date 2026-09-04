@@ -23,6 +23,7 @@ use crate::{
     rng::RngFactory,
     simulation::RecordedRun,
     temporary_history::validate_temporary_mobility_history,
+    temporary_mobility::TEMPORARY_EVENT_SCHEMA_VERSION,
     time::{DAYS_PER_YEAR, SimTime},
     world::{PERMILLE_MAX, World, WorldError},
 };
@@ -698,7 +699,7 @@ fn validate_events(
                 region_identity,
                 ..
             } => {
-                if *event_schema_version != 2
+                if *event_schema_version != TEMPORARY_EVENT_SCHEMA_VERSION
                     || household.0 == 0
                     || household.0 > population.household_count
                     || region_id.trim().is_empty()
@@ -733,7 +734,7 @@ fn validate_events(
                     (Some(identity), Some(_)) => !identity.trim().is_empty(),
                     _ => false,
                 };
-                if *event_schema_version != 2
+                if *event_schema_version != TEMPORARY_EVENT_SCHEMA_VERSION
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0
@@ -762,7 +763,7 @@ fn validate_events(
                 destination,
                 ..
             } => {
-                if *event_schema_version != 2
+                if *event_schema_version != TEMPORARY_EVENT_SCHEMA_VERSION
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0
@@ -783,7 +784,7 @@ fn validate_events(
                 residence,
                 ..
             } => {
-                if *event_schema_version != 2
+                if *event_schema_version != TEMPORARY_EVENT_SCHEMA_VERSION
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0
@@ -805,7 +806,7 @@ fn validate_events(
                 residence,
                 ..
             } => {
-                if *event_schema_version != 2
+                if *event_schema_version != TEMPORARY_EVENT_SCHEMA_VERSION
                     || household.0 == 0
                     || household.0 > population.household_count
                     || journey.0 == 0

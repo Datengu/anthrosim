@@ -18,7 +18,7 @@ use crate::{
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
+pub(crate) const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
 const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-scientific-coupling-v2";
 
 /// Authoritative M9 physical-presence state for one household.
