@@ -11,7 +11,7 @@ use crate::{
     ids::{CellId, HouseholdId, TemporaryJourneyId},
 };
 
-const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 2;
+const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -702,6 +702,7 @@ fn replay_events(
                 journey,
                 residence,
                 destination,
+                destination_tie_coupling_key,
                 travel_model_identity,
                 accumulated_travel_cost_units,
                 people_affected,
@@ -742,6 +743,7 @@ fn replay_events(
                     *trigger_index,
                     *residence,
                     *destination,
+                    *destination_tie_coupling_key,
                     travel_model_identity.as_deref(),
                     *accumulated_travel_cost_units,
                     *outbound_travel_days,
@@ -1764,10 +1766,11 @@ fn count_not_started(
 #[allow(clippy::too_many_arguments)]
 fn validate_departure_against_program(
     replay: &Replay<'_>,
-    household: HouseholdId,
+    _household: HouseholdId,
     trigger_index: u32,
     residence: CellId,
     destination: CellId,
+    destination_tie_coupling_key: Option<u64>,
     travel_model_identity: Option<&str>,
     accumulated_travel_cost_units: Option<u64>,
     outbound_travel_days: u32,
@@ -1794,11 +1797,31 @@ fn validate_departure_against_program(
             "temporary departure travel metadata does not match program",
         ));
     }
-    match replay
+    let resolution = match replay
         .program
         .travel
-        .resolution_for(residence, household, trigger_index)
+        .equal_cost_destination_count(residence)
     {
+        Some(count) if count > 1 => {
+            let coupling_key = destination_tie_coupling_key.ok_or_else(|| {
+                invalid("tied temporary departure is missing its scientific coupling key")
+            })?;
+            replay.program.travel.resolution_for_coupling_key(
+                residence,
+                coupling_key,
+                trigger_index,
+            )
+        }
+        _ => {
+            if destination_tie_coupling_key.is_some() {
+                return Err(invalid(
+                    "non-tied temporary departure unexpectedly records a tie coupling key",
+                ));
+            }
+            replay.program.travel.resolution(residence)
+        }
+    };
+    match resolution {
         Some(TemporaryTravelResolution::Reachable {
             destination: expected_destination,
             outbound_travel_days: expected_outbound,

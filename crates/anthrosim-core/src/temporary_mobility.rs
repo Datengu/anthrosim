@@ -18,8 +18,8 @@ use crate::{
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 2;
-const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-keyed-v1";
+pub(crate) const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
+const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-scientific-coupling-v2";
 
 /// Authoritative M9 physical-presence state for one household.
 ///
@@ -332,7 +332,7 @@ pub struct TemporaryTravelTable {
 }
 
 impl TemporaryTravelTable {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 3;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
 
     pub fn new(
         resolutions: Vec<TemporaryTravelResolution>,
@@ -423,12 +423,28 @@ impl TemporaryTravelTable {
             .map(|candidate| candidate.route_distance_edges)
     }
 
-    /// Resolve one household/trigger destination without consuming a mutable RNG stream.
+    /// Compatibility resolver for callers that only have a canonical HouseholdId.
+    ///
+    /// Canonical household numbering is deliberately non-causal under the v2 tie policy, so this
+    /// surface uses a neutral scientific coupling key. Authoritative simulation execution calls
+    /// `resolution_for_coupling_key` with the persistent household coupling key derived from living
+    /// person stochastic-coupling ranks.
     #[must_use]
     pub fn resolution_for(
         &self,
         origin: CellId,
-        household: HouseholdId,
+        _household: HouseholdId,
+        trigger_index: u32,
+    ) -> Option<TemporaryTravelResolution> {
+        self.resolution_for_coupling_key(origin, 0, trigger_index)
+    }
+
+    /// Resolve one scientific household/trigger destination without consuming a mutable RNG stream.
+    #[must_use]
+    pub fn resolution_for_coupling_key(
+        &self,
+        origin: CellId,
+        household_coupling_key: u64,
         trigger_index: u32,
     ) -> Option<TemporaryTravelResolution> {
         let base = self.resolution(origin)?;
@@ -450,7 +466,7 @@ impl TemporaryTravelTable {
         digest_str(&mut hash, M9_DESTINATION_TIE_POLICY_ID);
         digest_u64(&mut hash, self.destination_tie_seed.unwrap_or(0));
         digest_u64(&mut hash, origin.0);
-        digest_u64(&mut hash, household.0);
+        digest_u64(&mut hash, household_coupling_key);
         digest_u64(&mut hash, u64::from(trigger_index));
         hash = avalanche64(hash);
         let index = usize::try_from(hash % candidates.len() as u64).ok()?;
@@ -606,6 +622,7 @@ impl TemporaryTravelTable {
 
     fn digest_into(&self, hash: &mut u64) {
         digest_u64(hash, u64::from(self.schema_version));
+        digest_str(hash, M9_DESTINATION_TIE_POLICY_ID);
         digest_u64(hash, self.resolutions.len() as u64);
         for resolution in &self.resolutions {
             match *resolution {
@@ -745,6 +762,8 @@ pub struct ActiveTemporaryJourney {
     pub residence: CellId,
     pub destination: CellId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destination_tie_coupling_key: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub travel_model_identity: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accumulated_travel_cost_units: Option<u64>,
@@ -837,6 +856,13 @@ impl ActiveTemporaryJourney {
         digest_u64(hash, self.trigger_day);
         digest_u64(hash, self.residence.0);
         digest_u64(hash, self.destination.0);
+        match self.destination_tie_coupling_key {
+            None => digest_u64(hash, 0),
+            Some(coupling_key) => {
+                digest_u64(hash, 1);
+                digest_u64(hash, coupling_key);
+            }
+        }
         match &self.travel_model_identity {
             None => digest_u64(hash, 0),
             Some(identity) => {
@@ -883,7 +909,7 @@ pub struct TemporaryMobilityState {
 }
 
 impl TemporaryMobilityState {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 
     #[must_use]
     pub fn at_residence(population: &Population) -> Self {
@@ -1359,8 +1385,23 @@ impl TemporaryMobilityState {
                         let expected_model_identity =
                             program.travel.travel_model().map(|model| model.identity());
                         let expected_cost = program.travel.accumulated_cost_units(active.residence);
+                        let tied_origin = program
+                            .travel
+                            .equal_cost_destination_count(active.residence)
+                            .is_some_and(|count| count > 1);
+                        let resolution = match active.destination_tie_coupling_key {
+                            Some(coupling_key) if tied_origin => {
+                                program.travel.resolution_for_coupling_key(
+                                    active.residence,
+                                    coupling_key,
+                                    active.trigger_index.unwrap_or(0),
+                                )
+                            }
+                            None if !tied_origin => program.travel.resolution(active.residence),
+                            _ => None,
+                        };
                         let resolution_matches = matches!(
-                            program.travel.resolution(active.residence),
+                            resolution,
                             Some(TemporaryTravelResolution::Reachable {
                                 destination,
                                 outbound_travel_days,
@@ -1590,9 +1631,11 @@ impl TemporaryMobilityState {
         let residence = population
             .household_location(household)
             .ok_or(TemporaryMobilityExecutionError::InvalidHousehold { household })?;
+        let destination_tie_coupling_key =
+            household_stochastic_coupling_key(population, household)?;
         let resolution = program
             .travel
-            .resolution_for(residence, household, trigger_index)
+            .resolution_for_coupling_key(residence, destination_tie_coupling_key, trigger_index)
             .ok_or(TemporaryMobilityExecutionError::MissingTravelResolution { residence })?;
         let TemporaryTravelResolution::Reachable {
             destination,
@@ -1692,6 +1735,11 @@ impl TemporaryMobilityState {
             trigger_day,
             residence,
             destination,
+            destination_tie_coupling_key: program
+                .travel
+                .equal_cost_destination_count(residence)
+                .is_some_and(|count| count > 1)
+                .then_some(destination_tie_coupling_key),
             travel_model_identity: travel_model_identity.clone(),
             accumulated_travel_cost_units,
             departure_day,
@@ -1723,6 +1771,7 @@ impl TemporaryMobilityState {
                 region_identity: active.region_identity.clone(),
                 residence,
                 destination,
+                destination_tie_coupling_key: active.destination_tie_coupling_key,
                 travel_model_identity,
                 accumulated_travel_cost_units,
                 people_affected,
@@ -1968,6 +2017,7 @@ fn test_active_journey(
         trigger_day: departure_day,
         residence: population.household_location(household).unwrap(),
         destination,
+        destination_tie_coupling_key: None,
         travel_model_identity: None,
         accumulated_travel_cost_units: None,
         departure_day,
@@ -2070,6 +2120,25 @@ fn validate_presence(
         });
     }
     Ok(())
+}
+
+fn household_stochastic_coupling_key(
+    population: &Population,
+    household: HouseholdId,
+) -> Result<u64, TemporaryMobilityExecutionError> {
+    let mut key: Option<u64> = None;
+    for index in 0..population.person_count() {
+        if !population.is_alive_index(index)
+            || population.household_at_index(index) != Some(household)
+        {
+            continue;
+        }
+        let rank = population
+            .stochastic_coupling_rank_at_index(index)
+            .ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })?;
+        key = Some(key.map_or(rank, |prior| prior.min(rank)));
+    }
+    key.ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })
 }
 
 fn household_living_count(population: &Population, household: HouseholdId) -> u32 {
@@ -2318,6 +2387,8 @@ pub enum TemporaryMobilityExecutionError {
     InvalidJourney(TemporaryMobilityError),
     #[error("temporary mobility references invalid household {household:?}")]
     InvalidHousehold { household: HouseholdId },
+    #[error("temporary mobility household {household:?} has no living scientific coupling key")]
+    MissingHouseholdCouplingKey { household: HouseholdId },
     #[error("temporary mobility travel table has no entry for residence {residence:?}")]
     MissingTravelResolution { residence: CellId },
     #[error(
@@ -2377,8 +2448,15 @@ pub enum TemporaryMobilityExecutionError {
 mod tests {
     use super::*;
     use crate::{
-        config::{PopulationConfig, WorldConfig},
+        config::{
+            DemographyConfig, ParameterProvenance, PopulationConfig, PopulationInitialization,
+            WorldConfig,
+        },
         focal_region::FocalRegionSource,
+        founder_initialization::{
+            FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+        },
+        population::ReproductiveSex,
         rng::RngFactory,
     };
 
@@ -2635,6 +2713,147 @@ mod tests {
             Err(TemporaryMobilityValidationError::ActiveJourneyProgramMismatch { household })
                 if household == HouseholdId::new(1)
         ));
+    }
+
+    fn tied_execution_population(world: &World, swapped_household_labels: bool) -> Population {
+        let center = CellId::new(5);
+        let role_a_household = if swapped_household_labels {
+            HouseholdId::new(2)
+        } else {
+            HouseholdId::new(1)
+        };
+        let role_b_household = if swapped_household_labels {
+            HouseholdId::new(1)
+        } else {
+            HouseholdId::new(2)
+        };
+        let definition = FounderPopulationDefinition::new(
+            if swapped_household_labels {
+                "m9-authoritative-household-relabel-b"
+            } else {
+                "m9-authoritative-household-relabel-a"
+            },
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::Unspecified,
+            vec![
+                FounderHousehold {
+                    id: HouseholdId::new(1),
+                    location: center,
+                },
+                FounderHousehold {
+                    id: HouseholdId::new(2),
+                    location: center,
+                },
+            ],
+            vec![
+                FounderPerson {
+                    id: crate::ids::PersonId::new(1),
+                    birth_day: -(30 * 365),
+                    reproductive_sex: ReproductiveSex::Female,
+                    household: role_a_household,
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+                FounderPerson {
+                    id: crate::ids::PersonId::new(2),
+                    birth_day: -(40 * 365),
+                    reproductive_sex: ReproductiveSex::Male,
+                    household: role_b_household,
+                    female_parent: None,
+                    male_parent: None,
+                    last_birth_day: None,
+                    condition_permille: 1_000,
+                },
+            ],
+        );
+        Population::initialize_declared_founder_state_v1(
+            PopulationConfig::new(2)
+                .with_initialization(PopulationInitialization::DeclaredFounderStateV1)
+                .with_max_person_records(10),
+            &definition,
+            world,
+            &DemographyConfig::synthetic_validation_v1(),
+        )
+        .unwrap()
+    }
+
+    fn authoritative_tied_destinations(
+        tie_seed: u64,
+        swapped_household_labels: bool,
+    ) -> Vec<(u64, CellId)> {
+        let world = World::generate(WorldConfig::new(3, 3), RngFactory::new(7_007))
+            .unwrap()
+            .with_model_field_overlay(Some(&[1_000; 9]), None, None)
+            .unwrap();
+        let population = tied_execution_population(&world, swapped_household_labels);
+        let region = FocalRegion::new(
+            "m9-authoritative-household-relabel",
+            FocalRegionSource::Synthetic,
+            vec![CellId::new(2), CellId::new(8)],
+        )
+        .unwrap();
+        let travel = TemporaryTravelModel::synthetic_validation_v1()
+            .derive_table_with_tie_seed(&region, &world, tie_seed)
+            .unwrap();
+        assert_eq!(travel.equal_cost_destination_count(CellId::new(5)), Some(2));
+        let program = TemporaryMobilityProgram::new(
+            region,
+            TemporaryMobilitySchedule::new(
+                "m9-authoritative-household-relabel",
+                TemporaryTriggerTiming::DepartureDay,
+                vec![0],
+                3,
+            )
+            .unwrap(),
+            travel,
+            &world,
+        )
+        .unwrap();
+        let mut state = TemporaryMobilityState::with_program(&population, program, &world).unwrap();
+        let mut events = EventLog::new();
+        state
+            .process_day(0, &population, &world, &mut events)
+            .unwrap();
+
+        let mut outcomes = events
+            .events
+            .iter()
+            .filter_map(|record| match record.event {
+                EventKind::TemporaryJourneyDeparted {
+                    destination,
+                    destination_tie_coupling_key: Some(coupling_key),
+                    ..
+                } => Some((coupling_key, destination)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        outcomes.sort_unstable_by_key(|(coupling_key, _)| *coupling_key);
+        assert_eq!(outcomes.len(), 2);
+        outcomes
+    }
+
+    #[test]
+    fn authoritative_tied_destination_is_household_label_invariant() {
+        let mut saw_top = false;
+        let mut saw_bottom = false;
+        for tie_seed in 1..=1_000 {
+            let baseline = authoritative_tied_destinations(tie_seed, false);
+            let relabelled = authoritative_tied_destinations(tie_seed, true);
+            assert_eq!(
+                baseline, relabelled,
+                "authoritative M9 tie resolution diverged under pure HouseholdId relabelling at seed {tie_seed}"
+            );
+            for (_, destination) in baseline {
+                saw_top |= destination == CellId::new(2);
+                saw_bottom |= destination == CellId::new(8);
+            }
+        }
+        assert!(
+            saw_top && saw_bottom,
+            "authoritative regression did not exercise both tied destinations"
+        );
     }
 
     #[test]

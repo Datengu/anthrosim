@@ -43,16 +43,16 @@ The travel table is derived once per `(world, focal region, travel model)` using
 
 For each origin cell, the solver returns the minimum accumulated cost to the focal region. If more than one focal-region destination has exactly that same minimum accumulated cost, M9.4 preserves the complete canonical set of equal-cost destinations instead of collapsing the tie to one `CellId`. The stored candidate set is sorted only to make serialization and replay stable; that ordering is not the causal destination-choice rule.
 
-When a household actually evaluates a temporary-travel trigger from a tied origin, `TemporaryTravelTable::resolution_for(...)` chooses among the equal minima with the versioned keyed policy `m9/equal-cost-destination-keyed-v1`. The key is composed from:
+When a household actually evaluates a temporary-travel trigger from a tied origin, authoritative execution chooses among the equal minima with the versioned policy `m9/equal-cost-destination-scientific-coupling-v2`. The key is composed from:
 
 - the authoritative M9 destination-tie seed stored with the travel table;
 - the origin `CellId`;
-- the household identity;
+- the household scientific coupling key, defined as the minimum persistent person `stochastic_coupling_rank` among its living members;
 - the trigger index.
 
-The keyed value is passed through the fixed integer avalanche defined by that policy and reduced to the candidate count. Core runs use the experiment seed for the tie-seed role; spatial runs use the resolved process seed declared by the spatial-realization provenance contract.
+Canonical `HouseholdId` is excluded from the causal key. The keyed value is passed through the fixed integer avalanche defined by that policy and reduced to the candidate count. Core runs use the experiment seed for the tie-seed role; spatial runs use the resolved process seed declared by the spatial-realization provenance contract. The tie-policy identifier is included in travel-table/program identity, and tied authoritative departure events record the coupling key used for downstream verification.
 
-This choice is deterministic and platform-independent, but it does **not** consume a mutable sequential RNG stream. Therefore an added, removed or reordered tied journey cannot shift M2, M3, M4 or other sequential stochastic streams. Replaying the same authoritative tie seed, origin, household and trigger index reproduces the same destination exactly.
+This choice is deterministic and platform-independent, but it does **not** consume a mutable sequential RNG stream. Therefore an added, removed or reordered tied journey cannot shift M2, M3, M4 or other sequential stochastic streams. Replaying the same authoritative tie seed, origin, scientific household coupling key and trigger index reproduces the same destination exactly.
 
 The policy is an ambiguity resolver, not an empirical claim that historical households chose equally accessible destinations randomly. If evidence later supports a directional, entrance, social or destination preference, that requires a separately declared model assumption.
 
@@ -98,7 +98,7 @@ An M9.4-derived table stores, for every origin:
 
 - reachable/unreachable status;
 - the canonical equal-minimum focal-region destination set when reachable;
-- the selected destination implied by the keyed household/trigger resolution when a journey is evaluated;
+- the selected destination implied by the keyed scientific-household/trigger resolution when a journey is evaluated;
 - outbound and return travel duration;
 - accumulated symmetric travel cost when reachable;
 - the authoritative destination-tie seed needed for exact replay;
@@ -121,7 +121,7 @@ M9.4 is accepted when deterministic tests demonstrate:
 - the frozen symmetric edge formula;
 - minimum accumulated route cost;
 - preservation of every exactly equal minimum-cost destination;
-- deterministic keyed equal-cost destination resolution using the declared tie seed, origin, household and trigger index without consuming sequential RNG state;
+- deterministic keyed equal-cost destination resolution using the declared tie seed, origin, scientific household coupling key and trigger index without consuming sequential RNG state or canonical HouseholdId;
 - integer duration conversion;
 - explicit unreachable origins;
 - different route cost/duration when the authoritative M8 movement-cost overlay changes;
