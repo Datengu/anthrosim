@@ -1,0 +1,43 @@
+name: AV4-009 equivalence-class repair
+
+on:
+  push:
+    branches:
+      - repair/av4-009-m4-spatial-candidate-coupling
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-009-m4-spatial-candidate-coupling
+          fetch-depth: 0
+      - name: Install pinned Rust
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+      - name: Apply fail-closed equivalence-class repair
+        run: python3 scripts/av4-009-equivalence-class-repair.py
+      - name: Format
+        run: cargo fmt --all
+      - name: Run AV4-009 permanent regressions
+        run: cargo test --locked -p anthrosim-core --test m4_spatial_isomorphism_invariance -- --nocapture
+      - name: Run existing M4 invariance and boundary regressions
+        run: |
+          cargo test --locked -p anthrosim-core --test migration_household_label_invariance -- --nocapture
+          cargo test --locked -p anthrosim-core --test spatial_boundary_dependence -- --nocapture
+      - name: Commit validated equivalence-class repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add crates/anthrosim-core/src/migration.rs crates/anthrosim-core/src/provenance.rs crates/anthrosim-core/tests/m4_spatial_isomorphism_invariance.rs
+          git diff --cached --check
+          git commit -m 'fix: sample exact M4 candidate equivalence classes'
+          git push origin HEAD:repair/av4-009-m4-spatial-candidate-coupling
