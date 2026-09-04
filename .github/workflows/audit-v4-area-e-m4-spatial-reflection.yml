@@ -1,0 +1,29 @@
+name: Audit v4 Area E M4 spatial reflection
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v4_m4_spatial_reflection.rs'
+      - '.github/workflows/audit-v4-area-e-m4-spatial-reflection.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  m4-spatial-reflection:
+    name: M4 spatial-reflection adversary
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 M4 spatial-reflection adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v4_m4_spatial_reflection -- --nocapture
