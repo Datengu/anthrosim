@@ -1,3 +1,4 @@
+# Fail-closed helper for synchronizing the M9 temporary-event schema invariant.
 from pathlib import Path
 
 mobility = Path("crates/anthrosim-core/src/temporary_mobility.rs")
