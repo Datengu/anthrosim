@@ -83,9 +83,11 @@ new = '''            fill_candidate_cells(
                 i32::try_from(config.minimum_utility_improvement).unwrap_or(i32::MAX),
             );
 
-            // First evaluate every destination without candidate uncertainty. This produces the
-            // complete M4-scientific signature used to canonicalize stochastic assignment. CellId
-            // and candidate-container order are deliberately absent from that signature.
+            // First evaluate every destination without candidate uncertainty. The coupling key
+            // contains only deterministic quantities that can affect this M4 decision/outcome:
+            // total deterministic utility drives eligibility/weight, and distance drives the
+            // movement consequence. Raw utility components whose configured weights are zero are
+            // deliberately excluded so scientifically inactive metadata cannot invent orientation.
             for &candidate in &self.candidates {
                 let distance = manhattan_distance(world, origin, candidate).ok_or(
                     MigrationError::InternalInvariant("candidate coordinates invalid"),
@@ -115,7 +117,7 @@ new = '''            fill_candidate_cells(
                 .sort_unstable_by_key(candidate_scientific_key);
 
             // A deterministic same-seed function cannot choose one unique member of a true
-            // automorphism orbit equivariantly: if M4's complete deterministic scientific terms
+            // automorphism orbit equivariantly. If M4's deterministic choice/outcome quantities
             // are identical for two cells, using CellId, coordinates, or vector position would
             // merely hide the arbitrary orientation under another label. Fail closed for this
             // household decision instead of inventing an unmodelled directional preference.
@@ -131,7 +133,7 @@ new = '''            fill_candidate_cells(
             let mut best_candidate_key = None;
             let mut eligible_count = 0_usize;
 
-            // Candidate uncertainty is now assigned in scientific-signature order. Under a
+            // Candidate uncertainty is now assigned in scientific-key order. Under a
             // reflection/rotation/permutation, the same physical alternative therefore receives
             // the same sequential uncertainty realization even when its CellId changes.
             for evaluation_index in 0..self.evaluations.len() {
@@ -202,19 +204,8 @@ s = s.replace(old, new, 1)
 
 anchor = '''fn proportional_choice_weight(improvement: i64) -> u64 {
 '''
-helper = '''fn candidate_scientific_key(
-    evaluation: &CandidateEvaluation,
-) -> (u16, u16, u16, u16, u16, u16, u16, i32) {
-    (
-        evaluation.distance,
-        evaluation.utility.resource_score_permille,
-        evaluation.utility.water_security_score_permille,
-        evaluation.utility.kin_score_permille,
-        evaluation.utility.travel_penalty_permille,
-        evaluation.utility.uncertainty_penalty_permille,
-        evaluation.utility.relocation_risk_penalty_permille,
-        evaluation.utility.total_utility,
-    )
+helper = '''fn candidate_scientific_key(evaluation: &CandidateEvaluation) -> (i32, u16) {
+    (evaluation.utility.total_utility, evaluation.distance)
 }
 
 '''
