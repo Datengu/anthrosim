@@ -40,9 +40,10 @@ def point(point_id: str, theta, nuisance: int, score: float = 0.0) -> dict:
 
 
 def analyse(points: list[dict], analysis_id: str) -> dict:
+    data = {"schemaVersion": 2, "monteCarloDiagnostics": {}, "points": points}
     return module.analyse(
         plan(analysis_id),
-        {"schemaVersion": 2, "monteCarloDiagnostics": {}, "points": points},
+        module.bind_synthetic_fixture(data, analysis_id),
     )
 
 
