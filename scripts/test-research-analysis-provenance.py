@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -187,11 +188,37 @@ def make_study(
     return definition_path
 
 
+def test_source_mutation_during_execution_fails_closed() -> None:
+    with tempfile.TemporaryDirectory(prefix="anthrosim-analysis-prov-") as directory:
+        root = Path(directory)
+        definition_path = make_study(root)
+        mutated = _legacy.definition(mutate_input=True)
+        definition_path.write_text(
+            json.dumps(mutated, indent=2) + "\n", encoding="utf-8"
+        )
+        failed = _legacy.run("run", root, definition_path, expect_success=False)
+        # Full study-root validation may now catch the mutated canonical research
+        # artifact before the older generic before/after snapshot diagnostic.
+        assert (
+            "changed during analysis execution" in failed.stderr
+            or "result artifact digest64 does not match current bytes" in failed.stderr
+        ), failed.stderr
+        assert not (root / "analysis/analysis-provenance.json").exists()
+
+
 _legacy.binding = binding
 _legacy.make_study = make_study
+_legacy.test_source_mutation_during_execution_fails_closed = (
+    test_source_mutation_during_execution_fails_closed
+)
 
 for _name in dir(_legacy):
-    if _name.startswith("__") or _name in {"binding", "make_study", "main"}:
+    if _name.startswith("__") or _name in {
+        "binding",
+        "make_study",
+        "test_source_mutation_during_execution_fails_closed",
+        "main",
+    }:
         continue
     globals()[_name] = getattr(_legacy, _name)
 
