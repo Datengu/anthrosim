@@ -1,0 +1,68 @@
+name: Study result binding integrity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/research-study-result-binding.py"
+      - "scripts/research-analysis-provenance.py"
+      - "scripts/research-analysis-provenance-legacy.py"
+      - "scripts/research-evidence-role-audit.py"
+      - "scripts/research-evidence-role-audit-legacy.py"
+      - "scripts/research-monte-carlo-sufficiency.py"
+      - "scripts/research-monte-carlo-sufficiency-legacy.py"
+      - "scripts/research-observable-support.py"
+      - "scripts/research-observable-support-legacy.py"
+      - "scripts/test-research-study-result-binding.py"
+      - "scripts/test-research-analysis-provenance.py"
+      - "scripts/test-research-analysis-provenance-legacy.py"
+      - "scripts/test-research-analysis-provenance-hardening.py"
+      - "scripts/test-research-evidence-role-audit.py"
+      - "scripts/test-research-evidence-role-audit-legacy.py"
+      - "scripts/test-research-monte-carlo-confirmatory.py"
+      - "scripts/test-research-monte-carlo-confirmatory-legacy.py"
+      - "scripts/test-research-observable-support.py"
+      - "scripts/test-research-observable-support-legacy.py"
+      - "crates/anthrosim-cli/src/bin/anthrosim-study.rs"
+      - "crates/anthrosim-cli/tests/research_analysis_provenance_end_to_end.rs"
+      - ".github/workflows/study-result-binding-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  binding-integrity:
+    name: Finalized study binding integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run AV4-012 identity and frozen-root adversaries
+        run: python3 scripts/test-research-study-result-binding.py
+
+      - name: Verify downstream analysis provenance consumer
+        run: |
+          python3 scripts/test-research-analysis-provenance.py
+          python3 scripts/test-research-analysis-provenance-hardening.py
+
+      - name: Verify evidence-role consumer
+        run: python3 scripts/test-research-evidence-role-audit.py
+
+      - name: Verify Monte Carlo consumer
+        run: python3 scripts/test-research-monte-carlo-confirmatory.py
+
+      - name: Verify observable-support consumer
+        run: python3 scripts/test-research-observable-support.py
+
+      - name: Verify real anthrosim-study producer to provenance consumer
+        run: cargo test --locked -p anthrosim-cli --test research_analysis_provenance_end_to_end -- --nocapture
