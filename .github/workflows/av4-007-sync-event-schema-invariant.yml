@@ -1,0 +1,42 @@
+name: AV4-007 synchronize temporary-event invariant schema
+
+on:
+  push:
+    branches:
+      - repair/av4-007-m9-household-tie-key
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-007-m9-household-tie-key
+          fetch-depth: 0
+      - name: Install pinned Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: rustfmt
+      - name: Synchronize event invariant schema
+        run: python scripts/av4-007-sync-event-schema-invariant.py
+      - name: Format
+        run: cargo fmt --all -- --check || (cargo fmt --all && cargo fmt --all -- --check)
+      - name: Rerun exact failing workspace tests
+        run: |
+          cargo test -p anthrosim-cli --bin anthrosim bundle::tests::temporary_observability_is_validated_and_packed --locked -- --nocapture
+          cargo test -p anthrosim-cli --bin anthrosim bundle::tests::tampered_temporary_observability_is_rejected --locked -- --nocapture
+          cargo test -p anthrosim-cli --bin anthrosim ensemble::tests::ensemble_derives_configured_temporary_mobility_from_each_stored_world --locked -- --nocapture
+      - name: Commit permanent invariant sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/temporary_mobility.rs crates/anthrosim-core/src/invariants.rs
+          git diff --cached --check
+          git commit -m "fix: synchronize M9 event invariant schema"
+          git push origin HEAD:repair/av4-007-m9-household-tie-key
