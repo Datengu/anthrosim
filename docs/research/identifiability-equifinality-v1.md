@@ -1,6 +1,6 @@
 # Identifiability and equifinality analysis v2
 
-AnthroSim treats calibration fit, simulation Monte Carlo precision, and scientific identification as different claims. A parameter set can reproduce a target while the evidence still fails to identify the underlying parameter, parameter combination, or structural mechanism. Likewise, a finite stochastic ensemble can have a point estimate near a target while remaining too imprecise to support a calibration decision.
+AnthroSim treats calibration fit, simulation Monte Carlo precision, executed-design identity, and scientific identification as different claims. A parameter set can reproduce a target while the evidence still fails to identify the underlying parameter, parameter combination, or structural mechanism. Likewise, a finite stochastic ensemble can have a point estimate near a target while remaining too imprecise to support a calibration decision.
 
 ## Research gate
 
@@ -10,14 +10,61 @@ The gate is required for quantitative calibration, parameter inference and compe
 
 A failed gate is a scientific result, not an optimisation failure. The study must report the compatible parameter region or ensemble and must not collapse that region to a unique best-fit value unless the declared evidence identifies it.
 
-## Schema-v2 inputs
+Since AV4-011/#535, **a statistically identifying table is not enough**. Before parameter ranges, profiles, pairwise surfaces or structural diagnostics can authorize a positive claim, every analysis row must be bound to the immutable design actually emitted by `anthrosim-research`. Free-form downstream `parameters`, `structure` or point IDs are never accepted as scientific coordinate authority by themselves.
 
-The procedure takes two versioned JSON documents:
+## Executed-design binding
+
+For a real research execution, invoke the gate with the research root:
+
+```text
+python scripts/research-identifiability.py PLAN DATA OUTPUT --research-root RESEARCH_ROOT
+```
+
+The analyzer calls `scripts/research-identifiability-bind-design.py` to derive the authoritative coordinate projection from `RESEARCH_ROOT/research-manifest.json` and `research-plan.json`. The two files must be exact redundant copies. The binder then independently reproduces the runner's identity and expansion contracts before returning any coordinate:
+
+- `definitionIdentity` is recomputed from the complete `ResearchExperimentDefinition` using the same canonical JSON/FNV-1a identity contract as the Rust core;
+- `researchId` is recomputed from the exact definition identity and `SourceRevisionIdentity`;
+- the declared dimensions are expanded in the runner's exact Cartesian order, with the final dimension varying fastest;
+- every `ResearchPoint.index`, ordered coordinate, coordinate JSON pointer/value and resulting `runConfig` must equal that expansion and no undeclared configuration mutation is accepted;
+- every `pointId` is independently recomputed from point index, coordinates and run configuration;
+- each point must have exactly one planned run for every declared seed, in seed declaration order;
+- every per-seed `runConfig`, `runId` and runner-relative directory is independently reproduced;
+- duplicate/rebound point or run identities fail closed;
+- the source revision must contain an exact non-dirty Git commit.
+
+This means changing both redundant metadata files consistently is still insufficient to create a new accepted design: stale definition/point/run/research identities no longer validate after the content change.
+
+The derived binding has `bindingType="anthrosim-identifiability-executed-design"`, `sourceKind="anthrosim_research_manifest_v1"`, a SHA-256 identity of the immutable research manifest, the exact `researchId` and `definitionIdentity`, source revision, and one entry per executed design point. Each point entry contains:
+
+- the immutable research `pointId`;
+- the full ordered research coordinates;
+- `parameters`, containing only genuinely executed **numeric** research dimensions;
+- a canonical `research-structure-v1-...` identity derived from genuinely executed structural coordinates, or literal `default` when there are no structural dimensions;
+- every immutable per-seed `executionId` (`runId`) belonging to the point.
+
+The analysis data row must use exactly those parameter values, structure identity and execution IDs. A missing, fabricated or altered parameter; a changed structural identifier; a point-ID rebind; or a different execution-ID set yields a machine-readable non-passing result with `researchGate.reason="executed_design_binding_invalid"`. No parameter ranges, profiles or interaction surfaces are calculated from the untrusted mismatching table.
+
+The successful result records `executedDesignBinding.bindingIdentity`, source kind, source identity, `researchId`, `definitionIdentity`, point/execution counts and validation state. That object is part of the identifiability result consumed by normal analysis provenance, so the exact coordinate authority used for the inference is itself provenance-bound.
+
+### Derived covariates are not model parameters
+
+Analysis-only derived quantities may be stored in a separate row-level `covariates` object. They are deliberately excluded from executed parameter coordinates. A covariate name cannot be promoted into `claim.parameterIds`; unless that identifier exists as a genuinely executed numeric research dimension, the claim fails closed. This preserves useful downstream descriptors without silently turning them into causal treatment coordinates.
+
+### Synthetic fixtures
+
+Repository unit tests and the checked-in deterministic benchmark do not represent an `anthrosim-research` execution. They therefore carry an explicit `sourceKind="synthetic_fixture"` binding whose SHA-256 `pointDigest` fixes the complete synthetic `(point id, parameters, structure)` projection.
+
+That mechanism exists only to test the analyzer. It is visibly distinct from `anthrosim_research_manifest_v1` and cannot be supplied as a real external research-root binding. Mutating a synthetic fixture's point ID, parameter value/key or structure without updating its preserved binding returns the same fail-closed non-identifying result.
+
+## Schema-v2 analysis inputs
+
+The procedure takes two versioned JSON documents plus, for real-study use, the immutable research root:
 
 1. A **plan** declaring calibration targets, tolerances, held-out corroboration observables, claimed parameter IDs, whether a structural hypothesis is being claimed, and the maximum compatible normalized parameter-range width.
-2. A **data table** containing every evaluated design point, its exact parameter coordinates, an explicit structural-model identifier where structural hypotheses are claimed, output summaries, and explicit `outputEvidence` for every calibration/corroboration output.
+2. A **data table** containing every evaluated design point, its bound parameter coordinates, canonical structure identity where applicable, bound execution IDs for real studies, output summaries, and explicit `outputEvidence` for every calibration/corroboration output.
+3. For real research, `--research-root` identifies the immutable `anthrosim-research` execution from which point/configuration identities are re-derived. A manifest-shaped binding embedded only in the downstream data table is rejected rather than trusted.
 
-A `structure` identifier, when present, must be a non-empty JSON string. If `claim.structuralHypothesis=true`, every design point must carry such an explicit identifier; a missing identifier fails closed rather than being treated as an implicit structure. When no structural hypothesis is claimed, omission remains backward-compatible and maps only to the literal default identifier `"default"`. Non-string, empty, and whitespace-only structure values are invalid in either case. Structural equifinality and held-out discrimination use these exact validated string identities with no presentation-oriented coercion, so JSON values such as numeric `1` and string `"1"` can never collapse into one accepted structural identity.
+A `structure` identifier, when present, must be a non-empty JSON string. For real executions it must exactly equal the structure identity derived from the research point's structural coordinates. If `claim.structuralHypothesis=true`, every design point must carry the bound identifier. When no structural hypothesis is claimed, a point with no structural dimension uses the literal default identifier `"default"`. Non-string, empty, whitespace-only or altered structure values are invalid.
 
 `outputEvidence` must distinguish the two supported cases:
 
@@ -26,7 +73,7 @@ A `structure` identifier, when present, must be a non-empty JSON string. If `cla
 
 For Monte Carlo evidence the analyzer also binds and verifies the replicate count, exact seed identities, diagnostic schema, uncertainty category, estimand point estimate, confidence interval, declared precision threshold, precision decision, and—in the quantile case—the finite-sample coverage result introduced by issue #334. Changing any bound diagnostic field without changing its content identity fails closed.
 
-The point table is intended to be generated from the immutable #205 research experiment/sensitivity path. The identifiability analysis does not edit or rerun model configurations and therefore cannot hide a changed model behind an optimisation step.
+The point table is analysis data attached to the immutable research design; it is no longer the authority for declaring what parameter coordinate was executed. The analyzer does not edit or rerun model configurations and therefore cannot hide a changed model behind an optimisation step.
 
 ## Simulation uncertainty is not empirical uncertainty
 
@@ -46,13 +93,14 @@ For each target with calibration band `[target - tolerance, target + tolerance]`
 
 A point is compatible if it is acceptable or unresolved. Parameter-width, profile, interaction-surface and structural diagnostics use this **compatible region**, not merely point estimates or only the definitely acceptable subset. Consequently simulation uncertainty can widen the region or leave it unresolved; it cannot spuriously narrow a parameter range by treating noisy estimates as exact.
 
-The final research gate requires all three conditions:
+The final research gate requires all four conditions:
 
-1. no unresolved calibration points remain for the declared evidence;
-2. the compatible parameter region identifies every claimed parameter to the predeclared resolution;
-3. if a structural mechanism is claimed, only one compatible canonical structure identifier remains.
+1. the executed-design binding is valid;
+2. no unresolved calibration points remain for the declared evidence;
+3. the compatible parameter region identifies every claimed parameter to the predeclared resolution;
+4. if a structural mechanism is claimed, only one compatible canonical structure identifier remains.
 
-This gives the required precision trajectory: the same point estimates can remain non-identifying at low Monte Carlo precision and become identifying after a predeclared increase in independent replication makes their simulation intervals sufficiently narrow.
+This gives the required precision trajectory: the same point estimates can remain non-identifying at low Monte Carlo precision and become identifying after a predeclared increase in independent replication makes their simulation intervals sufficiently narrow, but only within the genuinely executed design.
 
 ## Evidence-role firewall
 
@@ -64,11 +112,11 @@ For stochastic held-out outputs the analyzer uses a conservative envelope of the
 
 ## Practical parameter identifiability
 
-For each parameter, the analyzer reports the range represented by all evaluated points and the range represented by the final compatible region. A claimed parameter must have at least two distinct evaluated levels before the finite design can support an identification claim. A parameter held at one level is **fixed by design**, not identified by evidence; its diagnostic reports `identified=false`, reason `insufficient_explored_variation`, and an explored-level count of one. For a fixed numeric parameter the normalized compatible width is undefined and therefore reported as `null`, rather than being coerced to zero.
+For each **executed numeric research dimension**, the analyzer reports the range represented by all evaluated points and the range represented by the final compatible region. A claimed parameter must have at least two distinct evaluated levels before the finite design can support an identification claim. A parameter held at one level is **fixed by design**, not identified by evidence; its diagnostic reports `identified=false`, reason `insufficient_explored_variation`, and an explored-level count of one. For a fixed numeric parameter the normalized compatible width is undefined and therefore reported as `null`, rather than being coerced to zero.
 
-Once genuine explored variation exists, numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Categorical parameters likewise require at least two explored alternatives and are identified only when one of those alternatives remains compatible.
+Once genuine explored variation exists, numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Synthetic test fixtures retain categorical-parameter coverage for the historical analyzer regressions; real `anthrosim-research` structural alternatives are represented through structural dimensions and the canonical bound structure identity rather than being smuggled into a free-form parameter coordinate.
 
-Profiles and pairwise surfaces continue to report the actually evaluated levels and compatibility counts. They therefore expose whether a coordinate was varied independently of whether the final identification gate passes. A StudyProtocol or downstream finalization step must consume the fail-closed research gate rather than reinterpret a fixed-by-design parameter as quantitatively constrained.
+Profiles and pairwise surfaces report only validated parameter levels and compatibility counts. A StudyProtocol or downstream finalization step must consume the fail-closed research gate rather than reinterpret an unbound or fixed-by-design parameter as quantitatively constrained.
 
 This is deliberately a transparent finite-design diagnostic, not a claim that a grid has reconstructed a continuous posterior. A real study remains responsible for choosing a scientifically adequate design density, parameter ranges, empirical uncertainty treatment and stochastic precision.
 
@@ -79,6 +127,7 @@ The result preserves:
 - definitely acceptable, unresolved and full compatible point IDs;
 - the exact per-target uncertainty-aware classification for every point;
 - the immutable Monte Carlo diagnostic identities actually used by the calibration decision;
+- the immutable executed-design binding identity used to interpret parameter/structure coordinates;
 - per-parameter profile/conditional compatibility counts;
 - pairwise parameter compatibility surfaces;
 - the set of compatible canonical structural-model identifiers;
@@ -87,28 +136,30 @@ The result preserves:
 
 When multiple **distinct parameter combinations** or structures remain compatible with the claim, `equifinality.present` is true and the reporting policy is `report_compatible_region_not_unique_optimum`. This summary is derived from the compatible scientific state, not from whether the narrower declared claim gate passes. A declared parameter can therefore be practically identified to its predeclared resolution while `equifinality.present=true` because other compatible parameter combinations remain. Multiple rows that repeat the same parameter object and structure do not by themselves create equifinality.
 
-The equifinality object reports `parameterCombinationEquifinality`, `distinctCompatibleParameterCombinationCount`, and `structuralEquifinality` separately. It also reports `nuisanceParameterCompensation`: an unclaimed parameter is listed there when it takes multiple values across the compatible region and its own identifiability diagnostic remains non-identifying. This makes conditional/nuisance compensation explicit instead of allowing a successful narrow claim to erase it from the top-level interpretation.
+The equifinality object reports `parameterCombinationEquifinality`, `distinctCompatibleParameterCombinationCount`, and `structuralEquifinality` separately. It also reports `nuisanceParameterCompensation`: an unclaimed bound parameter is listed there when it takes multiple values across the compatible region and its own identifiability diagnostic remains non-identifying. This makes conditional/nuisance compensation explicit instead of allowing a successful narrow claim to erase it from the top-level interpretation.
 
 The pairwise surfaces are diagnostic summaries, not a substitute for adequate global sensitivity sampling. Strong ridges or broad surfaces indicate combinations that the current evidence constrains more strongly than their individual components.
 
 ## Synthetic benchmark
 
-`research/identifiability-benchmark-v1/` remains the deterministic identifiability benchmark inspired by the ratio structures highlighted in issue #217. Schema v2 now marks every synthetic output explicitly as deterministic rather than allowing the analyzer to infer that scientific status from a bare number.
+`research/identifiability-benchmark-v1/` remains the deterministic identifiability benchmark inspired by the ratio structures highlighted in issue #217. Schema v2 marks every synthetic output explicitly as deterministic and now carries a test-only design digest so that even the benchmark cannot silently acquire a new parameter coordinate after its outputs were generated.
 
 Two synthetic parameters, `opportunity_scale` and `need_scale`, each take values 1–4. The first calibration pattern is their ratio with target 1.0. It accepts all four diagonal combinations (1,1), (2,2), (3,3), and (4,4), so that pattern alone cannot identify either absolute scale. The independent second pattern is the sum with target 4.0. Combining both declared patterns leaves only (2,2).
 
-The analyzer self-test adds the stochastic adversarial acceptance case from issue #338. Two parameter points have fixed estimates 0.00 and 0.10 against target 0.00 ± 0.05. With four-replicate, ±0.20 Monte Carlo intervals the design remains unresolved and non-identifying. With the **same point estimates** but adequately bound ±0.01 intervals, the first point is wholly inside the band, the second wholly outside, and the claimed parameter becomes identified. Tampering with the bound replicate provenance also fails closed.
+The analyzer self-test retains the stochastic adversarial acceptance case from issue #338. Two parameter points have fixed estimates 0.00 and 0.10 against target 0.00 ± 0.05. With four-replicate, ±0.20 Monte Carlo intervals the design remains unresolved and non-identifying. With the **same point estimates** but adequately bound ±0.01 intervals, the first point is wholly inside the band, the second wholly outside, and the claimed parameter becomes identified. Tampering with the bound replicate provenance also fails closed.
 
 The self-test also preserves the AV3-009 boundary: numeric JSON `1` and string JSON `"1"` are not two spellings of one structure. The numeric identifier is rejected as noncanonical, a structural claim with no explicit identifier is rejected, and two distinct valid string identifiers remain two compatible structures and force the structural gate to fail.
 
+The AV4-011 regression additionally executes a tiny real `anthrosim-research` experiment, derives its binding, proves the normal bound parameter claim works, and attacks parameter values, structural identity, execution IDs, derived covariate promotion, and coordinated mutation of both redundant immutable metadata files.
+
 ## Structural hypotheses
 
-Each design point in a structural claim carries a canonical non-empty string `structure` identifier. The analyzer compares those exact identifiers; it never stringifies arbitrary JSON values. If the study claims a structural mechanism, the calibration gate passes only when one structural identifier remains in the compatible region. Multiple compatible structures are reported as structural equifinality.
+Each real design point obtains its canonical structure identifier from the genuinely executed structural research coordinates. The analyzer compares those exact bound identifiers; it never accepts an arbitrary downstream string as evidence that a structure was executed. If the study claims a structural mechanism, the calibration gate passes only when one bound structural identifier remains in the compatible region. Multiple compatible structures are reported as structural equifinality.
 
-If held-out corroboration observables differ between those structures by more than the predeclared discrimination tolerance after simulation uncertainty is accounted for, the analyzer records them as discriminating predictions. The held-out grouping uses the same canonical structure identifier semantics as the structural-equifinality gate. That tells the investigator what additional observation could separate the hypotheses without pretending the existing evidence already does so.
+If held-out corroboration observables differ between those structures by more than the predeclared discrimination tolerance after simulation uncertainty is accounted for, the analyzer records them as discriminating predictions. The held-out grouping uses the same bound canonical structure identifier semantics as the structural-equifinality gate. That tells the investigator what additional observation could separate the hypotheses without pretending the existing evidence already does so.
 
 ## Interpretation limits
 
-Passing this gate means only that the **declared evidence over the declared explored uncertainty space**, with the declared simulation Monte Carlo precision, identifies the declared quantity to the predeclared resolution. It does not prove that the explored range is empirically complete, that the model is structurally correct, that observations are error-free, or that the archaeological interpretation is unique outside the tested hypothesis set.
+Passing this gate means only that the **declared evidence over the declared and executed uncertainty space**, with the declared simulation Monte Carlo precision, identifies the declared quantity to the predeclared resolution. It does not prove that the explored range is empirically complete, that the model is structurally correct, that observations are error-free, or that the archaeological interpretation is unique outside the tested hypothesis set.
 
-Conversely, failing the gate is not a defect in AnthroSim. It means the evidence and precision available do not support the requested inference at the stated resolution. That distinction is central to using equifinality and stochastic uncertainty as information rather than hiding them behind a single optimum.
+Conversely, failing the gate is not necessarily a defect in AnthroSim. It can mean the evidence and precision available do not support the requested inference, or that the supplied analysis table cannot be proven to describe the immutable executed coordinates. That distinction is central to using equifinality and stochastic uncertainty as information rather than hiding them behind a single optimum.

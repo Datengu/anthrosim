@@ -4,12 +4,18 @@ on:
   pull_request:
     paths:
       - "scripts/research-identifiability.py"
+      - "scripts/research-identifiability-legacy.py"
+      - "scripts/research-identifiability-bind-design.py"
       - "scripts/test-research-identifiability-fixed-design.py"
       - "scripts/test-research-identifiability-held-out-envelope.py"
       - "scripts/test-research-identifiability-equifinality-compensation.py"
+      - "scripts/test-research-identifiability-executed-design-binding.py"
       - "research/identifiability-benchmark-v1/**"
+      - "research/general-demography-baseline-v1/confirmatory-definition.json"
       - "docs/research/identifiability-equifinality-v1.md"
       - "docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py"
+      - "crates/anthrosim-cli/src/bin/anthrosim-research.rs"
+      - "crates/anthrosim-core/src/research_experiment.rs"
       - ".github/workflows/identifiability-analysis.yml"
   workflow_dispatch:
 
@@ -23,11 +29,26 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
       - name: Compile and self-test analyzer
         run: |
-          python3 -m py_compile scripts/research-identifiability.py
+          python3 -m py_compile \
+            scripts/research-identifiability.py \
+            scripts/research-identifiability-legacy.py \
+            scripts/research-identifiability-bind-design.py \
+            scripts/test-research-identifiability-executed-design-binding.py
           python3 scripts/research-identifiability.py --self-test
+      - name: Verify AV4-011 executed-design binding against the real research runner
+        run: |
+          cargo build --locked --bin anthrosim-research
+          python3 scripts/test-research-identifiability-executed-design-binding.py \
+            --research-binary target/debug/anthrosim-research
       - name: Verify fixed-by-design parameters fail closed
         run: python3 scripts/test-research-identifiability-fixed-design.py
       - name: Verify held-out discrimination uses conservative structural envelopes
@@ -48,7 +69,8 @@ jobs:
           r=json.loads(Path('/tmp/identifiability-result.json').read_text())
           assert r['schemaVersion'] == 2
           assert r['researchGate']['passes'] is True
-          assert r['researchGate']['simulationUncertaintyResolved'] is True
+          assert r['researchGate']['executedDesignBound'] is True
+          assert r['executedDesignBinding']['sourceKind'] == 'synthetic_fixture'
           assert r['stagedEvidenceDiagnostics'][0]['compatiblePointCount'] == 4
           assert r['stagedEvidenceDiagnostics'][1]['compatiblePointCount'] == 1
           assert r['compatibleRegion']['pointIds'] == ['o2-n2']
@@ -80,6 +102,7 @@ jobs:
           from pathlib import Path
           r=json.loads(Path('/tmp/ratio-only-result.json').read_text())
           assert r['researchGate']['passes'] is False
+          assert r['researchGate']['executedDesignBound'] is True
           assert r['equifinality']['present'] is True
           assert r['compatibleRegion']['pointCount'] == 4
           assert r['unresolvedRegion']['pointCount'] == 0
@@ -88,6 +111,7 @@ jobs:
       - name: Verify structural equifinality preserves held-out discriminator
         run: |
           python3 - <<'PY'
+          import hashlib
           import json
           from pathlib import Path
           plan={
@@ -109,7 +133,25 @@ jobs:
             point=dict(point)
             point['outputEvidence']={key:{'kind':'deterministic'} for key in point['outputs']}
             points.append(point)
-          data={'schemaVersion':2,'monteCarloDiagnostics':{},'points':points}
+          projection=[
+            {'id':point['id'],'parameters':point['parameters'],'structure':point['structure']}
+            for point in points
+          ]
+          digest='sha256:'+hashlib.sha256(
+            json.dumps(projection,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode('utf-8')
+          ).hexdigest()
+          data={
+            'schemaVersion':2,
+            'monteCarloDiagnostics':{},
+            'executedDesignBinding':{
+              'schemaVersion':1,
+              'bindingType':'anthrosim-identifiability-executed-design',
+              'sourceKind':'synthetic_fixture',
+              'sourceIdentity':'structural-equifinality-self-test-v2',
+              'pointDigest':digest,
+            },
+            'points':points,
+          }
           Path('/tmp/structural-plan.json').write_text(json.dumps(plan,indent=2,sort_keys=True)+'\n')
           Path('/tmp/structural-data.json').write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
           PY
@@ -123,6 +165,7 @@ jobs:
           from pathlib import Path
           r=json.loads(Path('/tmp/structural-result.json').read_text())
           assert r['researchGate']['passes'] is False
+          assert r['researchGate']['executedDesignBound'] is True
           assert r['structuralDiagnostic']['equifinal'] is True
           assert r['structuralDiagnostic']['compatibleStructures'] == ['model_a','model_b']
           assert any(x['observable']=='heldout_pattern' and x['discriminating'] is True for x in r['discriminatingPredictions'])
