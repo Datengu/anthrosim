@@ -449,10 +449,15 @@ impl MigrationSystem {
                 config.candidate_radius_cells,
             );
             self.evaluations.clear();
-            let mut total_weight = 0_u64;
-            let mut best_candidate = CellId::INVALID;
-            let mut best_candidate_utility = i32::MIN;
+            let required = origin_utility.total_utility.saturating_add(
+                i32::try_from(config.minimum_utility_improvement).unwrap_or(i32::MAX),
+            );
 
+            // First evaluate every destination without candidate uncertainty. The coupling key
+            // contains only deterministic quantities that can affect this M4 decision/outcome:
+            // total deterministic utility drives eligibility/weight, and distance drives the
+            // movement consequence. Raw utility components whose configured weights are zero are
+            // deliberately excluded so scientifically inactive metadata cannot invent orientation.
             for &candidate in &self.candidates {
                 let distance = manhattan_distance(world, origin, candidate).ok_or(
                     MigrationError::InternalInvariant("candidate coordinates invalid"),
@@ -460,6 +465,51 @@ impl MigrationSystem {
                 let destination_demand_population = self
                     .boundary_demand_population(candidate)?
                     .saturating_add(members);
+                let deterministic_utility = self.evaluate_relocation(
+                    household_index,
+                    candidate,
+                    distance,
+                    destination_demand_population,
+                    resources,
+                    world,
+                    config,
+                    period_need_per_person,
+                    0,
+                )?;
+                self.evaluations.push(CandidateEvaluation {
+                    cell: candidate,
+                    distance,
+                    utility: deterministic_utility,
+                    weight: 0,
+                });
+            }
+            // Order scientifically distinct classes by active deterministic M4 state. CellId is
+            // used only to serialize members *inside* an exact scientific equivalence class; it
+            // does not decide class uncertainty assignment or cumulative class probability.
+            self.evaluations.sort_unstable_by_key(|evaluation| {
+                (candidate_scientific_key(evaluation), evaluation.cell)
+            });
+
+            let mut total_weight = 0_u64;
+            let mut best_candidate = CellId::INVALID;
+            let mut best_candidate_utility = i32::MIN;
+            let mut best_candidate_key = None;
+            let mut eligible_count = 0_usize;
+
+            // Assign one uncertainty realization to each exact deterministic scientific class.
+            // Members of a class are indistinguishable to active M4 semantics before uncertainty,
+            // so sharing that realization prevents arbitrary CellId order from attaching different
+            // uncertainty draws to physically symmetric alternatives. Distinct classes retain the
+            // original independent sequential uncertainty semantics in scientific-key order.
+            let mut class_start = 0_usize;
+            while class_start < self.evaluations.len() {
+                let class_key = candidate_scientific_key(&self.evaluations[class_start]);
+                let mut class_end = class_start + 1;
+                while class_end < self.evaluations.len()
+                    && candidate_scientific_key(&self.evaluations[class_end]) == class_key
+                {
+                    class_end += 1;
+                }
                 let uncertainty = if config.max_uncertainty_penalty_permille == 0 {
                     0
                 } else {
@@ -469,44 +519,58 @@ impl MigrationSystem {
                     ))
                     .unwrap_or(config.max_uncertainty_penalty_permille)
                 };
-                let utility = self.evaluate_relocation(
-                    household_index,
-                    candidate,
-                    distance,
-                    destination_demand_population,
-                    resources,
-                    world,
-                    config,
-                    period_need_per_person,
-                    uncertainty,
-                )?;
-                if utility.total_utility > best_candidate_utility
-                    || (utility.total_utility == best_candidate_utility
-                        && (best_candidate == CellId::INVALID || candidate < best_candidate))
-                {
-                    best_candidate = candidate;
-                    best_candidate_utility = utility.total_utility;
+
+                for evaluation_index in class_start..class_end {
+                    let deterministic = self.evaluations[evaluation_index];
+                    let scientific_key = candidate_scientific_key(&deterministic);
+                    let destination_demand_population = self
+                        .boundary_demand_population(deterministic.cell)?
+                        .saturating_add(members);
+                    let utility = self.evaluate_relocation(
+                        household_index,
+                        deterministic.cell,
+                        deterministic.distance,
+                        destination_demand_population,
+                        resources,
+                        world,
+                        config,
+                        period_need_per_person,
+                        uncertainty,
+                    )?;
+                    let replace_best = if utility.total_utility > best_candidate_utility {
+                        true
+                    } else if utility.total_utility == best_candidate_utility {
+                        best_candidate_key.is_none_or(|best_key| scientific_key < best_key)
+                    } else {
+                        false
+                    };
+                    if replace_best {
+                        best_candidate = deterministic.cell;
+                        best_candidate_utility = utility.total_utility;
+                        best_candidate_key = Some(scientific_key);
+                    }
+                    if utility.total_utility <= required {
+                        continue;
+                    }
+                    let improvement = i64::from(utility.total_utility) - i64::from(required);
+                    // Every member keeps its original proportional improvement weight. Exact-class
+                    // members therefore occupy equal subintervals of one scientifically defined
+                    // class interval; CellId only names the exchangeable realized member.
+                    let weight = proportional_choice_weight(improvement);
+                    total_weight = total_weight
+                        .checked_add(weight)
+                        .ok_or(MigrationError::AccountingOverflow)?;
+                    self.evaluations[eligible_count] = CandidateEvaluation {
+                        cell: deterministic.cell,
+                        distance: deterministic.distance,
+                        utility,
+                        weight,
+                    };
+                    eligible_count += 1;
                 }
-                let required = origin_utility.total_utility.saturating_add(
-                    i32::try_from(config.minimum_utility_improvement).unwrap_or(i32::MAX),
-                );
-                if utility.total_utility <= required {
-                    continue;
-                }
-                let improvement = i64::from(utility.total_utility) - i64::from(required);
-                // Strict eligibility above guarantees a positive improvement, so the
-                // stochastic weight is exactly proportional to declared utility improvement.
-                let weight = proportional_choice_weight(improvement);
-                total_weight = total_weight
-                    .checked_add(weight)
-                    .ok_or(MigrationError::AccountingOverflow)?;
-                self.evaluations.push(CandidateEvaluation {
-                    cell: candidate,
-                    distance,
-                    utility,
-                    weight,
-                });
+                class_start = class_end;
             }
+            self.evaluations.truncate(eligible_count);
 
             if total_weight == 0 {
                 continue;
@@ -1313,6 +1377,10 @@ fn household_index(
         ));
     }
     Ok(index)
+}
+
+fn candidate_scientific_key(evaluation: &CandidateEvaluation) -> (i32, u16) {
+    (evaluation.utility.total_utility, evaluation.distance)
 }
 
 fn proportional_choice_weight(improvement: i64) -> u64 {

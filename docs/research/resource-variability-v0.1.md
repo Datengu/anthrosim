@@ -15,7 +15,73 @@ The canonical definition is unchanged: 100 years, 5,000 founders, 64 × 64 synth
 
 These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.
 
-## Current v29 reference and provenance
+## Current v33 reference and provenance
+
+Audit-v4 AV4-009 / #518 changes causal same-seed M4 candidate-choice coupling: candidate uncertainty and weighted-choice intervals are no longer assigned through arbitrary canonical `CellId` / container ordering. The accepted repair evaluates deterministic utility first, partitions scientifically equivalent candidates by `(total utility, movement distance)`, assigns uncertainty at equivalence-class level, preserves class aggregate proportional weight and samples exact-class members exchangeably. The frozen M7.6 reference was therefore rerun and reviewed rather than forced to reproduce v32 values.
+
+Reviewed v33 execution before reference synchronization:
+
+- CI run: `33885763026`;
+- M7.6 job: `101069178448`;
+- exact production head used by the archived run: `c9b7a0f2d762323afa76b7d0f390f29930a77b0a`;
+- artifact: `9942318197` (`m7-6-resource-variability-derived`, `sha256:4f5abe584d9c30f5ba69e144d7c41ad3d5e9d4a9664953944685d43066166cd5`);
+- definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
+- model version: `0.3.4`;
+- model semantics: `anthrosim-model-semantics-v33`;
+- sweep ID: `anthrosim-sweep-v2-b56e7e725c1ea70e`.
+
+All **144/144** planned runs completed and were scientifically eligible, with no failed, incomplete, record-limit or otherwise operationally censored runs. The exact-head workflow failed only at its final equality assertion against the then-current frozen v32 point-results reference; the complete derived artifact was archived successfully and reviewed before the reference was changed.
+
+The on/off control is exact and diagnostic for this M4-only repair: all **9/9 migration-disabled point summaries are numerically identical to v32**, while all **9/9 migration-enabled point summaries change**. Migration-enabled terminal-population means move by only about **-2.9% to +4.1%**. The source definition, 18-point factorial design, paired seeds, M3 resource settings, demographic settings, completion/censoring rules and declared endpoints are unchanged. This isolates the required rebaseline to trajectories in which permanent M4 migration can act, rather than unexplained resource or demographic drift.
+
+The reviewed v33 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls.
+
+## Current v33 point results
+
+The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
+
+| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |
+| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 0 | on | 8 duration / 0 extinct | 1672.125 | 343.875 | 278.625 | 36205.375 | 28995.125 | 2.048 |
+| 250 | 0 | off | 0 duration / 8 extinct | 0 | 0 | 4891.25 | 548486.5 | 0 | — |
+| 250 | 500 | on | 8 duration / 0 extinct | 1641.125 | 348 | 276.25 | 37098.25 | 28724.625 | 2.044 |
+| 250 | 500 | off | 0 duration / 8 extinct | 0 | 0 | 4900.25 | 548966.25 | 0 | — |
+| 250 | 1000 | on | 8 duration / 0 extinct | 1659.125 | 348.5 | 289 | 39330 | 28787 | 2.047 |
+| 250 | 1000 | off | 0 duration / 8 extinct | 0 | 0 | 4909.625 | 551006.875 | 0 | — |
+| 500 | 0 | on | 8 duration / 0 extinct | 1892 | 349.625 | 25.375 | 2428.125 | 7044.75 | 1.979 |
+| 500 | 0 | off | 8 duration / 0 extinct | 18 | 14.375 | 3677.375 | 326601.875 | 0 | — |
+| 500 | 500 | on | 8 duration / 0 extinct | 1826 | 342.75 | 24.5 | 2700.875 | 6872.375 | 1.984 |
+| 500 | 500 | off | 8 duration / 0 extinct | 21.5 | 14.875 | 3705.75 | 331462.5 | 0 | — |
+| 500 | 1000 | on | 8 duration / 0 extinct | 1842.125 | 347.375 | 28.5 | 3330.375 | 6967.75 | 1.986 |
+| 500 | 1000 | off | 8 duration / 0 extinct | 23.625 | 16.5 | 3693.625 | 335276.25 | 0 | — |
+| 1000 | 0 | on | 8 duration / 0 extinct | 1855.375 | 351.5 | 2.625 | 81.125 | 1124.625 | 1.889 |
+| 1000 | 0 | off | 8 duration / 0 extinct | 628.75 | 224.375 | 1636.625 | 126130.25 | 0 | — |
+| 1000 | 500 | on | 8 duration / 0 extinct | 1870.625 | 350.75 | 2.375 | 39.875 | 1089.75 | 1.900 |
+| 1000 | 500 | off | 8 duration / 0 extinct | 614.625 | 220 | 1596 | 125021.25 | 0 | — |
+| 1000 | 1000 | on | 8 duration / 0 extinct | 1869 | 346.5 | 3.625 | 175.625 | 1120.625 | 1.924 |
+| 1000 | 1000 | off | 8 duration / 0 extinct | 628 | 221 | 1611.5 | 130377.875 | 0 | — |
+
+Full unrounded point values are preserved in the machine-readable reference.
+
+## Current v33 interpretation
+
+### Productivity remains the strongest resource control
+
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while exact migration-enabled trajectories now reflect spatial-isomorphism-invariant M4 candidate stochastic coupling.
+
+### Migration remains strongly associated with persistence in this synthetic design
+
+At productivity `250`, all three migration-disabled seasonality points become extinct in all eight paired seeds, while all matched migration-enabled runs reach the requested duration. The persistence contrast also remains large at productivity `500` and `1000`.
+
+### Seasonality remains non-monotonic
+
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+
+### Interpretation boundary
+
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v33 rebaseline preserves the experiment design and scientific question while recording the expected downstream consequences of correcting arbitrary spatial-candidate stochastic coupling. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+
+## Historical v29 reference and provenance
 
 Audit-v4 AV4-005 / #495 changes causal same-seed M2 parentage assignment: eligible residence-local males are no longer coupled to `demography/parentage` draws through arbitrary canonical `PersonId`/record order. Because genealogy can propagate into kin eligibility, household composition and migration histories, the frozen M7.6 synthetic reference was rerun and reviewed rather than forced to reproduce v28 values.
 
@@ -36,7 +102,7 @@ The on/off control is again diagnostic: all **9/9 migration-disabled point summa
 
 The reviewed v29 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls.
 
-## Current v29 point results
+## Historical v29 point results
 
 The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
 
@@ -61,13 +127,13 @@ The table reports descriptive means over the eight scientifically eligible seeds
 | 1000 | 1000 | on | 8 duration / 0 extinct | 1918.75 | 350.25 | 3.625 | 206.375 | 1161.5 | 1.913 |
 | 1000 | 1000 | off | 8 duration / 0 extinct | 605.375 | 215.375 | 1647.625 | 134348.375 | 0 | — |
 
-Full unrounded point values are preserved in the machine-readable reference.
+Full unrounded point values are preserved in the machine-readable reference at the v29 commit.
 
-## Current v29 interpretation
+## Historical v29 interpretation
 
 ### Productivity remains the strongest resource control
 
-The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while exact migration-enabled trajectories now reflect both HouseholdId-invariant M4 scheduling and PersonId-invariant M2 parentage stochastic coupling.
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while exact migration-enabled trajectories reflect both HouseholdId-invariant M4 scheduling and PersonId-invariant M2 parentage stochastic coupling.
 
 ### Migration remains strongly associated with persistence in this synthetic design
 
@@ -75,11 +141,11 @@ At productivity `250`, all three migration-disabled seasonality points become ex
 
 ### Seasonality remains non-monotonic
 
-Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
 
 ### Interpretation boundary
 
-This remains a synthetic mechanism-validation experiment, not calibration evidence. The v29 rebaseline preserves the experiment design and scientific question while recording the expected downstream consequences of corrected parentage stochastic coupling. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v29 rebaseline preserved the experiment design and scientific question while recording the expected downstream consequences of corrected parentage stochastic coupling. It did not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
 
 ## Historical v28 reference and provenance
 
@@ -127,13 +193,13 @@ The table reports descriptive means over the eight scientifically eligible seeds
 | 1000 | 1000 | on | 8 duration / 0 extinct | 1879.5 | 348.125 | 3.5 | 226.375 | 1123.125 | 1.928 |
 | 1000 | 1000 | off | 8 duration / 0 extinct | 605.375 | 215.375 | 1647.625 | 134348.375 | 0 | — |
 
-Full unrounded point values are preserved in the machine-readable reference.
+Full unrounded point values are preserved in the historical machine-readable reference.
 
 ## Historical v28 interpretation
 
 ### Productivity remains the strongest resource control
 
-The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact migration-enabled trajectories now reflect HouseholdId-invariant M4 stochastic scheduling.
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact migration-enabled trajectories reflect HouseholdId-invariant M4 stochastic scheduling.
 
 ### Migration remains strongly associated with persistence in this synthetic design
 
@@ -141,11 +207,11 @@ At productivity `250`, all three migration-disabled seasonality points become ex
 
 ### Seasonality remains non-monotonic
 
-Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
 
 ### Interpretation boundary
 
-This remains a synthetic mechanism-validation experiment, not calibration evidence. The v28 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary household-label migration draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v28 rebaseline preserved the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary household-label migration draw assignment. It did not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
 
 ## Historical v27 reference and provenance
 
@@ -191,13 +257,13 @@ The table reports descriptive means over the eight scientifically eligible seeds
 | 1000 | 1000 | on | 8 duration / 0 extinct | 1847.5 | 344.75 | 4.5 | 213.75 | 1112.125 | 1.925 |
 | 1000 | 1000 | off | 8 duration / 0 extinct | 605.375 | 215.375 | 1647.625 | 134348.375 | 0 | — |
 
-Full unrounded point values are preserved in the machine-readable reference.
+Full unrounded point values are preserved in the historical machine-readable reference.
 
 ## Historical v27 interpretation
 
 ### Productivity remains the strongest resource control
 
-The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are now those generated under the corrected v27 background-mortality coupling.
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are those generated under the corrected v27 background-mortality coupling.
 
 ### Migration remains strongly associated with persistence in this synthetic design
 
@@ -205,11 +271,11 @@ At productivity `250`, all three migration-disabled seasonality points become ex
 
 ### Seasonality remains non-monotonic
 
-Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
 
 ### Interpretation boundary
 
-This remains a synthetic mechanism-validation experiment, not calibration evidence. The v27 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary background-mortality draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v27 rebaseline preserved the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary background-mortality draw assignment. It did not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
 
 ## Historical v26 reference and provenance
 
@@ -255,13 +321,13 @@ The table reports descriptive means over the eight scientifically eligible seeds
 | 1000 | 1000 | on | 8 duration / 0 extinct | 1879.5 | 347.875 | 4.25 | 272 | 1105.125 | 1.918 |
 | 1000 | 1000 | off | 8 duration / 0 extinct | 619.625 | 218.5 | 1588.125 | 128760.875 | 0 | — |
 
-Full unrounded point values are preserved in the machine-readable reference.
+Full unrounded point values are preserved in the historical machine-readable reference.
 
 ## Historical v26 interpretation
 
 ### Productivity remains the strongest resource control
 
-The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are now those generated under the corrected v26 fertility coupling.
+The broad productivity gradient remains: low productivity produces substantially greater condition-mediated mortality and unmet need than high productivity, while the exact trajectory-level values are those generated under the corrected v26 fertility coupling.
 
 ### Migration remains strongly associated with persistence in this synthetic design
 
@@ -269,11 +335,11 @@ At productivity `250`, all three migration-disabled seasonality points become ex
 
 ### Seasonality remains non-monotonic
 
-Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison still does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
+Changing seasonal amplitude changes within-year resource timing and downstream trajectories, but the three-level comparison does not support a universal monotonic claim that greater seasonality always improves or worsens persistence.
 
 ### Interpretation boundary
 
-This remains a synthetic mechanism-validation experiment, not calibration evidence. The v26 rebaseline preserves the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary fertility-draw assignment. It does not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
+This remains a synthetic mechanism-validation experiment, not calibration evidence. The v26 rebaseline preserved the experiment design and scientific question while recording the expected causal consequences of correcting arbitrary fertility-draw assignment. It did not support claims about real prehistoric population size, carrying capacity, climate, migration rates or any archaeological site.
 
 ## Historical v13 reference and provenance
 
@@ -380,6 +446,9 @@ Earlier exact references remain preserved in Git history.
 - v26 records the expected downstream consequences of correcting arbitrary founder-person fertility draw assignment in AV4-001/#486.
 - v27 records the expected downstream consequences of correcting arbitrary founder-person background-mortality draw assignment in AV4-002/#488.
 - v28 again shows a diagnostically M4-specific pattern: every migration-disabled point remains exactly v27 while every migration-enabled point changes after AV4-003/#491 corrects arbitrary HouseholdId migration draw assignment.
+- v29 records the expected downstream consequences of correcting parentage stochastic coupling in AV4-005/#495.
+- v30/v31/v32 re-verification detail is preserved in dedicated contemporaneous research notes and Git history.
+- v33 again shows the M4-specific control split: all migration-disabled point summaries remain exactly v32 while all migration-enabled summaries change after AV4-009/#518 removes canonical spatial-candidate coupling.
 
 Historical snapshots are model-evaluation history, not targets that later corrected implementations must reproduce.
 
