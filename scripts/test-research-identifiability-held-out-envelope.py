@@ -44,7 +44,7 @@ def analyse(points: list[dict], analysis_id: str) -> dict:
         "monteCarloDiagnostics": {},
         "points": points,
     }
-    return module.analyse(plan, data)
+    return module.analyse(plan, module.bind_synthetic_fixture(data, analysis_id))
 
 
 def prediction(result: dict) -> dict:
