@@ -35,7 +35,7 @@ def analyse(points: list[dict], analysis_id: str, claimed: list[str] | None = No
         "maxNormalizedAcceptableWidth": 0.25,
     }
     data = {"schemaVersion": 2, "monteCarloDiagnostics": {}, "points": points}
-    return module.analyse(plan, data)
+    return module.analyse(plan, module.bind_synthetic_fixture(data, analysis_id))
 
 
 def by_parameter(result: dict) -> dict[str, dict]:
