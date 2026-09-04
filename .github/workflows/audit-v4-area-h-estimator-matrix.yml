@@ -1,0 +1,27 @@
+name: Audit v4 Area H estimator matrix
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v4-test-monte-carlo-estimator-matrix.py"
+      - ".github/workflows/audit-v4-area-h-estimator-matrix.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  estimator-matrix-adversary:
+    name: Estimator and seed-contract matrix
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v4 estimator matrix
+        run: python3 scripts/audit-v4-test-monte-carlo-estimator-matrix.py
