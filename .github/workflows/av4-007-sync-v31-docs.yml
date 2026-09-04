@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - repair/av4-007-m9-household-tie-key
+  workflow_dispatch:
 
 permissions:
   contents: write
