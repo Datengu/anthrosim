@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from bisect import bisect_left
+from fractions import Fraction
 import hashlib
 import json
 import math
@@ -21,6 +22,7 @@ SAMPLE_SCHEMA = 1
 DIAGNOSTIC_SCHEMA = 2
 PLAN_PREFIX = "monte-carlo-precision-plan-v1:"
 UNCERTAINTY_CATEGORY = "process_stochastic_monte_carlo"
+BINARY64_INTEGER_FIDELITY_BOUND = 1 << 53
 SUPPORTED_KINDS = {
     "mean",
     "difference_in_means",
@@ -76,6 +78,34 @@ def require_keys(obj: dict[str, Any], allowed: set[str], required: set[str], rol
         fail(f"{role} contains unknown field(s): {', '.join(sorted(unknown))}")
     if missing:
         fail(f"{role} is missing required field(s): {', '.join(sorted(missing))}")
+
+
+def integer_roundtrips_binary64(value: int) -> bool:
+    try:
+        converted = float(value)
+    except OverflowError:
+        return False
+    return math.isfinite(converted) and int(converted) == value
+
+
+def exact_rational(value: int | float | Fraction) -> Fraction:
+    if isinstance(value, Fraction):
+        return value
+    if isinstance(value, int) and not isinstance(value, bool):
+        return Fraction(value)
+    if isinstance(value, float) and math.isfinite(value):
+        return Fraction.from_float(value)
+    fail("internal continuous value is not a finite supported numeric representation")
+
+
+def finite_binary64(value: int | float | Fraction, role: str) -> float:
+    try:
+        converted = float(value)
+    except OverflowError:
+        fail(f"{role} exceeds finite binary64 diagnostic range; rescale the estimand")
+    if not math.isfinite(converted):
+        fail(f"{role} exceeds finite binary64 diagnostic range; rescale the estimand")
+    return converted
 
 
 def validate_plan(plan: dict[str, Any]) -> str:
@@ -252,7 +282,9 @@ def validate_samples(samples: dict[str, Any], plan: dict[str, Any]) -> tuple[lis
         if not isinstance(reps, list) or len(reps) < 2:
             fail("each sample group requires at least two replicates")
         seeds: list[int] = []
-        values: list[float] = []
+        values: list[int | float] = []
+        requires_exact_arithmetic = False
+        input_representations: set[str] = set()
         for rep in reps:
             if not isinstance(rep, dict):
                 fail("replicate must be an object")
@@ -263,7 +295,7 @@ def validate_samples(samples: dict[str, Any], plan: dict[str, Any]) -> tuple[lis
             raw_value = rep["value"]
             if kind == "probability":
                 if raw_value in (True, 1):
-                    value = 1.0
+                    value: int | float = 1.0
                 elif raw_value in (False, 0):
                     value = 0.0
                 else:
@@ -271,14 +303,36 @@ def validate_samples(samples: dict[str, Any], plan: dict[str, Any]) -> tuple[lis
             else:
                 if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
                     fail("continuous replicate values must be numeric")
-                value = float(raw_value)
-                if not math.isfinite(value):
-                    fail("replicate values must be finite")
+                if isinstance(raw_value, int):
+                    input_representations.add("exact_integer")
+                    if integer_roundtrips_binary64(raw_value):
+                        value = float(raw_value)
+                    else:
+                        value = raw_value
+                        requires_exact_arithmetic = True
+                else:
+                    if not math.isfinite(raw_value):
+                        fail("replicate values must be finite")
+                    if abs(raw_value) >= BINARY64_INTEGER_FIDELITY_BOUND:
+                        fail(
+                            "large floating replicate magnitude cannot preserve or prove source precision; "
+                            "use an exact JSON integer for integer-valued observables or rescale the estimand"
+                        )
+                    input_representations.add("binary64_float")
+                    value = raw_value
             seeds.append(seed)
             values.append(value)
         if len(set(seeds)) != len(seeds):
             fail(f"sample group {group['id']} contains duplicate seeds")
-        parsed.append({"id": group["id"], "seeds": seeds, "values": values})
+        parsed.append(
+            {
+                "id": group["id"],
+                "seeds": seeds,
+                "values": values,
+                "requiresExactArithmetic": requires_exact_arithmetic,
+                "inputRepresentations": sorted(input_representations),
+            }
+        )
 
     first_prefixes = declared_prefixes(plan, 0)
     first_seeds = parsed[0]["seeds"]
@@ -304,28 +358,56 @@ def validate_samples(samples: dict[str, Any], plan: dict[str, Any]) -> tuple[lis
     return parsed, len(first_seeds), boundary_index
 
 
-def mean_and_variance(values: list[float]) -> tuple[float, float]:
+def mean_and_variance(
+    values: list[int | float | Fraction], *, exact: bool = False
+) -> tuple[float | Fraction, float | Fraction]:
     n = len(values)
-    mean = sum(values) / n
-    variance = sum((value - mean) ** 2 for value in values) / (n - 1)
+    if not exact:
+        mean = sum(values) / n
+        variance = sum((value - mean) ** 2 for value in values) / (n - 1)
+        return mean, variance
+
+    exact_values = [exact_rational(value) for value in values]
+    mean = sum(exact_values, Fraction(0, 1)) / n
+    variance = sum(((value - mean) ** 2 for value in exact_values), Fraction(0, 1)) / (n - 1)
     return mean, variance
 
 
-def normal_interval(mean: float, variance: float, n: int, confidence: float) -> tuple[float, float, float]:
+def normal_interval(
+    mean: float | Fraction, variance: float | Fraction, n: int, confidence: float
+) -> tuple[float, float, float]:
     z = NormalDist().inv_cdf(0.5 + confidence / 2.0)
-    half = z * math.sqrt(variance / n)
-    return mean - half, mean + half, half
+    if isinstance(mean, Fraction) or isinstance(variance, Fraction):
+        mean_value = finite_binary64(mean, "normal-interval estimate")
+        variance_scale = finite_binary64(exact_rational(variance) / n, "normal-interval variance scale")
+        half = z * math.sqrt(variance_scale)
+    else:
+        mean_value = mean
+        half = z * math.sqrt(variance / n)
+    return mean_value - half, mean_value + half, half
 
 
-def quantile(values: list[float], probability: float) -> float:
-    ordered = sorted(values)
-    position = probability * (len(ordered) - 1)
-    lower = int(math.floor(position))
-    upper = int(math.ceil(position))
+def quantile(
+    values: list[int | float | Fraction], probability: float, *, exact: bool = False
+) -> float | Fraction:
+    if not exact:
+        ordered = sorted(values)
+        position = probability * (len(ordered) - 1)
+        lower = int(math.floor(position))
+        upper = int(math.ceil(position))
+        if lower == upper:
+            return ordered[lower]
+        fraction = position - lower
+        return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
+
+    ordered = sorted(exact_rational(value) for value in values)
+    position = Fraction.from_float(probability) * (len(ordered) - 1)
+    lower = position.numerator // position.denominator
+    upper = (position.numerator + position.denominator - 1) // position.denominator
     if lower == upper:
         return ordered[lower]
     fraction = position - lower
-    return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
+    return ordered[lower] * (1 - fraction) + ordered[upper] * fraction
 
 
 def exact_quantile_rank_interval(n: int, probability: float, confidence: float) -> dict[str, Any]:
@@ -409,24 +491,49 @@ def diagnostic(groups: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, 
     confidence = float(estimand["confidenceLevel"])
     threshold = float(estimand["maxHalfWidth"])
     z = NormalDist().inv_cdf(0.5 + confidence / 2.0)
+    exact_arithmetic = any(group.get("requiresExactArithmetic") is True for group in groups)
+    input_representations = sorted(
+        {
+            representation
+            for group in groups
+            for representation in group.get("inputRepresentations", [])
+        }
+    )
 
     if kind == "mean":
         values = groups[0]["values"]
-        estimate, variance = mean_and_variance(values)
+        estimate, variance = mean_and_variance(values, exact=exact_arithmetic)
         lower, upper, half = normal_interval(estimate, variance, len(values), confidence)
+        estimate = finite_binary64(estimate, "mean estimate")
         method = "normal_clt_mean_se"
     elif kind == "difference_in_means":
         left, right = groups[0]["values"], groups[1]["values"]
-        left_mean, left_var = mean_and_variance(left)
-        right_mean, right_var = mean_and_variance(right)
-        estimate = left_mean - right_mean
-        half = z * math.sqrt(left_var / len(left) + right_var / len(right))
-        lower, upper = estimate - half, estimate + half
+        if exact_arithmetic:
+            left_mean, left_var = mean_and_variance(left, exact=True)
+            right_mean, right_var = mean_and_variance(right, exact=True)
+            estimate = finite_binary64(left_mean - right_mean, "difference-in-means estimate")
+            variance_scale = exact_rational(left_var) / len(left) + exact_rational(right_var) / len(right)
+            half = z * math.sqrt(finite_binary64(variance_scale, "difference-in-means variance scale"))
+            lower, upper = estimate - half, estimate + half
+        else:
+            left_mean, left_var = mean_and_variance(left)
+            right_mean, right_var = mean_and_variance(right)
+            estimate = left_mean - right_mean
+            half = z * math.sqrt(left_var / len(left) + right_var / len(right))
+            lower, upper = estimate - half, estimate + half
         method = "normal_clt_independent_difference_in_means"
     elif kind == "paired_mean_difference":
-        differences = [left - right for left, right in zip(groups[0]["values"], groups[1]["values"])]
-        estimate, variance = mean_and_variance(differences)
+        if exact_arithmetic:
+            differences = [
+                exact_rational(left) - exact_rational(right)
+                for left, right in zip(groups[0]["values"], groups[1]["values"])
+            ]
+            estimate, variance = mean_and_variance(differences, exact=True)
+        else:
+            differences = [left - right for left, right in zip(groups[0]["values"], groups[1]["values"])]
+            estimate, variance = mean_and_variance(differences)
         lower, upper, half = normal_interval(estimate, variance, len(differences), confidence)
+        estimate = finite_binary64(estimate, "paired mean-difference estimate")
         method = "normal_clt_paired_seed_difference"
     elif kind == "probability":
         values = groups[0]["values"]
@@ -443,17 +550,26 @@ def diagnostic(groups: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, 
         values = groups[0]["values"]
         n = len(values)
         probability = float(estimand["quantileProbability"])
-        ordered = sorted(values)
-        estimate = quantile(values, probability)
+        if exact_arithmetic:
+            ordered = sorted(exact_rational(value) for value in values)
+            estimate_raw = quantile(values, probability, exact=True)
+        else:
+            ordered = sorted(values)
+            estimate_raw = quantile(values, probability)
         rank_support = exact_quantile_rank_interval(n, probability, confidence)
         method = "distribution_free_exact_binomial_order_statistic_interval"
         if rank_support["feasible"]:
             lower_index = rank_support["lowerIndex"]
             upper_index = rank_support["upperIndex"]
             assert isinstance(lower_index, int) and isinstance(upper_index, int)
-            lower, upper = ordered[lower_index], ordered[upper_index]
-            half = max(estimate - lower, upper - estimate)
+            lower_raw, upper_raw = ordered[lower_index], ordered[upper_index]
+            half_raw = max(estimate_raw - lower_raw, upper_raw - estimate_raw)
+            estimate = finite_binary64(estimate_raw, "quantile estimate")
+            lower = finite_binary64(lower_raw, "quantile lower interval endpoint")
+            upper = finite_binary64(upper_raw, "quantile upper interval endpoint")
+            half = finite_binary64(half_raw, "quantile interval half-width")
         else:
+            estimate = finite_binary64(estimate_raw, "quantile estimate")
             lower = upper = half = None
     else:
         raise AssertionError(kind)
@@ -468,6 +584,14 @@ def diagnostic(groups: list[dict[str, Any]], plan: dict[str, Any]) -> dict[str, 
         "declaredMaxHalfWidth": threshold,
         "sufficient": half is not None and half <= threshold,
     }
+    if exact_arithmetic:
+        precision["numericFidelity"] = {
+            "inputRepresentations": input_representations,
+            "integerInput": "preserved_exactly_when_binary64_round_trip_would_change_value",
+            "floatingInput": "finite_binary64_with_abs_value_below_2^53",
+            "momentArithmetic": "exact_rational",
+            "binary64Conversion": "after_exact_estimator_moment_derivation_for_diagnostic_reporting",
+        }
     if kind == "quantile":
         precision.update(
             {
