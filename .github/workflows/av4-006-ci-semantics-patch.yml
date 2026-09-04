@@ -1,0 +1,53 @@
+name: AV4-006 M7.6 semantics guard patch
+
+on:
+  push:
+    branches:
+      - repair/av4-006-condition-mortality-coupling
+    paths:
+      - ".github/workflows/av4-006-ci-semantics-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    name: Bind M7.6 semantics guard to authoritative constant
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: repair/av4-006-condition-mortality-coupling
+      - name: Patch exact stale assertion
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/ci.yml')
+          text = path.read_text(encoding='utf-8')
+          old_import = "          import json\n          from pathlib import Path\n"
+          new_import = "          import json\n          import re\n          from pathlib import Path\n"
+          old_assert = "          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v29'\n"
+          new_assert = (
+              "          semantics_source = Path('crates/anthrosim-core/src/provenance.rs').read_text()\n"
+              "          semantics_match = re.search(r'pub const MODEL_SEMANTICS_ID: &str = \\\"([^\\\"]+)\\\"', semantics_source)\n"
+              "          assert semantics_match\n"
+              "          assert reference['modelSemanticsId'] == semantics_match.group(1)\n"
+          )
+          if text.count(old_import) != 1:
+              raise SystemExit(f'expected one M7.6 import block, found {text.count(old_import)}')
+          if text.count(old_assert) != 1:
+              raise SystemExit(f'expected one stale v29 assertion, found {text.count(old_assert)}')
+          text = text.replace(old_import, new_import, 1).replace(old_assert, new_assert, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- .github/workflows/ci.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/ci.yml
+          git commit -m "ci: bind M7.6 semantics guard to current model"
+          git push origin HEAD:repair/av4-006-condition-mortality-coupling
