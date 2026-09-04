@@ -1,6 +1,6 @@
 # Downstream analysis provenance v2
 
-Status: normative research contract for GitHub issues #232 and #340, with evidence-independence integration hardened by Audit-v3 #423 / AV3-013.
+Status: normative research contract for GitHub issues #232 and #340, with evidence-independence integration hardened by Audit-v3 #423 / AV3-013 and identifiability coordinate binding hardened by Audit-v4 #535 / AV4-011.
 
 ## Executable configuration contract
 
@@ -37,6 +37,29 @@ frozen ResearchExperimentDefinition / EvidenceCatalog
 
 If the frozen EvidenceCatalog source binding changes, evidence-role verification fails and the derived assessment changes. If the assessment bytes used by an analysis change, analysis provenance verification fails. Neither layer can silently inherit an independence claim from an unbound protocol-local string.
 
+## Identifiability executed-design binding as provenance input
+
+Audit-v4 AV4-011/#535 established that provenance for a downstream parameter table did not prove that its claimed coordinates were coordinates of the executed model design. `research-identifiability.py` now resolves real-study coordinates from the exact `anthrosim-research` root via `--research-root` and independently validates the redundant `research-manifest.json` / `research-plan.json` identities, expanded points, run configurations and run IDs before a positive identification claim is possible.
+
+A scripted provenance definition for a real identifiability analysis must therefore:
+
+- include `--research-root RESEARCH_ROOT` in the authoritative `command` argv;
+- declare the exact identifiability plan and data table as inputs;
+- declare `RESEARCH_ROOT/research-manifest.json` and `RESEARCH_ROOT/research-plan.json` as inputs, so the immutable design bytes from which the binding is re-derived are fingerprinted;
+- declare `scripts/research-identifiability.py`, `scripts/research-identifiability-legacy.py` and `scripts/research-identifiability-bind-design.py` as implementation artifacts;
+- fingerprint the produced identifiability result as an output.
+
+The result itself records `executedDesignBinding.bindingIdentity`, source identity, `researchId`, `definitionIdentity`, point/execution counts and validation state. Thus the scientific chain is explicit:
+
+```text
+immutable research manifest/plan + exact run/point identities
+  -> recomputed executed-design coordinate binding (#535)
+  -> identifiability result containing the binding identity
+  -> exact output fingerprint in analysis-provenance-v2
+```
+
+A provenance record can still prove only that this executable lineage was followed; the identifiability gate remains responsible for the scientific validity of the coordinate binding and inference decision.
+
 ## Run, verify, and replay
 
 `run` fingerprints the frozen study binding plus declared inputs, implementation, and environment; rejects pre-existing outputs; executes the exact `command` argv; re-fingerprints source artifacts; fingerprints outputs; and publishes `analysis-provenance.json`. `verify` recomputes definition/provenance identities and every artifact digest. `replay` reconstructs an isolated root from declared artifacts, executes the same complete `command` argv, and requires exact output bytes.
@@ -45,9 +68,8 @@ Definition and provenance identities use `analysis-definition-v2-sha256-*` and `
 
 ## Scientific boundary
 
-This provenance layer establishes which frozen study, executable argv, configuration-file bytes, code, environment specification, RNG declarations, evidence-role assessment inputs, and outputs form one reproducible downstream analysis lineage. It does not establish statistical validity, sufficient Monte Carlo precision, identifiability, empirical validity, evidence independence by itself, or archaeological truth; those remain separate research gates.
+This provenance layer establishes which frozen study, executable argv, configuration-file bytes, code, environment specification, RNG declarations, evidence-role assessment inputs, executed-design binding sources, and outputs form one reproducible downstream analysis lineage. It does not establish statistical validity, sufficient Monte Carlo precision, identifiability, empirical validity, evidence independence by itself, or archaeological truth; those remain separate research gates.
 
 ## Observable-support sensitivity analyses (Audit-v3 AV3-007)
 
 The observable-support sensitivity gate uses this v2 wrapper as its execution proof. Primary and alternative support analyses must be scripted analyses with `executionStatus: executed_by_wrapper`; their exact plan-derived binning definition is a declared input and an argv token, and their support inference is a fingerprinted output. `research-observable-support-results.py` invokes the normal provenance verifier before accepting an `analysisIdentity`, so support-scale robustness cannot be certified by a fabricated identifier or an unexecuted declaration.
-
