@@ -30,12 +30,12 @@ _binding = _load(
 _original_run = _legacy.run
 
 
-def _normalize_binding_file(path: Path) -> None:
+def _normalize_binding_file(path: Path) -> str | None:
     if not path.is_file():
-        return
+        return None
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        return
+        return None
     value.update(
         {
             "schemaVersion": 1,
@@ -65,13 +65,35 @@ def _normalize_binding_file(path: Path) -> None:
     value["resultIdentity"] = "pending"
     value["resultIdentity"] = _binding.result_identity(value)
     path.write_bytes(_legacy.canon(value))
+    return value["resultIdentity"]
 
 
 def run(args, ok=True):
+    expected_identity = None
     if "--study-result-binding" in args:
         index = args.index("--study-result-binding") + 1
-        _normalize_binding_file(Path(args[index]))
-    return _original_run(args, ok=ok)
+        expected_identity = _normalize_binding_file(Path(args[index]))
+    process = _original_run(args, ok=ok)
+
+    # The preserved legacy fixture asserted its deliberate placeholder identity.
+    # First assert the hardened consumer emitted the producer-derived identity;
+    # then rewrite only this synthetic assessment so the untouched historical
+    # assertion can continue to exercise all its unrelated support semantics.
+    if (
+        ok
+        and process.returncode == 0
+        and expected_identity is not None
+        and args
+        and args[0] == "derive"
+        and "--output" in args
+    ):
+        output_index = args.index("--output") + 1
+        output_path = Path(args[output_index])
+        assessment = json.loads(output_path.read_text(encoding="utf-8"))
+        assert assessment["sourceStudyResultIdentity"] == expected_identity
+        assessment["sourceStudyResultIdentity"] = "study-result-v1-test"
+        output_path.write_bytes(_legacy.canon(assessment))
+    return process
 
 
 _legacy.run = run
