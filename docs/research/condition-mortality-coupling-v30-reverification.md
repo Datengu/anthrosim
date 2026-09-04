@@ -23,7 +23,7 @@ Paired fission-minus-fixed effects:
 | positive_growth_control_v1 | -80.20 | -0.978 pp/yr | 29.552 pp |
 | replacement_control_v1 | -42.64 | -1.509 pp/yr | 23.742 pp |
 
-Long-run classification counts remain `{'drifting': 745, 'insufficient_data': 27, 'stable': 8}`; stochastic multi-regime contexts = `2`; environment dependence = `False`; initialization dependence = `False`.
+Long-run classification counts are `{'drifting': 745, 'insufficient_data': 27, 'stable': 8}`; stochastic multi-regime contexts = `2`; environment dependence = `False`; initialization dependence = `False`.
 
 ## M7.6 resource-variability reference
 
