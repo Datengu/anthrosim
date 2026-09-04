@@ -9,15 +9,55 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  reference-input:
+  compare-issue304-reference:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-      - name: Upload stored Issue-304 reference
+      - name: Download exact-head Issue-304 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/fresh
+          gh run download 33853873343 -n issue-304-demographic-baseline-confirmatory -D /tmp/fresh
+          test -f /tmp/fresh/expected-result.json
+      - name: Compare stored and regenerated scientific objects
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          old=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
+          new=json.loads(Path('/tmp/fresh/expected-result.json').read_text())
+          def walk(a,b,path='$'):
+              if type(a) is not type(b):
+                  yield f'{path}: TYPE {type(a).__name__} -> {type(b).__name__}'
+                  return
+              if isinstance(a,dict):
+                  for k in sorted(set(a)|set(b)):
+                      p=f'{path}.{k}'
+                      if k not in a: yield f'{p}: ADDED {b[k]!r}'
+                      elif k not in b: yield f'{p}: REMOVED {a[k]!r}'
+                      else: yield from walk(a[k],b[k],p)
+              elif isinstance(a,list):
+                  if len(a)!=len(b): yield f'{path}: LEN {len(a)} -> {len(b)}'
+                  for i,(x,y) in enumerate(zip(a,b)):
+                      yield from walk(x,y,f'{path}[{i}]')
+              elif a != b:
+                  yield f'{path}: {a!r} -> {b!r}'
+          diffs=list(walk(old,new))
+          Path('/tmp/issue304-diff.txt').write_text('\n'.join(diffs)+'\n')
+          Path('/tmp/stored-result.json').write_text(json.dumps(old,indent=2,sort_keys=True)+'\n')
+          print(f'difference_count={len(diffs)}')
+          for line in diffs[:200]: print(line)
+          PY
+      - name: Upload comparison evidence
         uses: actions/upload-artifact@v4
         with:
-          name: av4-008-stored-issue304-reference
-          path: research/general-demography-baseline-v1/confirmatory-result.json
+          name: av4-008-issue304-reference-comparison
+          path: |
+            /tmp/issue304-diff.txt
+            /tmp/stored-result.json
+            /tmp/fresh/expected-result.json
           if-no-files-found: error
