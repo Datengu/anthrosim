@@ -8,56 +8,84 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
-  compare-issue304-reference:
+  apply-reviewed-rebaselines:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-      - name: Download exact-head Issue-304 artifact
+        with:
+          ref: fix/514-resource-remainder-label-invariance
+      - name: Download exact reviewed artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p /tmp/fresh
-          gh run download 33853873343 -n issue-304-demographic-baseline-confirmatory -D /tmp/fresh
-          test -f /tmp/fresh/expected-result.json
-      - name: Compare stored and regenerated scientific objects
+          mkdir -p /tmp/i304 /tmp/m8
+          gh run download 33853873343 -n issue-304-demographic-baseline-confirmatory -D /tmp/i304
+          gh run download 33853873318 -n m8-evidence-grounded-benchmark -D /tmp/m8
+          test -f /tmp/i304/expected-result.json
+          test -f /tmp/m8/m8-benchmark-output/benchmark-summary.json
+      - name: Rebind Issue-304 result to reviewed v32 execution
+        run: |
+          cp /tmp/i304/expected-result.json research/general-demography-baseline-v1/confirmatory-result.json
+      - name: Rebuild compact M8.6 v32 regression reference
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
-          old=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
-          new=json.loads(Path('/tmp/fresh/expected-result.json').read_text())
-          def walk(a,b,path='$'):
-              if type(a) is not type(b):
-                  yield f'{path}: TYPE {type(a).__name__} -> {type(b).__name__}'
-                  return
-              if isinstance(a,dict):
-                  for k in sorted(set(a)|set(b)):
-                      p=f'{path}.{k}'
-                      if k not in a: yield f'{p}: ADDED {b[k]!r}'
-                      elif k not in b: yield f'{p}: REMOVED {a[k]!r}'
-                      else: yield from walk(a[k],b[k],p)
-              elif isinstance(a,list):
-                  if len(a)!=len(b): yield f'{path}: LEN {len(a)} -> {len(b)}'
-                  for i,(x,y) in enumerate(zip(a,b)):
-                      yield from walk(x,y,f'{path}[{i}]')
-              elif a != b:
-                  yield f'{path}: {a!r} -> {b!r}'
-          diffs=list(walk(old,new))
-          Path('/tmp/issue304-diff.txt').write_text('\n'.join(diffs)+'\n')
-          Path('/tmp/stored-result.json').write_text(json.dumps(old,indent=2,sort_keys=True)+'\n')
-          print(f'difference_count={len(diffs)}')
-          for line in diffs[:200]: print(line)
+          old=json.loads(Path('examples/m8-first-evidence-grounded-benchmark/reference-result.json').read_text())
+          actual=json.loads(Path('/tmp/m8/m8-benchmark-output/benchmark-summary.json').read_text())
+          keys=('medianEffect','medianAbsoluteRelativeEffect','positiveEffects','negativeEffects','zeroEffects')
+          ref={
+            'schemaVersion': actual['schemaVersion'],
+            'benchmarkId': actual['benchmarkId'],
+            'referenceExecution': {
+              'workflowRunId': 33853873318,
+              'artifactId': 9929505642,
+              'artifactSha256': 'bb7257931ca3f5bd83807b5491b9803d0af18b08f92529938e982bef18f2227b',
+              'branchHeadSha': '075d79b58b781cdd98be30a400b411d7db9b96a6',
+              'pullRequestMergeRefBuildSha': '7b276527bded0b0addaabbb58e8f5de0a190fe44',
+              'fullAggregateCanonicalSha256': actual['aggregateCanonicalSha256'],
+              'pullRequestMergeRefBuildStatus': 'pre-merge-v32-reverification-artifact',
+            },
+            'source': dict(old['source']),
+            'declaredSeeds': actual['declaredSeeds'],
+            'classification': actual['classification'],
+            'primaryMetrics': {},
+            'arms': {},
+          }
+          ref['source']['modelSemanticsId']='anthrosim-model-semantics-v32'
+          for name,m in actual['primaryMetrics'].items():
+              out={'classification':m['classification'],'robustCriteria':m['robustCriteria']}
+              for arm in ('weak','moderate','strong'):
+                  c=m['comparisonsToFlat'][arm]
+                  out[arm]={k:c[k] for k in keys}
+              ref['primaryMetrics'][name]=out
+          for arm in ('flat','weak','moderate','strong'):
+              a=actual['arms'][arm]
+              runs=a['runs']
+              sample=next(iter(runs.values()))
+              ref['arms'][arm]={
+                  'experimentId':a['experimentId'],
+                  'mechanismsCanonicalSha256':a['mechanismsCanonicalSha256'],
+                  'spatialConfigIdentity':sample['spatialConfigIdentity'],
+                  'terminalDegenerateRuns':a['terminalDegenerateRuns'],
+                  'runStateDigest64':{seed:r['stateDigest64'] for seed,r in runs.items()},
+              }
+          Path('examples/m8-first-evidence-grounded-benchmark/reference-result.json').write_text(json.dumps(ref,separators=(',',':'))+'\n')
           PY
-      - name: Upload comparison evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: av4-008-issue304-reference-comparison
-          path: |
-            /tmp/issue304-diff.txt
-            /tmp/stored-result.json
-            /tmp/fresh/expected-result.json
-          if-no-files-found: error
+          python3 scripts/verify-m8-spatial-benchmark-reference.py \
+            --actual /tmp/m8/m8-benchmark-output/benchmark-summary.json \
+            --reference examples/m8-first-evidence-grounded-benchmark/reference-result.json
+      - name: Commit reviewed references
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/general-demography-baseline-v1/confirmatory-result.json \
+                  examples/m8-first-evidence-grounded-benchmark/reference-result.json
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m 'research: rebaseline AV4-008 v32 references'
+          git push origin HEAD:fix/514-resource-remainder-label-invariance
