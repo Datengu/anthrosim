@@ -69,11 +69,11 @@ use crate::time::DAYS_PER_YEAR;
 /// silently changing which represented household receives an indivisible scarce-resource unit.
 ///
 /// v33 removes canonical spatial candidate order from M4 uncertainty and proportional-choice
-/// assignment. Deterministically eligible candidates are coupled by their active deterministic
-/// M4 utility and movement distance rather than CellId/container position; exact scientifically
-/// indistinguishable eligible destination orbits are left unresolved instead of inventing an
-/// unmodelled orientation. A v32 checkpoint must therefore not resume under v33 with unchanged
-/// migration RNG positions while silently reassigning candidate uncertainty/choice draws.
+/// assignment. Candidates are coupled by active deterministic M4 utility and movement distance;
+/// exact deterministic equivalence classes share one uncertainty realization and retain their
+/// full aggregate proportional-choice probability, with exchangeable members sampled uniformly
+/// by equal subintervals of the existing choice draw. A v32 checkpoint must therefore not resume
+/// under v33 with unchanged migration RNG positions while silently reassigning candidate draws.
 pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v33";
 
 /// Exact software/source identity for one segment of authoritative execution.

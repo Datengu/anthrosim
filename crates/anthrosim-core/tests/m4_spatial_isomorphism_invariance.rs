@@ -186,12 +186,26 @@ fn m4_candidate_uncertainty_is_equivariant_under_reflection() {
 }
 
 #[test]
-fn m4_does_not_invent_an_orientation_for_exactly_indistinguishable_destinations() {
+fn m4_exact_symmetry_is_exchangeable_and_replay_exact() {
+    let mut left = 0_u32;
+    let mut right = 0_u32;
     for seed in 1..=256 {
-        let moves = run(seed, 3, 1, vec![900, 100, 900], 80);
-        assert!(
-            moves.is_empty(),
-            "seed {seed}: exact left/right M4 symmetry must not be broken by CellId/container order: {moves:?}"
+        let first = run(seed, 3, 1, vec![900, 100, 900], 80);
+        let replay = run(seed, 3, 1, vec![900, 100, 900], 80);
+        assert_eq!(first, replay, "seed {seed}: exact replay diverged");
+        assert_eq!(
+            first.len(),
+            1,
+            "seed {seed}: symmetric weighted choice must remain active"
         );
+        match first[0].1 {
+            cell if cell == CellId::new(1) => left += 1,
+            cell if cell == CellId::new(3) => right += 1,
+            other => panic!("seed {seed}: unexpected symmetric destination {other:?}"),
+        }
     }
+    assert!(
+        left > 0 && right > 0,
+        "exact symmetry must sample both exchangeable alternatives: left={left}, right={right}"
+    );
 }

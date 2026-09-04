@@ -483,20 +483,12 @@ impl MigrationSystem {
                     weight: 0,
                 });
             }
-            self.evaluations
-                .sort_unstable_by_key(candidate_scientific_key);
-
-            // A deterministic same-seed function cannot choose one unique member of a true
-            // automorphism orbit equivariantly. Only deterministically eligible duplicates matter:
-            // candidate uncertainty is a non-negative penalty, so an ineligible deterministic
-            // candidate cannot later become selectable. Ineligible duplicate context therefore
-            // must not suppress a unique scientifically better destination.
-            if self.evaluations.windows(2).any(|pair| {
-                pair[0].utility.total_utility > required
-                    && candidate_scientific_key(&pair[0]) == candidate_scientific_key(&pair[1])
-            }) {
-                continue;
-            }
+            // Order scientifically distinct classes by active deterministic M4 state. CellId is
+            // used only to serialize members *inside* an exact scientific equivalence class; it
+            // does not decide class uncertainty assignment or cumulative class probability.
+            self.evaluations.sort_unstable_by_key(|evaluation| {
+                (candidate_scientific_key(evaluation), evaluation.cell)
+            });
 
             let mut total_weight = 0_u64;
             let mut best_candidate = CellId::INVALID;
@@ -504,12 +496,20 @@ impl MigrationSystem {
             let mut best_candidate_key = None;
             let mut eligible_count = 0_usize;
 
-            // Candidate uncertainty is now assigned in scientific-key order. Under a
-            // reflection/rotation/permutation, the same physical alternative therefore receives
-            // the same sequential uncertainty realization even when its CellId changes.
-            for evaluation_index in 0..self.evaluations.len() {
-                let deterministic = self.evaluations[evaluation_index];
-                let scientific_key = candidate_scientific_key(&deterministic);
+            // Assign one uncertainty realization to each exact deterministic scientific class.
+            // Members of a class are indistinguishable to active M4 semantics before uncertainty,
+            // so sharing that realization prevents arbitrary CellId order from attaching different
+            // uncertainty draws to physically symmetric alternatives. Distinct classes retain the
+            // original independent sequential uncertainty semantics in scientific-key order.
+            let mut class_start = 0_usize;
+            while class_start < self.evaluations.len() {
+                let class_key = candidate_scientific_key(&self.evaluations[class_start]);
+                let mut class_end = class_start + 1;
+                while class_end < self.evaluations.len()
+                    && candidate_scientific_key(&self.evaluations[class_end]) == class_key
+                {
+                    class_end += 1;
+                }
                 let uncertainty = if config.max_uncertainty_penalty_permille == 0 {
                     0
                 } else {
@@ -519,49 +519,56 @@ impl MigrationSystem {
                     ))
                     .unwrap_or(config.max_uncertainty_penalty_permille)
                 };
-                let destination_demand_population = self
-                    .boundary_demand_population(deterministic.cell)?
-                    .saturating_add(members);
-                let utility = self.evaluate_relocation(
-                    household_index,
-                    deterministic.cell,
-                    deterministic.distance,
-                    destination_demand_population,
-                    resources,
-                    world,
-                    config,
-                    period_need_per_person,
-                    uncertainty,
-                )?;
-                let replace_best = if utility.total_utility > best_candidate_utility {
-                    true
-                } else if utility.total_utility == best_candidate_utility {
-                    best_candidate_key.is_none_or(|best_key| scientific_key < best_key)
-                } else {
-                    false
-                };
-                if replace_best {
-                    best_candidate = deterministic.cell;
-                    best_candidate_utility = utility.total_utility;
-                    best_candidate_key = Some(scientific_key);
+
+                for evaluation_index in class_start..class_end {
+                    let deterministic = self.evaluations[evaluation_index];
+                    let scientific_key = candidate_scientific_key(&deterministic);
+                    let destination_demand_population = self
+                        .boundary_demand_population(deterministic.cell)?
+                        .saturating_add(members);
+                    let utility = self.evaluate_relocation(
+                        household_index,
+                        deterministic.cell,
+                        deterministic.distance,
+                        destination_demand_population,
+                        resources,
+                        world,
+                        config,
+                        period_need_per_person,
+                        uncertainty,
+                    )?;
+                    let replace_best = if utility.total_utility > best_candidate_utility {
+                        true
+                    } else if utility.total_utility == best_candidate_utility {
+                        best_candidate_key.is_none_or(|best_key| scientific_key < best_key)
+                    } else {
+                        false
+                    };
+                    if replace_best {
+                        best_candidate = deterministic.cell;
+                        best_candidate_utility = utility.total_utility;
+                        best_candidate_key = Some(scientific_key);
+                    }
+                    if utility.total_utility <= required {
+                        continue;
+                    }
+                    let improvement = i64::from(utility.total_utility) - i64::from(required);
+                    // Every member keeps its original proportional improvement weight. Exact-class
+                    // members therefore occupy equal subintervals of one scientifically defined
+                    // class interval; CellId only names the exchangeable realized member.
+                    let weight = proportional_choice_weight(improvement);
+                    total_weight = total_weight
+                        .checked_add(weight)
+                        .ok_or(MigrationError::AccountingOverflow)?;
+                    self.evaluations[eligible_count] = CandidateEvaluation {
+                        cell: deterministic.cell,
+                        distance: deterministic.distance,
+                        utility,
+                        weight,
+                    };
+                    eligible_count += 1;
                 }
-                if utility.total_utility <= required {
-                    continue;
-                }
-                let improvement = i64::from(utility.total_utility) - i64::from(required);
-                // Strict eligibility above guarantees a positive improvement, so the
-                // stochastic weight is exactly proportional to declared utility improvement.
-                let weight = proportional_choice_weight(improvement);
-                total_weight = total_weight
-                    .checked_add(weight)
-                    .ok_or(MigrationError::AccountingOverflow)?;
-                self.evaluations[eligible_count] = CandidateEvaluation {
-                    cell: deterministic.cell,
-                    distance: deterministic.distance,
-                    utility,
-                    weight,
-                };
-                eligible_count += 1;
+                class_start = class_end;
             }
             self.evaluations.truncate(eligible_count);
 
