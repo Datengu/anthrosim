@@ -1,6 +1,6 @@
 # Downstream analysis provenance v2
 
-Status: normative research contract for GitHub issues #232 and #340, with evidence-independence integration hardened by Audit-v3 #423 / AV3-013 and identifiability coordinate binding hardened by Audit-v4 #535 / AV4-011.
+Status: normative research contract for GitHub issues #232 and #340, with evidence-independence integration hardened by Audit-v3 #423 / AV3-013, identifiability coordinate binding hardened by Audit-v4 #535 / AV4-011, and finalized study-result binding validation hardened by Audit-v4 #539 / AV4-012.
 
 ## Executable configuration contract
 
@@ -59,6 +59,20 @@ immutable research manifest/plan + exact run/point identities
 ```
 
 A provenance record can still prove only that this executable lineage was followed; the identifiability gate remains responsible for the scientific validity of the coordinate binding and inference decision.
+
+## Finalized study-result binding validation (Audit-v4 AV4-012)
+
+`study-result-binding.json` is a producer-defined self-identifying scientific artifact, not an opaque label that downstream tools may merely fingerprint. Before a downstream consumer treats it as authoritative, `scripts/research-study-result-binding.py` validates the schema-v1 producer contract and recomputes `resultIdentity` over the complete identity-covered projection: study execution and protocol identity/revision/status, pre-result binding eligibility, definition and research execution identities, exact source identity, research-relative root, completed/failed run counts, result-artifact paths/digests, and declared analysis requirements when present.
+
+A stale edit to any identity-covered field therefore fails before a downstream result is published or accepted. For analysis provenance, where the full study root is available, validation goes further than internal self-consistency: the binding is resolved against the redundant frozen study plan/manifest and protocol/definition copies, recomputed protocol/definition/study execution identities, the exact producer-compatible schema-v1 `researchId`, redundant research manifest/plan, finalized research-state run counts, the exact bytes and FNV-1a digests of `research/analysis/points.json` and `runs.json`, and protocol-derived analysis requirements. Recomputing a new internally consistent `resultIdentity` after falsifying those authoritative artifacts therefore does not make the binding acceptable.
+
+The schema-v1 research execution identity retains the producer's historical ordered `serde_json` encoding contract (`schemaVersion`, `definitionIdentity`, then `SourceRevisionIdentity` fields in producer order), whereas protocol, study-execution and study-result identities use their existing canonical identity contracts. The downstream verifier reproduces those producer rules exactly rather than silently defining a second identity algorithm.
+
+Other consumers that already have their own authoritative domain checks—evidence-role assessment, Monte Carlo sufficiency and observable-support sensitivity—first require a producer-valid binding self-identity and then apply their existing protocol/seed/requirement checks.
+
+Canonical `run`, `capture`, and `verify` require the full available frozen-root validation. `replay` first verifies that canonical root and provenance record, then copies only the already fingerprinted declared artifacts into its intentionally minimal isolated sandbox; inside that sandbox the copied binding is rechecked for producer-valid self-identity while exact input/code/environment/output replay guarantees remain unchanged.
+
+This hardening changes research-governance validation only. It does not alter simulation trajectories, RNG semantics, model semantics, checkpoints, or scientific parameterization.
 
 ## Run, verify, and replay
 
