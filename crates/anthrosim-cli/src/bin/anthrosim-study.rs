@@ -370,7 +370,9 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
     }
     let research: ResearchManifestView = serde_json::from_value(research_manifest_value)?;
     if research.schema_version != 1 {
-        return Err("unsupported research manifest schema; study finalization requires schema 1".into());
+        return Err(
+            "unsupported research manifest schema; study finalization requires schema 1".into(),
+        );
     }
     if research.definition_identity != plan.definition_identity
         || research.definition != plan.definition
@@ -506,7 +508,8 @@ fn validate_research_state(
                 "failed" => {
                     if run.attempt == 0 || run.state_digest64.is_some() || run.error.is_none() {
                         return Err(
-                            "failed research state row has invalid attempt/digest/error fields".into(),
+                            "failed research state row has invalid attempt/digest/error fields"
+                                .into(),
                         );
                     }
                     failed = failed.checked_add(1).ok_or("failed run count overflow")?;
@@ -952,7 +955,8 @@ mod tests {
             research_execution_identity(&plan.definition_identity, &plan.source).unwrap();
         let point_id = "research-point-v1-test";
         let run_id = "research-run-v1-test";
-        let relative_dir = PathBuf::from("points/point-000000/runs/seed-000000-00000000000000000101");
+        let relative_dir =
+            PathBuf::from("points/point-000000/runs/seed-000000-00000000000000000101");
         let research_manifest = serde_json::json!({
             "schemaVersion": 1,
             "researchId": research_id,
