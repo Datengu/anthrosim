@@ -1,145 +1,108 @@
 #!/usr/bin/env python3
-import copy, hashlib, json, subprocess, sys, tempfile
+"""Observable-support regressions with producer-valid result bindings."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
 from pathlib import Path
 
-SCRIPT = Path(__file__).with_name("research-observable-support.py")
+HERE = Path(__file__).resolve().parent
 
 
-def canon(v):
-    return (json.dumps(v, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode()
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def pid(plan):
-    return "observable-support-plan-v1-sha256-" + hashlib.sha256(canon(plan)).hexdigest()
+_legacy = _load(
+    "anthrosim_test_research_observable_support_legacy",
+    HERE / "test-research-observable-support-legacy.py",
+)
+_binding = _load(
+    "anthrosim_research_study_result_binding",
+    HERE / "research-study-result-binding.py",
+)
+_original_run = _legacy.run
 
 
-def fnv1a64(data):
-    value = 0xCBF29CE484222325
-    for byte in data:
-        value ^= byte
-        value = (value * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
-    return value
-
-
-def protocol_identity(protocol):
-    raw = json.dumps(protocol, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-    return f"study-protocol-v1-{fnv1a64(raw):016x}"
-
-
-def base_plan():
-    agg = {"source":"spatial-observability.json","operation":"mean","grouping":"declared site polygon","weighting":"equal represented area","missingDataRule":"fail_closed"}
-    timeagg = {"source":"metric snapshots","operation":"mean","grouping":"declared phase interval","weighting":"elapsed model days","missingDataRule":"fail_closed"}
-    return {
-        "schema":"anthrosim-observable-support-plan-v1","planId":"synthetic-support-check",
-        "entries":[{
-            "id":"settlement-density-support","observableId":"settlementDensity","empirical":True,
-            "observedSpatialSupport":{"kind":"site","unit":"site polygon","definition":"survey polygon A","sourceIdentity":"evidence-v1"},
-            "observedTemporalSupport":{"kind":"phase","unit":"model-year equivalent","definition":"phase I: 100-year bin","sourceIdentity":"chronology-v1"},
-            "simulatedSpatialSupport":{"kind":"cell","unit":"100 m cell","definition":"cells intersecting survey polygon A"},
-            "simulatedTemporalSupport":{"kind":"interval","unit":"model day","definition":"all snapshots inside predeclared phase-I window"},
-            "simulatedSpatialAggregation":agg,
-            "simulatedTemporalAggregation":timeagg,
-            "resolutionUncertainty":"uncertain",
-            "alternativeBinnings":[{
-                "id":"phase-wide",
-                "spatialAggregation":agg,
-                "temporalAggregation":dict(timeagg, grouping="declared 150-year alternative phase"),
-                "rationale":"chronological resolution is uncertain"
-            }],
-            "dependenceReportingRule":"If substantive inference changes across the declared alternative, report aggregation-scale dependence."
-        }]
-    }
-
-
-def base_protocol(plan):
-    binding = "observable-support-plan-v1:" + pid(plan)
-    return {
-      "schemaVersion":1,"protocolRevision":1,"studyId":"support-test","status":"exploratory",
-      "researchQuestion":"Does the synthetic pattern resemble the observed pattern at compatible support?",
-      "applicabilityDomain":"synthetic regression only","hypotheses":[],
-      "analysisWindows":[{"id":"phase1","analysisStartDay":0,"analysisEndDayInclusive":36500,"rationale":"declared synthetic phase"}],
-      "observables":[{"id":"settlementDensity","role":"primary","source":"spatial observability","analysisWindowId":"phase1","interpretation":"empirical comparison; " + binding}],
-      "comparisons":[],"evidenceRoles":[],
-      "uncertainty":{"parameterUncertainty":[],"structuralUncertainty":[]},
-      "ensemblePolicy":{"seedPolicy":"fixed","pairingPolicy":"none","replicationPolicy":"fixed"},
-      "runHandling":{"stoppingRules":[],"exclusionRules":[],"censoringRules":[]},
-      "sensitivityPlan":["aggregation support alternatives are predeclared in the bound support plan"],
-      "equifinalityPlan":[],"manipulationChecks":[],"analysisMethod":"support-aware comparison",
-      "multiplicityPolicy":"not applicable","heldOutCorroboration":[],
-      "permittedInterpretations":["support-compatible comparison"],"prohibitedInterpretations":["raw-cell archaeological fit"]
-    }
+def _normalize_binding_file(path: Path) -> str | None:
+    if not path.is_file():
+        return None
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        return None
+    value.update(
+        {
+            "schemaVersion": 1,
+            "protocolRevision": value.get("protocolRevision", 1),
+            "studyId": value.get("studyId", "support-test"),
+            "scientificStatus": value.get("scientificStatus", "exploratory"),
+            "boundBeforeExecution": value.get("boundBeforeExecution", True),
+            "confirmatoryPreResultClaimEligible": value.get(
+                "confirmatoryPreResultClaimEligible", False
+            ),
+            "definitionIdentity": value.get(
+                "definitionIdentity", "research-definition-v1-support-test"
+            ),
+            "source": value.get(
+                "source",
+                {
+                    "modelVersion": "0.3.0",
+                    "modelSemanticsId": "anthrosim-model-semantics-v14",
+                    "gitCommit": "synthetic-fixture",
+                },
+            ),
+            "researchRelativeDir": value.get("researchRelativeDir", "research"),
+            "runCounts": value.get("runCounts", {"completed": 1, "failed": 0}),
+            "resultArtifacts": value.get("resultArtifacts", []),
+        }
+    )
+    value["resultIdentity"] = "pending"
+    value["resultIdentity"] = _binding.result_identity(value)
+    path.write_bytes(_legacy.canon(value))
+    return value["resultIdentity"]
 
 
 def run(args, ok=True):
-    process = subprocess.run([sys.executable, str(SCRIPT), *args], text=True, capture_output=True)
-    if ok and process.returncode != 0:
-        raise AssertionError(process.stderr)
-    if not ok and process.returncode == 0:
-        raise AssertionError("expected failure")
+    expected_identity = None
+    if "--study-result-binding" in args:
+        index = args.index("--study-result-binding") + 1
+        expected_identity = _normalize_binding_file(Path(args[index]))
+    process = _original_run(args, ok=ok)
+
+    # The preserved legacy fixture asserted its deliberate placeholder identity.
+    # First assert the hardened consumer emitted the producer-derived identity;
+    # then rewrite only this synthetic assessment so the untouched historical
+    # assertion can continue to exercise all its unrelated support semantics.
+    if (
+        ok
+        and process.returncode == 0
+        and expected_identity is not None
+        and args
+        and args[0] == "derive"
+        and "--output" in args
+    ):
+        output_index = args.index("--output") + 1
+        output_path = Path(args[output_index])
+        assessment = json.loads(output_path.read_text(encoding="utf-8"))
+        assert assessment["sourceStudyResultIdentity"] == expected_identity
+        assessment["sourceStudyResultIdentity"] = "study-result-v1-test"
+        output_path.write_bytes(_legacy.canon(assessment))
     return process
 
 
-def main():
-    with tempfile.TemporaryDirectory() as td:
-        root = Path(td)
-        plan = base_plan()
-        protocol = base_protocol(plan)
-        plan_path = root / "plan.json"
-        protocol_path = root / "protocol.json"
-        output = root / "assessment.json"
-        plan_path.write_bytes(canon(plan))
-        protocol_path.write_bytes(canon(protocol))
+_legacy.run = run
 
-        run(["validate", "--plan", str(plan_path), "--protocol", str(protocol_path)])
-        run(["derive", "--plan", str(plan_path), "--protocol", str(protocol_path), "--output", str(output)])
-        run(["verify", "--plan", str(plan_path), "--protocol", str(protocol_path), "--assessment", str(output)])
-        assessment = json.loads(output.read_text())
-        assert assessment["entries"][0]["observedSpatialSupport"]["definition"] == "survey polygon A"
-
-        bad = copy.deepcopy(plan)
-        del bad["entries"][0]["observedTemporalSupport"]
-        (root / "bad.json").write_bytes(canon(bad))
-        run(["validate", "--plan", str(root / "bad.json"), "--protocol", str(protocol_path)], ok=False)
-
-        bad = copy.deepcopy(plan)
-        bad["entries"][0]["alternativeBinnings"] = []
-        (root / "bad.json").write_bytes(canon(bad))
-        run(["validate", "--plan", str(root / "bad.json"), "--protocol", str(protocol_path)], ok=False)
-
-        changed = copy.deepcopy(plan)
-        changed["entries"][0]["simulatedSpatialAggregation"]["operation"] = "sum"
-        (root / "changed.json").write_bytes(canon(changed))
-        run(["validate", "--plan", str(root / "changed.json"), "--protocol", str(protocol_path)], ok=False)
-        assert pid(changed) != pid(plan)
-
-        result = {
-            "resultIdentity":"study-result-v1-test",
-            "studyExecutionId":"study-execution-v1-test",
-            "protocolIdentity":protocol_identity(protocol),
-            "researchId":"anthrosim-research-v1-test",
-            "analysisRequirements":[{
-                "kind":"observable_support_sensitivity",
-                "identity":pid(plan)
-            }]
-        }
-        (root / "binding.json").write_bytes(canon(result))
-        bound_output = root / "assessment-bound.json"
-        run(["derive", "--plan", str(plan_path), "--protocol", str(protocol_path), "--study-result-binding", str(root / "binding.json"), "--output", str(bound_output)])
-        bound = json.loads(bound_output.read_text())
-        assert bound["sourceResearchId"] == "anthrosim-research-v1-test"
-        assert bound["sourceStudyResultIdentity"] == "study-result-v1-test"
-
-        missing_requirement = copy.deepcopy(result)
-        missing_requirement["analysisRequirements"] = []
-        (root / "binding-missing-requirement.json").write_bytes(canon(missing_requirement))
-        run(["derive", "--plan", str(plan_path), "--protocol", str(protocol_path), "--study-result-binding", str(root / "binding-missing-requirement.json"), "--output", str(root / "missing-requirement.json")], ok=False)
-
-        result["protocolIdentity"] = "study-protocol-v1-wrong"
-        (root / "binding-bad.json").write_bytes(canon(result))
-        run(["derive", "--plan", str(plan_path), "--protocol", str(protocol_path), "--study-result-binding", str(root / "binding-bad.json"), "--output", str(root / "x.json")], ok=False)
-
-    print("observable support regression suite passed")
+for _name in dir(_legacy):
+    if _name.startswith("__") or _name in {"run", "main"}:
+        continue
+    globals()[_name] = getattr(_legacy, _name)
 
 
 if __name__ == "__main__":
-    main()
+    _legacy.main()
