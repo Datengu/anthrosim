@@ -6,7 +6,8 @@ use std::{
 };
 
 use anthrosim_core::{
-    ResearchExperimentDefinition, SourceRevisionIdentity, StudyProtocol, StudyScientificStatus,
+    ResearchCoordinate, ResearchExperimentDefinition, ResearchPoint, ResearchRunConfig,
+    SourceRevisionIdentity, StudyProtocol, StudyScientificStatus,
 };
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -191,13 +192,30 @@ struct StudyAnalysisRequirement {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ResearchManifestView {
     schema_version: u32,
     research_id: String,
     definition_identity: String,
     source: SourceRevisionIdentity,
     definition: ResearchExperimentDefinition,
+    points: Vec<PlannedPointView>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PlannedPointView {
+    point: ResearchPoint,
+    runs: Vec<PlannedRunView>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PlannedRunView {
+    seed: u64,
+    run_id: String,
+    relative_dir: PathBuf,
+    run_config: ResearchRunConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -209,16 +227,59 @@ struct ResearchStateView {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ResearchRunStateView {
+    run_id: String,
+    point_id: String,
+    seed: u64,
+    relative_dir: PathBuf,
+    attempt: u32,
     state: String,
+    #[serde(default)]
+    state_digest64: Option<u64>,
+    #[serde(default)]
+    error: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct AnalysisIdentityView {
+struct AnalysisPointsView<'a> {
     schema_version: u32,
-    research_id: String,
+    research_id: &'a str,
+    points: Vec<AnalysisPointView<'a>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AnalysisPointView<'a> {
+    point_id: &'a str,
+    index: u64,
+    coordinates: &'a [ResearchCoordinate],
+    resulting_configuration: &'a ResearchRunConfig,
+    run_ids: Vec<&'a str>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AnalysisRunsView<'a> {
+    schema_version: u32,
+    research_id: &'a str,
+    runs: Vec<AnalysisRunView<'a>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AnalysisRunView<'a> {
+    point_id: &'a str,
+    run_id: &'a str,
+    seed: u64,
+    coordinates: &'a [ResearchCoordinate],
+    resulting_configuration: &'a ResearchRunConfig,
+    relative_dir: &'a Path,
+    attempt: u32,
+    state: &'a str,
+    state_digest64: Option<u64>,
+    error: Option<&'a str>,
 }
 
 fn prepare(
@@ -308,8 +369,8 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
         return Err("research-manifest.json and research-plan.json do not contain the same immutable research plan".into());
     }
     let research: ResearchManifestView = serde_json::from_value(research_manifest_value)?;
-    if research.schema_version == 0 {
-        return Err("research manifest schema must be a positive version".into());
+    if research.schema_version != 1 {
+        return Err("unsupported research manifest schema; study finalization requires schema 1".into());
     }
     if research.definition_identity != plan.definition_identity
         || research.definition != plan.definition
@@ -328,14 +389,22 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
     if state.schema_version != 1 || state.research_id != research.research_id {
         return Err("research-state.json does not match the completed research execution".into());
     }
-    let run_counts = completed_run_counts(&state)?;
+    let run_counts = validate_research_state(&research, &state)?;
 
+    let expected_points = expected_analysis_points(&research)?;
+    let expected_runs = expected_analysis_runs(&research, &state)?;
     let result_paths = [
-        PathBuf::from(RESEARCH_DIR).join("analysis/points.json"),
-        PathBuf::from(RESEARCH_DIR).join("analysis/runs.json"),
+        (
+            PathBuf::from(RESEARCH_DIR).join("analysis/points.json"),
+            expected_points,
+        ),
+        (
+            PathBuf::from(RESEARCH_DIR).join("analysis/runs.json"),
+            expected_runs,
+        ),
     ];
     let mut result_artifacts = Vec::with_capacity(result_paths.len());
-    for relative in result_paths {
+    for (relative, expected) in result_paths {
         let path = study_dir.join(&relative);
         if !regular_file_exists(&path)? {
             return Err(format!(
@@ -344,11 +413,10 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
             )
             .into());
         }
-        let identity: AnalysisIdentityView =
-            read_json_regular(&path, "research analysis artifact")?;
-        if identity.schema_version != 1 || identity.research_id != research.research_id {
+        let actual: Value = read_json_regular(&path, "research analysis artifact")?;
+        if actual != expected {
             return Err(format!(
-                "research analysis artifact does not belong to bound research execution: {}",
+                "research analysis artifact differs from immutable research plan/state: {}",
                 path.display()
             )
             .into());
@@ -392,6 +460,124 @@ fn finalize(study_dir: &Path) -> Result<StudyResultBinding, Box<dyn Error>> {
     Ok(binding)
 }
 
+fn validate_research_state(
+    research: &ResearchManifestView,
+    state: &ResearchStateView,
+) -> Result<StudyRunCounts, Box<dyn Error>> {
+    let expected_run_count = research
+        .points
+        .iter()
+        .try_fold(0_usize, |count, point| count.checked_add(point.runs.len()))
+        .ok_or("immutable research run count overflow")?;
+    if state.runs.len() != expected_run_count {
+        return Err("research-state.json run set does not match immutable research plan".into());
+    }
+
+    let mut completed = 0_u64;
+    let mut failed = 0_u64;
+    for planned_point in &research.points {
+        for planned in &planned_point.runs {
+            let run = state
+                .runs
+                .get(&planned.run_id)
+                .ok_or("research-state.json is missing an immutable planned run")?;
+            if run.run_id != planned.run_id
+                || run.point_id != planned_point.point.point_id
+                || run.seed != planned.seed
+                || run.relative_dir != planned.relative_dir
+            {
+                return Err(
+                    "research-state.json immutable run identity fields do not match research plan"
+                        .into(),
+                );
+            }
+            match run.state.as_str() {
+                "completed" => {
+                    if run.attempt == 0 || run.state_digest64.is_none() || run.error.is_some() {
+                        return Err(
+                            "completed research state row has invalid attempt/digest/error fields"
+                                .into(),
+                        );
+                    }
+                    completed = completed
+                        .checked_add(1)
+                        .ok_or("completed run count overflow")?;
+                }
+                "failed" => {
+                    if run.attempt == 0 || run.state_digest64.is_some() || run.error.is_none() {
+                        return Err(
+                            "failed research state row has invalid attempt/digest/error fields".into(),
+                        );
+                    }
+                    failed = failed.checked_add(1).ok_or("failed run count overflow")?;
+                }
+                "planned" | "running" => {
+                    return Err(format!(
+                        "research execution is not finished; run {} remains {}",
+                        planned.run_id, run.state
+                    )
+                    .into());
+                }
+                other => {
+                    return Err(format!("research state contains unknown run state {other}").into());
+                }
+            }
+        }
+    }
+    Ok(StudyRunCounts { completed, failed })
+}
+
+fn expected_analysis_points(research: &ResearchManifestView) -> Result<Value, Box<dyn Error>> {
+    let points = research
+        .points
+        .iter()
+        .map(|planned| AnalysisPointView {
+            point_id: &planned.point.point_id,
+            index: planned.point.index,
+            coordinates: &planned.point.coordinates,
+            resulting_configuration: &planned.point.run_config,
+            run_ids: planned.runs.iter().map(|run| run.run_id.as_str()).collect(),
+        })
+        .collect();
+    Ok(serde_json::to_value(AnalysisPointsView {
+        schema_version: 1,
+        research_id: &research.research_id,
+        points,
+    })?)
+}
+
+fn expected_analysis_runs(
+    research: &ResearchManifestView,
+    state: &ResearchStateView,
+) -> Result<Value, Box<dyn Error>> {
+    let mut runs = Vec::new();
+    for planned_point in &research.points {
+        for planned in &planned_point.runs {
+            let run_state = state
+                .runs
+                .get(&planned.run_id)
+                .ok_or("research state is missing a run while deriving canonical analysis")?;
+            runs.push(AnalysisRunView {
+                point_id: &planned_point.point.point_id,
+                run_id: &planned.run_id,
+                seed: planned.seed,
+                coordinates: &planned_point.point.coordinates,
+                resulting_configuration: &planned.run_config,
+                relative_dir: &planned.relative_dir,
+                attempt: run_state.attempt,
+                state: &run_state.state,
+                state_digest64: run_state.state_digest64,
+                error: run_state.error.as_deref(),
+            });
+        }
+    }
+    Ok(serde_json::to_value(AnalysisRunsView {
+        schema_version: 1,
+        research_id: &research.research_id,
+        runs,
+    })?)
+}
+
 fn load_frozen_plan(study_dir: &Path) -> Result<StudyExecutionPlan, Box<dyn Error>> {
     reject_symlink(study_dir, "study root")?;
     if !study_dir.is_dir() {
@@ -426,32 +612,6 @@ fn load_frozen_plan(study_dir: &Path) -> Result<StudyExecutionPlan, Box<dyn Erro
         );
     }
     Ok(plan)
-}
-
-fn completed_run_counts(state: &ResearchStateView) -> Result<StudyRunCounts, Box<dyn Error>> {
-    let mut completed = 0_u64;
-    let mut failed = 0_u64;
-    for (run_id, run) in &state.runs {
-        match run.state.as_str() {
-            "completed" => {
-                completed = completed
-                    .checked_add(1)
-                    .ok_or("completed run count overflow")?
-            }
-            "failed" => failed = failed.checked_add(1).ok_or("failed run count overflow")?,
-            "planned" | "running" => {
-                return Err(format!(
-                    "research execution is not finished; run {run_id} remains {}",
-                    run.state
-                )
-                .into());
-            }
-            other => {
-                return Err(format!("research state contains unknown run state {other}").into());
-            }
-        }
-    }
-    Ok(StudyRunCounts { completed, failed })
 }
 
 fn study_analysis_requirements(
@@ -790,22 +950,54 @@ mod tests {
         fs::create_dir_all(research.join("analysis")).unwrap();
         let research_id =
             research_execution_identity(&plan.definition_identity, &plan.source).unwrap();
+        let point_id = "research-point-v1-test";
+        let run_id = "research-run-v1-test";
+        let relative_dir = PathBuf::from("points/point-000000/runs/seed-000000-00000000000000000101");
         let research_manifest = serde_json::json!({
             "schemaVersion": 1,
             "researchId": research_id,
             "definitionIdentity": plan.definition_identity,
             "source": plan.source,
             "definition": plan.definition,
-            "points": []
+            "points": [{
+                "point": {
+                    "pointId": point_id,
+                    "index": 0,
+                    "coordinates": [],
+                    "runConfig": plan.definition.base
+                },
+                "runs": [{
+                    "seed": 101,
+                    "runId": run_id,
+                    "relativeDir": relative_dir,
+                    "runConfig": plan.definition.base
+                }]
+            }]
         });
         write_json(&research.join("research-manifest.json"), &research_manifest);
         write_json(&research.join("research-plan.json"), &research_manifest);
+        let (attempt, state_digest64, error) = match run_state {
+            "completed" => (1, Some(123_u64), None),
+            "failed" => (1, None, Some("synthetic failure")),
+            _ => (1, None, None),
+        };
         write_json(
             &research.join("research-state.json"),
             &serde_json::json!({
                 "schemaVersion": 1,
                 "researchId": research_id,
-                "runs": {"run-a": {"state": run_state}}
+                "runs": {
+                    run_id: {
+                        "runId": run_id,
+                        "pointId": point_id,
+                        "seed": 101,
+                        "relativeDir": relative_dir,
+                        "attempt": attempt,
+                        "state": run_state,
+                        "stateDigest64": state_digest64,
+                        "error": error
+                    }
+                }
             }),
         );
         write_json(
@@ -813,7 +1005,13 @@ mod tests {
             &serde_json::json!({
                 "schemaVersion": 1,
                 "researchId": research_id,
-                "points": []
+                "points": [{
+                    "pointId": point_id,
+                    "index": 0,
+                    "coordinates": [],
+                    "resultingConfiguration": plan.definition.base,
+                    "runIds": [run_id]
+                }]
             }),
         );
         write_json(
@@ -821,7 +1019,18 @@ mod tests {
             &serde_json::json!({
                 "schemaVersion": 1,
                 "researchId": research_id,
-                "runs": []
+                "runs": [{
+                    "pointId": point_id,
+                    "runId": run_id,
+                    "seed": 101,
+                    "coordinates": [],
+                    "resultingConfiguration": plan.definition.base,
+                    "relativeDir": relative_dir,
+                    "attempt": attempt,
+                    "state": run_state,
+                    "stateDigest64": state_digest64,
+                    "error": error
+                }]
             }),
         );
     }
