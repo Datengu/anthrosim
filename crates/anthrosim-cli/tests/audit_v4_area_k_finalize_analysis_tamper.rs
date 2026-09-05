@@ -121,9 +121,8 @@ fn exploratory_protocol() -> StudyProtocol {
             criterion: "Executed/canonical treatment rows retain values 4 and 12.".to_owned(),
             failure_handling: "Do not finalize a study with altered treatment rows.".to_owned(),
         }],
-        analysis_method:
-            "Inspect the immutable research-plan treatment coordinates and canonical analysis rows."
-                .to_owned(),
+        analysis_method: "Inspect the immutable research-plan treatment coordinates and canonical analysis rows."
+            .to_owned(),
         multiplicity_policy: "One synthetic integrity comparison.".to_owned(),
         held_out_corroboration: vec![],
         permitted_interpretations: vec!["Orchestration integrity only.".to_owned()],
@@ -143,9 +142,7 @@ fn read_value(path: &Path) -> Value {
 }
 
 fn run(command: &mut Command, role: &str) -> Output {
-    command
-        .output()
-        .unwrap_or_else(|error| panic!("launch {role}: {error}"))
+    command.output().unwrap_or_else(|error| panic!("launch {role}: {error}"))
 }
 
 fn require_success(output: &Output, role: &str) {
@@ -198,11 +195,7 @@ fn study_finalize_rejects_canonical_analysis_rows_that_disagree_with_immutable_r
         .as_array()
         .expect("planned points")
         .iter()
-        .map(|point| {
-            point["point"]["coordinates"][0]["value"]
-                .as_u64()
-                .expect("planned value")
-        })
+        .map(|point| point["point"]["coordinates"][0]["value"].as_u64().expect("planned value"))
         .collect::<Vec<_>>();
     assert_eq!(plan_values, vec![4, 12]);
 
@@ -214,11 +207,7 @@ fn study_finalize_rejects_canonical_analysis_rows_that_disagree_with_immutable_r
         .as_array()
         .expect("analysis points")
         .iter()
-        .map(|point| {
-            point["coordinates"][0]["value"]
-                .as_u64()
-                .expect("point value")
-        })
+        .map(|point| point["coordinates"][0]["value"].as_u64().expect("point value"))
         .collect::<Vec<_>>();
     let original_run_values = runs["runs"]
         .as_array()
@@ -229,12 +218,15 @@ fn study_finalize_rejects_canonical_analysis_rows_that_disagree_with_immutable_r
     assert_eq!(original_point_values, plan_values);
     assert_eq!(original_run_values, plan_values);
 
+    // Post-execution tamper both canonical analysis indexes while preserving the
+    // correct researchId, pointId/runId and child bundle identities. Make the
+    // false coordinate internally agree with the false resultingConfiguration.
     points["points"][0]["coordinates"][0]["value"] = json!(999_u64);
-    points["points"][0]["resultingConfiguration"]["experiment"]["resources"]["periodsPerYear"] =
-        json!(999_u64);
+    points["points"][0]["resultingConfiguration"]["experiment"]["resources"]
+        ["periodsPerYear"] = json!(999_u64);
     runs["runs"][0]["coordinates"][0]["value"] = json!(999_u64);
-    runs["runs"][0]["resultingConfiguration"]["experiment"]["resources"]["periodsPerYear"] =
-        json!(999_u64);
+    runs["runs"][0]["resultingConfiguration"]["experiment"]["resources"]
+        ["periodsPerYear"] = json!(999_u64);
     write_json(&points_path, &points);
     write_json(&runs_path, &runs);
 
@@ -242,11 +234,7 @@ fn study_finalize_rejects_canonical_analysis_rows_that_disagree_with_immutable_r
         .as_array()
         .expect("analysis points")
         .iter()
-        .map(|point| {
-            point["coordinates"][0]["value"]
-                .as_u64()
-                .expect("point value")
-        })
+        .map(|point| point["coordinates"][0]["value"].as_u64().expect("point value"))
         .collect::<Vec<_>>();
     let tampered_run_values = runs["runs"]
         .as_array()
