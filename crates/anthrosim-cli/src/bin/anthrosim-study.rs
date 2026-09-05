@@ -1100,10 +1100,7 @@ mod tests {
         let research_root = root.join(RESEARCH_DIR);
         fs::create_dir_all(research_root.join("analysis")).unwrap();
         let research = expected_research_manifest(plan).unwrap();
-        write_json(
-            &research_root.join("research-manifest.json"),
-            &research,
-        );
+        write_json(&research_root.join("research-manifest.json"), &research);
         write_json(&research_root.join("research-plan.json"), &research);
 
         let mut state_runs = BTreeMap::new();
