@@ -1,0 +1,86 @@
+name: Temporary AV4-013 status patch
+
+on:
+  push:
+    branches:
+      - docs/audit-v4-av4-013-status
+
+permissions:
+  contents: write
+
+jobs:
+  patch-status:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: docs/audit-v4-av4-013-status
+      - name: Patch authoritative Audit-v4 status ledger
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/research/audit-v4/STATUS.md")
+          text = path.read_text()
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one match, found {count}: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "| Current P1 findings | **1 open — AV4-013/#543** |",
+              "| Current P1 findings | **none open — all 13 P1 findings AV4-001/#486 through AV4-013/#543 are verified closed** |",
+          )
+          replace_once(
+              "| Verified remediated findings | **12 — AV4-001/#486 through AV4-012/#539 closed after production repair plus independent merged-main re-verification** |",
+              "| Verified remediated findings | **13 — AV4-001/#486 through AV4-013/#543 closed after production repair plus independent merged-main re-verification** |",
+          )
+          replace_once(
+              "| Repair state | **post-discovery remediation in progress; AV4-001/#486 through AV4-012/#539 are verified closed; 1 P1 and 2 P2 findings remain open** |",
+              "| Repair state | **post-discovery remediation in progress; AV4-001/#486 through AV4-013/#543 are verified closed; only 2 P2 findings remain open** |",
+          )
+          replace_once(
+              "| AV4-013 — study finalization can bind canonical analysis rows that contradict the immutable executed design | **P1** | K; J/L/N | **demonstrated; open; deliberately unrepaired** | #543 | PR #541 / run `33745315422`, job `100616318921`: immutable treatment values `[4,12]` were changed to `[999,12]` in canonical analysis rows and `anthrosim-study finalize` still succeeded with a fresh result identity. |",
+              "| AV4-013 — study finalization can bind canonical analysis rows that contradict the immutable executed design | **P1** | K; J/L/N | **verified repaired; closed after independent merged-main re-verification** | #543 | Discovery PR #541 head `bb52c0945aa0f5971c8574b4ae6078f82f66644f`, run `33745315422`, job `100616318921`; production PR #589 final head `8275fd40dd1a95387d84271097706097699491a8`, squash-merged as `78dd0930936d1e7e18064e7314ce2e07d7608c66`; exact original adversary/workflow blobs `c3bb0a6746c405b2f10874a53c8a7734355e8278` and `516090b10a47cb13d9107795f571199f47ae3020` restored byte-for-byte in evidence PR #591 head `db6a53b1a80d4b266269bc7ff1feabaa02e4b19c`, run `33986578732`, job `101361134203`: immutable `[4,12]`, tampered `[999,12]`, `finalize_status=exit status: 1`, original adversary passed 1/1; PR #591 closed unmerged. |",
+          )
+          replace_once(
+              "- **Remaining remediation backlog:** 1 P1 finding (AV4-013/#543) and 2 P2 findings (AV4-014/#546 and AV4-015/#549) remain independently open.",
+              "- **Remaining remediation backlog:** 2 P2 findings (AV4-014/#546 and AV4-015/#549) remain independently open; no P1 findings remain open.",
+          )
+          replace_once(
+              "| sensitivity × hidden configuration | Area I passed **48** factorial expansions / **576** coordinate checks with exactly **12** executable treatments and fail-closed overlapping paths. K nevertheless demonstrated **AV4-013/#543**, where canonical analysis treatment rows can contradict immutable executed design. No new N-specific mechanism beyond that binding defect. |",
+              "| sensitivity × hidden configuration | Area I passed **48** factorial expansions / **576** coordinate checks with exactly **12** executable treatments and fail-closed overlapping paths. K demonstrated **AV4-013/#543**, where canonical analysis treatment rows could contradict immutable executed design; AV4-013 is now independently verified repaired by production PR #589 plus exact merged-main evidence PR #591. No additional N-specific mechanism remains open here. |",
+          )
+          replace_once(
+              "| calibration × identifiability | **AV4-011/#535 is now independently verified repaired** after production PR #584 and exact original-adversary replay in evidence PR #585. AV4-013/#543 can still bind altered treatment rows, so that remaining calibration/identifiability integration risk is represented by AV4-013 without requiring a duplicate issue. |",
+              "| calibration × identifiability | **AV4-011/#535 and AV4-013/#543 are now independently verified repaired** after their production repairs and exact original-adversary replays in evidence PRs #585 and #591. No P1 calibration/identifiability integration defect remains open. |",
+          )
+          replace_once(
+              "**Area N is complete with no additional independent defect beyond the existing AV4-001 through AV4-015 backlog. Audit-v4 A–N discovery closed non-clean with 13 P1 and 2 P2 findings on the immutable v0.3.4/v25 target. Post-discovery remediation has now verified and closed AV4-001/#486 through AV4-012/#539, leaving 1 P1 and 2 P2 findings open; each remaining finding still requires production repair plus independent post-merge re-verification.**",
+              "**Area N is complete with no additional independent defect beyond the existing AV4-001 through AV4-015 backlog. Audit-v4 A–N discovery closed non-clean with 13 P1 and 2 P2 findings on the immutable v0.3.4/v25 target. Post-discovery remediation has now verified and closed all 13 P1 findings, AV4-001/#486 through AV4-013/#543, leaving only 2 P2 findings open; each remaining finding still requires production repair plus independent post-merge re-verification.**",
+          )
+
+          marker = "- Independent evidence PR #588 restored the exact original PR #538 adversary/workflow blobs byte-for-byte (workflow blob `a48f08659f900680cef03062833ab5962e88adf8`, adversary blob `ab06d0549b5dbafe75051f3ca796b94c1e660c64`) against exact merged main at evidence head `7ceaa897265fe664de8e611d118e5ecb3e01fd7b`. Dedicated run `33940602093`, job `101237146674` failed at the unchanged adversary execution step as required because the stale self-identity binding is rejected before provenance publication; ordinary central CI run `33940602085` and Applicable scientific/security gates run `33940602177` passed. PR #588 was closed unmerged and #539 closed completed after the evidence chain was recorded."
+          if text.count(marker) != 1:
+              raise SystemExit("AV4-012 insertion marker missing or duplicated")
+          addition = """
+- **AV4-013/#543 is verified closed.** Production PR #589 final head `8275fd40dd1a95387d84271097706097699491a8` was explicitly updated to then-current `main`, passed the complete exact-head protected/applicable matrix (central CI `33985773413`, Study result binding integrity `33985773515`, Applicable scientific/security gates `33985773657` and all determinism/provenance workflows), and was squash-merged as `78dd0930936d1e7e18064e7314ce2e07d7608c66`. The repair validates/rederives canonical research point/run analysis rows against the frozen study definition, immutable research plan/manifest, reconciled execution state and validated child bundles before study-result binding. This is study-finalization/orchestration integrity only, so the remediation line remains `anthrosim-model-semantics-v33` and checkpoint schema `21`.
+- Independent evidence PR #591 started directly from exact merged main `78dd0930936d1e7e18064e7314ce2e07d7608c66` and restored the exact original PR #541 adversary/workflow Git blobs byte-for-byte (`c3bb0a6746c405b2f10874a53c8a7734355e8278` and `516090b10a47cb13d9107795f571199f47ae3020`) at evidence head `db6a53b1a80d4b266269bc7ff1feabaa02e4b19c`. Dedicated run `33986578732`, job `101361134203` checked out that exact head under Rust 1.97.1 and passed the unchanged adversary 1/1: immutable plan `[4,12]`, tampered points/runs `[999,12]`, and `finalize_status=exit status: 1`. PR #591 was closed unmerged; its separate rustfmt-only central-CI failure is excluded exactly as in discovery because the historical evidence bytes were intentionally unchanged.
+""".strip()
+          text = text.replace(marker, marker + "\n" + addition, 1)
+
+          path.write_text(text)
+          PY
+      - name: Remove temporary maintenance workflow and commit ledger only
+        run: |
+          git config user.name "Jack"
+          git config user.email "15160645+Datengu@users.noreply.github.com"
+          git rm .github/workflows/status-av4-013-patch.yml
+          git add docs/research/audit-v4/STATUS.md
+          git diff --cached --stat
+          git commit -m "docs: record verified AV4-013 remediation"
+          git push origin HEAD:docs/audit-v4-av4-013-status
