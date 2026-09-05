@@ -224,18 +224,14 @@ fn study_finalize_rejects_canonical_analysis_rows_that_disagree_with_immutable_r
         .as_array()
         .expect("analysis runs")
         .iter()
-        .map(|run| {
-            run["coordinates"][0]["value"]
-                .as_u64()
-                .expect("run value")
-        })
+        .map(|run| run["coordinates"][0]["value"].as_u64().expect("run value"))
         .collect::<Vec<_>>();
     assert_eq!(original_point_values, plan_values);
     assert_eq!(original_run_values, plan_values);
 
     points["points"][0]["coordinates"][0]["value"] = json!(999_u64);
-    points["points"][0]["resultingConfiguration"]["experiment"]["resources"]
-        ["periodsPerYear"] = json!(999_u64);
+    points["points"][0]["resultingConfiguration"]["experiment"]["resources"]["periodsPerYear"] =
+        json!(999_u64);
     runs["runs"][0]["coordinates"][0]["value"] = json!(999_u64);
     runs["runs"][0]["resultingConfiguration"]["experiment"]["resources"]["periodsPerYear"] =
         json!(999_u64);
@@ -256,11 +252,7 @@ fn study_finalize_rejects_canonical_analysis_rows_that_disagree_with_immutable_r
         .as_array()
         .expect("analysis runs")
         .iter()
-        .map(|run| {
-            run["coordinates"][0]["value"]
-                .as_u64()
-                .expect("run value")
-        })
+        .map(|run| run["coordinates"][0]["value"].as_u64().expect("run value"))
         .collect::<Vec<_>>();
     assert_eq!(tampered_point_values, vec![999, 12]);
     assert_eq!(tampered_run_values, vec![999, 12]);
