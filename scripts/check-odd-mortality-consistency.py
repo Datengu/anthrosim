@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,19 +10,6 @@ ODD_PATH = ROOT / "docs" / "research" / "odd.md"
 ODDD_PATH = ROOT / "docs" / "research" / "odd-d.md"
 MODEL_PATH = ROOT / "docs" / "scientific-model.md"
 M2_CONTRACT_PATH = ROOT / "docs" / "research" / "m2-demographic-time-contract-v1.md"
-
-REPLACEMENTS = {
-    ODD_PATH: {
-        "- M2 mortality is drawn before fertility; the current fertility probability is therefore conditional on surviving the annual demographic mortality transition, subject also to spacing and parent-availability filters.":
-            "- M2 background mortality is parameterized annually but executed across elapsed M3 intervals as an order-invariant competing risk with condition-mediated mortality. The year-end M2 stage performs fertility/parentage only after survival through the elapsed year; fertility remains conditional on survival, spacing and parent availability.",
-        "6. after the year's subannual schedules complete, execute the M2 discrete transition for `[t-365,t)`: use interval-start age bands, draw mortality, then evaluate conditional fertility/parentage among survivors;":
-            "6. after the year's subannual schedules complete, finalize M2 fertility/parentage for `[t-365,t)` among people who survived the elapsed-year competing-mortality process, using interval-start age bands for the annual demographic parameters;",
-    },
-    ODDD_PATH: {
-        "M2 is likewise a coarse annual discrete transition, not continuous reproductive/death decision-making. Its schedule age is read at the start of `[t-365,t)`, mortality has declared priority, and fertility is conditional on surviving that annual transition. Those are model semantics rather than behavioural assertions.":
-            "M2 reproduction/parentage is likewise a coarse annual discrete transition, not continuous reproductive decision-making. Its schedule age is read at the start of `[t-365,t)`. The annual background-mortality parameter is resolved across elapsed M3 intervals in order-invariant competition with condition-mediated mortality, so the year-end M2 stage has no separate mortality priority; fertility/parentage is conditional on having survived the elapsed year. Those are model semantics rather than behavioural assertions.",
-    },
-}
 
 STALE_PHRASES = (
     "M2 mortality is drawn before fertility",
@@ -41,16 +27,6 @@ REQUIRED_CURRENT_CLAIMS = {
         "year-end M2 stage has no separate mortality priority",
     ),
 }
-
-
-def apply_fix() -> None:
-    for path, replacements in REPLACEMENTS.items():
-        text = path.read_text(encoding="utf-8")
-        for old, new in replacements.items():
-            if old not in text:
-                raise AssertionError(f"expected stale AV4-015 source text missing from {path}")
-            text = text.replace(old, new, 1)
-        path.write_text(text, encoding="utf-8")
 
 
 def check() -> None:
@@ -78,9 +54,4 @@ def check() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fix", action="store_true")
-    args = parser.parse_args()
-    if args.fix:
-        apply_fix()
     check()
