@@ -88,7 +88,7 @@ for fabricated_source in (
     )
     assert fabricated["valid"] is False, fabricated_source
     assert any(
-        "canonical survival/population observable" in failure
+        "survival/population observable" in failure
         for failure in fabricated["failures"]
     )
 
@@ -102,7 +102,7 @@ assert any("death_handling=no_post_death_imputation" in failure for failure in m
 
 missing_survival = module.validate_protocol(protocol(DECLARATION, include_survival=False))
 assert missing_survival["valid"] is False
-assert any("canonical survival/population observable" in failure for failure in missing_survival["failures"])
+assert any("survival/population observable" in failure for failure in missing_survival["failures"])
 
 # Synthetic reversal: the treatment has a higher survivor mean only because the
 # low-condition person is absent from the survivor set.

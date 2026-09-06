@@ -74,7 +74,7 @@ def validate_protocol(protocol: dict) -> dict:
         if not has_joint_survival:
             failures.append(
                 f"comparison {comparison.get('id')!r} uses survivor-conditioned condition "
-                "without a jointly declared canonical survival/population observable"
+                "without a jointly declared survival/population observable"
             )
 
     return {
