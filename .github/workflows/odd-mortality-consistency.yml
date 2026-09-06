@@ -1,0 +1,36 @@
+name: ODD mortality consistency
+
+on:
+  pull_request:
+    paths:
+      - "docs/research/odd.md"
+      - "docs/research/odd-d.md"
+      - "docs/scientific-model.md"
+      - "docs/research/m2-demographic-time-contract-v1.md"
+      - "scripts/check-odd-mortality-consistency.py"
+      - ".github/workflows/odd-mortality-consistency.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  odd-mortality-consistency:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Repair AV4-015 living documentation on the production branch
+        if: github.actor != 'github-actions[bot]'
+        run: |
+          python3 scripts/check-odd-mortality-consistency.py --fix
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/research/odd.md docs/research/odd-d.md
+            git commit -m "docs: align ODD mortality semantics"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
+      - name: Check living ODD mortality semantics
+        run: python3 scripts/check-odd-mortality-consistency.py
