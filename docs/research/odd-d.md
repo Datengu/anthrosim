@@ -144,7 +144,7 @@ M4 opportunities occur on an explicit fixed annual decision schedule rather than
 
 The opportunity rate remains a synthetic model assumption, not an empirical estimate of how often real households reconsidered permanent residence. Relevant research claims must test plausible alternative M4 opportunity frequencies and the interaction between those fixed decision days and evolving resource/condition state.
 
-M9 follows configured journey timing. M2 is likewise a coarse annual discrete transition, not continuous reproductive/death decision-making. Its schedule age is read at the start of `[t-365,t)`, mortality has declared priority, and fertility is conditional on surviving that annual transition. Those are model semantics rather than behavioural assertions.
+M9 follows configured journey timing. M2 reproduction/parentage is likewise a coarse annual discrete transition, not continuous reproductive decision-making. Its schedule age is read at the start of `[t-365,t)`. The annual background-mortality parameter is resolved across elapsed M3 intervals in order-invariant competition with condition-mediated mortality, so the year-end M2 stage has no separate mortality priority; fertility/parentage is conditional on having survived the elapsed year. Those are model semantics rather than behavioural assertions.
 
 #### Uncertainty
 
