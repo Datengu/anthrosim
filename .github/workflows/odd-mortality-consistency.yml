@@ -1,0 +1,26 @@
+name: ODD mortality consistency
+
+on:
+  pull_request:
+    paths:
+      - "docs/research/odd.md"
+      - "docs/research/odd-d.md"
+      - "docs/scientific-model.md"
+      - "docs/research/m2-demographic-time-contract-v1.md"
+      - "scripts/check-odd-mortality-consistency.py"
+      - ".github/workflows/odd-mortality-consistency.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  odd-mortality-consistency:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Check living ODD mortality semantics
+        run: python3 scripts/check-odd-mortality-consistency.py

@@ -86,7 +86,7 @@ M9 focal regions are identity-bearing declared sets of world cells. Temporary jo
 Authoritative time is integer days.
 
 - M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality/fertility bands are selected from age at the start of `[t-365,t)`, not age at `t`.
-- M2 mortality is drawn before fertility; the current fertility probability is therefore conditional on surviving the annual demographic mortality transition, subject also to spacing and parent-availability filters.
+- M2 background mortality is parameterized annually but executed across elapsed M3 intervals as an order-invariant competing risk with condition-mediated mortality. The year-end M2 stage performs fertility/parentage only after survival through the elapsed year; fertility remains conditional on survival, spacing and parent availability.
 - Declared founders may carry signed pre-run birth-history timing before day 0; this initial-condition chronology can constrain later M2 birth spacing without being recorded as a model-period birth event.
 - For `P = resources.periodsPerYear`, M3 resource interval `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within the model year. Fixed annual integer quantities are allocated by cumulative elapsed days so their complete-year shares conserve exactly.
 - M3 resource settlement occurs at the end of those configured intervals. Seasonal regeneration integrates the synthetic daily seasonal curve over the actual interval and normalizes it to preserve unconstrained annual potential.
@@ -122,7 +122,7 @@ Within a model year, AnthroSim merges the independent fixed M3 and M4 schedules.
 3. process due M9 temporary journey transitions/start decisions for that day;
 4. if an M4 decision boundary is due, evaluate eligible permanent-migration decisions from the declared shared pre-move state, comparing an explicit zero-action-cost stay utility with candidate residence utility minus relocation-only travel, uncertainty and relocation-risk costs;
 5. apply selected permanent moves according to the simultaneous-movement contract;
-6. after the year's subannual schedules complete, execute the M2 discrete transition for `[t-365,t)`: use interval-start age bands, draw mortality, then evaluate conditional fertility/parentage among survivors;
+6. after the year's subannual schedules complete, finalize M2 fertility/parentage for `[t-365,t)` among people who survived the elapsed-year competing-mortality process, using interval-start age bands for the annual demographic parameters;
 7. update authoritative events/checkpoint/derived observability as specified by the run lifecycle.
 
 Under the v8 resource-time contract, M3 uses exact elapsed-day resource intervals, cumulative elapsed-day allocation for fixed annual quantities, integrated/normalized seasonal regeneration, and zero-demand condition neutrality. Under v9, condition response and the condition-mediated mortality probability are converted from explicit reference-quarter coefficients to the actual M3 interval, while M4 receives its own fixed decision schedule. M4's resource-support denominator is the annual need allocated over the M4 decision interval, not an independent `ceil(annual/P)` approximation and not an M3-period side effect. Under v10, the same numerical low-condition hazard is explicitly general condition-mediated mortality rather than a resource-scarcity-specific death cause.
