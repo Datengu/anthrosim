@@ -15,13 +15,20 @@ ESTIMAND_TOKEN = "estimand=survivor_condition_at_boundary"
 CONDITIONING_TOKEN = "conditioning=survival"
 DEATH_HANDLING_TOKEN = "death_handling=no_post_death_imputation"
 
-SURVIVAL_SOURCE_MARKERS = (
-    "finalLivingPopulation",
-    "livingPopulation",
-    "survival",
-    "deathsSinceStart",
-    "mortality",
-    "populationExtinct",
+# Exact StudyObservable source identities whose semantics are produced by AnthroSim
+# as population/survival outcomes. Keep this fail-closed: descriptive free-form
+# labels must not become semantic evidence merely because they contain words such
+# as "mortality" or "survival".
+SURVIVAL_POPULATION_SOURCES = frozenset(
+    {
+        "metrics.population.finalLivingPopulation",
+        "metrics.json.finalLivingPopulation",
+        "metrics.population.livingPopulation",
+        "metrics.population.deathsSinceStart",
+        "metrics.population.conditionMortalityDeaths",
+        "metrics.population.resourceScarcityDeaths",
+        "metrics.population.populationExtinct",
+    }
 )
 
 
@@ -34,8 +41,8 @@ def is_survivor_condition_observable(observable: dict) -> bool:
 
 
 def is_survival_population_observable(observable: dict) -> bool:
-    source = str(observable.get("source", ""))
-    return any(marker in source for marker in SURVIVAL_SOURCE_MARKERS)
+    source = str(observable.get("source", "")).strip()
+    return source in SURVIVAL_POPULATION_SOURCES
 
 
 def validate_protocol(protocol: dict) -> dict:
@@ -67,7 +74,7 @@ def validate_protocol(protocol: dict) -> dict:
         if not has_joint_survival:
             failures.append(
                 f"comparison {comparison.get('id')!r} uses survivor-conditioned condition "
-                "without a jointly declared survival/population observable"
+                "without a jointly declared canonical survival/population observable"
             )
 
     return {

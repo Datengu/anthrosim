@@ -43,7 +43,21 @@ A missing token is a research-gate failure.
 
 ## Joint survival requirement
 
-Every StudyProtocol comparison that includes a survivor-conditioned terminal condition observable must also include at least one survival/population observable in the same comparison. Recognized sources include living-population, survival, mortality/death, and extinction outcomes.
+Every StudyProtocol comparison that includes a survivor-conditioned terminal condition observable must also include at least one survival/population observable in the same comparison.
+
+The machine gate recognizes only exact, producer-defined source identities. Current recognized identities are:
+
+```text
+metrics.population.finalLivingPopulation
+metrics.json.finalLivingPopulation
+metrics.population.livingPopulation
+metrics.population.deathsSinceStart
+metrics.population.conditionMortalityDeaths
+metrics.population.resourceScarcityDeaths
+metrics.population.populationExtinct
+```
+
+These names are semantic identifiers, not search tokens. A free-form label such as `derived.not_a_real_mortality_observable`, `derived.fake_survival`, or `derived.finalLivingPopulation` is not evidence of a population outcome and must fail closed even though it contains a mortality/survival-related word. New source identities must be added deliberately when their produced semantics are established; substring matching is not permitted.
 
 This does not combine condition and survival into an invented scalar. It requires them to be reported jointly so survivor composition remains visible.
 
@@ -69,6 +83,8 @@ The same warning applies conceptually to metrics such as means among movers when
 
 - control: `finalLivingPopulation = 10`, `meanLivingConditionPermille = 740`;
 - treatment: `finalLivingPopulation = 9`, `meanLivingConditionPermille = 800`.
+
+The regression also proves that the recognized exact population/death/extinction identities pass while fabricated labels containing mortality/survival terms fail closed.
 
 The derived assessment must report:
 

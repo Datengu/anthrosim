@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
-import tempfile
+from copy import deepcopy
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("research-survivor-conditioning.py")
@@ -13,7 +13,11 @@ assert spec.loader is not None
 spec.loader.exec_module(module)
 
 
-def protocol(condition_interpretation: str, include_survival: bool = True) -> dict:
+def protocol(
+    condition_interpretation: str,
+    include_survival: bool = True,
+    survival_source: str = "metrics.population.finalLivingPopulation",
+) -> dict:
     observables = [
         {
             "id": "terminal_condition",
@@ -29,7 +33,7 @@ def protocol(condition_interpretation: str, include_survival: bool = True) -> di
             {
                 "id": "terminal_population",
                 "role": "secondary",
-                "source": "metrics.json.finalLivingPopulation",
+                "source": survival_source,
                 "analysisWindowId": "terminal",
                 "interpretation": "Terminal living population; defined even after extinction.",
             }
@@ -58,6 +62,36 @@ valid = module.validate_protocol(protocol(DECLARATION))
 assert valid["valid"] is True
 assert valid["postDeathImputation"] == "none_automatic"
 
+for genuine_source in (
+    "metrics.population.finalLivingPopulation",
+    "metrics.json.finalLivingPopulation",
+    "metrics.population.livingPopulation",
+    "metrics.population.deathsSinceStart",
+    "metrics.population.conditionMortalityDeaths",
+    "metrics.population.resourceScarcityDeaths",
+    "metrics.population.populationExtinct",
+):
+    genuine = module.validate_protocol(
+        protocol(DECLARATION, survival_source=genuine_source)
+    )
+    assert genuine["valid"] is True, genuine_source
+
+for fabricated_source in (
+    "derived.not_a_real_mortality_observable",
+    "derived.fake_survival",
+    "derived.finalLivingPopulation",
+    "metrics.population.finalLivingPopulation.extra",
+    "metrics.population.resourceScarcityDeathsFabricated",
+):
+    fabricated = module.validate_protocol(
+        protocol(DECLARATION, survival_source=fabricated_source)
+    )
+    assert fabricated["valid"] is False, fabricated_source
+    assert any(
+        "canonical survival/population observable" in failure
+        for failure in fabricated["failures"]
+    )
+
 missing_estimand = module.validate_protocol(
     protocol("Terminal condition among living people.")
 )
@@ -68,7 +102,7 @@ assert any("death_handling=no_post_death_imputation" in failure for failure in m
 
 missing_survival = module.validate_protocol(protocol(DECLARATION, include_survival=False))
 assert missing_survival["valid"] is False
-assert any("jointly declared survival/population observable" in failure for failure in missing_survival["failures"])
+assert any("canonical survival/population observable" in failure for failure in missing_survival["failures"])
 
 # Synthetic reversal: the treatment has a higher survivor mean only because the
 # low-condition person is absent from the survivor set.
