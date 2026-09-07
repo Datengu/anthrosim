@@ -60,7 +60,7 @@ The repository and this ledger remain authoritative if any of the live-state fac
 
 | ID | Audit area | Status | Fresh v5 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **in progress** | PR #605 isolated-founder/global-coupling locality adversary demonstrated **AV5-001 / #606 (P1)**; broader scheduler/order/simultaneity coverage still required |
+| A | Authoritative semantics and scheduler behaviour | **in progress** | PR #605 isolated-founder/global-coupling locality adversary demonstrated **AV5-001 / #606 (P1)**; PR #608 background-mortality cadence adversary passed quantitatively across 1/4/12/365 M3 periods/year with no finding; broader scheduler/order/simultaneity coverage still required |
 | B | Demography, fertility, mortality, ageing, population structure | **incomplete** | — |
 | C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
@@ -107,6 +107,21 @@ The repository and this ledger remain authoritative if any of the live-state fac
 - Finding preserved as **AV5-001 / #606, P1** before any production repair.
 - Area A remains **in progress**: this pass establishes one demonstrated defect but does not complete scheduler, simultaneous-process, shared-coupling, tie, or update-order coverage.
 
+### 2026-09-07 — Area A pass 2: annual background mortality × M3 cadence
+
+- Evidence-only PR #608 exact head `6858b5ee721253c6097faf24b79c0447c12d48c1` attacked update-frequency dependence in the full executed scheduler rather than relying only on the interval-risk helper proof.
+- Controlled experiment: 8,192 one-year seeds per arm; one founder; one-cell world; annual background mortality fixed at `500,000/1,000,000` in every age band; fertility, migration, resource need and condition/scarcity mortality disabled; only M3 `periodsPerYear` varied across `1`, `4`, `12`, `365`.
+- Predeclared scientific guards: each empirical annual mortality estimate must remain within 47%–53%, and maximum-minus-minimum cadence mortality must remain at or below 4 percentage points. At `n=8192`, true `p=0.5` has standard error about 0.00552, so these thresholds are deliberately conservative against ordinary Monte Carlo noise.
+- Dedicated workflow run `34167878417`, job `101882427621`, pinned Rust 1.97.1: **success**. Exact results:
+  - 1 period/year: `4163/8192` deaths = `508178` per million = **50.818%**;
+  - 4 periods/year: `4082/8192` = `498291` per million = **49.829%**;
+  - 12 periods/year: `4141/8192` = `505493` per million = **50.549%**;
+  - 365 periods/year: `4197/8192` = `512329` per million = **51.233%**.
+- Observed max-minus-min spread: `4197 - 4082 = 115` deaths, `115/8192 = 1.404` percentage points, well inside the predeclared 4-point bound; all individual arms were inside 47%–53%.
+- **Disposition: no finding.** This falsifies a material one-year annual-risk shift from M3 partition cadence for the tested constant annual mortality configuration. It does not establish invariance of within-year death timing, age-band-crossing cases, or interactions with coincident mechanisms.
+- Source/document review also confirmed that age-specific background mortality uses the declared model-year-start age band and that mortality is intentionally resolved at M3 boundaries before coincident M4 opportunities; those declared semantics are not treated as defects merely because changing M3 cadence can change within-year timing. Their sensitivity/coupled consequences remain legitimate future audit targets.
+- Area A remains **in progress** pending further fresh same-day ordering/simultaneity and/or shared-coupling composition evidence.
+
 ## Next action
 
-Continue **Area A** against immutable `v0.3.5` / v33 with another genuinely fresh adversarial construction. Prioritize scheduler/simultaneous-process and shared-coupling composition questions not already answered by PR #605 or Audit-v4 regressions. Do **not** repair #606 during discovery. Close evidence PR #605 unmerged after this ledger update is merged, then preserve any additional demonstrated defects before continuing toward Area-A completion.
+Continue **Area A** against immutable `v0.3.5` / v33 with a genuinely fresh same-day ordering/simultaneity or shared-coupling composition attack that is not answered by PR #605, PR #608, or an Audit-v4 regression replay. Do **not** repair #606 during discovery. Close evidence PR #608 unmerged after this ledger update is merged, then preserve any additional demonstrated defects before deciding whether Area A has sufficient coverage to close.
