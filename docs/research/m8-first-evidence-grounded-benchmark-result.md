@@ -4,9 +4,41 @@
 
 This document records the historical M8.6 terrain null-model result and the reviewed regression rebaselines required when upstream authoritative model semantics change. The benchmark remains case-study-neutral and **is not archaeological validation**.
 
-The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved in Git history.
+The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved below and in Git history.
 
-## Current regression reference — model semantics v29
+**Current machine-readable reference: `anthrosim-model-semantics-v33`.**
+
+## Current regression reference — model semantics v33
+
+Audit-v4 AV4-009 / #518 removes arbitrary canonical M4 spatial-candidate ordering from uncertainty/proportional-choice assignment while preserving deterministic utility/distance semantics and total choice probability for exchangeable candidates. Because this changes authoritative permanent-migration trajectories, the frozen M8.6 experiment was rerun unchanged and independently reviewed before the checked-in scientific reference advanced to v33.
+
+Reviewed v33 execution:
+
+- workflow run: `33884800100`;
+- reviewed production head: `25c9a11dce8052fecfbb339114a4ba1c8da00b0c`;
+- artifact: `9941586776`;
+- artifact SHA-256: `21b2f9dacdbf85c5b036bae7ca90d158cad5257a67cca1dae66bc17e54e9f9ba`;
+- aggregate canonical SHA-256: `adf2033e68b5620ef7eb328b0ca5daea2951d3cf670d0cde19e486c06a43d97d`;
+- model semantics: `anthrosim-model-semantics-v33`;
+- landscape identity: `landscape-v2-6827044513b6c9fb`;
+- spatial transformation semantics: `anthrosim-spatial-transform-semantics-v3`.
+
+All declared arms remain non-degenerate. The overall predeclared classification remains:
+
+> **fragile spatial structure**
+
+The v33 primary results are:
+
+| Primary metric | v33 result | Strong-vs-flat median absolute paired effect |
+| --- | --- | ---: |
+| total migration distance | not distinctive | 9.44% |
+| cell-time occupied | not distinctive | 1.85% |
+| terminal population Herfindahl | not distinctive | 8.82% |
+| terminal largest-cell share | **fragile** | above the predeclared effect threshold without robust sign consistency |
+
+No primary metric is robust under v33. This current result remains a sensitivity/capability statement about the declared terrain-only null model, not archaeological validation.
+
+## Historical reviewed reference — model semantics v29
 
 Audit-v4 AV4-005 / #495 removes arbitrary canonical male-person ordering from M2 parentage RNG assignment while preserving locality, age/sex eligibility, uniform reservoir selection and the separate `demography/parentage` RNG stream. Because genealogy can propagate into household, kin and migration histories, the frozen M8.6 experiment was rerun unchanged and reviewed before its reference was replaced.
 
@@ -296,18 +328,25 @@ The v6 M2 repair changed demographic trajectories enough that total migration di
 
 The original corrected M8.6 observation used `anthrosim-model-semantics-v1`. All 32 runs completed and the overall result was also `fragile_spatial_structure`. That historical observation remains model-evaluation evidence but is not the current-code regression baseline.
 
+## Additional Audit-v4 re-verification after v29
+
+Audit-v4 AV4-006 / #497 reran the full M8.6 benchmark under `anthrosim-model-semantics-v30`. Exact trajectories and paired effects changed, but the declared classification remained `fragile_spatial_structure`; exact v30 results and provenance are recorded in [`condition-mortality-coupling-v30-reverification.md`](condition-mortality-coupling-v30-reverification.md).
+
+Subsequent applicable-gate/reverification work for v31 and v32 preserved the required benchmark/evidence discipline. AV4-009 then produced the current reviewed v33 reference above.
+
 ## Interpretation
 
-The defensible current interpretation is bounded:
+The defensible **current v33 interpretation** is bounded:
 
 - real-world-derived terrain can propagate through the deterministic model and alter simulated trajectories;
 - exact spatial effects are conditional on upstream demographic, resource, condition and migration semantics;
-- under v26, the predeclared terrain contrast produces a fragile terminal largest-cell-share response in this synthetic benchmark, while the other three primary metrics are not distinctive;
-- the change in Herfindahl classification across the v26 fertility-coupling repair demonstrates that ensemble-level spatial conclusions can be sensitive to corrected upstream demographic stochastic coupling;
+- under the current v33 reference, terminal largest-cell share is fragile, while migration distance, cell-time occupancy and terminal Herfindahl are not distinctive under the predeclared criteria;
+- no primary metric is robust;
+- classification changes across v26–v33 demonstrate that ensemble-level spatial conclusions can be sensitive to corrected upstream causal stochastic coupling;
 - a visually plausible single run is inadequate evidence;
 - none of these synthetic benchmark effects validates the terrain-cost transformation, kin-weight parameter, fertility assumptions, or any other mechanism as a historical human behavior law.
 
-The v26 rebaseline is deliberately different from a cosmetic reference refresh: the causal semantics changed, the frozen experiment was rerun, the resulting classification-level change was reviewed, and the changed secondary conclusion is recorded rather than forced back to the old result.
+The rebaseline history is deliberately not a cosmetic reference refresh: when causal semantics changed, the frozen experiment was rerun, numerical/classification changes were reviewed, and changed conclusions were retained rather than forced back to an older result.
 
 ## What this does not establish
 
@@ -339,8 +378,4 @@ The dedicated workflow preserves its generated artifact even when a frozen-refer
 
 ## M8 scientific conclusion
 
-M8 continues to demonstrate the generic evidence-grounded spatial execution path. The v6→v7→v8→v9→v10→v11→v12→v13→v20→v26 history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal or numerical semantics must be allowed to change those results, but any rebaseline must be causally reviewed rather than automatically accepted.
-
-## v30 condition-mortality-coupling re-verification
-
-Audit-v4 AV4-006 / #497 reran the full M8.6 benchmark under `anthrosim-model-semantics-v30`. Exact trajectories and paired effects changed, but the declared classification remains `fragile_spatial_structure`, with the same two fragile metrics and no robust metrics. Exact v30 results and provenance are recorded in [`condition-mortality-coupling-v30-reverification.md`](condition-mortality-coupling-v30-reverification.md).
+M8 continues to demonstrate the generic evidence-grounded spatial execution path. The long rebaseline history demonstrates an equally important research property: **downstream benchmark claims are conditional on the complete upstream model definition**. Corrected causal or numerical semantics must be allowed to change those results, but any rebaseline must be causally reviewed rather than automatically accepted.

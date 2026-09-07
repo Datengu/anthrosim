@@ -1,17 +1,17 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** post-v0.3.4 Audit-v4 remediation line / current model semantics v27 / Scientific Audit v4 remediation in progress (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** repaired post-v0.3.4 line / current model semantics v33 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)  
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
 TRACE is used here as intended: not as a checklist that grants validity, but as a structure for accumulating inspectable evidence that AnthroSim was thoughtfully designed, correctly implemented, thoroughly tested, understood through analysis and used only within a justified domain of applicability.
 
-A green software build, deterministic replay, an ODD description or a completed benchmark is not sufficient evidence of scientific validity.
+A green software build, deterministic replay, an ODD description, completed scientific audits or a completed benchmark are not sufficient evidence of empirical scientific validity.
 
 ## Status vocabulary
 
-- **Established** — current repository evidence substantially satisfies the item for the stated baseline.
+- **Established** — current repository evidence substantially satisfies the item for the stated framework baseline.
 - **Partial / in progress** — useful evidence exists, but important work remains.
 - **Not established** — the required evidence does not yet exist for empirical research use.
 - **Study-specific** — cannot be satisfied globally; must be demonstrated for each application/question.
@@ -21,12 +21,12 @@ A green software build, deterministic replay, an ODD description or a completed 
 | TRACE element | Current status | Main reason |
 |---|---|---|
 | 1. Problem formulation | Partial / study-specific | Framework purposes are explicit, but real research questions require their own frozen hypotheses, observables and applicability domain. |
-| 2. Model description | Established for v0.3.4 / v25 baseline | Formal ODD 2020 description plus ODD+D supplement and detailed scientific specification describe current semantics while preserving immutable v0.3.3/v21 history. |
-| 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty and evidence-role separation remain to be completed. |
-| 4. Conceptual model evaluation | Framework audit convergence established; study-specific evaluation remains required | Scientific Audit v3 completed the third A–N audit generation against immutable v0.3.3, demonstrated 17 findings, and all 17 were repaired and independently post-merge reverified. Structural assumptions and empirical applicability remain study-specific. |
-| 5. Implementation verification | Strong framework-level convergence; never proof of correctness | Three audit generations have now been completed. Audit v3 closed 17/17 demonstrated findings with independent post-merge adversaries, leaving no original Audit-v3 finding open on the v25 line. Empirical study readiness remains a separate gate. |
-| 6. Model output verification | Not established empirically | Existing M8/M9 benchmarks are capability/synthetic verification, not validation against empirical target patterns. |
-| 7. Model analysis | Substantially strengthened / study-specific | v0.3.1 adds complete scientific-configuration exposure, replicate-precision gates, long-run diagnostics, structural/initialization sensitivity and identifiability/equifinality analysis; empirical uncertainty propagation and adequacy remain study-specific. |
+| 2. Model description | Established for the living v33 framework line | ODD 2020, ODD+D and the detailed scientific specification describe current model semantics while preserving immutable v0.3.4/v25 and v0.3.3/v21 history. |
+| 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty, representativeness and evidence-role separation remain study-specific. |
+| 4. Conceptual model evaluation | Strong framework audit evidence; study-specific evaluation remains required | Scientific Audit v4 completed the fourth independent A–N audit generation against immutable v0.3.4/v25, demonstrated 15 findings, and all 15 were repaired and independently re-verified/dispositioned on the living line. Structural assumptions and empirical applicability remain study-specific. |
+| 5. Implementation verification | Strong framework-level convergence; never proof of correctness | Four comprehensive audit generations have now been completed. Audit v4 closed 15/15 demonstrated findings after protected production repair and independent post-merge/current-state evidence, leaving no open Audit-v4 finding on the repaired v33 line. |
+| 6. Model output verification | Not established empirically | Existing M7/M8/M9 and demographic-baseline exercises are capability/synthetic/model-analysis evidence, not validation against an empirical target population or archaeological pattern set. |
+| 7. Model analysis | Substantially strengthened / study-specific | Scientific configuration exposure, stochastic precision gates, long-run diagnostics, structural/initialization sensitivity, provenance integrity and identifiability/equifinality support exist; adequacy for a particular claim remains study-specific. |
 | 8. Model output corroboration | Not established | No held-out independent archaeological/anthropological corroboration has yet been completed for a real inferential study. |
 
 This status must not be upgraded merely because documentation becomes more complete. The evidence described by each section must actually be generated and reviewed.
@@ -48,11 +48,11 @@ Repository-level purpose and research principles are documented in:
 - [`../research-principles.md`](../research-principles.md);
 - [`../roadmap.md`](../roadmap.md).
 
-The framework explicitly rejects scripted historical outcomes and distinguishes capability validation from archaeological interpretation.
+The framework explicitly rejects scripted historical outcomes and distinguishes capability/regression verification from archaeological interpretation.
 
 ## Remaining requirement
 
-No generic engine can globally satisfy problem formulation for every future study. Each inferential application must freeze a study protocol before confirmatory analysis, including:
+Each inferential application must freeze a study protocol before confirmatory analysis, including:
 
 - precise research question;
 - system/site/time domain;
@@ -79,14 +79,17 @@ Provide a detailed, understandable description of what the model is, how it work
 - [`odd.md`](odd.md) — formal seven-element ODD 2020 description covering all 11 standard design concepts.
 - [`odd-d.md`](odd-d.md) — explicit ODD+D human-decision supplement.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific semantics.
+- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — elapsed M3-interval competing mortality and year-end M2 fertility/parentage timing contract.
 - [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) — explicit synthetic-versus-declared founder-state semantics, signed pre-run reproductive timing and scoped founder genealogy.
-- module-specific research documents under `docs/research/` for demography, migration, spatial transformations, temporary mobility, travel/resource semantics and observability.
+- module-specific research documents under `docs/research/` for resources, migration, spatial transformations, temporary mobility, travel/resource semantics and observability.
 
 ## Current assessment
 
-**Established for description of the v0.3.4 / v25 baseline**, subject to normal documentation/code consistency review. The immutable `v0.3.3` release remains the historical v21 baseline rather than being retroactively redefined by living documentation.
+**Established for description of the living current model semantics v33 line**, subject to normal documentation/code consistency review. The immutable `v0.3.4` release baseline remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.
 
-This status means the model is described; it does not mean the described model is empirically valid.
+Audit-v4 AV4-015 specifically demonstrated why this distinction matters: stale ODD/ODD+D mortality wording on frozen v0.3.4/v25 was repaired, and a permanent current-document consistency guard now checks the living mortality description. The post-v0.3.4 documentation-consistency audit additionally broadens current-state checks beyond ODD/ODD+D/scientific-model.
+
+This status means the current framework model is described; it does not mean the described model is empirically valid.
 
 ---
 
@@ -103,28 +106,28 @@ Critically evaluate the quality, source, uncertainty, representativeness and app
 - source identity, original variable/units, transformation, simulation units, uncertainty, applicability and competing-estimate fields;
 - parameter-to-evidence links and external-input provenance;
 - M8 normalized landscape/preprocessing contracts;
-- [`demography-v0.1.md`](demography-v0.1.md) explicitly avoids presenting one comparative population as a universal prehistoric proxy;
-- declared founder state now has a versioned initialization identity and coarse provenance label, while [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) explicitly states that those fields do not themselves establish evidence closure.
+- [`demography-v0.1.md`](demography-v0.1.md), which explicitly avoids presenting one comparative population as a universal prehistoric proxy;
+- declared founder state with versioned initialization identity and coarse provenance, while [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) explicitly states that those fields do not themselves establish evidence closure.
 
 ## Required evidence roles
 
 Every empirical datum/pattern used in an inferential study should be assigned one declared role:
 
-1. **Model construction / structural evidence** — influenced what mechanisms or model form were chosen.
-2. **Parameterisation evidence** — constrains plausible parameter values/ranges without fitting to study outputs.
+1. **Model construction / structural evidence** — influenced mechanisms or model form.
+2. **Parameterisation evidence** — constrains plausible values/ranges without fitting study outputs.
 3. **Calibration evidence** — explicitly used to tune parameters/model variants to observed outputs.
-4. **Model-output verification evidence** — used to test whether a developed model reproduces required empirical patterns.
-5. **Independent corroboration evidence** — held outside model construction/calibration and used for a later, genuinely independent test.
+4. **Model-output verification evidence** — tests whether a developed model reproduces required empirical patterns.
+5. **Independent corroboration evidence** — held outside construction/calibration and used for a later independent challenge.
 
 The same observation may not be represented as independent corroboration if it materially influenced model design or calibration.
 
 ## Remaining work
 
 - make evidence-role separation explicit in study protocols and, where practical, machine-readable;
-- assess measurement/sampling/taphonomic uncertainty rather than only source-file provenance;
-- record why an ethnographic/comparative analogue is applicable to the target question;
-- propagate competing estimates and uncertainty into parameter/model ensembles rather than collapsing them prematurely to one value;
-- for declared founder populations, document how ages, reproductive history, co-residence, condition and direct-parent completeness were derived and how alternative plausible initial states are represented.
+- assess measurement, sampling and taphonomic uncertainty rather than only source-file provenance;
+- record why ethnographic/comparative analogues are applicable to the target question;
+- propagate competing estimates and uncertainty into parameter/model ensembles;
+- for declared founders, document how age, reproductive history, co-residence, condition and direct-parent completeness were derived and how alternative plausible initial states are represented.
 
 **Current assessment:** Partial.
 
@@ -138,28 +141,13 @@ Critically evaluate simplifying assumptions, model structure and alternative con
 
 ## Current AnthroSim evidence
 
-The detailed scientific model and ODD/ODD+D documents explicitly identify many null assumptions and missing mechanisms, including bounded local knowledge, minimal household structure, no general learning, limited kin semantics, synthetic resource physiology, atomic permanent relocation and generic temporary-mobility motives.
+The detailed scientific model and ODD/ODD+D documents identify many null assumptions and missing mechanisms, including bounded local knowledge, minimal household structure, no general learning, limited kin semantics, synthetic resource physiology, atomic permanent relocation and generic temporary-mobility motives.
 
-The repository's adversarial scientific audits have also produced concrete issue-level evidence that conceptual/causal semantics are being challenged rather than accepted because code runs reproducibly.
+The repository's adversarial scientific audits provide issue-level evidence that conceptual/causal semantics are actively challenged rather than accepted because code runs reproducibly. Scientific Audit v4 is the latest comprehensive framework audit: it restarted A–N coverage from zero against immutable v0.3.4/v25, demonstrated 13 P1 and 2 P2 findings, and the subsequent remediation programme repaired and independently re-verified/dispositioned all 15 on the living line. Authoritative semantic repairs advanced the living identity through v26–v33 where required.
 
-Scientific Audit v3 provides the latest framework-level closure evidence: it independently interrogated Areas A–N on immutable v0.3.3/v21, demonstrated 17 findings across the audited surface, and the subsequent remediation programme repaired and independently post-merge reverified every finding. The resulting v25 line has no open original Audit-v3 finding. That result is strong convergence evidence, not a claim that the conceptual model is universally valid or empirically validated.
+Audit-v4 repairs covered arbitrary label/order coupling in fertility, background mortality, M4 migration scheduling, newborn sex, parentage, condition-mediated mortality, M9 equal-cost destinations, scarce-resource remainder assignment and M4 spatial candidate choice, plus statistical/provenance/finalization/documentation defects. The current Audit-v4 closure record is [`audit-v4/STATUS.md`](audit-v4/STATUS.md).
 
-### High-priority conceptual/semantic debt and repair record
-
-At the time this dossier was introduced, known P1 issues included scientific problems around:
-
-- demographic age/timing semantics and birth spacing;
-- founder/history initialization;
-- parentage/migration boundary interaction;
-- resource periodization/regeneration semantics;
-- shared `condition` semantics and scarcity-mortality attribution;
-- newborn condition initialization;
-- resource-allocation fairness and M4 utility/stay semantics;
-- M4/M9 demand and mobility integration;
-- spatial georeferencing/physical movement interpretation;
-- evidence closure for empirical provenance.
-
-The dated TRACE repair records preserve the state and rationale of those findings at the time they were investigated. The live GitHub issue tracker and the repository-authoritative audit-v2 ledger are authoritative for current open/closed status. Founder/history initialization issue #192 has a dedicated repair/evaluation record in [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md): the repair removes the requirement that research-facing founder reproductive/kin state begin implicitly at zero, while leaving empirical founder derivation, uncertainty and initialization sensitivity as separate scientific tasks for relevant studies.
+These results are strong convergence evidence, not a claim that the conceptual model is universally valid or empirically validated.
 
 ## Required conceptual-evaluation methods
 
@@ -175,7 +163,7 @@ For each scientifically consequential submodel, record:
 
 **Gate:** unresolved conceptual P1 defects block claims that depend on the affected mechanism.
 
-**Current assessment:** Framework-level conceptual audit convergence is strong for the v0.3.4 / v25 baseline: Audit v3 is complete and all 17 findings are independently reverified and closed. Empirical inferential work still requires its own question-specific evidence, calibration/validation, uncertainty, applicability and corroboration gates.
+**Current assessment:** Framework-level conceptual audit evidence is strong for the repaired v33 line. There are no open Audit-v4 findings, but empirical inferential work still requires question-specific evidence, calibration/validation, uncertainty, applicability and corroboration gates.
 
 ---
 
@@ -187,31 +175,31 @@ Demonstrate that the software correctly implements the conceptual model and nume
 
 ## Existing strengths
 
-AnthroSim already has unusually strong research-software verification infrastructure, including:
+AnthroSim includes:
 
-- deterministic named RNG streams;
+- deterministic named RNG streams and scientific stochastic-coupling identities;
 - exact experiment/run identity and source provenance;
 - invariant validation and event replay;
-- checkpoint/resume equivalence;
+- checkpoint/resume equivalence and source lineage;
 - cross-platform golden tests;
 - completed-run bundle validation;
 - experiment/sweep retry reconciliation;
 - run/archive integrity mechanisms;
 - explicit operational stop reasons;
 - preserved synthetic benchmark definitions/results;
-- explicit declared-founder materialization and mode-mismatch checks, signed pre-run birth-spacing tests, founder-history checkpoint/resume equivalence and first-boundary direct-parent kin verification for the #192 repair line.
+- adversarial/metamorphic tests for arbitrary identity/order effects, provenance binding, numerical precision and analysis integrity.
 
-The detailed verification-target list is maintained in [`../scientific-model.md`](../scientific-model.md). The #192-specific evidence/rationale is recorded in [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md).
+The detailed verification-target list is maintained in [`../scientific-model.md`](../scientific-model.md).
 
-## Verification work still required
+## Verification methods that remain relevant
 
-Implementation verification must extend beyond ordinary unit tests to scientific/metamorphic properties, including where applicable:
+Implementation verification should continue to include where applicable:
 
 - arbitrary ID/order permutation invariance;
 - conservation/accounting invariants;
-- parameter-direction monotonicity where the declared model requires it;
+- parameter-direction monotonicity where required by the declared model;
 - temporal-resolution convergence/invariance;
-- spatial-resolution and boundary-condition invariance or explicitly documented scale dependence;
+- spatial-resolution and boundary-condition invariance or explicit scale dependence;
 - symmetric equivalent-state tests;
 - null/zero-effect cases;
 - shared-state causal attribution tests;
@@ -219,17 +207,11 @@ Implementation verification must extend beyond ordinary unit tests to scientific
 - competing-risk/hazard scheduling tests;
 - equivalence of semantically identical experiment encodings.
 
-## P1 convergence rule
+## Audit convergence
 
-AnthroSim should not declare foundational scientific verification complete merely because the current known P1 backlog is empty. The corrected implementation should continue to undergo repeated independent/adversarial scientific audit passes.
+Four comprehensive independent/adversarial audit generations have now been completed. Audit v4 demonstrated that an additional fresh audit could still find important defects after earlier convergence work, so audit count must not be treated as proof that no defect remains. What Audit-v4 closure establishes is narrower: every demonstrated Audit-v4 finding has a recorded production repair and required independent re-verification/disposition, and no Audit-v4 issue remains open.
 
-A practical gate for moving from foundational verification to empirical calibration is:
-
-> **At least two, preferably three, genuinely different deep scientific audit passes produce no new P1 scientific-behaviour defect, with all previously identified blocking P1s resolved and regression/metamorphic tests added where feasible.**
-
-This is not proof that no defect exists; it is evidence of audit convergence.
-
-**Current assessment:** Strong framework-level implementation convergence. Scientific Audit v3 is the third audit generation; all 17 findings were repaired and independently post-merge reverified, and no original Audit-v3 finding remains open on the v0.3.4 / v25 line. This still does not prove correctness, and empirical inferential work remains gated by study-specific validation and corroboration.
+**Current assessment:** Strong framework-level implementation convergence on the repaired current model semantics v33 line; never proof of correctness. Empirical inference remains gated by study-specific validation and corroboration.
 
 ---
 
@@ -237,30 +219,22 @@ This is not proof that no defect exists; it is evidence of audit convergence.
 
 ## TRACE purpose
 
-Test whether model outputs reproduce the observations/patterns the model is expected to represent, using declared quantitative/qualitative criteria.
+Test whether model outputs reproduce observations/patterns the model is expected to represent, using declared criteria.
 
 ## Current evidence
 
-AnthroSim has completed controlled synthetic capability exercises:
+AnthroSim has controlled framework/capability exercises including:
 
 - the M7 versioned synthetic resource-variability experiment;
 - the M8 evidence-grounded terrain null-model benchmark;
-- the M9 controlled residence-versus-intermittent-aggregation benchmark.
+- the M9 controlled residence-versus-intermittent-aggregation benchmark;
+- the general demographic baseline/sensitivity study.
 
-These demonstrate orchestration, mechanism distinction, reproducibility and inspectability. They do **not** establish empirical demographic, ecological, behavioural or archaeological validity.
+These demonstrate orchestration, mechanism distinction, reproducibility, regression sensitivity and inspectability. They do **not** establish empirical demographic, ecological, behavioural or archaeological validity.
 
 ## Required future output verification
 
-A research-capable configuration should be tested against multiple predeclared patterns appropriate to the question, potentially including:
-
-- survivorship/age-specific mortality;
-- fertility/birth spacing/population growth;
-- household-size/lifecycle distributions where households matter;
-- condition/resource stress proxies with defensible meaning;
-- mobility distance/frequency/duration;
-- occupation/presence persistence;
-- spatial distribution/clustering;
-- other independently justified system-level patterns.
+A study-specific configuration should be tested against multiple predeclared patterns appropriate to the question, potentially including survivorship, fertility/birth spacing/growth, household lifecycle, resource/condition proxies, mobility, presence persistence, spatial patterning and other independently justified outputs.
 
 Acceptance tolerances must be declared before interpreting success. Failure to reproduce a required pattern is a model result and must not be tuned away invisibly.
 
@@ -272,60 +246,31 @@ Acceptance tolerances must be declared before interpreting success. Failure to r
 
 ## TRACE purpose
 
-Understand how model behaviour depends on parameters, uncertainty, stochasticity, initial conditions, numerical resolution and structural choices.
+Understand dependence on parameters, uncertainty, stochasticity, initial conditions, numerical resolution and structural choices.
 
 ## Existing capability
 
-M7 supports deterministic ensembles and Cartesian sweeps with immutable provenance and explicit failed/incomplete run states. Derived analysis outputs retain contributing run identities. The v0.3.1 hardening line extends that foundation with complete scientific-configuration exposure to reproducible ensemble/sensitivity experiments, explicit stochastic-replicate precision/sufficiency checks, long-run drift/regime diagnostics, initialization and structural-sensitivity treatments, and fail-closed identifiability/equifinality analysis.
+M7 supports deterministic ensembles and Cartesian sweeps with immutable provenance and explicit failed/incomplete run states. Subsequent hardening adds complete scientific-configuration exposure, stochastic-replicate precision/sufficiency checks, long-run drift/regime diagnostics, initialization and structural-sensitivity treatments, and fail-closed identifiability/equifinality analysis.
 
-The #304 demographic study also provides a concrete structural-sensitivity result: no universal demographic baseline is justified because realized growth depends strongly on household lifecycle. Under the positive intrinsic schedule, fixed-founder households were approximately stationary while deterministic fission produced materially negative realized growth and much higher mate limitation. This is a model-form result, not empirical prehistoric calibration. See [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md).
+The general demographic study provides a concrete structural-sensitivity result: no universal demographic baseline is justified because realized growth depends strongly on household lifecycle and mate opportunity. This is a model-form result, not empirical prehistoric calibration. See [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md).
 
-The #217 analysis gate distinguishes fit from identification. When declared evidence leaves multiple parameter combinations or structural hypotheses acceptable, AnthroSim reports the compatible region/equifinality and preserves held-out discriminating predictions instead of selecting a false unique optimum. A narrower declared parameter claim may still pass its predeclared practical-identification threshold while top-level equifinality remains true; unclaimed nuisance parameters that vary across the compatible region and remain non-identified are reported explicitly as nuisance compensation rather than being hidden by the successful claim. See [`identifiability-equifinality-v1.md`](identifiability-equifinality-v1.md).
+Identifiability/equifinality analysis is intended to report compatible regions and discriminating predictions rather than select a false unique optimum. Audit-v4 further hardened this path against fabricated downstream parameter certification and stale/fabricated provenance bindings.
 
-## Required analysis programme
+## Required analysis programme for real inference
 
-### Parameter sensitivity
+- local and global parameter sensitivity;
+- propagated evidence uncertainty;
+- separation of aleatory and epistemic uncertainty;
+- structural sensitivity for consequential assumptions;
+- identifiability/equifinality analysis;
+- temporal convergence;
+- spatial resolution/extent/boundary sensitivity;
+- initialization/burn-in sensitivity;
+- counterfactual/RNG-design robustness.
 
-- local one-at-a-time tests for debugging/directionality;
-- global sensitivity over jointly plausible parameter ranges;
-- interaction effects rather than only main effects;
-- sufficient sweepability/external orchestration for every scientifically consequential parameter.
+**Research-ready criterion:** a reported conclusion should state which uncertainties, parameters and model structures it is robust to and which it is sensitive to.
 
-### Uncertainty analysis
-
-- propagate evidence ranges/distributions;
-- distinguish aleatory stochastic variation from epistemic parameter/model uncertainty;
-- report uncertainty in outputs and conclusions, not only mean trajectories.
-
-### Structural sensitivity
-
-Compare plausible alternative submodels for consequential assumptions rather than treating one convenient equation as fixed truth.
-
-### Identifiability and equifinality
-
-Determine whether different parameter/model combinations produce observationally indistinguishable outcomes. Report non-identifiability as a scientific result and identify evidence that could discriminate alternatives.
-
-### Temporal convergence
-
-Test whether changing timestep/resource-period resolution while preserving the intended continuous/annual scenario changes the scientific conclusion. If it does, timestep must be treated as a model assumption rather than a numerical convenience.
-
-### Spatial convergence and boundaries
-
-Represent equivalent physical landscapes at different grid resolutions/extents where feasible. Test whether results depend on cell size, raster extent, edge/corner position, discretized distance or total cell count for reasons unrelated to the target hypothesis.
-
-### Initialization / burn-in
-
-Vary founder age/household/location/resource/start-season conditions or use justified burn-in/initialization procedures. For declared founder populations, include reproductive-history and available direct-parent/genealogy alternatives where they can affect the active mechanisms. Distinguish persistent dynamics from day-zero artifacts.
-
-### Counterfactual robustness
-
-Check whether a conclusion survives reasonable paired/unpaired stochastic designs and whether RNG-stream divergence complicates causal comparisons.
-
-## Research-ready criterion
-
-A reported conclusion should state which uncertainties/parameters/model structures it is robust to and which it is sensitive to.
-
-**Current assessment:** Substantially strengthened at framework level, but still study-specific for strong inference. A real study must demonstrate adequate uncertainty propagation, design coverage, stochastic precision, structural sensitivity and identification for its own claim.
+**Current assessment:** Substantially strengthened at framework level, but still study-specific for strong inference.
 
 ---
 
@@ -333,7 +278,7 @@ A reported conclusion should state which uncertainties/parameters/model structur
 
 ## TRACE purpose
 
-Compare predictions or patterns against information sufficiently independent from model construction, calibration and earlier verification to provide a genuine external challenge.
+Compare predictions/patterns against information sufficiently independent from model construction, calibration and earlier verification to provide a genuine external challenge.
 
 ## Current AnthroSim status
 
@@ -344,10 +289,10 @@ No real archaeological/anthropological study has yet completed this gate for the
 Strong options include:
 
 - held-out archaeological patterns not used to construct/calibrate the model;
-- spatial/temporal subsets reserved before model fitting;
-- independent datasets or methods measuring a different consequence of the same hypothesized process;
-- successful prediction of a discriminating observation later checked against external evidence;
-- independent reimplementation/replication by another researcher/team;
+- spatial/temporal subsets reserved before fitting;
+- independent datasets or methods measuring another consequence of the same hypothesized process;
+- successful prediction of a discriminating observation later checked externally;
+- independent reimplementation/replication;
 - comparison against established models where relevant;
 - domain-specialist review of mechanisms, evidence transformations and permissible interpretations.
 
@@ -372,12 +317,12 @@ A much stronger and question-specific statement requiring demonstrated fitness f
 A configuration should not be called **research-ready for inferential use** until, at minimum:
 
 1. its ODD/ODD+D description matches the implemented semantics;
-2. blocking P1 conceptual/implementation issues for the relevant causal pathways are resolved;
-3. foundational scientific audits have approached P1 convergence;
-4. required temporal/spatial/initialization convergence tests have passed or their scale dependence is explicitly incorporated in inference;
-5. all materially consequential assumptions can be sensitivity/structural-sensitivity tested;
-6. evidence provenance, uncertainty and role (construction/calibration/corroboration) are explicit;
-7. required empirical output patterns are reproduced within predeclared criteria or failures are transparently reported;
+2. blocking conceptual/implementation issues for the relevant causal pathways are resolved;
+3. foundational scientific auditing and relevant verification evidence support the implemented pathways;
+4. required temporal/spatial/initialization convergence tests pass or scale dependence is incorporated explicitly;
+5. materially consequential assumptions can be sensitivity/structural-sensitivity tested;
+6. evidence provenance, uncertainty and role are explicit;
+7. required empirical output patterns are tested against predeclared criteria;
 8. global sensitivity/uncertainty/equifinality analysis supports the reported conclusion;
 9. independent corroboration is attempted using held-out evidence/predictions where possible;
 10. the application receives relevant archaeological/anthropological/domain review before strong historical claims.
@@ -392,12 +337,15 @@ For each significant scientific change:
 
 1. update the detailed scientific specification;
 2. update ODD and ODD+D where model/decision semantics changed;
-3. add verification tests and link the relevant issue/PR/benchmark evidence;
-4. record whether previous validation/sensitivity evidence remains applicable or is invalidated by the model revision;
-5. rerun affected evaluation experiments under a new immutable model/source identity;
-6. update this TRACE dossier's status only when the evidence exists.
+3. update other living current-facing architecture/status documentation affected by the change;
+4. add verification tests and link the relevant issue/PR/benchmark evidence;
+5. record whether previous validation/sensitivity evidence remains applicable or is invalidated;
+6. rerun affected evaluation experiments under a new immutable model/source identity where required;
+7. update this TRACE dossier's status only when the evidence exists.
 
 For each real study, create a study-specific TRACE appendix/dossier that references this framework-level dossier but records its own problem formulation, evidence roles, calibration, sensitivity, validation and corroboration.
+
+The current living-document consistency audit is recorded in [`post-v0.3.4-documentation-consistency-audit.md`](post-v0.3.4-documentation-consistency-audit.md). Historical release/audit/evidence records remain frozen to the identities they actually evaluated rather than being mechanically rewritten to v33.
 
 ---
 

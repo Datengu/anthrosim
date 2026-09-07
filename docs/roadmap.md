@@ -4,13 +4,15 @@
 
 AnthroSim's roadmap is driven by research capability rather than feature count. The project should add new mechanisms or infrastructure when they are needed to ask a clearer question, distinguish competing explanations, expose uncertainty, or make an experiment more reproducible and inspectable.
 
+**Current framework line:** repaired post-v0.3.4 development state / current model semantics v33. Immutable `v0.3.4` remains the v25 Audit-v4 discovery/release baseline; the repaired living line does not rewrite it.
+
 The long-term direction remains the one described in `docs/vision.md`: build enough defensible lower-level rules that history-like structure can emerge without scripting historical outcomes.
 
 This roadmap is intentionally case-study-neutral. Public core documentation should describe reusable scientific capabilities and validation boundaries without depending on any particular site, locality, dataset or project-specific research question. Specific case studies, when published, should live in explicitly scoped research artifacts rather than define the core engine roadmap.
 
-## Completed baseline: v0.1 / M1-M7
+## Completed baseline: M1–M7
 
-v0.1 established the software and experiment-engine baseline:
+The first seven milestones established the software and experiment-engine baseline:
 
 - deterministic synthetic spatial environments;
 - persistent people, households, demography and genealogy;
@@ -21,273 +23,111 @@ v0.1 established the software and experiment-engine baseline:
 - deterministic ensembles and parameter sweeps;
 - immutable experiment provenance and explicit retry/failure semantics;
 - long-run invariant, performance, memory and cross-platform determinism gates;
-- machine-readable evidence provenance for future evidence-grounded parameters and external inputs.
+- machine-readable evidence provenance for evidence-grounded parameters and external inputs.
 
-This baseline can answer questions of the form "what does this declared synthetic model do when assumption X changes?" It is not yet an empirically validated model of a real past population or landscape.
+This baseline can answer questions of the form “what does this declared model do when assumption X changes?” It is not an empirically validated model of a real past population or landscape.
 
-## Development rule after v0.1
+## Development rule after M7
 
-Post-v0.1 milestones should normally follow this sequence:
+Later work should normally follow this sequence:
 
-1. **State a research question or methodological target.** Define what distinction the experiment is intended to examine.
-2. **Define the simplest relevant hypotheses or null model.** Do not add mechanisms merely because they are historically plausible.
-3. **Define observable outputs before implementation.** State what patterns, distributions or contrasts would be compared and what would count as an informative failure.
-4. **Identify the minimum missing capability.** Add only the model or data boundary required to run the experiment defensibly.
-5. **Record assumptions and evidence.** Parameters and external inputs must retain provenance, transformations, units and uncertainty where scientifically relevant.
-6. **Run ensembles and sensitivity analysis.** Prefer distributions and controlled comparisons to interpretation of a single artificial history.
-7. **Treat negative results as information.** Failure of a simple model can identify which assumptions or mechanisms deserve investigation next.
-8. **Let results shape the next milestone.** Later milestones should not become a fixed list of increasingly elaborate human behaviours detached from research need.
+1. **State a research question or methodological target.**
+2. **Define the simplest relevant hypotheses or null model.**
+3. **Define observable outputs before implementation.**
+4. **Identify the minimum missing capability.**
+5. **Record assumptions, evidence, units, transformations and uncertainty.**
+6. **Run ensembles and sensitivity/uncertainty analysis.**
+7. **Treat negative results as information.**
+8. **Let results shape the next milestone.**
 
 This keeps AnthroSim from becoming either a feature-accumulation project or a historical reconstruction engine whose desired outcome is embedded in its rules.
 
 ## M8 — Evidence-grounded spatial experiments
 
-**Status:** completed. M8.0-M8.6 establish the generic Level-D evidence-grounded spatial experiment path; they do not establish case-study or archaeological validation.
+**Status:** complete. M8.0–M8.6 establish a generic evidence-grounded spatial experiment path; they do not establish archaeological validation.
 
-### Goal
+M8 allows controlled, reproducible experiments on declared spatial evidence while preserving a strict separation between authoritative simulation semantics and external GIS/scientific tooling. Raw GIS data should normally be prepared with mature external tools and converted into a versioned AnthroSim landscape bundle; AnthroSim owns validation, deterministic model-facing transformation, provenance and causal observability.
 
-Allow AnthroSim to run controlled, reproducible experiments on evidence-grounded spatial environments while preserving the existing separation between authoritative simulation semantics and external GIS/scientific tooling.
+Implemented M8 capability includes:
 
-M8 makes it possible to ask whether the mechanisms already represented by the model can generate informative spatial patterns under declared real-world environmental constraints, without scripting known settlements, destinations, routes or historical outcomes.
+- a frozen spatial research/null-model contract;
+- normalized landscape input with CRS/extent/resolution/nodata/layer/evidence identity;
+- reproducible external preprocessing;
+- deterministic landscape loading;
+- explicit movement-cost, water-access and resource-opportunity transformations;
+- residence-based spatial observability and read-only explorer support;
+- the M8.6 paired terrain benchmark.
 
-The first real-landscape exercise is treated as a **null-model benchmark**, not as a reconstruction claim. Its value is to establish what the existing demographic, resource and mobility mechanisms can and cannot explain before more complex social mechanisms are introduced.
+### Current M8.6 result
 
-### Architectural boundary
+The current checked-in M8.6 machine reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json` under **model semantics v33**. All four terrain arms remain non-degenerate and the overall benchmark classification remains **`fragile_spatial_structure`**. The current v33 reference has no robust primary metric; terminal largest-cell share is fragile, while migration distance, cell-time occupancy and terminal Herfindahl are not distinctive under the predeclared criteria.
 
-AnthroSim should not become a GIS application.
+Earlier v26–v32 reviewed executions remain important historical sensitivity evidence and are preserved in [`research/m8-first-evidence-grounded-benchmark-result.md`](research/m8-first-evidence-grounded-benchmark-result.md). A changed regression reference after an upstream causal repair is not calibration; it records the behavior of the unchanged benchmark under the corrected complete model.
 
-Raw elevation, LiDAR, hydrology, land-cover, palaeoenvironmental or other geospatial source data should normally be prepared with mature external tooling such as QGIS/GDAL and converted into a documented, versioned AnthroSim landscape bundle.
-
-AnthroSim owns:
-
-- the normalized landscape input contract used by authoritative runs;
-- validation of that contract;
-- deterministic mapping from declared spatial inputs to simulation state;
-- the scientific meaning of model-facing layers and transformations;
-- experiment provenance and content identity;
-- causal observability of how spatial inputs affected simulated decisions and outcomes.
-
-External tooling should continue to own generic GIS editing, reprojection, raster/vector processing and exploratory cartography.
-
-### Implemented M8 slices
-
-#### M8.0 — Spatial research/benchmark contract
-
-The generic benchmark specification defines:
-
-- the class of question being tested;
-- the null or competing model assumptions;
-- the spatial/environmental inputs required;
-- the outputs that will be compared;
-- sensitivity dimensions and uncertainty to preserve;
-- explicit interpretation limits.
-
-The benchmark contract remains usable without naming a particular archaeological site or requiring case-study-specific information in the public core repository.
-
-#### M8.1 — Versioned landscape input contract
-
-The normalized spatial bundle records explicit:
-
-- schema version;
-- dimensions and cell resolution;
-- coordinate reference metadata and extent;
-- nodata/missing-data semantics;
-- layer names, units and value domains;
-- source/evidence references;
-- content identity.
-
-The contract supports synthetic fixtures as well as externally prepared real-world-derived landscapes.
-
-#### M8.2 — Reproducible external preprocessing workflow
-
-Documented lightweight tooling converts externally prepared GIS/scientific data into the normalized AnthroSim landscape contract while making transformations explicit rather than hiding them inside the simulation engine.
-
-#### M8.3 — Deterministic landscape loading
-
-Experiments can bind an external normalized landscape while preserving deterministic replay, invariant validation, checkpoint/resume semantics, exact experiment identity and the separation between immutable environmental inputs and dynamic simulation state.
-
-Synthetic world generation remains available for engine tests and controlled experiments.
-
-#### M8.4 — Evidence-grounded spatial mechanisms
-
-Declared spatial layers connect to existing model mechanisms through explicit, inspectable and identity-bearing transformations for movement cost, water accessibility and resource opportunity. Source values and model-facing values remain distinguishable, and nodata behavior is explicit.
-
-No transformation is treated as empirically valid merely because its input data are real. Source evidence, modelling assumptions, units, uncertainty and sensitivity ranges remain separate concerns.
-
-#### M8.5 — Spatial observability and explorer support
-
-Machine-readable spatial observability records provenance, occupancy, migration flows and spatial concentration independently of the read-only explorer. The explorer can display normalized and transformed layers without becoming authoritative simulation state.
-
-Visualisation remains downstream from authoritative state. A visually realistic map does not substitute for provenance or imply historical validation.
-
-#### M8.6 — First evidence-grounded spatial benchmark
-
-The first Level-D benchmark runs four terrain-to-movement-cost alternatives across eight paired seeds through ordinary M7 ensemble machinery on one pinned, open, provenance-tracked terrain input.
-
-All 32 runs reached the configured 100-year duration. Under the current v27 reference, the predeclared aggregate classification remains **fragile spatial structure** with no robust primary metric: terminal Herfindahl concentration and terminal largest-cell share are fragile, while total migration distance and cell-time occupancy are not distinctive. The metric-level classifications are sensitive to upstream causal-demographic semantics and are therefore preserved as reviewed regression evidence rather than calibration targets.
-
-This is a result about the declared terrain-only null model, not a reconstruction or validation of a historical population. See `docs/research/m8-first-evidence-grounded-benchmark-result.md` and the machine-readable `examples/m8-first-evidence-grounded-benchmark/reference-result.json`.
-
-### M8 non-goals
-
-M8 does not by itself:
-
-- reconstruct a particular historical community or event;
-- establish that a spatially grounded simulation is archaeologically valid;
-- script known settlements, routes, boundaries or destinations;
-- add culture, trade, warfare, institutions, religion, language or other mechanisms solely for completeness;
-- replace QGIS/GDAL or general statistical tooling;
-- turn explorer visualisation into authoritative simulation input;
-- collapse uncertainty in environmental reconstruction into a single supposedly true landscape.
+M8 still does not reconstruct a historical community, script known locations/routes, replace GIS tooling, collapse palaeoenvironmental uncertainty, or establish archaeological validity.
 
 ## M9 — Temporary mobility and aggregation experiments
 
-**Status:** completed. M9.0-M9.7 establish the generic temporary-mobility and controlled aggregation capability. The authoritative M9 semantics contract is `docs/research/temporary-mobility-v1.md`; the capability audit that motivated it is `docs/research/m9-temporary-mobility-capability-audit.md`.
+**Status:** complete. M9.0–M9.7 establish generic temporary mobility and controlled aggregation capability.
 
-### Goal
+M9 keeps persistent residence distinct from physical presence. A household may undertake deterministic outbound transit, visit a declared focal region, return, and restore at-residence presence without redefining M4 permanent migration. Transit has timing/resource semantics but deliberately has no authoritative per-day world cell.
 
-Allow households with persistent residences to undertake reproducible, bounded temporary journeys to declared focal regions, remain away for explicit durations and return home, while keeping temporary presence scientifically distinct from permanent migration.
+Implemented M9 capability includes:
 
-M9 makes controlled experiments possible that compare continuous residence with intermittent aggregation on synthetic or evidence-grounded landscapes. It does not assume why people aggregate; the initial mechanism is a null-model mobility capability, not a model of trade, ritual, refuge, politics or any named archaeological interpretation.
+- frozen residence/presence semantics;
+- identity-bearing focal-region binding;
+- deterministic multi-day journey lifecycle;
+- declared travel-cost/duration/reachability semantics;
+- duration-aware resource accounting;
+- separate temporary-presence observability;
+- experiment/ensemble/sweep/checkpoint integration;
+- the M9.7 continuous-residence versus intermittent-aggregation benchmark.
 
-### Why M9 was the next missing capability
+The M9.7 benchmark remains **`capability_distinguished`**. Its current checked-in machine reference is on model semantics v31 because later v32/v33 changes are causally inapplicable to its preserved reference behavior. That is a capability/regression result, not evidence for a real social motive or archaeological interpretation. See [`research/m9-controlled-aggregation-benchmark-result.md`](research/m9-controlled-aggregation-benchmark-result.md).
 
-The v0.2.0 model could not represent the required experiment without changing the meaning of existing state:
+M9 does not by itself add trade, ritual, feasting, religion, politics, warfare, livestock, settlement institutions, archaeological preservation/detection or empirical calibration.
 
-- a household had one authoritative location that functioned simultaneously as residence and current presence;
-- every living household member was required to occupy that same location;
-- M4 migration permanently overwrote the household and living-member locations;
-- migration journeys were atomic and had no journey duration, arrival/stay/return lifecycle or en-route state;
-- no model-facing focal-region binding told a temporary-mobility mechanism where a declared aggregation area was;
-- resource demand was charged to the household's single location for an entire resource period, which would misrepresent short visits;
-- M8.5 could reconstruct person-days and occupancy from authoritative events, but only understood permanent migration as a movement event.
+## Release and audit history
 
-M9 addresses these as model/software capability gaps rather than treating them as missing archaeological data or missing GIS functionality.
+Milestone identity, software release identity, model-semantics identity and Git source identity remain separate.
 
-### Architectural boundary
+- **v0.2.0 / M8:** preserved evidence-grounded spatial capability baseline.
+- **v0.3.0 / M9:** preserved temporary-mobility/aggregation capability baseline.
+- **v0.3.1:** post-M9 scientific hardening and analysis/inference safeguards.
+- **v0.3.2:** documentation-convergence maintenance release, immutable model semantics v19.
+- **v0.3.3:** post-Audit-v2 convergence release, immutable model semantics v21; frozen Audit-v3 target.
+- **v0.3.4:** post-Audit-v3 convergence release, immutable model semantics v25; frozen Audit-v4 target.
 
-M9 extends AnthroSim's human-mobility semantics; it does not make AnthroSim a GIS or general routing application.
+Scientific Audit v3 challenged immutable v0.3.3/v21, demonstrated 17 findings and produced the repaired v25 line later frozen as v0.3.4.
 
-External GIS/scientific tooling should continue to own real-world polygon/raster editing, reprojection and preparation. AnthroSim may consume an externally prepared normalized mask or other declared region representation and give that input an explicit model-facing identity and role.
+Scientific Audit v4 then restarted Areas A–N from zero against immutable v0.3.4/v25. It demonstrated **13 P1 and 2 P2 findings**. Post-discovery remediation repaired and independently re-verified/dispositioned all 15 findings. Authoritative repairs advanced the living development line through **model semantics v26–v33** where continuation/scientific meaning changed. The repository-authoritative record is [`research/audit-v4/STATUS.md`](research/audit-v4/STATUS.md).
 
-Permanent M4 migration remains a separate causal process. M9 must not silently reinterpret `HouseholdMigration` as temporary travel or overload a single location field with incompatible meanings.
+Audit v4 is therefore **complete**, not “in remediation.” Its historical discovery result remains non-clean because the frozen target contained those defects, while the living current model semantics v33 line contains the repairs. This is verification/convergence evidence, not empirical validation.
 
-### M9 implementation slices
+## Direction after Audit v4
 
-#### M9.0 — Temporary-mobility research and semantics contract — complete
+No fixed M10 feature list is declared.
 
-`docs/research/temporary-mobility-v1.md` freezes the minimum generic experiment semantics before authoritative implementation, including:
+The framework should not automatically add more mechanisms simply because Audit-v4 remediation is finished. The next substantive scientific work should be selected by a defined question or methodological target and should proceed only within the evidence/validation boundaries appropriate to that question.
 
-- persistent residence versus current physical presence;
-- permanent relocation versus temporary travel;
-- focal-region identity and provenance;
-- departure, arrival, stay and return semantics;
-- travel-time/cost assumptions and routing boundaries;
-- duration-aware resource-accounting assumptions during temporary absence/presence;
-- interaction with M4 migration and M2 demography;
-- authoritative events, checkpoint/resume and observability requirements;
-- the M9.7 benchmark acceptance criteria;
-- explicit interpretation limits.
+A defensible question-led sequence is:
 
-#### M9.1 — Residence/presence state separation — complete
+1. define the inferential or methodological question;
+2. identify the smallest relevant existing model/null model;
+3. define observables and predeclared comparison criteria;
+4. evaluate whether current v33 mechanisms are sufficient to run the comparison without inventing a missing causal process;
+5. add only capabilities demonstrated to be necessary;
+6. calibrate/parameterise only with declared evidence roles;
+7. run stochastic precision, sensitivity, structural sensitivity, resolution/boundary and initialization checks as relevant;
+8. assess identifiability/equifinality;
+9. compare against appropriate empirical patterns and held-out corroboration where possible;
+10. obtain relevant domain review before strong historical claims.
 
-Introduce authoritative state that can preserve a household's persistent residence while its living members are temporarily elsewhere or in transit. Invariants must make the relationship between household membership, residence and physical presence explicit rather than ambiguous.
+The general demographic-baseline study illustrates this rule. It found no defensible universal demographic default: realized growth changes strongly with household lifecycle and mate limitation. Future studies must declare and justify demographic schedule and household structure rather than treating one synthetic preset as a stationarity guarantee.
 
-Existing permanent migration must update residence under its own semantics; temporary travel must not.
+Candidate future directions remain valid only when justified by experimental need, including:
 
-#### M9.2 — Generic focal-region binding — complete
-
-Add an identity-bearing experimental region contract that temporary mobility can target. Real region geometry should normally be prepared outside AnthroSim and supplied through the existing normalized landscape boundary, for example through a declared auxiliary mask or equivalent versioned representation.
-
-The engine owns validation and scientific meaning of the binding, not GIS editing.
-
-#### M9.3 — Deterministic temporary journey lifecycle — complete
-
-Add a temporary-mobility process capable of deterministic/reproducible:
-
-- departure from residence;
-- travel/arrival timing;
-- bounded stay duration;
-- return travel;
-- restoration of presence at the persistent residence.
-
-Triggers should initially be generic and experiment-configured. A temporary journey need not claim a real social motive.
-
-#### M9.4 — Travel-time and cost semantics — complete
-
-`docs/research/m9-temporary-travel-semantics-v1.md` freezes the M9.4 integer edge-cost, reachability, destination tie-break and travel-capacity semantics before authoritative implementation is merged.
-
-Define the minimum deterministic travel-duration/cost calculation required for temporary journeys, using existing model-facing movement-cost information where appropriate.
-
-This capability must remain inspectable and provenance-bearing. It should not grow into a general GIS route-planning product; mature external GIS remains responsible for generic routing/cartographic analysis not required by authoritative simulated behaviour.
-
-#### M9.5 — Duration-aware resource/presence accounting — complete
-
-Ensure short visits cannot be silently treated as whole resource periods at the destination or disappear entirely when they occur between current resource boundaries.
-
-The implemented approximation must explicitly account for how household need/resource pressure is attributed across residence, travel and temporary presence, preserve exact deterministic accounting, and expose the assumption as model semantics rather than hiding it in scheduling code.
-
-#### M9.6 — Temporary-mobility observability and experiment integration — complete
-
-M9 temporary mobility now participates in ordinary transformed-spatial execution, immutable experiment identity, run/ensemble/sweep inputs, checkpoint/resume, completed/paused artifact workflows and deterministic downstream observability.
-
-The world-independent experiment definition preserves focal region, schedule and travel-model assumptions, while every run derives its resolved travel table from that run's own authoritative world. `anthrosim-temporary-observability` regenerates a separate machine-readable report from preserved authoritative artifacts rather than changing the meaning of M8 spatial observability.
-
-The implemented report distinguishes:
-
-- persistent residence from physical temporary presence;
-- temporary visitors from focal-region residents;
-- outbound and return transit without assigning transit to arbitrary cells;
-- starts, explicit non-start outcomes, arrivals, return departures and completions;
-- visit-duration distributions and peak/mean visitor presence;
-- persistent-residence, at-residence, visitor and transit person-days with exact accounting identities;
-- journey time/cost, derived route edge distance where it reconciles to M9.4 routing, and origin catchment;
-- permanent M4 migration from temporary movement.
-
-Completed bundles can carry the derived report and fail closed if it cannot be regenerated exactly. Paused runs with resume-boundary population provenance can reconstruct the day-zero founder state deterministically and derive/verify the same report. The read-only Explorer can surface the derived summary and M9 event family without changing residence maps or inventing transit locations.
-
-See `docs/research/temporary-mobility-observability-v1.md` and `docs/research/m9-6-integration-audit.md`.
-
-#### M9.7 — Controlled aggregation benchmark — complete
-
-The frozen M9.7 benchmark compares paired continuous-residence and intermittent-aggregation regimes across seeds 9701-9708 in the same controlled 10×10 synthetic worlds and 70-cell focal region. Its assumptions and acceptance thresholds were committed before first result inspection.
-
-The first execution classified **`capability_distinguished`**. All 8/8 paired seeds met the predeclared criteria: total focal-region person-days remained within 5% between arms while the intermittent arm produced a materially concentrated visitor signal above the declared peak threshold. Authoritative event replay reconciled with machine-readable M9.6 observability, duplicate execution was exact, and an annual checkpoint captured active journeys and resumed to the same terminal authoritative state and observability as uninterrupted execution.
-
-The first-observation result is preserved as a machine-readable reference and protected by a tamper-rejecting CI verifier. See `docs/research/m9-controlled-aggregation-benchmark-v1.md`, `docs/research/m9-controlled-aggregation-benchmark-result.md` and `examples/m9-controlled-aggregation-benchmark/reference-result.json`.
-
-This benchmark validates the M9 capability and its observability only. It does not validate any archaeological interpretation or claim that intermittent aggregation or continuous residence explains a real site.
-
-### M9 non-goals
-
-M9 does not by itself add or establish:
-
-- a named archaeological site or case-study-specific rules in the public core;
-- trade, ritual, feasting, religion or political institutions as causes of aggregation;
-- detailed combat, attackers or warfare;
-- livestock/herd simulation;
-- settlement formation as a higher-level institution;
-- archaeological preservation, detection or observation models;
-- empirical calibration of temporary mobility for a real prehistoric population;
-- a general-purpose GIS or route-planning suite.
-
-Those capabilities should be considered only when a later controlled research question demonstrates that they are required.
-
-## Direction after M9
-
-No fixed M10 feature list is declared yet.
-
-M9 is complete and its capability baseline remains preserved from `v0.3.0`. The first major post-M9 scientific-audit backlog is resolved and preserved in `v0.3.1`, including stronger configuration/provenance coverage, stochastic precision and long-run gates, structural/initialization sensitivity, demographic-baseline analysis, and identifiability/equifinality safeguards. `v0.3.2` is the documentation-convergence maintenance release for that state and remains an immutable v19 baseline. `v0.3.3` is the immutable post-audit-v2/v21 baseline and Audit-v3 discovery target; `v0.3.4` is the post-Audit-v3/v25 convergence freeze.
-
-Scientific Audit v3 is complete against immutable `v0.3.3` / model semantics v21. It independently covered Areas A–N, demonstrated 17 findings (1 P0, 6 P1 and 10 P2), and the post-discovery remediation programme repaired, merged, independently post-merge reverified and closed all 17. Four causal repairs advanced the living model semantics through v22, v23, v24 and v25; analysis/provenance/documentation-only repairs did not create artificial semantics bumps.
-
-`v0.3.4` froze the resulting `anthrosim-model-semantics-v25` Audit-v3 convergence line as an immutable patch baseline. Scientific Audit v4 then restarted A–N coverage from zero, demonstrated 13 P1 and 2 P2 findings on that frozen target, and moved the repository into post-discovery remediation. The current sequence is therefore **repair and independently reverify Audit-v4 findings -> reassess empirical/question-specific readiness -> begin question-led model interrogation only within the resulting evidence/validation boundaries**. AV4-001/#486 advances the remediation line to model semantics v26 without changing the historical v0.3.4/v25 identity. This remains deliberately distinct from a predetermined M10 feature package.
-
-The v0.3.1 demographic-baseline study is an example of this rule. It found no defensible universal demographic default: realized growth changed strongly with household lifecycle, and mate limitation was substantially higher under deterministic household fission. Future studies must therefore declare and justify both demographic schedule and household structure rather than treating `replacement_control_v1` as a stationarity guarantee.
-
-Candidate directions remain valid only when justified by experimental need, including:
-
-- evidence-grounded or alternative demographic/household initialization where a concrete comparison requires it;
+- evidence-grounded or alternative demographic/household initialization;
 - settlement formation and persistence mechanisms;
 - livestock or managed-herd behaviour;
 - richer kinship/social-interaction mechanisms;
@@ -310,4 +150,4 @@ At every stage, AnthroSim should distinguish:
 5. archaeological observation/preservation/detection processes where modelled;
 6. downstream interpretation.
 
-Strong archaeological or anthropological claims require question-specific validation, sensitivity analysis, comparison with relevant evidence and, ultimately, domain review. The software should make those steps possible and auditable rather than imply that simulation alone supplies the answer.
+Strong archaeological or anthropological claims require question-specific validation, sensitivity and uncertainty analysis, comparison with relevant evidence and domain review. The software should make those steps possible and auditable rather than imply that simulation alone supplies the answer.

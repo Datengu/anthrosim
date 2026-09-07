@@ -2,52 +2,62 @@
 
 AnthroSim's research documentation is organized around explicit model description, human-decision assumptions, model evaluation, evidence provenance and reproducible experiment records.
 
-Start here:
+**Living framework state:** repaired post-v0.3.4 line / current model semantics v33. Immutable `v0.3.4` remains the Audit-v4 discovery target at model semantics v25; current documentation must not rewrite that historical identity.
+
+## Start here
 
 - [`research-standards.md`](research-standards.md) — formal adoption and maintenance rules for **ODD 2020, ODD+D and TRACE**.
-- [`odd.md`](odd.md) — formal ODD 2020 model description.
-- [`odd-d.md`](odd-d.md) — ODD+D human decision-making supplement.
+- [`odd.md`](odd.md) — formal ODD 2020 model description for the living current model semantics v33 line.
+- [`odd-d.md`](odd-d.md) — ODD+D human decision-making supplement for the living line.
 - [`trace.md`](trace.md) — living TRACE evaluation / research-readiness dossier.
-- [`scientific-audit-protocol.md`](scientific-audit-protocol.md) — reusable adversarial scientific-audit protocol and convergence criteria.
-- [`audit-v3/README.md`](audit-v3/README.md) — completed third independent scientific-audit charter for the immutable `v0.3.3` / model-semantics-v21 discovery baseline.
-- [`audit-v3/STATUS.md`](audit-v3/STATUS.md) — immutable discovery-phase Audit-v3 ledger and A–N evidence record; its finding statuses describe the frozen discovery state, not the later remediation state.
-- [`v0.3.4-documentation-readiness-audit.md`](v0.3.4-documentation-readiness-audit.md) — pre-release living-document/release-identity convergence record for the fully remediated v25 line.
-- [`audit-v2/STATUS.md`](audit-v2/STATUS.md) — closed second independent audit ledger; historical evidence, not completion evidence for audit v3.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
+- [`scientific-audit-protocol.md`](scientific-audit-protocol.md) — reusable adversarial scientific-audit protocol and convergence criteria.
+- [`audit-reverification-version-drift.md`](audit-reverification-version-drift.md) — rule for preserving frozen adversaries while permitting narrowly adapted current-state re-verification when a historical harness assumption becomes intrinsically obsolete.
+- [`audit-v4/README.md`](audit-v4/README.md) — fourth independent scientific-audit charter for immutable `v0.3.4` / model semantics v25.
+- [`audit-v4/STATUS.md`](audit-v4/STATUS.md) — repository-authoritative Audit-v4 discovery/remediation ledger: 15 findings demonstrated on the frozen target, 15/15 repaired/re-verified and closed on the living line.
+- [`post-v0.3.4-documentation-consistency-audit.md`](post-v0.3.4-documentation-consistency-audit.md) — living-document audit against the repaired v33 state after Audit-v4 closure.
+- [`v0.3.4-documentation-readiness-audit.md`](v0.3.4-documentation-readiness-audit.md) — historical pre-release documentation/version-identity convergence record for the v25 release line.
+
+## Earlier audit generations
+
+- [`audit-v3/README.md`](audit-v3/README.md) and [`audit-v3/STATUS.md`](audit-v3/STATUS.md) preserve the third independent audit against immutable `v0.3.3` / v21. Its 17 findings were later repaired to produce the v25 line frozen as v0.3.4.
+- [`audit-v2/STATUS.md`](audit-v2/STATUS.md) preserves the second independent audit against its own frozen baseline.
+- dated `trace-audit-*` documents and other audit-area records remain historical evidence and must not be mechanically rewritten to current v33 language.
+
+The historical audit records describe the exact baseline they challenged. Current issue closure and the living Audit-v4 completion state are represented by [`audit-v4/STATUS.md`](audit-v4/STATUS.md), not by rewriting earlier discovery records.
+
+## Core scientific contracts
+
 - [`evidence-provenance.md`](evidence-provenance.md) — evidence provenance and transformation contract.
-- [`spatial-boundary-dependence-v1.md`](spatial-boundary-dependence-v1.md) — normative finite-domain contract for distinguishing arbitrary GIS crops from declared barriers, separating simulation and analysis domains, exposing M4/M9 edge dependence, and demonstrating study-specific extent convergence.
-- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — authoritative annual M2 demographic-time semantics introduced by the post-M9 scientific-hardening repair programme; defines interval age, competing mortality/fertility, executable birth spacing, same-day M4 parentage locality, newborn condition and founder-history semantics.
-- [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) — explicit synthetic-versus-declared founder-state contract, including signed pre-run reproductive timing and living direct-parent links.
-- [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md) — versioned derived M2 validation/diagnostic surface for mortality exposures, fertility opportunity denominators, requested-versus-executable spacing, interbirth intervals and explicitly censored completed fertility.
-- [`trace-m2-demographic-time-repair-2026-08-25.md`](trace-m2-demographic-time-repair-2026-08-25.md) — TRACE change record for the first M2 transition-semantics repair, including verification evidence and deliberate reference regeneration after the semantics change.
-- [`trace-m2-founder-initialization-repair-2026-08-25.md`](trace-m2-founder-initialization-repair-2026-08-25.md) — TRACE record for explicit provenance-bearing founder reproductive/genealogical state.
-- [`trace-m2-demography-observability-2026-08-26.md`](trace-m2-demography-observability-2026-08-26.md) — TRACE record for run-facing M2 opportunity diagnostics and the #179/#191/#193/#227/#228 acceptance closure surface.
-- [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md) — authoritative v8 M3 annual resource-accounting contract: exact half-open resource intervals, annual-quantity conservation, mean-preserving seasonal redistribution, historical shared-boundary M3/M4 demand alignment and zero-demand condition neutrality; retained under v9 for those rules.
-- [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md) — authoritative v9 #204 response-time contract: elapsed-time condition/scarcity response, independent M3 and M4 clocks, M4 interval demand and merged scheduler semantics.
-- [`m4-travel-condition-loss-observability-v1.md`](m4-travel-condition-loss-observability-v1.md) — #225 observability contract distinguishing nominal per-person M4 travel-condition cost from exact realized bounded loss per completed household move, with event-to-aggregate reconciliation.
-- [`resources-v0.1.md`](resources-v0.1.md) — M3 synthetic resource-model assumptions, units and empirical-evidence boundary; resource accounting remains grounded in the v8 contract while v9 response timing is defined separately.
-- [`trace-m3-resource-time-accounting-2026-08-26.md`](trace-m3-resource-time-accounting-2026-08-26.md) — TRACE change record for the #180/#189/#199 resource-time repair and the condition/timing boundaries it deliberately left open at v8.
-- [`trace-m3-response-time-repair-2026-08-26.md`](trace-m3-response-time-repair-2026-08-26.md) — TRACE change record for the v9 #204 timing repair, model-semantics bump and explicit exclusions #200/#208/#201.
+- [`spatial-boundary-dependence-v1.md`](spatial-boundary-dependence-v1.md) — finite-domain/boundary-dependence contract.
+- [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md) — annual demographic-time contract: annual background risk is executed over elapsed M3 intervals with condition-mediated mortality as an order-invariant competing risk; year-end M2 performs fertility/parentage among survivors.
+- [`m2-founder-initialization-contract-v1.md`](m2-founder-initialization-contract-v1.md) — declared/synthetic founder state, reproductive history and genealogy contract.
+- [`m2-demography-observability-v1.md`](m2-demography-observability-v1.md) — derived demographic validation/diagnostic surface.
+- [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md) — exact elapsed-day annual resource accounting.
+- [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md) — independent M3 response and M4 decision timing semantics.
+- [`spatial-mechanisms-v1.md`](spatial-mechanisms-v1.md) — M8 model-facing spatial transformation semantics.
+- [`temporary-mobility-v1.md`](temporary-mobility-v1.md) — M9 residence/presence and temporary-journey semantics.
+- [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md) — M9 travel cost/duration/routing contract.
+- [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md) — temporary-presence resource accounting.
+- [`temporary-mobility-observability-v1.md`](temporary-mobility-observability-v1.md) — M9 physical-presence observability contract.
+- [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md) — current demographic-baseline/model-analysis record, including the v33 re-verification state.
+- [`identifiability-equifinality-v1.md`](identifiability-equifinality-v1.md) — compatible-region and discriminating-prediction analysis contract.
 
-## TRACE audit records
+Dated TRACE repair records preserve the rationale/evidence for individual historical repairs. Their version language is intentionally scoped to the repair they document.
 
-- [`trace-audit-2026-08-25.md`](trace-audit-2026-08-25.md) — first repository-wide TRACE-structured deep scientific audit after formal ODD/ODD+D/TRACE adoption; records the eight-element assessment, deduplicated findings and resulting research gates/issues.
-- [`trace-audit-2026-08-25-pass-2.md`](trace-audit-2026-08-25-pass-2.md) — second independent adversarial pass focused on finite-domain effects, seed/environment separation, spatial initialization, counterfactual RNG semantics, identifiability, observability and long-run/path-dependence safeguards.
-- [`trace-audit-2026-08-25-pass-3.md`](trace-audit-2026-08-25-pass-3.md) — third independent pass focused on population/resource conservation, intervention/symmetry checks, event replay and scientific-summary semantics; records the undefined-empty-set mean P1 and the mechanisms that held up under this lens.
-- [`trace-audit-2026-08-25-pass-4.md`](trace-audit-2026-08-25-pass-4.md) — fourth pass focused on lifecycle extremes and scientific-output fidelity; records the M8 initial-resource-state P1 plus planned/realized travel, M4 condition-loss and exposure-normalization findings.
-- [`trace-audit-2026-08-25-pass-5.md`](trace-audit-2026-08-25-pass-5.md) — fifth pass focused on causal opportunity structure and demographic interval semantics; records the mortality/fertility competing-event P1, demographic-opportunity observability and the M2 extension to raster-resolution sensitivity.
-- [`trace-audit-2026-08-25-pass-6.md`](trace-audit-2026-08-25-pass-6.md) — sixth pass focused on limiting cases, null interventions, parameter directionality and metamorphic semantics; the first independent pass in the current sequence to find no new P1.
-- [`trace-audit-2026-08-25-pass-7.md`](trace-audit-2026-08-25-pass-7.md) — confirmatory-study integrity, Monte Carlo precision and executable downstream-analysis provenance; no new P1 discovered.
-- [`trace-audit-2026-08-25-pass-8.md`](trace-audit-2026-08-25-pass-8.md) — writer→reader causal-graph audit across condition, residence, resources, temporary presence, genealogy and world fields; no new P1 discovered.
-- [`trace-audit-2026-08-25-pass-9.md`](trace-audit-2026-08-25-pass-9.md) — symmetry, relabelling and arbitrary-bookkeeping audit; no new P1 discovered and current audit-first discovery phase judged converged.
+## Current Audit-v4 outcome
 
-Those earlier TRACE passes and scientific audit v2 are preserved as historical evidence. Audit v2 subsequently completed the reusable protocol's full Areas A–N, repaired and reverified all 15 AV2 findings, and closed with no open P0–P3 scientific finding. The repaired v21 state was then frozen as immutable `v0.3.3` at `d3b6fc0b0750933b57252c9087513d156d88f218`.
+Scientific Audit v4 restarted Areas A–N from zero against immutable `v0.3.4` / `anthrosim-model-semantics-v25`. It demonstrated **13 P1 and 2 P2 findings**. Post-discovery remediation repaired all 15 and independently re-verified/dispositioned them before closure. Authoritative repairs advanced the living line through model semantics v26–v33 where scientific continuation compatibility changed.
 
-Scientific Audit v3 then restarted full A–N coverage from zero against that frozen release. It demonstrated 17 findings (1 P0, 6 P1 and 10 P2). The post-discovery remediation programme repaired all 17 through protected production changes and independently re-ran the original adversaries against merged `main` before closing each finding. That repaired line froze as immutable `v0.3.4` / `anthrosim-model-semantics-v25`. Scientific Audit v4 has since completed a fresh A–N discovery pass and entered remediation; AV4-001/#486 advances the current remediation line to `anthrosim-model-semantics-v26` without rewriting the v0.3.4/v25 release identity. This is framework-verification evidence, not proof of correctness or empirical archaeological validity.
+The repaired current model semantics v33 line therefore differs scientifically from the immutable v0.3.4/v25 release target; this is intentional. Historical v25 language remains correct only where it is explicitly release/audit identity or historical evidence.
 
-The post-M9 repair programme proceeded by explicit causal contracts rather than issue-by-issue tuning. M2 repairs are anchored by [`m2-demographic-time-contract-v1.md`](m2-demographic-time-contract-v1.md); M3 annual resource accounting is anchored by [`m3-resource-time-contract-v1.md`](m3-resource-time-contract-v1.md), with the independent response/decision timing repair anchored by [`m3-response-time-contract-v1.md`](m3-response-time-contract-v1.md). Changes to authoritative behavior invalidate exact synthetic-output references from older model-semantics identities; affected M7/M8/M9 references are deliberately regenerated, reviewed and preserved only after the changed outputs are mechanistically explained. Observability-only additions remain downstream of authoritative state and do not by themselves change `MODEL_SEMANTICS_ID`.
+The Audit-v4 result is framework-verification evidence, not empirical archaeological validity. TRACE remains **NOT YET EMPIRICALLY RESEARCH-READY** for a generic real-world inferential claim: question-specific problem formulation, evidence roles, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, held-out corroboration and domain review remain separate requirements.
 
-Module- and milestone-specific documents in this directory provide the detailed evidence, contracts, assumptions and benchmark records referenced by those standards documents.
+## Benchmark and study records
 
-The presence of ODD, ODD+D and TRACE documentation does **not** certify the model as empirically valid. The current baseline remains exploratory/unvalidated until the relevant TRACE gates are supported by question-specific verification, sensitivity/uncertainty analysis, empirical output testing and independent corroboration.
+The M7 resource-variability, M8.6 terrain and M9.7 aggregation exercises are preserved regression/capability evidence. Their machine-readable checked-in references can advance when an upstream authoritative repair legitimately changes trajectories; older reviewed references remain historical evidence rather than being overwritten conceptually.
+
+The general demographic-baseline study likewise records model-form/structural-sensitivity evidence rather than a universal prehistoric population calibration.
+
+Module- and milestone-specific documents in this directory provide the detailed evidence, contracts, assumptions and benchmark records referenced by the living standards documents above.
