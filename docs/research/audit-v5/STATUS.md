@@ -19,13 +19,13 @@ Purpose: durable repository-authoritative state for the fifth independent/advers
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage state | **0/14 Areas complete — Area A in progress** |
+| Coverage state | **1/14 Areas complete — Area B next** |
 | Current P0 findings | none discovered |
 | Current P1 findings | **1 — AV5-001 / #606** |
 | Current P2 findings | none discovered |
 | Current P3 findings | none discovered |
 | Current open Audit-v5 findings | **#606 / AV5-001** |
-| Convergence classification | **pending full A–N discovery; already non-clean if AV5-001 remains a demonstrated P1 finding** |
+| Convergence classification | **pending full A–N discovery; non-clean because Area A demonstrated AV5-001 (P1)** |
 | Repair state | **discovery only; do not repair v5 findings until A–N discovery completes** |
 | Empirical readiness implication | **none — Audit v5 does not establish empirical validity or archaeological research readiness for a specific case** |
 
@@ -60,8 +60,8 @@ The repository and this ledger remain authoritative if any of the live-state fac
 
 | ID | Audit area | Status | Fresh v5 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **in progress** | PR #605 isolated-founder/global-coupling locality adversary demonstrated **AV5-001 / #606 (P1)**; PR #608 background-mortality cadence adversary passed quantitatively across 1/4/12/365 M3 periods/year with no finding; broader scheduler/order/simultaneity coverage still required |
-| B | Demography, fertility, mortality, ageing, population structure | **incomplete** | — |
+| A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | PR #605 demonstrated **AV5-001 / #606 (P1)**: isolated-founder/global-coupling locality failure in M9 equal-cost ties. PR #608 quantitatively falsified a material annual-background-mortality risk shift across 1/4/12/365 M3 cadences. PR #610 quantitatively confirmed that an M9 return completed exactly on an M4 boundary becomes immediately M4-visible. Frozen-source review also confirmed explicit M3 → M9 → M4 → annual-M2 fixed-day ordering and symmetric competing-risk attribution. |
+| B | Demography, fertility, mortality, ageing, population structure | **incomplete — next** | — |
 | C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
 | E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | AV5-001 cross-cutting evidence only; Area E not yet independently audited |
@@ -79,7 +79,7 @@ The repository and this ledger remain authoritative if any of the live-state fac
 
 | Finding | Severity | Area | Issue | Discovery status | Remediation / re-verification status |
 |---|---|---|---|---|---|
-| `AV5-001 — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination` | P1 | A; E/H/I/N cross-cutting | #606 | **demonstrated on frozen v0.3.5/v33 target** — evidence PR #605, exact head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; focal key `1 -> 2`, destination divergence `503/1024` tie seeds | **unrepaired during discovery** |
+| `AV5-001 — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination` | P1 | A; E/H/I/N cross-cutting | #606 | **demonstrated on frozen v0.3.5/v33 target** — evidence PR #605, exact head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; focal key `1 -> 2`, destination divergence `503/1024` tie seeds | **open and unrepaired during discovery** |
 
 ## Session log
 
@@ -105,7 +105,6 @@ The repository and this ledger remain authoritative if any of the live-state fac
 - Dedicated workflow run `34167265827`, job `101880669781`: checkout/toolchain/build succeeded; the test failed only at the intended locality assertion after compiling `anthrosim-core v0.3.5` successfully.
 - Duplicate search found no existing issue for M9 global coupling-rank/population-composition locality. Historical AV4-007/#500 is related but distinct: it demonstrated direct `HouseholdId` dependence and was independently reverified as repaired after v31; AV5-001 demonstrates a new nonlocal dependency introduced by the replacement globally ordinal key. Historical #324 concerns household-fission PersonId/cohort sorting and is also distinct.
 - Finding preserved as **AV5-001 / #606, P1** before any production repair.
-- Area A remains **in progress**: this pass establishes one demonstrated defect but does not complete scheduler, simultaneous-process, shared-coupling, tie, or update-order coverage.
 
 ### 2026-09-07 — Area A pass 2: annual background mortality × M3 cadence
 
@@ -119,9 +118,31 @@ The repository and this ledger remain authoritative if any of the live-state fac
   - 365 periods/year: `4197/8192` = `512329` per million = **51.233%**.
 - Observed max-minus-min spread: `4197 - 4082 = 115` deaths, `115/8192 = 1.404` percentage points, well inside the predeclared 4-point bound; all individual arms were inside 47%–53%.
 - **Disposition: no finding.** This falsifies a material one-year annual-risk shift from M3 partition cadence for the tested constant annual mortality configuration. It does not establish invariance of within-year death timing, age-band-crossing cases, or interactions with coincident mechanisms.
-- Source/document review also confirmed that age-specific background mortality uses the declared model-year-start age band and that mortality is intentionally resolved at M3 boundaries before coincident M4 opportunities; those declared semantics are not treated as defects merely because changing M3 cadence can change within-year timing. Their sensitivity/coupled consequences remain legitimate future audit targets.
-- Area A remains **in progress** pending further fresh same-day ordering/simultaneity and/or shared-coupling composition evidence.
+- Source/document review also confirmed that age-specific background mortality uses the declared model-year-start age band and that mortality is intentionally resolved at M3 boundaries before coincident M4 opportunities; those declared semantics are not treated as defects merely because changing M3 cadence can change within-year timing.
+
+### 2026-09-07 — Area A pass 3: M9 return completion × coincident M4 boundary
+
+- Evidence-only PR #610 attacked the uncovered complement of the permanent same-day departure regression: whether a household whose temporary journey **completes exactly on an M4 boundary** becomes M4-eligible immediately or one decision boundary late.
+- The scientific construction fixed seed `50_003`, one year, 20 founders in four five-person households, zero fertility and background mortality, zero resource need and condition/scarcity mortality, synthetic M4 with four annual decision boundaries, and a day-0 M9 departure with zero outbound/return travel and `182` visiting days. Therefore every journey completes exactly on the second M4 boundary, day 182.
+- Initial dedicated run `34168320489`, job `101883665488`, was **not scientific evidence**: it failed to compile because the first external integration-test harness tried to use crate-private/internal conveniences (`Simulation::new_with_temporary_mobility` and root-level ID imports). No scientific assertion executed. The harness was corrected without changing the predeclared scientific oracle by moving the test into the existing internal M9 integration-test scope.
+- Corrected evidence head: `03176cf04f2f79e3cf944279e3b09dc5d0ae8aec`.
+- Corrected dedicated workflow run `34170168801`, job `101888814237`, pinned Rust 1.97.1: **success**. Exact output:
+  - represented households: `4`;
+  - baseline M4 evaluations: `16` (`4 × 4` boundaries);
+  - active-M9 M4 evaluations: `12` (`4 × 3` eligible boundaries);
+  - day-182 journey completions: `4`;
+  - last day-182 completion event sequence: `16`;
+  - first day-182 permanent-migration event: none for this seed.
+- The `12` active-M9 evaluations establish the intended same-day visibility: day 91 excludes all visiting households, while after all four returns complete at day 182 the same households are evaluated by M4 on days 182, 273 and 365. Full recorded-run invariants passed.
+- **Disposition: no finding.** The tested return-completion boundary is coherent with the declared M3 → M9 → M4 scheduler semantics.
+
+### 2026-09-07 — Area A completion assessment
+
+- Frozen executable scheduler inspection confirmed that temporary transitions strictly before a fixed boundary are drained first; on the fixed day itself the executed order is elapsed M3 resource/background/condition mortality settlement, then M9 temporary transitions, then M4 permanent migration, followed by annual M2 demography after the subannual loop. Living scientific documentation states the same causal order.
+- Frozen competing-mortality implementation uses separate latent condition/background triggers and a symmetric dual-trigger attribution rule. Permanent controls include exact exchange-of-causes/streams attribution symmetry across 10,000 draws and a 100,000-trial frequency check against the independent-union/risk-weighted attribution contract.
+- Fresh v5 evidence covered three distinct Area-A attack classes: arbitrary shared coupling/tie identity (#605), operational update-frequency dependence (#608), and a same-day state-boundary composition (#610). Neighbouring M3/M4/M9/M2 interactions and documentation/executable agreement were explicitly inspected.
+- **Area A is complete under the audit protocol, but it is not a clean Area:** AV5-001 / #606 is a demonstrated open P1 finding and remains intentionally unrepaired during discovery. The other two fresh adversaries produced quantitative no-finding results. No unresolved Area-A uncertainty currently requires keeping the Area open; cross-cutting consequences of AV5-001 remain assigned to later Areas E/H/I/N for their independent passes.
 
 ## Next action
 
-Continue **Area A** against immutable `v0.3.5` / v33 with a genuinely fresh same-day ordering/simultaneity or shared-coupling composition attack that is not answered by PR #605, PR #608, or an Audit-v4 regression replay. Do **not** repair #606 during discovery. Close evidence PR #608 unmerged after this ledger update is merged, then preserve any additional demonstrated defects before deciding whether Area A has sufficient coverage to close.
+Begin **Area B — demography, fertility, mortality, ageing, and population structure** from zero coverage against immutable `v0.3.5` / v33. Use a genuinely fresh adversarial construction rather than treating v2/v3/v4 demographic regressions as completion evidence. Prioritize limiting cases and population-structure interactions around fertility eligibility/timing, parent availability, mortality/age boundaries, newborn initialization, extinction/censoring, and finite-population behaviour. Do **not** repair #606 during discovery.
