@@ -1,0 +1,30 @@
+name: Audit v5 Area B close-kin parentage adversary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v5_area_b_close_kin_parentage.rs'
+      - '.github/workflows/audit-v5-area-b-close-kin-parentage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  close-kin-parentage-adversary:
+    name: Complete-genealogy close-kin parentage adversary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v5 Area-B close-kin adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v5_area_b_close_kin_parentage -- --nocapture
