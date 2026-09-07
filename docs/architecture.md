@@ -1,10 +1,12 @@
 # Architecture
 
+**Current framework identity:** post-v0.3.4 repaired development line / current model semantics v33. Immutable release/audit baselines retain their own historical identities.
+
 ## Architectural objective
 
 AnthroSim must support very long, reproducible simulations without tying scientific logic to a UI, database, cloud service, or AI provider.
 
-The core architecture therefore follows five rules:
+The core architecture follows five rules:
 
 1. authoritative state is owned by a headless deterministic engine;
 2. hot simulation data is compact and data-oriented;
@@ -12,25 +14,7 @@ The core architecture therefore follows five rules:
 4. observation/persistence is downstream from state transitions;
 5. visualisation and analysis are read-only consumers of recorded state and outputs.
 
-## Initial workspace
-
-```text
-anthrosim/
-├── crates/
-│   ├── anthrosim-core/     # deterministic engine primitives and simulation lifecycle
-│   └── anthrosim-cli/      # headless command-line runner
-├── explorer/               # M6 read-only browser UI; outside the Rust workspace
-├── scripts/                # local serving / validation helpers
-├── docs/                   # design, research model, ADRs
-├── examples/               # versioned example experiment definitions
-├── experiments/            # research experiment definitions as models mature
-├── analysis/               # notebooks/scripts later; not part of the hot loop
-└── .github/workflows/      # reproducibility and quality gates
-```
-
-More crates should be created only when a real boundary exists. M6 deliberately does **not** add an explorer crate to the Rust workspace because the explorer is a downstream artifact consumer, not a simulation dependency.
-
-## Direction of dependencies
+## Workspace and dependency direction
 
 ```text
 Experiment definition
@@ -38,7 +22,7 @@ Experiment definition
 anthrosim-cli
         ↓
 anthrosim-core
-        ├── deterministic time / IDs / RNG streams
+        ├── deterministic time / IDs / named RNG streams
         ├── authoritative world state
         ├── persistent population + residence state
         ├── temporary physical-presence / journey state
@@ -50,127 +34,108 @@ anthrosim-core
         ↓
 versioned output artifacts
         ↓
-analysis / M6 explorer / research tooling
+analysis / read-only explorer / research tooling
 ```
 
-The arrow must never reverse from an explorer into authoritative simulation state during a research run. M8/M9 derived observability is downstream of the authoritative world, population, event and checkpoint histories.
+The explorer is deliberately outside the Rust workspace and must never write authoritative state during a research run. M8/M9 observability is downstream of authoritative world, population, event and checkpoint histories.
 
 ## Simulation execution model
 
-The engine is a deterministic hybrid of sparse scheduled transitions and coarse periodic systems rather than a game-style frame loop.
+The engine is a deterministic hybrid of sparse scheduled transitions and coarse periodic systems rather than a frame loop.
 
-- births, deaths and annual demographic transitions occur at explicit demographic boundaries;
-- environmental regeneration and resource/condition processing occur at configured subannual boundaries;
-- M4 permanent-migration reevaluation occurs at explicit local-condition boundaries;
+Current timing is intentionally split by causal process:
+
+- M3 resource accounting and condition response are resolved over configured elapsed subannual intervals;
+- background mortality is an annual risk partitioned across those elapsed M3 intervals;
+- background and condition-mediated mortality are resolved together as order-invariant competing risks at those interval boundaries;
+- M4 permanent-migration reevaluation occurs on its declared decision clock after due elapsed-resource/mortality work;
 - M9 temporary journeys have deterministic departure, arrival, return-departure and completion days and may remain active across annual checkpoints;
-- cultural/language/social-institution processes remain deferred rather than being implied by the temporary-mobility mechanism.
+- year-end M2 performs fertility/parentage for survivors and does **not** redraw background mortality;
+- ageing/annual lifecycle state advances at its declared annual boundary.
 
-M4 permanent migration still completes atomically at its decision boundary and changes household residence. M9 overlays a separate physical-presence lifecycle without redefining that mechanism. With M9 enabled, same-day ordering is explicit: settle any elapsed duration-aware resource interval; apply due temporary-mobility completions/starts; evaluate M4 permanent migration only for eligible households physically at residence; then run the annual M2 demographic boundary when applicable. M2 fertility/parentage remains residence-based rather than visitor-presence-based.
+With M9 enabled, same-day ordering remains explicit: settle any elapsed duration-aware resource/mortality interval, apply due temporary-mobility completions/starts, evaluate M4 permanent migration for eligible households physically at residence, then perform year-end M2 fertility/parentage when applicable. See [`research/m2-demographic-time-contract-v1.md`](research/m2-demographic-time-contract-v1.md) and [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md).
 
-The engine advances only to moments at which represented state can change. See [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md) for the governing M9 ordering contract.
+## Data-oriented authoritative state
 
-## Data-oriented state
+Persistent domain identities do not imply allocation-heavy objects. Hot state favours dense IDs, contiguous vectors, compact enums, bitsets/indices and reusable scratch storage; rich read models are constructed outside hot paths.
 
-Persistent domain identities do not imply allocation-heavy objects. Hot state should favour dense IDs, contiguous vectors, compact enums, bitsets/indices, and shared tables referenced by IDs. Rich read models may be constructed for inspection outside hot paths.
+M1 stores cells contiguously with stable one-based `CellId` values. M2 stores person fields in packed/parallel structures addressed by stable `PersonId` values. M3 keeps immutable environmental geography separate from dynamic renewable-resource stock. M4 uses reusable household/cell scratch arrays for bounded candidate evaluation and applies selected relocations against one shared pre-move snapshot. M9 adds temporary-presence/journey state without changing persistent residence identity.
 
-M1 applies this directly to geography: cells are stored contiguously and addressed by stable 1-based `CellId` values, while four-neighbour lookup is calculated from coordinates without allocating a neighbour collection per cell.
+Dead records remain persistent. Permanent relocation changes residence only for living members. A death while temporarily away removes the deceased from active physical-presence/journey accounting, while residence-based death attribution remains explicitly distinct from a claimed physical death location.
 
-M2 applies the same approach to people: hot person fields are parallel contiguous vectors addressed by stable one-based `PersonId` values, and cell occupancy is a prefix index rather than a collection object per cell.
+## Scientific identity versus bookkeeping identity
 
-M3 keeps immutable environmental geography separate from dynamic renewable-resource state. `ResourceSystem` stores one contiguous integer stock value per cell. Each resource period uses compact arrays proportional to cell/household/person counts; it does not construct pairwise person searches or an allocation-heavy cell-to-household object graph.
+Canonical `PersonId`, `HouseholdId`, packed-record order and candidate enumeration order are storage/provenance conveniences, not intended scientific causes.
 
-M4 follows the same pattern. `MigrationSystem` owns reusable scratch arrays indexed by household and cell for living-member counts, condition totals, bounded kin-location hints, planned destinations, travel costs and pre/post-move occupancy counts. Candidate cells are generated from a bounded Manhattan radius into reusable buffers. The number of candidate destinations therefore depends on the configured local information radius, not on total world size.
+Audit-v4 repairs introduced persistent **scientific stochastic-coupling ranks** so same-seed stochastic assignments remain attached to represented scientific roles/state rather than arbitrary labels:
 
-Selected household moves are evaluated against one shared pre-move snapshot and then applied simultaneously in one packed scan of the living population. Under v28, the sequential M4 RNG schedule is derived from the minimum persistent person stochastic-coupling rank among each non-empty household's living members instead of `HouseholdId`, so pure household relabelling cannot reassign migration draws while no second persisted household identity is introduced. The packed application still avoids scanning the whole population separately for every move.
+- fertility draw assignment uses person stochastic-coupling rank (v26);
+- background-mortality latent triggers use person coupling rank (v27);
+- M4 household migration scheduling uses the minimum living-member coupling rank rather than `HouseholdId` (v28);
+- residence-local parentage candidates are ordered by person coupling rank before the uniform reservoir sampler (v29);
+- condition-mediated mortality triggers and simultaneous-cause attribution use the same person coupling-rank schedule while retaining independent named streams (v30);
+- M9 equal-cost destination ties use household scientific coupling rather than `HouseholdId` (v31);
+- scarce-resource largest-remainder ties use household scientific coupling plus the declared period/cell fairness rotation rather than claim-vector/household-label order (v32);
+- M4 candidate uncertainty and proportional-choice assignment are invariant to canonical candidate ordering by coupling exact deterministic utility/distance equivalence classes and sampling exchangeable members symmetrically (v33).
 
-Dead records remain persistent. M4 permanent relocation changes residence only for living members. Under M9, a death can occur while a household is temporarily away: physical-presence accounting removes the deceased from the actual active journey/presence state, while `Death.cell` and M8 spatial death attribution remain explicitly tied to persistent residence rather than claiming a physical death location.
-
-Dead or otherwise inactive historical state may eventually migrate out of hot memory while remaining queryable through archival outputs.
-
-## Exact numerical state
-
-Where practical, authoritative state uses integer/fixed-point representations. M1 environmental ratios and M2–M4 condition/resource/migration scores are stored as integers/permille rather than floating-point values. M3 resource stocks, demand, regeneration and consumption are integer abstract units. M4 utility components, candidate weights, distances and travel-condition costs are also integer-valued.
-
-This improves compactness and exact cross-run comparison and reduces the risk that tiny platform-specific floating-point differences branch long deterministic histories.
-
-Floating-point analysis remains appropriate downstream; avoiding it in authoritative state is not an ideological restriction where a later model genuinely requires it.
-
-M6 has an additional display-boundary concern: JavaScript `Number` cannot exactly represent every Rust `u64`. The explorer therefore preserves integers outside JavaScript's safe integer range as exact decimal strings during JSON parsing instead of silently rounding authoritative artifact values. Numeric visualisations reject unsafe conversions rather than approximate them.
+This progression is summarized in `crates/anthrosim-core/src/provenance.rs`, whose `MODEL_SEMANTICS_ID` is the authoritative current compatibility identity.
 
 ## Deterministic randomness
 
-Randomness is explicit. The master seed derives named deterministic streams. A draw added to one system should not silently rewrite an unrelated system's stochastic history.
+Randomness is explicit. The master seed derives named deterministic streams; adding a draw to one subsystem must not silently rewrite unrelated stochastic history.
 
-M1 consumes the `world` stream only to derive stable field seeds. Per-cell heterogeneity is then coordinate-derived, so generation order can change without changing the world itself.
+M2/M3 use separate streams for background mortality, condition-mediated mortality, fertility, parentage and newborn reproductive sex. M4 uses independent migration choice and uncertainty streams. M9 uses its declared deterministic/tie semantics. Stream separation is necessary but not sufficient: draw **assignment** also follows the scientific coupling rules above so arbitrary storage labels/order do not become hidden causes.
 
-M2 uses separate streams for mortality, fertility, parentage and newborn reproductive sex. M3 adds `resources/scarcity_mortality`; deterministic resource regeneration/allocation itself consumes no random draws. M4 adds independent `migration/choice` and `migration/uncertainty` streams.
+M4 candidate discovery may use deterministic enumeration internally, but under current v33 semantics candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
 
-Migration candidates are enumerated in a stable geometric order. Under v28, household decisions consume the separate `migration/choice` and `migration/uncertainty` streams in a schedule keyed by the minimum persistent stochastic-coupling rank among living household members rather than canonical `HouseholdId`. Stochastic destination selection remains exactly replayable without requiring global optimization.
+Parallelism is introduced only with a declared deterministic strategy. Faster nondeterministic execution may be offered later only as an explicitly separate mode, never silently substituted for research runs.
 
-Parallelism is introduced only with a declared deterministic strategy. Faster but nondeterministic execution may be offered later as a separate mode, never silently substituted for research runs.
+## Exact numerical state
+
+Where practical, authoritative state uses integer/fixed-point representations. Environmental ratios, condition, resource accounting, migration utilities/costs and many derived model-facing quantities are integer or permille values. This supports exact replay/comparison and reduces platform-dependent floating-point branching.
+
+Floating-point analysis remains appropriate downstream. The browser also preserves integers beyond JavaScript's safe integer range as exact decimal strings instead of silently rounding authoritative `u64` values.
 
 ## Resource accounting boundary
 
-`World` describes the baseline/model-facing environment; it is not mutated as food is consumed. `ResourceSystem` owns renewable stock and cumulative resource accounting. This separation allows identical geography to be compared under different resource assumptions without conflating terrain construction with dynamic consumption state.
-
-The core stock invariant remains:
+`World` describes baseline/model-facing environment; `ResourceSystem` owns dynamic renewable stock and cumulative accounting. The core identity remains:
 
 ```text
 initial dynamic stock + cumulative regeneration - cumulative harvest = current dynamic stock
 ```
 
-Harvest equals consumption in the current baseline because household storage, spoilage and waste are not represented. A later mechanism must extend the identity explicitly rather than silently changing `harvested_food` semantics.
+Harvest equals consumption in the current baseline because storage/spoilage/waste are not represented.
 
-M4 permanent migration changes residence and therefore where later demand originates. M9 adds duration-aware accounting while a household is temporarily away: at-residence person-days are charged to residence, visitor person-days to the visitor/focal cell, and transit days use the declared home-provisioning proxy because transit deliberately has no authoritative world cell. The accounting implementation therefore settles elapsed intervals before same-day temporary transitions. See [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
+Under scarcity, indivisible remainder units are allocated using the current v32 scientific household coupling/fairness rule rather than arbitrary household or claim-vector order. M9 duration-aware accounting charges at-residence person-days to residence, visitor person-days to visitor/focal cells, and transit through the declared home-provisioning proxy because transit has no authoritative world cell. See [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md) and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
 
 ## Permanent and temporary mobility boundaries
 
-M4 permanent migration separates **decision evaluation** from **relocation application**. Pressured households evaluate bounded nearby candidates against one shared pre-move snapshot, retain plans, then apply selected relocations simultaneously. A completed M4 move changes persistent residence and imposes the configured travel-condition cost at that boundary; it does not create an en-route state.
+M4 permanent migration separates decision evaluation from relocation application. Pressured households evaluate bounded nearby candidates against one shared pre-move snapshot; selected relocations are applied simultaneously. A completed M4 move changes persistent residence and applies declared travel-condition cost at that boundary; there is no en-route M4 state.
 
-M9 is intentionally a different mechanism. A configured household may start a temporary journey while retaining its residence. Authoritative physical presence progresses through:
+M9 is a distinct mechanism. A household may retain residence while progressing through:
 
 ```text
 at residence → outbound transit → visiting → return transit → at residence
 ```
 
-Transit has journey timing and resource semantics but no authoritative per-day world cell. Focal-region identity is preserved independently of its resolved destination cells, and travel duration/cost is derived deterministically from the authoritative world plus declared travel configuration. Permanent migration is not allowed to move an away household; once the household returns, later permanent-migration boundaries may change residence normally.
+Transit has journey timing/resource semantics but no authoritative per-day world cell. A visitor concentration is therefore not a settlement relocation. Permanent migration cannot move an away household; later M4 boundaries may act normally once it returns.
 
-This separation is scientifically important: a visitor concentration is not a settlement relocation, and repeated temporary presence must not be reconstructed by pretending that M4 permanent-migration events occurred. See [`research/migration-v0.1.md`](research/migration-v0.1.md), [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md), and [`research/m9-temporary-travel-semantics-v1.md`](research/m9-temporary-travel-semantics-v1.md).
+## Persistence, provenance and observability
 
-## Persistence and observability
+Authoritative state remains in memory during execution; versioned artifacts are written at controlled boundaries for offline analysis, validation and deterministic resumption.
 
-A database is not the simulation loop. Authoritative state remains in memory during execution; versioned artifacts are written at controlled boundaries for offline analysis, validation and deterministic resumption.
+A completed controlled run directory contains the run manifest, authoritative world, day-zero founder population, chronological event log, derived metrics and final checkpoint. Paused/resumed workflows preserve explicit resume-boundary provenance and source lineage. Checkpoint restoration validates model/package/source identity, reconstructed world identity, complete state and deterministic continuation identity before execution continues.
 
-The authoritative history now includes ordinary demographic/resource/permanent-migration state plus M9 temporary-journey transitions when configured. Annual-boundary checkpoints retain complete dynamic population/resource/migration/temporary-mobility state and the exact positions of all named deterministic RNG streams. A checkpoint may therefore contain active outbound, visiting or return journeys; deterministic resume must reproduce uninterrupted authoritative state, events and metrics exactly from that boundary onward.
+M8 `spatial-observability.json` and M9 `temporary-observability.json` are derived companion artifacts, not alternative authoritative state. Spatial observability remains residence-based; temporary observability reconstructs residents, visitors, transit, journey counts/durations, person-days, peaks and catchment from preserved authoritative history.
 
-A fresh completed controlled run directory contains the run manifest, authoritative world, day-zero founder population, chronological event log, derived metrics and final checkpoint. A deliberately paused directory contains the same reconstruction inputs without a completed-run manifest. A new-directory resume additionally preserves `resume-start-population.json` as boundary provenance while deterministically reconstructing the true founder artifact.
+## Explorer boundary
 
-M8 `spatial-observability.json` and M9 `temporary-observability.json` are **derived companion artifacts**, not alternative authoritative state. Spatial-observability schema v2 explicitly attributes occupancy/person-days/births/deaths to persistent residence and excludes temporary visitors/transit. Temporary observability separately reconstructs residents, visitors, transit, journey counts/durations, person-days, peaks and catchment from the M9 event/state history. Core invariants validate the M9 event lifecycle independently of whether the derived temporary report is requested.
-
-Checkpoint restoration verifies experiment/model/source identity, reconstructed world identity, complete persistent and temporary state and the composite state digest before execution continues. Checkpoints remain resumable at completed annual boundaries; M9 makes the represented within-journey state explicit rather than making the schedule ambiguous.
-
-## M6 explorer boundary
-
-M6 remains intentionally **artifact-first and read-only**. `scripts/serve-explorer.py` binds to loopback and serves only fixed explorer assets plus an explicit allowlist of expected run artifacts; it implements GET/HEAD only and rejects write methods. M8 landscape/spatial artifacts and M9 `temporary-observability.json` are optional allowlisted extensions.
-
-The browser distinguishes serialized authoritative facts, recorded derived metrics and reconstructed display state. It never manufactures unavailable historical resource/condition values. For landscape-bound M9 runs, residence-based M8 spatial quantities and M9 visitor/physical-presence quantities are shown as separate concepts rather than merged into an ambiguous occupancy field.
-
-The explorer has no Cargo dependency and no place in the authoritative dependency graph. Removing the entire explorer and its serving scripts leaves the Rust simulation build and headless execution unchanged.
+The local explorer is artifact-first and read-only. `scripts/serve-explorer.py` binds to loopback and serves fixed explorer assets plus an explicit allowlist of expected run artifacts. It exposes no authoritative write path. Removing the explorer leaves the headless Rust simulation build/execution unchanged.
 
 ## Performance policy
 
-Performance is part of correctness. Core metrics include:
+Performance is part of correctness. Core metrics include simulated years per wall-clock second, process/event throughput, memory, bytes per living person/cell, hot-loop allocations and checkpoint throughput.
 
-- simulated years per wall-clock second;
-- events/process boundaries per second;
-- peak/resident memory;
-- bytes per living individual;
-- bytes per world cell;
-- allocations in hot loops;
-- checkpoint size and throughput.
+M3 resource processing remains O(people + households + cells) per resource period. M4 adds bounded local candidate work proportional to pressured households × local candidate count plus shared scans/application. The model deliberately avoids global pairwise searches or allocation-heavy hot-path object graphs.
 
-M3 resource processing remains O(people + households + cells) per resource period. M4 adds bounded local migration work proportional to pressured households × local candidate count, plus one population/cell pass to apply simultaneous moves. It deliberately avoids global candidate scans and global pairwise searches.
-
-CI benchmarks the 10,000-person full resource-migration-demographic lifecycle, population initialization, world generation, bounded radius-three candidate lookup and checkpoint persistence as regression baselines. Those Rust benchmark commands are unchanged by M6; explorer validation runs as downstream CI steps after the headless artifacts exist.
-
-Optimisation follows measurement. Unsafe code, SIMD, GPU kernels, custom allocators, or distributed execution require benchmark evidence and an explicit architectural decision.
+CI benchmarks world generation, population initialization, bounded M4 candidate lookup, full resource/migration/demographic lifecycle and checkpoint persistence. Optimisation follows measurement; unsafe code, SIMD, GPU kernels, custom allocators or distributed execution require benchmark evidence and explicit architectural review.
