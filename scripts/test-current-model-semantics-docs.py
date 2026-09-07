@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep living model-semantics labels synchronized with executable provenance."""
+"""Keep living current-state documentation synchronized with executable provenance."""
 
 from __future__ import annotations
 
@@ -8,11 +8,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROVENANCE = ROOT / "crates" / "anthrosim-core" / "src" / "provenance.rs"
-CURRENT_DOCS = (
+
+# Current-facing surfaces. Historical audit/release/evidence records are deliberately excluded:
+# they must retain the identity they actually evaluated rather than being rewritten to latest main.
+CURRENT_SEMANTICS_DOCS = (
+    ROOT / "README.md",
+    ROOT / "docs" / "architecture.md",
+    ROOT / "docs" / "roadmap.md",
     ROOT / "docs" / "scientific-model.md",
+    ROOT / "docs" / "research" / "README.md",
+    ROOT / "docs" / "research" / "trace.md",
     ROOT / "docs" / "research" / "odd.md",
     ROOT / "docs" / "research" / "odd-d.md",
 )
+CURRENT_STATUS_DOCS = (
+    ROOT / "README.md",
+    ROOT / "docs" / "roadmap.md",
+    ROOT / "docs" / "research" / "README.md",
+    ROOT / "docs" / "research" / "trace.md",
+)
+ADR_SEMANTICS = ROOT / "docs" / "adr" / "0004-model-semantics-compatibility-identity.md"
+M8_RESULT_DOC = ROOT / "docs" / "research" / "m8-first-evidence-grounded-benchmark-result.md"
+M8_REFERENCE = ROOT / "examples" / "m8-first-evidence-grounded-benchmark" / "reference-result.json"
+M9_RESULT_DOC = ROOT / "docs" / "research" / "m9-controlled-aggregation-benchmark-result.md"
+M9_REFERENCE = ROOT / "examples" / "m9-controlled-aggregation-benchmark" / "reference-result.json"
 V032_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.2.md"
 V033_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.3.md"
 V034_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.4.md"
@@ -24,8 +43,6 @@ V033_SEMANTICS_ID = "anthrosim-model-semantics-v21"
 V033_SHORT = "v21"
 V034_SEMANTICS_ID = "anthrosim-model-semantics-v25"
 V034_SHORT = "v25"
-CURRENT_SEMANTICS_ID = "anthrosim-model-semantics-v33"
-CURRENT_SHORT = "v33"
 
 
 def current_semantics_id() -> str:
@@ -43,37 +60,88 @@ def short_version(identity: str) -> str:
     return f"v{match.group(1)}"
 
 
+def reference_semantics(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    match = re.search(r'"modelSemanticsId"\s*:\s*"([^"]+)"', text)
+    if match is None:
+        raise AssertionError(f"could not find modelSemanticsId in {path.relative_to(ROOT)}")
+    return match.group(1)
+
+
+def assert_no_wrong_current_semantics(path: Path, current_short: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    for match in re.finditer(r"current model semantics v(\d+)", text, flags=re.IGNORECASE):
+        found = f"v{match.group(1)}"
+        if found != current_short:
+            raise AssertionError(
+                f"{path.relative_to(ROOT)} calls {found} current; executable provenance is {current_short}"
+            )
+
+
 def main() -> None:
     current_id = current_semantics_id()
     current_short = short_version(current_id)
-    if current_id != CURRENT_SEMANTICS_ID:
-        raise AssertionError(
-            f"post-v0.3.4 remediation guard expects {CURRENT_SEMANTICS_ID}, got {current_id}"
-        )
-    if current_short != CURRENT_SHORT:
-        raise AssertionError(f"current short semantics should be {CURRENT_SHORT}, got {current_short}")
-
     current_phrase = f"current model semantics {current_short}"
     release_phrase = f"immutable v0.3.4 release baseline: {V034_SHORT}"
     prior_release_phrase = f"immutable v0.3.3 release baseline: {V033_SHORT}"
 
-    for path in CURRENT_DOCS:
+    for path in CURRENT_SEMANTICS_DOCS:
         text = path.read_text(encoding="utf-8")
+        assert_no_wrong_current_semantics(path, current_short)
         if current_phrase not in text:
             raise AssertionError(
-                f"{path.relative_to(ROOT)} does not identify the executable current semantics "
-                f"as {current_short} from MODEL_SEMANTICS_ID"
+                f"{path.relative_to(ROOT)} does not identify executable current semantics as {current_short}"
             )
+
+    # Formal living model descriptions must preserve the immutable release distinction explicitly.
+    for path in (
+        ROOT / "docs" / "scientific-model.md",
+        ROOT / "docs" / "research" / "odd.md",
+        ROOT / "docs" / "research" / "odd-d.md",
+        ROOT / "docs" / "research" / "trace.md",
+    ):
+        text = path.read_text(encoding="utf-8")
         if release_phrase not in text:
             raise AssertionError(
-                f"{path.relative_to(ROOT)} does not distinguish the immutable v0.3.4 "
-                f"release baseline ({V034_SHORT}) from the current remediation line"
+                f"{path.relative_to(ROOT)} does not distinguish immutable v0.3.4/{V034_SHORT} from living main"
             )
         if prior_release_phrase not in text:
             raise AssertionError(
-                f"{path.relative_to(ROOT)} does not preserve the immutable v0.3.3 "
-                f"release baseline ({V033_SHORT}) distinction"
+                f"{path.relative_to(ROOT)} does not preserve immutable v0.3.3/{V033_SHORT} history"
             )
+
+    for path in CURRENT_STATUS_DOCS:
+        text = path.read_text(encoding="utf-8")
+        stale_status = (
+            "Scientific Audit v4 remediation in progress",
+            "entered remediation; AV4-001",
+            "Repair and independent post-merge re-verification take priority",
+        )
+        for stale in stale_status:
+            if stale in text:
+                raise AssertionError(f"stale Audit-v4 current-status text remains in {path.relative_to(ROOT)}: {stale}")
+
+    adr_text = ADR_SEMANTICS.read_text(encoding="utf-8")
+    if "currently `anthrosim-model-semantics-v1`" in adr_text:
+        raise AssertionError("ADR 0004 still presents its original v1 value as the current executable identity")
+    if "crates/anthrosim-core/src/provenance.rs" not in adr_text:
+        raise AssertionError("ADR 0004 must point to executable provenance as current MODEL_SEMANTICS_ID authority")
+
+    m8_reference_id = reference_semantics(M8_REFERENCE)
+    m8_reference_short = short_version(m8_reference_id)
+    m8_text = M8_RESULT_DOC.read_text(encoding="utf-8")
+    if f"Current machine-readable reference: `{m8_reference_id}`" not in m8_text:
+        raise AssertionError(
+            f"M8.6 result does not identify checked-in current reference semantics {m8_reference_short}"
+        )
+
+    m9_reference_id = reference_semantics(M9_REFERENCE)
+    m9_reference_short = short_version(m9_reference_id)
+    m9_text = M9_RESULT_DOC.read_text(encoding="utf-8")
+    if f"Current machine-readable reference: `{m9_reference_id}`" not in m9_text:
+        raise AssertionError(
+            f"M9.7 result does not identify checked-in current reference semantics {m9_reference_short}"
+        )
 
     v032_release_text = V032_RELEASE_DOC.read_text(encoding="utf-8")
     expected_v032_identity = f'`MODEL_SEMANTICS_ID = "{V032_SEMANTICS_ID}"`'
@@ -104,45 +172,21 @@ def main() -> None:
         "preserved by the immutable `v0.3.2` tag"
         not in versioning_text
     ):
-        raise AssertionError(
-            "docs/release-versioning.md does not identify v0.3.2 as the preserved v19 baseline"
-        )
+        raise AssertionError("docs/release-versioning.md does not preserve v0.3.2/v19 identity")
     if (
         "v0.3.3`**: post-scientific-audit-v2 hardening/convergence patch preserving the repaired "
         "v21 model-semantics baseline"
         not in versioning_text
     ):
-        raise AssertionError(
-            "docs/release-versioning.md does not identify v0.3.3 as the preserved v21 baseline"
-        )
+        raise AssertionError("docs/release-versioning.md does not preserve v0.3.3/v21 identity")
     if (
         "v0.3.4`**: post-Scientific-Audit-v3 convergence patch preserving the fully remediated "
         "and independently reverified v25 model-semantics baseline"
         not in versioning_text
     ):
-        raise AssertionError(
-            "docs/release-versioning.md does not identify v0.3.4 as the preserved v25 baseline"
-        )
-
-    stale_current_patterns = (
-        "v0.3.2 package / post-M9 scientific-hardening line / model semantics v15",
-        "v0.3.2 / completed M9 / post-M9 v15 scientific-hardening semantics",
-        "same v15 model semantics",
-        "`MODEL_SEMANTICS_ID` v15",
-    )
-    checked = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in (
-            *CURRENT_DOCS,
-            V032_RELEASE_DOC,
-            V033_RELEASE_DOC,
-            V034_RELEASE_DOC,
-            VERSIONING_DOC,
-        )
-    )
-    for stale in stale_current_patterns:
-        if stale in checked:
-            raise AssertionError(f"stale current/release semantics label remains: {stale}")
+        raise AssertionError("docs/release-versioning.md does not preserve v0.3.4/v25 identity")
+    if current_id not in versioning_text:
+        raise AssertionError("release-versioning policy does not state the current post-release development semantics")
 
 
 if __name__ == "__main__":
