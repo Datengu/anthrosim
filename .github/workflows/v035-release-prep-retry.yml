@@ -1,0 +1,74 @@
+name: v0.3.5 release preparation retry
+
+on:
+  push:
+    branches:
+      - release/v0.3.5-prep
+    paths:
+      - .github/workflows/v035-release-prep-retry.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release preparation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: release/v0.3.5-prep
+          fetch-depth: 0
+
+      - name: Reuse validated fail-closed transformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('.github/workflows/v035-release-prep-patch.yml').read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(source) if line == "          python3 - <<'PY'") + 1
+          end = next(i for i in range(start, len(source)) if source[i] == '          PY')
+          body = []
+          for line in source[start:end]:
+              if line.startswith('          '):
+                  line = line[10:]
+              body.append(line)
+          Path('/tmp/v035-apply.py').write_text('\n'.join(body) + '\n', encoding='utf-8')
+          PY
+          python3 /tmp/v035-apply.py
+
+          # The first run proved the transformation and guards succeed; normalize only
+          # whitespace introduced on changed/new Markdown lines so git diff --check stays strict.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for path in ('docs/releases/v0.3.5.md', 'docs/research/v0.3.5-release-readiness.md'):
+              p = Path(path)
+              p.write_text('\n'.join(line.rstrip() for line in p.read_text(encoding='utf-8').splitlines()) + '\n', encoding='utf-8')
+
+          p = Path('docs/research/trace.md')
+          text = p.read_text(encoding='utf-8')
+          old = '**AnthroSim baseline:** v0.3.5 release line / current model semantics v33 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)  \n'
+          new = '**AnthroSim baseline:** v0.3.5 release line / current model semantics v33 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)\n'
+          if old not in text:
+              raise SystemExit('expected changed TRACE header with Markdown hard-break spaces')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+          python3 -m py_compile scripts/test-current-model-semantics-docs.py scripts/verify-release-candidate.py
+          python3 scripts/test-current-model-semantics-docs.py
+          python3 scripts/verify-release-candidate.py --self-test
+
+      - name: Commit prepared release tree and remove helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/v035-release-prep-patch.yml .github/workflows/v035-release-prep-retry.yml
+          git add Cargo.toml Cargo.lock CITATION.cff README.md AGENTS.md docs scripts/test-current-model-semantics-docs.py
+          git diff --cached --check
+          git commit -m "release: prepare v0.3.5"
+          git push origin HEAD:release/v0.3.5-prep
