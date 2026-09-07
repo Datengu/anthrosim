@@ -1,9 +1,11 @@
 # M9 implementation sequence
 
-**Status:** active implementation plan  
+**Status:** historical implementation plan — M9 completed, audited and released as `v0.3.0`  
 **Semantics contract:** `docs/research/temporary-mobility-v1.md`
 
-M9 is implemented as reviewable slices. The issue sequence is intentionally capability-led and should not be expanded with unrelated anthropological features.
+This document preserves the reviewable implementation sequence used to build M9. It is not the current project-status authority; use `docs/roadmap.md` and `docs/release-versioning.md` for the living development/release state.
+
+M9 was implemented as reviewable slices. The issue sequence was intentionally capability-led and was not to be expanded with unrelated anthropological features.
 
 1. **M9.0 — #114:** freeze temporary-mobility semantics and acceptance contract.
 2. **M9.1 — #115:** separate persistent residence from temporary physical presence.
@@ -18,8 +20,8 @@ M9 is implemented as reviewable slices. The issue sequence is intentionally capa
 
 M9.0 is the semantic authority for later slices. Later PRs must not silently contradict it. If implementation evidence shows the contract is impossible or scientifically unsound, amend the contract explicitly in a reviewable PR rather than hiding a different assumption in code.
 
-M9.1 and M9.2 establish the state/input boundaries. M9.3 and M9.4 may be developed closely together but should remain independently reviewable where possible. M9.5 depends on actual journey intervals. M9.6 integrates the completed mechanism into the existing experiment/provenance/analysis stack. M9.7 is the milestone acceptance benchmark and must not be used to tune the model toward a preferred archaeological result.
+M9.1 and M9.2 established the state/input boundaries. M9.3 and M9.4 could be developed closely together but were intended to remain independently reviewable where possible. M9.5 depended on actual journey intervals. M9.6 integrated the completed mechanism into the existing experiment/provenance/analysis stack. M9.7 was the milestone acceptance benchmark and was not to be used to tune the model toward a preferred archaeological result.
 
-## Release rule
+## Release outcome
 
-Ordinary M9 implementation remains on the current package release line. After M9.7 and milestone completion, AnthroSim enters audit/hardening and release verification for the planned `v0.3.0` release according to `docs/release-versioning.md`.
+Ordinary M9 implementation remained on the then-current package release line. After M9.7 and milestone completion, AnthroSim entered audit/hardening and release verification and M9 was subsequently preserved as the `v0.3.0` release according to `docs/release-versioning.md`. Later patch releases and post-release model-semantics changes do not rewrite this historical implementation sequence.

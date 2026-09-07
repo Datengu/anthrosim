@@ -1,6 +1,6 @@
 # Pull-request CI path classification
 
-AnthroSim is introducing conservative path-aware CI under issue #317. The classifier is now enforced by the central CI, cross-platform determinism, spatial-mechanism, landscape-loading, landscape-preprocessing, run-bundle-pack, resumed-Explorer-compatibility, spatial-observability and source-provenance workflows. The always-present scientific/security aggregator retains its own independently reviewed gate-specific applicability logic.
+AnthroSim uses conservative path-aware CI, originally implemented under completed issue #317. The classifier is enforced by the central CI, cross-platform determinism, spatial-mechanism, landscape-loading, landscape-preprocessing, run-bundle-pack, resumed-Explorer-compatibility, spatial-observability and source-provenance workflows. The always-present scientific/security aggregator retains its own independently reviewed gate-specific applicability logic.
 
 ## Why this exists
 
@@ -85,4 +85,4 @@ For `full` changes, for every push to protected `main`, and therefore for any PR
 
 The remaining required `Applicable scientific/security gates` context is intentionally not converted to a blanket N/A path: it is the classifier/gate aggregator itself and already applies its M8.6, M9.7 and RustSec sub-gates according to their own conservative path rules. It remains always present and self-protecting.
 
-Future #317 changes must preserve the exact required context names in `docs/required-status-checks.md`, make skipped heavy work resolve through an explicit successful/N/A disposition rather than absent checks, and retain `full` as the fallback for mixed or ambiguous changes.
+Future classifier/path-routing changes must preserve the exact required context names in `docs/required-status-checks.md`, make skipped heavy work resolve through an explicit successful/N/A disposition rather than absent checks, and retain `full` as the fallback for mixed or ambiguous changes.

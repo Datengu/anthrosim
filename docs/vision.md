@@ -19,9 +19,9 @@ After the v0.1 experiment-engine baseline, development should become increasingl
 
 The public core roadmap remains case-study-neutral. Reusable scientific capabilities, assumptions and validation boundaries belong in the repository; the general engine architecture should not depend on any particular locality, dataset or research question.
 
-Evidence-grounded environments are a natural next step because they allow the existing demographic, resource and mobility mechanisms to be tested under declared real-world spatial constraints without scripting known historical outcomes. More complex social mechanisms should then be prioritised in response to what controlled experiments show is missing or inadequately explained.
+Evidence-grounded spatial experiments are now an established M8 capability, and temporary mobility / controlled aggregation is an established M9 capability. Future substantive mechanisms should be prioritised in response to declared research or methodological questions and to what controlled experiments show is missing or inadequately explained, rather than by extending the engine for its own sake.
 
-See [`roadmap.md`](roadmap.md) for the post-v0.1 development strategy and planned M8 boundary.
+See [`roadmap.md`](roadmap.md) for the current development strategy, completed milestone/release history, and the present question-led boundary.
 
 ## What AnthroSim is not
 
@@ -43,4 +43,4 @@ Potential questions include:
 - the archaeological signatures produced by known simulated histories;
 - how reliably archaeological inference can recover simulated ground truth.
 
-These are directions, not v0.1 promises.
+These are directions, not promises for the current release line.

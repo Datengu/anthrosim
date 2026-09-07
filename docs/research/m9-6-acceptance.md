@@ -1,6 +1,8 @@
 # M9.6 acceptance record
 
-Status: implementation-complete candidate. Merge and umbrella-issue closure require the repository's full protected validation suite to pass on the exact head containing this record.
+> **Historical record.** This document captures the M9.6 acceptance state before M9.7 and the later `v0.3.0` milestone release. M9 is now complete; preserve the time-scoped evidence below rather than reading its pre-closure status as current project status. See `docs/roadmap.md` and `docs/release-versioning.md` for the living state.
+
+Status at time of record: implementation-complete candidate. Merge and umbrella-issue closure required the repository's full protected validation suite to pass on the exact head containing this record.
 
 M9.6 makes the M9 temporary-mobility mechanism inspectable, resumable and usable through ordinary AnthroSim experiment/artifact workflows without changing the mechanism's authoritative meaning beyond `anthrosim-model-semantics-v5`.
 

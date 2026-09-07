@@ -4,9 +4,11 @@ AnthroSim carries machine-readable citation metadata in the repository-root `CIT
 
 ## Released software
 
-When referring to AnthroSim as software, cite the released version that was used. The software version identifies the public release line and should not be treated as a substitute for exact experiment provenance.
+When referring to AnthroSim as software, cite the released version that was used. The software version identifies the named public release baseline and should not be treated as a substitute for exact experiment provenance.
 
-For v0.1, the citation metadata identifies AnthroSim version `0.1.0` and the Apache-2.0 software licence.
+The current repository citation metadata identifies AnthroSim version `0.3.4` and the Apache-2.0 software licence. That citation version refers to the immutable named `v0.3.4` release baseline. Living protected `main` can contain later compatible or scientifically versioned development work without retroactively changing what the `v0.3.4` tag represents; consult `docs/release-versioning.md` for that distinction.
+
+If a study uses a different named release, cite that release rather than mechanically citing whatever version happens to appear in the current repository metadata.
 
 ## Exact research source revision
 
@@ -17,7 +19,9 @@ Published or archived research should therefore retain both:
 - the human-facing AnthroSim release/version used for citation; and
 - the exact Git commit/source identity recorded by the experiment artifacts for reproduction and audit.
 
-Where checkpoint compatibility is relevant, the model-semantics identity is a separate compatibility concept and must not be replaced by either the citation version or Git revision.
+Where checkpoint compatibility or scientific interpretation is relevant, preserve the recorded model-semantics identity as a separate compatibility/scientific identity. It must not be replaced by either the citation version or Git revision.
+
+If research deliberately uses an unreleased protected-`main` development state, do not invent a new release citation for it. Preserve the exact source revision and model-semantics identity and describe the named release/package line from which that development state derives.
 
 ## Data and external assets
 
