@@ -1,0 +1,98 @@
+name: Documentation audit pass 2 patch
+
+on:
+  push:
+    branches:
+      - docs/post-v034-documentation-audit-pass-2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: docs/post-v034-documentation-audit-pass-2
+      - name: Apply audited documentation corrections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected text not found in {path}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace(
+              "docs/research/m9-6-acceptance.md",
+              "# M9.6 acceptance record\n\nStatus: implementation-complete candidate. Merge and umbrella-issue closure require the repository's full protected validation suite to pass on the exact head containing this record.\n",
+              "# M9.6 acceptance record\n\n> **Historical record.** This document captures the M9.6 acceptance state before M9.7 and the later `v0.3.0` milestone release. M9 is now complete; preserve the time-scoped evidence below rather than reading its pre-closure status as current project status. See `docs/roadmap.md` and `docs/release-versioning.md` for the living state.\n\nStatus at time of record: implementation-complete candidate. Merge and umbrella-issue closure required the repository's full protected validation suite to pass on the exact head containing this record.\n",
+          )
+          replace(
+              "docs/research/m9-6-integration-audit.md",
+              "# M9.6 temporary-mobility integration audit\n\nStatus: M9.6 capability implementation complete; protected final validation is required before closing the umbrella issue.\n",
+              "# M9.6 temporary-mobility integration audit\n\n> **Historical record.** This document captures the M9.6 integration state before final M9 acceptance and the later `v0.3.0` release. M9 is now complete; the implementation evidence below remains time-scoped and should not be read as current project status. See `docs/roadmap.md` and `docs/release-versioning.md` for the living state.\n\nStatus at time of record: M9.6 capability implementation complete; protected final validation was required before closing the umbrella issue.\n",
+          )
+
+          replace(
+              "docs/research/audit-v3/README.md",
+              "# AnthroSim scientific audit v3 — charter\n\nScientific audit v3 is",
+              "# AnthroSim scientific audit v3 — charter\n\n> **Status: complete / historical charter.** Scientific Audit v3 is closed. This file preserves the frozen target, methodology and operating rules used for that audit; do **not** restart or continue Audit v3 from this charter. Use `docs/research/audit-v3/STATUS.md` for its final state and the latest audit documentation for any later audit generation.\n\nScientific audit v3 is",
+          )
+          replace(
+              "docs/research/audit-v3/README.md",
+              "## Cross-session start instruction\n\nA new audit agent should be able to continue with only:\n\n> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v3/README.md`, and `docs/research/audit-v3/STATUS.md`. Verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Continue the next incomplete audit-v3 Area from first principles, using fresh adversarial/quantitative evidence and preserving any demonstrated defect before repair.",
+              "## Cross-session use after closure\n\n> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v3/README.md`, and `docs/research/audit-v3/STATUS.md` when reconstructing Audit-v3 history. Treat this charter as historical. Do **not** restart or continue Audit v3 when its authoritative ledger records completion; a later audit generation must have its own explicit charter and frozen target.",
+          )
+
+          replace(
+              "docs/research/audit-v4/README.md",
+              "# AnthroSim scientific audit v4 — charter\n\nScientific audit v4 is",
+              "# AnthroSim scientific audit v4 — charter\n\n> **Status: complete / historical charter.** Scientific Audit v4 completed all A–N discovery and all 15 findings were repaired and independently re-verified/dispositioned. This file preserves the frozen target, methodology and operating rules used for that audit; do **not** restart or continue Audit v4 from this charter. `docs/research/audit-v4/STATUS.md` is the authoritative final state.\n\nScientific audit v4 is",
+          )
+          replace(
+              "docs/research/audit-v4/README.md",
+              "## Cross-session start instruction\n\n> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v4/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v4/STATUS.md`. Verify live `main`, immutable `v0.3.4`, open issues/PRs and overlapping work. Continue the next incomplete Audit-v4 task according to the documented phase, preserving the frozen discovery target while re-verifying repairs against the living current state.",
+              "## Cross-session use after closure\n\n> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v4/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v4/STATUS.md` when reconstructing Audit-v4 history. Treat this charter as historical. Do **not** restart or continue Audit v4 while its authoritative ledger records complete discovery and remediation; any later independent audit must receive its own explicit charter and frozen target.",
+          )
+
+          for path in (
+              "docs/scientific-model.md",
+              "docs/research/odd.md",
+              "docs/research/odd-d.md",
+          ):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              old = "post-v0.3.4 Audit-v4 remediation line"
+              if old not in text:
+                  raise SystemExit(f"expected current-line phrase not found in {path}")
+              p.write_text(text.replace(old, "repaired post-v0.3.4 line after completed Audit-v4 remediation"), encoding="utf-8")
+
+          script = Path("scripts/test-current-model-semantics-docs.py")
+          text = script.read_text(encoding="utf-8")
+          anchor = 'VERSIONING_DOC = ROOT / "docs" / "release-versioning.md"\n'
+          addition = '''VERSIONING_DOC = ROOT / "docs" / "release-versioning.md"\nAGENT_GUIDANCE = ROOT / "AGENTS.md"\nVISION_DOC = ROOT / "docs" / "vision.md"\nCITATION_GUIDANCE = ROOT / "docs" / "research" / "citation.md"\nCITATION_CFF = ROOT / "CITATION.cff"\nCI_PATH_DOC = ROOT / "docs" / "ci-path-classification.md"\nREQUIRED_CHECKS_DOC = ROOT / "docs" / "required-status-checks.md"\nM9_IMPLEMENTATION_PLAN = ROOT / "docs" / "research" / "m9-implementation-sequence.md"\nM9_ACCEPTANCE_RECORD = ROOT / "docs" / "research" / "m9-6-acceptance.md"\nM9_INTEGRATION_RECORD = ROOT / "docs" / "research" / "m9-6-integration-audit.md"\nAUDIT_V3_CHARTER = ROOT / "docs" / "research" / "audit-v3" / "README.md"\nAUDIT_V4_CHARTER = ROOT / "docs" / "research" / "audit-v4" / "README.md"\n'''
+          if anchor not in text:
+              raise SystemExit("guard constant anchor missing")
+          text = text.replace(anchor, addition, 1)
+
+          anchor2 = '''    if current_id not in versioning_text:\n        raise AssertionError("release-versioning policy does not state the current post-release development semantics")\n'''
+          addition2 = '''    if current_id not in versioning_text:\n        raise AssertionError("release-versioning policy does not state the current post-release development semantics")\n\n    forbidden_current_status = {\n        AGENT_GUIDANCE: ("M9 is the planned", "target named release is `v0.3.0`"),\n        VISION_DOC: ("Evidence-grounded environments are a natural next step", "planned M8 boundary"),\n        CI_PATH_DOC: ("is introducing conservative path-aware CI under issue #317", "Future #317 changes"),\n        REQUIRED_CHECKS_DOC: (\n            "After the aggregator is merged",\n            "Until that administrative reconciliation is complete, issue #175 is not governance-complete",\n        ),\n    }\n    for path, stale_phrases in forbidden_current_status.items():\n        surface = path.read_text(encoding="utf-8")\n        for stale in stale_phrases:\n            if stale in surface:\n                raise AssertionError(f"stale current-status text remains in {path.relative_to(ROOT)}: {stale}")\n\n    cff_text = CITATION_CFF.read_text(encoding="utf-8")\n    cff_version = re.search(r'^version:\\s*["\\\']?([^"\\\'\\s]+)', cff_text, flags=re.MULTILINE)\n    if cff_version is None:\n        raise AssertionError("CITATION.cff does not expose a version")\n    citation_text = CITATION_GUIDANCE.read_text(encoding="utf-8")\n    if f"version `{cff_version.group(1)}`" not in citation_text:\n        raise AssertionError("citation guidance does not match the current CITATION.cff release version")\n    if "For v0.1, the citation metadata identifies AnthroSim version `0.1.0`" in citation_text:\n        raise AssertionError("citation guidance still presents v0.1 metadata as current")\n\n    historical_markers = {\n        M9_IMPLEMENTATION_PLAN: "historical implementation plan",\n        M9_ACCEPTANCE_RECORD: "**Historical record.**",\n        M9_INTEGRATION_RECORD: "**Historical record.**",\n    }\n    for path, marker in historical_markers.items():\n        if marker not in path.read_text(encoding="utf-8"):\n            raise AssertionError(f"{path.relative_to(ROOT)} lacks an explicit historical-status marker")\n\n    for path in (AUDIT_V3_CHARTER, AUDIT_V4_CHARTER):\n        charter = path.read_text(encoding="utf-8")\n        if "**Status: complete / historical charter.**" not in charter or "Do **not** restart or continue Audit" not in charter:\n            raise AssertionError(f"{path.relative_to(ROOT)} can still be mistaken for an active audit charter")\n'''
+          if anchor2 not in text:
+              raise SystemExit("guard main anchor missing")
+          text = text.replace(anchor2, addition2, 1)
+          script.write_text(text, encoding="utf-8")
+          PY
+      - name: Remove temporary patch workflow and commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/documentation-audit-pass-2-patch.yml
+          git add AGENTS.md docs scripts/test-current-model-semantics-docs.py
+          git commit -m "docs: close remaining current-state drift"
+          git push origin HEAD:docs/post-v034-documentation-audit-pass-2
