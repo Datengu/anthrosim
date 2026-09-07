@@ -35,11 +35,13 @@ M9_REFERENCE = ROOT / "examples" / "m9-controlled-aggregation-benchmark" / "refe
 V032_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.2.md"
 V033_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.3.md"
 V034_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.4.md"
+V035_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.5.md"
 VERSIONING_DOC = ROOT / "docs" / "release-versioning.md"
 AGENT_GUIDANCE = ROOT / "AGENTS.md"
 VISION_DOC = ROOT / "docs" / "vision.md"
 CITATION_GUIDANCE = ROOT / "docs" / "research" / "citation.md"
 CITATION_CFF = ROOT / "CITATION.cff"
+CARGO_TOML = ROOT / "Cargo.toml"
 CI_PATH_DOC = ROOT / "docs" / "ci-path-classification.md"
 REQUIRED_CHECKS_DOC = ROOT / "docs" / "required-status-checks.md"
 M9_IMPLEMENTATION_PLAN = ROOT / "docs" / "research" / "m9-implementation-sequence.md"
@@ -54,6 +56,8 @@ V033_SEMANTICS_ID = "anthrosim-model-semantics-v21"
 V033_SHORT = "v21"
 V034_SEMANTICS_ID = "anthrosim-model-semantics-v25"
 V034_SHORT = "v25"
+V035_SEMANTICS_ID = "anthrosim-model-semantics-v33"
+V035_SHORT = "v33"
 
 
 def current_semantics_id() -> str:
@@ -93,6 +97,16 @@ def main() -> None:
     current_id = current_semantics_id()
     current_short = short_version(current_id)
     current_phrase = f"current model semantics {current_short}"
+
+    cargo_text = CARGO_TOML.read_text(encoding="utf-8")
+    workspace_section = re.search(r"\[workspace\.package\]\n(.*?)(?:\n\[|\Z)", cargo_text, flags=re.DOTALL)
+    if workspace_section is None:
+        raise AssertionError("Cargo.toml is missing [workspace.package]")
+    workspace_version_match = re.search(r'^version\s*=\s*"([^"]+)"', workspace_section.group(1), flags=re.MULTILINE)
+    if workspace_version_match is None:
+        raise AssertionError("Cargo.toml workspace.package is missing version")
+    current_software_version = workspace_version_match.group(1)
+    current_release_tag = f"v{current_software_version}"
     release_phrase = f"immutable v0.3.4 release baseline: {V034_SHORT}"
     prior_release_phrase = f"immutable v0.3.3 release baseline: {V033_SHORT}"
 
@@ -102,6 +116,10 @@ def main() -> None:
         if current_phrase not in text:
             raise AssertionError(
                 f"{path.relative_to(ROOT)} does not identify executable current semantics as {current_short}"
+            )
+        if current_release_tag not in text:
+            raise AssertionError(
+                f"{path.relative_to(ROOT)} does not identify current software release line as {current_release_tag}"
             )
 
     # Formal living model descriptions must preserve the immutable release distinction explicitly.
@@ -177,6 +195,10 @@ def main() -> None:
             f"as {V034_SEMANTICS_ID}"
         )
 
+    v035_release_text = V035_RELEASE_DOC.read_text(encoding="utf-8")
+    if "Software version: `0.3.5`" not in v035_release_text or f"Model semantics: `{V035_SEMANTICS_ID}`" not in v035_release_text:
+        raise AssertionError("docs/releases/v0.3.5.md does not identify the v0.3.5/v33 release identity")
+
     versioning_text = VERSIONING_DOC.read_text(encoding="utf-8")
     if (
         "v0.3.2`**: documentation-convergence maintenance patch over the v19 model semantics "
@@ -196,8 +218,14 @@ def main() -> None:
         not in versioning_text
     ):
         raise AssertionError("docs/release-versioning.md does not preserve v0.3.4/v25 identity")
+    if (
+        "v0.3.5`**: post-Scientific-Audit-v4 repaired convergence patch preserving the fully "
+        "remediated/reverified v33 model-semantics baseline"
+        not in versioning_text
+    ):
+        raise AssertionError("docs/release-versioning.md does not preserve v0.3.5/v33 identity")
     if current_id not in versioning_text:
-        raise AssertionError("release-versioning policy does not state the current post-release development semantics")
+        raise AssertionError("release-versioning policy does not state the current model semantics")
 
     forbidden_current_status = {
         AGENT_GUIDANCE: ("M9 is the planned", "target named release is `v0.3.0`"),
@@ -218,6 +246,8 @@ def main() -> None:
     cff_version = re.search(r'^version:\s*["\']?([^"\'\s]+)', cff_text, flags=re.MULTILINE)
     if cff_version is None:
         raise AssertionError("CITATION.cff does not expose a version")
+    if cff_version.group(1) != current_software_version:
+        raise AssertionError("CITATION.cff version does not match Cargo workspace version")
     citation_text = CITATION_GUIDANCE.read_text(encoding="utf-8")
     if f"version `{cff_version.group(1)}`" not in citation_text:
         raise AssertionError("citation guidance does not match the current CITATION.cff release version")

@@ -4,7 +4,7 @@
 
 AnthroSim's roadmap is driven by research capability rather than feature count. The project should add new mechanisms or infrastructure when they are needed to ask a clearer question, distinguish competing explanations, expose uncertainty, or make an experiment more reproducible and inspectable.
 
-**Current framework line:** repaired post-v0.3.4 development state / current model semantics v33. Immutable `v0.3.4` remains the v25 Audit-v4 discovery/release baseline; the repaired living line does not rewrite it.
+**Current framework line:** software version `v0.3.5` / current model semantics v33. Immutable `v0.3.4` remains the v25 Audit-v4 discovery/release baseline; the v0.3.5 release line preserves the repaired v33 state without rewriting that historical target.
 
 The long-term direction remains the one described in `docs/vision.md`: build enough defensible lower-level rules that history-like structure can emerge without scripting historical outcomes.
 
@@ -97,6 +97,7 @@ Milestone identity, software release identity, model-semantics identity and Git 
 - **v0.3.2:** documentation-convergence maintenance release, immutable model semantics v19.
 - **v0.3.3:** post-Audit-v2 convergence release, immutable model semantics v21; frozen Audit-v3 target.
 - **v0.3.4:** post-Audit-v3 convergence release, immutable model semantics v25; frozen Audit-v4 target.
+- **v0.3.5:** post-Audit-v4 repaired convergence release line, model semantics v33; no new roadmap milestone.
 
 Scientific Audit v3 challenged immutable v0.3.3/v21, demonstrated 17 findings and produced the repaired v25 line later frozen as v0.3.4.
 

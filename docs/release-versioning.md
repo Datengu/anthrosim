@@ -32,8 +32,9 @@ The practical release history is:
 - **`v0.3.2`**: documentation-convergence maintenance patch over the v19 model semantics preserved by the immutable `v0.3.2` tag; it corrects living-document drift present when v0.3.1 was tagged.
 - **`v0.3.3`**: post-scientific-audit-v2 hardening/convergence patch preserving the repaired v21 model-semantics baseline before another fresh independent release-baseline audit.
 - **`v0.3.4`**: post-Scientific-Audit-v3 convergence patch preserving the fully remediated and independently reverified v25 model-semantics baseline.
+- **`v0.3.5`**: post-Scientific-Audit-v4 repaired convergence patch preserving the fully remediated/reverified v33 model-semantics baseline plus the completed post-audit documentation-consistency reconciliation.
 
-The immutable `v0.3.4` tag remains `anthrosim-model-semantics-v25`. Scientific Audit v4 subsequently audited that frozen target, and authoritative repairs advanced the living development line through v26–v33. **Current protected `main` still carries workspace package version `0.3.4`, but its authoritative `MODEL_SEMANTICS_ID` is `anthrosim-model-semantics-v33`.** This is a post-release development state, not a retroactive mutation of the v0.3.4 tag and not a new named release.
+The immutable `v0.3.4` tag remains `anthrosim-model-semantics-v25`. Scientific Audit v4 subsequently audited that frozen target, and authoritative repairs advanced the living line through v26–v33. **The v0.3.5 release line carries workspace package version `0.3.5` and authoritative `MODEL_SEMANTICS_ID = anthrosim-model-semantics-v33`.** It names and preserves the fully repaired Audit-v4 state; it does not retroactively mutate the v0.3.4/v25 tag or its audit evidence.
 
 The same distinction applies to older releases: `v0.3.2` remains v19 and `v0.3.3` remains v21 even though living main is newer.
 
@@ -63,7 +64,7 @@ A software version bump does not by itself say scientific meaning changed. Chang
 
 Documentation, packaging, explorer-only or other source-neutral changes may warrant a software release without changing model semantics. Conversely, a scientifically meaningful change must never be hidden behind an unchanged semantics identity merely because package version is unchanged.
 
-The `v0.3.4` release-preparation change itself did not introduce new authoritative model behaviour; it named and preserved the already-reviewed v25 state produced by Audit-v3 remediation. Audit-v4 repairs after that release are why living package `0.3.4` can now coexist with model semantics v33.
+The `v0.3.4` release-preparation change itself did not introduce new authoritative model behaviour; it named and preserved the already-reviewed v25 state produced by Audit-v3 remediation. Audit-v4 repairs after that release advanced authoritative semantics through v33. The `v0.3.5` release-preparation change likewise introduces no new causal model behaviour: it assigns a named patch-release identity to the already-reviewed v33 repaired state after Audit-v4 closure and documentation reconciliation.
 
 ## Milestone completion versus hardening
 

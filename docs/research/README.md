@@ -2,7 +2,7 @@
 
 AnthroSim's research documentation is organized around explicit model description, human-decision assumptions, model evaluation, evidence provenance and reproducible experiment records.
 
-**Living framework state:** repaired post-v0.3.4 line / current model semantics v33. Immutable `v0.3.4` remains the Audit-v4 discovery target at model semantics v25; current documentation must not rewrite that historical identity.
+**Living framework state:** software version `v0.3.5` / current model semantics v33. Immutable `v0.3.4` remains the Audit-v4 discovery target at model semantics v25; current documentation must not rewrite that historical identity.
 
 ## Start here
 
@@ -19,6 +19,7 @@ AnthroSim's research documentation is organized around explicit model descriptio
 - [`post-v0.3.4-documentation-consistency-audit.md`](post-v0.3.4-documentation-consistency-audit.md) — first living-document audit against the repaired v33 state after Audit-v4 closure.
 - [`post-v0.3.4-documentation-consistency-audit-2026-09-07-pass-2.md`](post-v0.3.4-documentation-consistency-audit-2026-09-07-pass-2.md) — second repository-wide documentation pass covering standing guidance, citation metadata, completed CI/audit/milestone status and archival boundaries missed by the first pass.
 - [`v0.3.4-documentation-readiness-audit.md`](v0.3.4-documentation-readiness-audit.md) — historical pre-release documentation/version-identity convergence record for the v25 release line.
+- [`v0.3.5-release-readiness.md`](v0.3.5-release-readiness.md) — v0.3.5/v33 release-preparation record after completed Audit-v4 remediation and the two post-audit documentation consistency passes.
 
 ## Earlier audit generations
 
@@ -51,7 +52,7 @@ Dated TRACE repair records preserve the rationale/evidence for individual histor
 
 Scientific Audit v4 restarted Areas A–N from zero against immutable `v0.3.4` / `anthrosim-model-semantics-v25`. It demonstrated **13 P1 and 2 P2 findings**. Post-discovery remediation repaired all 15 and independently re-verified/dispositioned them before closure. Authoritative repairs advanced the living line through model semantics v26–v33 where scientific continuation compatibility changed.
 
-The repaired current model semantics v33 line therefore differs scientifically from the immutable v0.3.4/v25 release target; this is intentional. Historical v25 language remains correct only where it is explicitly release/audit identity or historical evidence.
+The v0.3.5/current-model-semantics-v33 line therefore differs scientifically from the immutable v0.3.4/v25 release target; this is intentional. Historical v25 language remains correct only where it is explicitly release/audit identity or historical evidence.
 
 The Audit-v4 result is framework-verification evidence, not empirical archaeological validity. TRACE remains **NOT YET EMPIRICALLY RESEARCH-READY** for a generic real-world inferential claim: question-specific problem formulation, evidence roles, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, held-out corroboration and domain review remain separate requirements.
 

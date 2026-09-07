@@ -30,6 +30,8 @@ Reviewed v33 execution before reference synchronization:
 - model semantics: `anthrosim-model-semantics-v33`;
 - sweep ID: `anthrosim-sweep-v2-b56e7e725c1ea70e`.
 
+The `0.3.4` model-version value above is preserved execution provenance from the reviewed v33 rebaseline. The v0.3.5 release packages the same v33 scientific semantics; a package-version advance by itself does not rewrite that archived execution identity or require a new scientific reference result.
+
 All **144/144** planned runs completed and were scientifically eligible, with no failed, incomplete, record-limit or otherwise operationally censored runs. The exact-head workflow failed only at its final equality assertion against the then-current frozen v32 point-results reference; the complete derived artifact was archived successfully and reviewed before the reference was changed.
 
 The on/off control is exact and diagnostic for this M4-only repair: all **9/9 migration-disabled point summaries are numerically identical to v32**, while all **9/9 migration-enabled point summaries change**. Migration-enabled terminal-population means move by only about **-2.9% to +4.1%**. The source definition, 18-point factorial design, paired seeds, M3 resource settings, demographic settings, completion/censoring rules and declared endpoints are unchanged. This isolates the required rebaseline to trajectories in which permanent M4 migration can act, rather than unexplained resource or demographic drift.
