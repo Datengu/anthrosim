@@ -1,0 +1,32 @@
+name: Audit v5 Area A remote-founder M9 tie adversary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/anthrosim-core/src/population.rs'
+      - 'crates/anthrosim-core/src/temporary_mobility.rs'
+      - 'crates/anthrosim-core/tests/audit_v5_area_a_remote_founder_m9_tie.rs'
+      - '.github/workflows/audit-v5-area-a-remote-founder-m9-tie.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remote-founder-m9-tie-adversary:
+    name: Isolated-founder coupling locality adversary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v5 Area-A adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v5_area_a_remote_founder_m9_tie -- --nocapture
