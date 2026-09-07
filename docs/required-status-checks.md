@@ -62,7 +62,7 @@ The three expensive underlying job names are intentionally **not** required stat
 
 The aggregator also emits a lightweight success on every push to protected `main`. This gives the merged commit a continuity context without rerunning all expensive conditional gates. A named release still requires release-specific exact-SHA M8.6/M9.7/RustSec evidence under the release policy; the post-merge continuity result does not substitute for those release reruns.
 
-After the aggregator is merged, the live GitHub `main` branch protection must be updated to require `Applicable scientific/security gates`. Until that administrative reconciliation is complete, issue #175 is not governance-complete even though the repository-side workflow exists.
+Issue #175 tracked both the repository-side aggregator and the required administrative reconciliation and is closed as completed. Any later change to branch-protection settings must reverify that `Applicable scientific/security gates` remains required together with the other contexts listed above; repository documentation/tests cannot substitute for checking the live GitHub rule after an administrative change.
 
 ## Checks deliberately not globally required
 
