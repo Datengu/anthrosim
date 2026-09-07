@@ -2,11 +2,11 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**This source tree is on the post-v0.3.4 Scientific Audit v4 remediation line at current model semantics v27.** The immutable `v0.3.4` release remains the completed Audit-v3 remediation baseline at `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21. Audit-v4 repairs do not rewrite either historical release identity.
+**This source tree is the repaired post-v0.3.4 line at current model semantics v33.** The workspace package version remains `0.3.4` during development, but that does not rewrite the immutable `v0.3.4` release identity: the release tag remains `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21.
 
-**v0.3.4 preserves `anthrosim-model-semantics-v25`.** Scientific Audit v3 is complete: the immutable v0.3.3/v21 baseline was challenged across Areas A–N, 17 findings were demonstrated (1 P0, 6 P1 and 10 P2), and all 17 were repaired, merged through protected CI, independently post-merge reverified, and closed. No original Audit-v3 finding remains open. This is strong convergence evidence, not empirical validation or proof of scientific correctness; empirical/question-specific readiness must be assessed separately.
+**Scientific Audit v4 is complete.** It independently audited immutable `v0.3.4`/v25 across Areas A–N, demonstrated 15 findings (13 P1 and 2 P2), and all 15 were repaired and independently re-verified/dispositioned on the living line. The final repaired Audit-v4 line is `anthrosim-model-semantics-v33`; there are no open Audit-v4 findings. See [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md).
 
-The preserved M8.6 and M9.7 references are capability/regression baselines under declared assumptions, not archaeological validation. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
+This is strong framework-verification evidence, not empirical validation or proof of scientific correctness. The preserved M8.6 and M9.7 references are capability/regression baselines under declared assumptions, not archaeological validation. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
 ## Core rule
 
@@ -16,7 +16,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-The current post-v0.3.4 remediation line retains the v0.3.4 capability set:
+The current post-v0.3.4 repaired line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -41,11 +41,13 @@ The current post-v0.3.4 remediation line retains the v0.3.4 capability set:
 - stochastic replicate-sufficiency/Monte Carlo precision gates for quantitative conclusions;
 - long-run drift/regime diagnostics and explicit equilibrium-claim safeguards;
 - structural household/demographic sensitivity support, including the finding that no universal demographic baseline is currently justified;
-- fail-closed identifiability/equifinality analysis that preserves acceptable regions and held-out discriminating predictions.
+- fail-closed identifiability/equifinality and provenance/integrity analysis;
+- label/order-neutral scientific stochastic coupling introduced by Audit-v4 repairs for fertility, mortality, parentage, migration, resource remainder ties and M9 equal-cost destination choices;
+- M4 spatial-candidate uncertainty/choice coupling that is invariant to arbitrary canonical candidate ordering on the current v33 line.
 
 Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them. M9 temporary mobility is deliberately a generic null mechanism rather than a cultural, ritual, political or economic motive model.
 
-## Current milestone status
+## Current milestone and audit status
 
 - **M1 — Deterministic synthetic world:** complete.
 - **M2 — Persistent people, households, demography and genealogy:** complete.
@@ -54,19 +56,19 @@ Culture, language, trade, states, religion, warfare, and AI-controlled agents re
 - **M5 — Events, metrics, checkpoints and causal inspection:** complete.
 - **M6 — Local simulation explorer:** complete as a read-only artifact consumer.
 - **M7 — Deterministic experiment orchestration, ensembles, retries, sweeps, soak/performance validation and the v0.1 reference experiment:** complete.
-- **M8 — Evidence-grounded spatial experiments / v0.2.0:** complete and released. M8 adds normalized landscape inputs, explicit deterministic spatial transformations, landscape/evidence identity, residence-based spatial observability and the first evidence-grounded terrain null-model benchmark.
-- **M9 — Temporary mobility and controlled aggregation / v0.3.0:** complete, audited and released. M9 adds persistent-residence/current-presence separation, identity-bearing focal regions, deterministic multi-day temporary journeys, duration-aware resource accounting, M9 observability and a predeclared continuous-residence versus intermittent-aggregation benchmark.
-- **v0.3.1 post-M9 scientific hardening:** released. The first major audit backlog is resolved and its analysis/inference safeguards are preserved in that immutable release.
-- **v0.3.2 documentation convergence:** released as a maintenance patch that synchronizes living scientific/project documentation with the already-implemented v0.3.1 state; no model semantics or frozen scientific results change.
-- **v0.3.3 post-audit-v2 convergence baseline:** immutable historical baseline at model semantics v21; this became the frozen target of Scientific Audit v3.
-- **v0.3.4 post-Audit-v3 convergence baseline:** preserves the repaired v25 state after Audit v3 demonstrated 17 findings and all 17 were independently post-merge reverified and closed.
-- **Scientific Audit v4 remediation:** discovery is complete with 13 P1 and 2 P2 findings on immutable v0.3.4/v25. Repair and independent post-merge re-verification take priority before any empirical/question-specific readiness assessment or question-led model interrogation. No fixed M10 feature list is declared.
+- **M8 — Evidence-grounded spatial experiments / v0.2.0:** complete and released.
+- **M9 — Temporary mobility and controlled aggregation / v0.3.0:** complete, audited and released.
+- **v0.3.1:** released post-M9 scientific/research-readiness hardening.
+- **v0.3.2:** released documentation-convergence maintenance baseline at immutable model semantics v19.
+- **v0.3.3:** immutable post-Audit-v2 baseline at model semantics v21 and frozen Audit-v3 target.
+- **v0.3.4:** immutable post-Audit-v3 convergence baseline at model semantics v25 and frozen Audit-v4 target.
+- **Scientific Audit v4:** discovery and remediation complete; 15/15 findings repaired and re-verified, with living semantics advanced through v26–v33 where authoritative scientific meaning changed.
 
-M1–M4 establish the baseline permanent-residence response loop: local supply and competition affect condition/survival, and surviving pressured households can make bounded permanent relocations. M5–M7 make that loop inspectable, resumable and reproducibly orchestrated without introducing a second simulation engine.
+No fixed M10 feature list is declared. The next scientific work should remain question-led and must separately establish evidence, calibration/validation, uncertainty, sensitivity, applicability and corroboration appropriate to the intended inference.
 
-M8 keeps evidence separate from model-facing transformations and results. Its first terrain reference exercise found **fragile spatial structure** under the declared terrain-only null model: terrain materially perturbed some spatial outcomes, but direction was not stable across seeds. See [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md).
+M8 keeps evidence separate from model-facing transformations and results. Its terrain reference remains **fragile spatial structure** under the declared terrain-only null model; the current checked-in machine reference is on model semantics v33. See [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md).
 
-M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. A temporary journey can be at residence, in outbound transit, visiting a focal region, in return transit, then complete. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across those states, and M9 observability is separate from M8 residence-based spatial observability. The controlled M9.7 benchmark distinguished intermittent aggregation from continuous residence under its frozen synthetic assumptions; that is capability validation, not archaeological validation. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md), [`docs/research/temporary-mobility-observability-v1.md`](docs/research/temporary-mobility-observability-v1.md), [`docs/research/m9-controlled-aggregation-benchmark-v1.md`](docs/research/m9-controlled-aggregation-benchmark-v1.md), and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
+M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across journey states, and M9 observability is separate from M8 residence-based spatial observability. The M9.7 benchmark remains `capability_distinguished`; that is capability validation, not archaeological validation. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md) and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
 
 No historical destination, route, settlement, group or migration outcome is scripted into these loops.
 
@@ -74,50 +76,34 @@ No historical destination, route, settlement, group or migration outcome is scri
 
 AnthroSim uses the Rust toolchain pinned in `rust-toolchain.toml`. The CLI package contains multiple binaries, so local `cargo run` commands should explicitly select the main `anthrosim` binary.
 
-Builds made inside a Git checkout automatically capture source provenance; no manual environment variable is required. A clean tracked tree records the exact commit SHA in `gitCommit`. A staged or unstaged tracked modification records `<sha>-dirty-<working-tree-digest>` and emits a build warning. Outside a Git checkout AnthroSim does not invent a revision and records `gitCommit: null`. Controlled build environments may still supply `ANTHROSIM_GIT_COMMIT` explicitly. See [`docs/source-provenance.md`](docs/source-provenance.md).
+Builds made inside a Git checkout automatically capture source provenance. A clean tracked tree records the exact commit SHA in `gitCommit`; a tracked dirty tree records a dirty source identity; outside Git, AnthroSim records `gitCommit: null`. See [`docs/source-provenance.md`](docs/source-provenance.md).
 
-From the repository root, a small headless run can be executed with:
+A small headless run:
 
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- run --years 25 --population 10000 --world-width 64 --world-height 64 --seed 1 --output runs/first-run.json
 ```
 
-For causal inspection, write a controlled completed run bundle instead:
+A completed inspectable run bundle:
 
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- run --years 25 --population 10000 --seed 1 --run-dir runs/m6-example
-```
-
-A completed directory contains `manifest.json`, `world.json`, `initial-population.json`, `events.json`, `metrics.json` and a final `checkpoint.json`, so analysis does not require a live database.
-
-Open that run in the explorer with:
-
-```text
 python scripts/serve-explorer.py runs/m6-example
 ```
 
-The server binds to `127.0.0.1:8765` by default and opens the local browser. It serves only fixed explorer assets and expected run artifacts, exposes no directory listing or write API, and rejects POST/PUT/DELETE. Use `--no-browser` if you do not want it to open a browser automatically.
-
-A deliberately paused run can be explored **before** resuming it:
+A deliberately paused run can be explored and then resumed:
 
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- run --years 25 --population 10000 --seed 1 --run-dir runs/m5-resume --checkpoint-year 10
 python scripts/serve-explorer.py runs/m5-resume
-```
-
-Resume later with:
-
-```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- resume --checkpoint runs/m5-resume/checkpoint.json --run-dir runs/m5-resume
 ```
 
-`initial-population.json` is always the day-zero founder state used by the explorer for full-history reconstruction. If a checkpoint is resumed into a **different** output directory, the completed bundle also retains `resume-start-population.json` as the population at the resume boundary. AnthroSim deterministically reconstructs/writes the true original `initial-population.json` into that new bundle; `resume-start-population.json` is boundary provenance and must never be treated as the founders.
+`initial-population.json` is the day-zero founder state. A different-directory resume may also retain `resume-start-population.json` as boundary provenance; it must not be treated as the founder population.
 
 The CLI exposes synthetic experiment controls such as `--resource-productivity-scale-permille`, `--resource-seasonality-scale-permille`, `--annual-food-need`, `--migration-radius` and `--disable-migration`. These are model-validation controls, not empirical caloric, palaeoecological or mobility measurements.
 
 ## Testing M8 landscape mode
-
-A committed generic M8 landscape/mechanism fixture can be run directly from the repository:
 
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim-landscape -- run \
@@ -129,13 +115,11 @@ cargo run --release -p anthrosim-cli --bin anthrosim-landscape -- run \
   --run-dir runs/m8-landscape-example
 ```
 
-This produces the ordinary run artifacts plus the preserved normalized landscape, spatial transformation configuration and landscape/spatial wrapper provenance. The source landscape and transformed authoritative `world.json` remain separate by design.
+The source landscape and transformed authoritative `world.json` remain separate by design. For the full M8.6 definition/result, see [`docs/research/m8-first-evidence-grounded-benchmark.md`](docs/research/m8-first-evidence-grounded-benchmark.md), [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md), and `examples/m8-first-evidence-grounded-benchmark/`.
 
-For the full M8.6 public benchmark definition and result, see [`docs/research/m8-first-evidence-grounded-benchmark.md`](docs/research/m8-first-evidence-grounded-benchmark.md), [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md), and `examples/m8-first-evidence-grounded-benchmark/`.
+## Deterministic ensembles and sweeps
 
-## Running deterministic ensembles
-
-Launch an explicit deterministic seed set unattended:
+Launch an explicit seed set:
 
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- ensemble \
@@ -145,28 +129,7 @@ cargo run --release -p anthrosim-cli --bin anthrosim -- ensemble \
   --run-dir runs/example-ensemble
 ```
 
-Or use a consecutive seed range:
-
-```text
-cargo run --release -p anthrosim-cli --bin anthrosim -- ensemble \
-  --years 25 \
-  --population 10000 \
-  --seed-start 100 \
-  --seed-count 20 \
-  --run-dir runs/example-range
-```
-
-A fresh ensemble writes `experiment-manifest.json` before child execution. That immutable, versioned manifest records the model identity and complete exact `ExperimentConfig` for every planned seed. `ensemble-plan.json` remains as the concise M7.1 planning view. Mutable per-run lifecycle records are written separately under `status/`.
-
-Each seed receives its own stable directory such as `runs/seed-00000000000000000100/`, containing the ordinary completed run artifacts plus `completion.json`. The positive completion marker is written only after the child bundle succeeds. A run status becomes `completed` only when that bundle reconciles with the exact immutable experiment definition.
-
-If execution is interrupted or one run fails, rerun the **same command and exact configuration** with `--retry`. Retry first requires exact equality with the stored immutable experiment manifest. It keeps provenance-valid completed runs without executing them again, reconciles interrupted/missing bundles as incomplete, and reruns only planned, failed or incomplete children. Partial child directories are removed before a retry attempt so old and new artifacts cannot be mixed. A completed bundle with conflicting provenance is treated as an integrity error instead of being silently overwritten.
-
-The batch continues to later seeds after an individual child fails, but the overall command still exits unsuccessfully while any child is unsuccessful. Downstream analysis should treat only `completed` status records with provenance-valid bundles as successful results.
-
-## Running deterministic parameter sweeps
-
-M7 adds an explicit Cartesian parameter-grid layer. For example, this compares two M3 productivity settings and two seasonal-amplitude settings over the same four seeds:
+Or a Cartesian parameter sweep:
 
 ```text
 cargo run --release -p anthrosim-cli --bin anthrosim -- sweep \
@@ -178,27 +141,9 @@ cargo run --release -p anthrosim-cli --bin anthrosim -- sweep \
   --run-dir runs/resource-sweep
 ```
 
-Supported sweep dimensions include founder population, target household size, M3 productivity scale, M3 seasonal-amplitude scale, annual food need, migration enabled/disabled, migration radius and the M8 spatial execution path. A control that is not explicitly swept uses its ordinary base command value.
-
-A fresh sweep writes immutable `sweep-manifest.json` before point execution. It records the exact base settings, declared dimension values, seed definition, model identity and every expanded parameter point. Each point then lives under `experiments/point-XXXXXX/` as a normal M7 experiment, with its own immutable `experiment-manifest.json`, status files, retries and completed bundles. Retrying a sweep requires the exact same definition plus `--retry`; a changed grid, seed set or base control is rejected before child execution.
-
-The sweep root also contains a deliberately separate `analysis/` directory:
-
-```text
-analysis/runs.json
-analysis/runs.csv
-analysis/points.json
-analysis/points.csv
-analysis/summary.json
-```
-
-These are **derived analysis artifacts**, not authoritative simulation state. Failed, incomplete, planned or otherwise non-completed runs remain explicit in the run table and point status counts; they are never silently folded into means.
-
-The CSV files are intentionally ordinary rectangular tables with no special Rust tooling required. Python `pandas.read_csv(...)`, base R `read.csv(...)`, or equivalent tools can consume them directly.
+Ensemble/sweep definitions and planned run identities are immutable; retry requires the same definition, provenance-valid completed runs are retained, and incomplete/failed children remain explicit. Derived `analysis/` CSV/JSON files are downstream artifacts rather than authoritative state. See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md).
 
 ## Reproducing the v0.1 reference experiment
-
-The canonical source definition is [`experiments/v0.1-resource-variability.json`](experiments/v0.1-resource-variability.json). Build normally from a clean Git checkout; the source revision is captured automatically:
 
 ```text
 cargo build --locked --workspace --release
@@ -208,19 +153,15 @@ python3 scripts/run-versioned-sweep.py \
   --run-dir runs/v0.1-resource-variability
 ```
 
-The launcher copies the exact definition, records its SHA-256, verifies the immutable sweep manifest against the requested seeds/settings/dimensions, and writes a reproduction record containing the model and source identity. It refuses a missing source identity or an automatically detected `-dirty` tracked tree. Controlled build systems can still provide `ANTHROSIM_GIT_COMMIT` explicitly. The full contract and Windows/PowerShell equivalent are in [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md), with the build-time source policy in [`docs/source-provenance.md`](docs/source-provenance.md).
-
-See [`docs/experiments-v0.1.md`](docs/experiments-v0.1.md) for the M7 provenance/retry/sweep contract, [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md) for the synthetic reference experiment, [`docs/research/spatial-mechanisms-v1.md`](docs/research/spatial-mechanisms-v1.md) for M8 transformation semantics, [`docs/research/spatial-observability-v1.md`](docs/research/spatial-observability-v1.md) for residence-based M8 observability, [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md) for the M9 residence/presence contract, [`docs/research/m9-temporary-travel-semantics-v1.md`](docs/research/m9-temporary-travel-semantics-v1.md) and [`docs/research/m9-duration-aware-resource-semantics-v1.md`](docs/research/m9-duration-aware-resource-semantics-v1.md) for travel/resource semantics, [`docs/research/temporary-mobility-observability-v1.md`](docs/research/temporary-mobility-observability-v1.md) for M9 physical-presence observability, and [`docs/roadmap.md`](docs/roadmap.md) for the question-led development direction after M9.
+The launcher records the exact definition digest, model identity and source identity and refuses uncontrolled dirty/missing source provenance. See [`docs/research/resource-variability-v0.1.md`](docs/research/resource-variability-v0.1.md).
 
 ## Scientific status
 
 AnthroSim is a **research-oriented simulation framework, not a validated anthropological or archaeological model**. Its synthetic demographic, resource, permanent-migration and temporary-mobility presets remain explicit model assumptions unless a particular experiment supplies and justifies stronger evidence grounding.
 
-Released v0.2.0 demonstrated that the deterministic experiment engine can bind provenance-tracked real-world-derived spatial evidence, transform it through declared assumptions and analyse residence-based spatial outcomes reproducibly. Released v0.3.0 preserved that spatial path and added a separate software/model capability: persistent residence and temporary physical presence can generate distinguishable aggregation histories while preserving deterministic replay, checkpoint/resume and explicit resource accounting. Released v0.3.1 preserves those capabilities while adding post-audit scientific safeguards around configuration completeness, stochastic precision, long-run claims, structural sensitivity and identifiability/equifinality. Released v0.3.2 changes no simulation semantics; it corrects documentation drift so the living project documentation consistently describes that already-implemented scientific state.
+Four independent/adversarial comprehensive audit generations have now been completed. Audit v4 is the latest: it challenged immutable v0.3.4/v25, demonstrated 13 P1 and 2 P2 findings, and all 15 were subsequently repaired and re-verified on the living v33 line. This strengthens implementation/convergence evidence, but repeated audits are evidence about verification maturity rather than proof of correctness.
 
-Neither result makes a run a reconstruction of a real past population. Strong archaeological or anthropological claims still require question-specific evidence, calibration/validation where appropriate, uncertainty and sensitivity analysis, comparison against independent observations, discriminating predictions and domain review.
-
-Released v0.3.3 preserves the scientific-audit-v2 repaired v21 state: all 15 AV2 findings were repaired/reverified and no P0–P3 finding remained open at release preparation. That is stronger convergence evidence than a single audit generation, but repeated audits are still evidence about process maturity rather than proof of correctness. The next framework-level step is a fresh independent/adversarial audit against immutable v0.3.3 and—only if convergence remains strong—question-led model interrogation and study-specific comparisons. See [`docs/roadmap.md`](docs/roadmap.md).
+Strong archaeological or anthropological claims still require question-specific problem formulation, evidence-role separation, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, comparison against independent observations, discriminating predictions and relevant domain review. See [`docs/research/trace.md`](docs/research/trace.md), [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md), and [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Contributing and security
 
