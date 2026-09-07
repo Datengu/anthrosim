@@ -2,7 +2,7 @@
 
 AnthroSim's research documentation is organized around explicit model description, human-decision assumptions, model evaluation, evidence provenance and reproducible experiment records.
 
-**Living framework state:** software version `v0.3.5` / current model semantics v33. Immutable `v0.3.4` remains the Audit-v4 discovery target at model semantics v25; current documentation must not rewrite that historical identity.
+**Living framework state:** software version `v0.3.5` / current model semantics v33. Immutable `v0.3.5` is the Scientific Audit-v5 discovery target at model semantics v33; immutable `v0.3.4` remains the historical Audit-v4 target at model semantics v25. Current documentation must not rewrite either historical audit identity.
 
 ## Start here
 
@@ -14,8 +14,10 @@ AnthroSim's research documentation is organized around explicit model descriptio
 - [`../research-principles.md`](../research-principles.md) — general research-software/scientific principles.
 - [`scientific-audit-protocol.md`](scientific-audit-protocol.md) — reusable adversarial scientific-audit protocol and convergence criteria.
 - [`audit-reverification-version-drift.md`](audit-reverification-version-drift.md) — rule for preserving frozen adversaries while permitting narrowly adapted current-state re-verification when a historical harness assumption becomes intrinsically obsolete.
+- [`audit-v5/README.md`](audit-v5/README.md) — active fifth independent scientific-audit charter for immutable `v0.3.5` / model semantics v33.
+- [`audit-v5/STATUS.md`](audit-v5/STATUS.md) — repository-authoritative Audit-v5 discovery/remediation ledger; begin here when reconstructing or continuing the active audit.
 - [`audit-v4/README.md`](audit-v4/README.md) — completed/historical fourth independent scientific-audit charter for immutable `v0.3.4` / model semantics v25; do not use it to restart Audit v4.
-- [`audit-v4/STATUS.md`](audit-v4/STATUS.md) — repository-authoritative Audit-v4 discovery/remediation ledger: 15 findings demonstrated on the frozen target, 15/15 repaired/re-verified and closed on the living line.
+- [`audit-v4/STATUS.md`](audit-v4/STATUS.md) — final Audit-v4 discovery/remediation ledger: 15 findings demonstrated on the frozen target, 15/15 repaired/re-verified and closed on the living line.
 - [`post-v0.3.4-documentation-consistency-audit.md`](post-v0.3.4-documentation-consistency-audit.md) — first living-document audit against the repaired v33 state after Audit-v4 closure.
 - [`post-v0.3.4-documentation-consistency-audit-2026-09-07-pass-2.md`](post-v0.3.4-documentation-consistency-audit-2026-09-07-pass-2.md) — second repository-wide documentation pass covering standing guidance, citation metadata, completed CI/audit/milestone status and archival boundaries missed by the first pass.
 - [`v0.3.4-documentation-readiness-audit.md`](v0.3.4-documentation-readiness-audit.md) — historical pre-release documentation/version-identity convergence record for the v25 release line.
@@ -23,11 +25,12 @@ AnthroSim's research documentation is organized around explicit model descriptio
 
 ## Earlier audit generations
 
-- [`audit-v3/README.md`](audit-v3/README.md) and [`audit-v3/STATUS.md`](audit-v3/STATUS.md) preserve the completed third independent audit against immutable `v0.3.3` / v21. The charter is historical and must not be used to restart v3. Its 17 findings were later repaired to produce the v25 line frozen as v0.3.4.
+- [`audit-v4/README.md`](audit-v4/README.md) and [`audit-v4/STATUS.md`](audit-v4/STATUS.md) preserve the completed fourth independent audit against immutable `v0.3.4` / v25. Its 15 findings were later repaired and independently re-verified/dispositioned to produce the v33 line frozen as v0.3.5.
+- [`audit-v3/README.md`](audit-v3/README.md) and [`audit-v3/STATUS.md`](audit-v3/STATUS.md) preserve the completed third independent audit against immutable `v0.3.3` / v21. Its 17 findings were later repaired to produce the v25 line frozen as v0.3.4.
 - [`audit-v2/STATUS.md`](audit-v2/STATUS.md) preserves the second independent audit against its own frozen baseline.
 - dated `trace-audit-*` documents and other audit-area records remain historical evidence and must not be mechanically rewritten to current v33 language.
 
-The historical audit records describe the exact baseline they challenged. Current issue closure and the living Audit-v4 completion state are represented by [`audit-v4/STATUS.md`](audit-v4/STATUS.md), not by rewriting earlier discovery records.
+Historical audit records describe the exact baseline they challenged. The active Audit-v5 state is represented by [`audit-v5/STATUS.md`](audit-v5/STATUS.md); earlier ledgers remain immutable historical evidence rather than being rewritten to mimic the current repository.
 
 ## Core scientific contracts
 
@@ -48,7 +51,15 @@ The historical audit records describe the exact baseline they challenged. Curren
 
 Dated TRACE repair records preserve the rationale/evidence for individual historical repairs. Their version language is intentionally scoped to the repair they document.
 
-## Current Audit-v4 outcome
+## Current Audit-v5 state
+
+Scientific Audit v5 starts all Areas A–N from zero against immutable `v0.3.5` / `anthrosim-model-semantics-v33`. Prior Audit-v4 findings, repairs, evidence PRs, release gates and permanent regressions are attack ideas and controls only; they do not count as v5 coverage.
+
+The intended outcome is a fresh P1-clean convergence pass. Discovery remains separate from remediation: demonstrated defects are preserved as sequential `AV5-*` findings, full A–N discovery completes before ordinary production repair begins, and later P0/P1 repairs require independent post-merge re-verification under the scientific-audit protocol.
+
+Audit v5 remains framework-verification evidence rather than empirical archaeological validation. The authoritative current state and next work item are always recorded in [`audit-v5/STATUS.md`](audit-v5/STATUS.md).
+
+## Previous Audit-v4 outcome
 
 Scientific Audit v4 restarted Areas A–N from zero against immutable `v0.3.4` / `anthrosim-model-semantics-v25`. It demonstrated **13 P1 and 2 P2 findings**. Post-discovery remediation repaired all 15 and independently re-verified/dispositioned them before closure. Authoritative repairs advanced the living line through model semantics v26–v33 where scientific continuation compatibility changed.
 
