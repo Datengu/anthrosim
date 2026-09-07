@@ -19,13 +19,13 @@ Purpose: durable repository-authoritative state for the fifth independent/advers
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage state | **0/14 Areas complete — discovery initialized** |
+| Coverage state | **0/14 Areas complete — Area A in progress** |
 | Current P0 findings | none discovered |
-| Current P1 findings | none discovered |
+| Current P1 findings | **1 — AV5-001 / #606** |
 | Current P2 findings | none discovered |
 | Current P3 findings | none discovered |
-| Current open Audit-v5 findings | none |
-| Convergence classification | **pending full A–N discovery** |
+| Current open Audit-v5 findings | **#606 / AV5-001** |
+| Convergence classification | **pending full A–N discovery; already non-clean if AV5-001 remains a demonstrated P1 finding** |
 | Repair state | **discovery only; do not repair v5 findings until A–N discovery completes** |
 | Empirical readiness implication | **none — Audit v5 does not establish empirical validity or archaeological research readiness for a specific case** |
 
@@ -60,30 +60,26 @@ The repository and this ledger remain authoritative if any of the live-state fac
 
 | ID | Audit area | Status | Fresh v5 evidence / findings |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **incomplete** | — |
+| A | Authoritative semantics and scheduler behaviour | **in progress** | PR #605 isolated-founder/global-coupling locality adversary demonstrated **AV5-001 / #606 (P1)**; broader scheduler/order/simultaneity coverage still required |
 | B | Demography, fertility, mortality, ageing, population structure | **incomplete** | — |
 | C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
-| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | — |
+| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | AV5-001 cross-cutting evidence only; Area E not yet independently audited |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
-| H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | — |
-| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | — |
+| H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | AV5-001 cross-cutting evidence only; Area H not yet independently audited |
+| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | AV5-001 cross-cutting evidence only; Area I not yet independently audited |
 | J | Identifiability, equifinality, calibration, and discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | — |
-| N | Cross-system integration | **incomplete** | — |
+| N | Cross-system integration | **incomplete** | AV5-001 is an early cross-system composition finding; Area N remains incomplete until the explicit integration pass |
 
 ## Finding register
 
-No Audit-v5 findings yet.
-
-When findings are demonstrated, append rows in this form:
-
 | Finding | Severity | Area | Issue | Discovery status | Remediation / re-verification status |
 |---|---|---|---|---|---|
-| `AV5-001 — <concise failure statement>` | P0/P1/P2/P3 | A–N | #… | demonstrated on frozen v0.3.5/v33 target | unrepaired during discovery |
+| `AV5-001 — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination` | P1 | A; E/H/I/N cross-cutting | #606 | **demonstrated on frozen v0.3.5/v33 target** — evidence PR #605, exact head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; focal key `1 -> 2`, destination divergence `503/1024` tie seeds | **unrepaired during discovery** |
 
 ## Session log
 
@@ -98,6 +94,19 @@ When findings are demonstrated, append rows in this form:
 - Recommended first substantive area: **Area A — authoritative semantics and scheduler behaviour**.
 - Initial Area-A attack direction: challenge scheduler/order invariance and, independently of v4 replay, attack whether the v26–v33 shared stochastic-coupling/equivalence machinery composes without introducing new arbitrary ordering, tie, or simultaneous-event dependencies across demographic, resource, M4 and M9 mechanisms.
 
+### 2026-09-07 — Area A pass 1: global coupling locality × M9 equal-cost ties
+
+- Reconstructed live state before evidence work: protected `main` `34abc607d3f9dcbc9c9972f790b623fe53251f02`; immutable discovery target remained `v0.3.5` / `e7667af52d48a1ffbae2bf7713a2388e65994b42` / v33; no open issue/PR overlap existed before the evidence branch.
+- Source inspection identified a fresh composition hypothesis: v33 initial stochastic coupling identities are globally unique ordinal ranks over the complete represented founder population, while M9 v31+ hashes the numeric minimum living-person rank as the equal-cost household destination key.
+- Evidence-only PR #605 exact head `b57ac276e07f89fb3179ad585a586b5be60e150c` added a dedicated Rust adversary and pinned Rust 1.97.1 workflow; no production model code changed.
+- Controlled arms kept the focal founder exactly unchanged at `PersonId(1)` / `HouseholdId(1)` / `CellId(13)` and appended only one older founder in a separate household at an M9-unreachable isolated `CellId(1)`.
+- The added founder changed the focal persisted stochastic-coupling rank from `1` to `2` despite being unreachable from the tested M9 component.
+- The focal origin had exactly two equal-cost destinations, `CellId(8)` and `CellId(18)`. Over tie seeds `0..=1023`, authoritative `resolution_for_coupling_key` changed the focal destination in **503/1024** cases.
+- Dedicated workflow run `34167265827`, job `101880669781`: checkout/toolchain/build succeeded; the test failed only at the intended locality assertion after compiling `anthrosim-core v0.3.5` successfully.
+- Duplicate search found no existing issue for M9 global coupling-rank/population-composition locality. Historical AV4-007/#500 is related but distinct: it demonstrated direct `HouseholdId` dependence and was independently reverified as repaired after v31; AV5-001 demonstrates a new nonlocal dependency introduced by the replacement globally ordinal key. Historical #324 concerns household-fission PersonId/cohort sorting and is also distinct.
+- Finding preserved as **AV5-001 / #606, P1** before any production repair.
+- Area A remains **in progress**: this pass establishes one demonstrated defect but does not complete scheduler, simultaneous-process, shared-coupling, tie, or update-order coverage.
+
 ## Next action
 
-Begin **Area A** from zero against immutable `v0.3.5` / v33. Before creating any evidence branch or finding issue, reconstruct current `main`, open issues/PRs, relevant branches and exact baseline identity; search historical Audit-v4 issues/PRs for overlap; then design at least one fresh falsification-oriented Area-A adversary that is not merely a replay of a v4 regression.
+Continue **Area A** against immutable `v0.3.5` / v33 with another genuinely fresh adversarial construction. Prioritize scheduler/simultaneous-process and shared-coupling composition questions not already answered by PR #605 or Audit-v4 regressions. Do **not** repair #606 during discovery. Close evidence PR #605 unmerged after this ledger update is merged, then preserve any additional demonstrated defects before continuing toward Area-A completion.
