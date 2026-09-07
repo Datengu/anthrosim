@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** repaired post-v0.3.4 line / current model semantics v33 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)  
+**AnthroSim baseline:** v0.3.5 release line / current model semantics v33 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 

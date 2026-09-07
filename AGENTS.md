@@ -16,7 +16,7 @@ Before making substantive changes, read:
 - Version bumps are explicit release decisions. Follow `docs/release-versioning.md`.
 - M8 is completed and its audited baseline is released and preserved as `v0.2.0`.
 - M9 is completed, audited and released as the preserved temporary-mobility / controlled-aggregation baseline `v0.3.0`.
-- The later `v0.3.1`–`v0.3.4` releases are post-M9 scientific-hardening, documentation-convergence and audit-convergence releases. Current protected `main` may carry the latest named package version while authoritative model semantics continue on a newer post-release development identity; derive the current identity from executable provenance and the living documentation rather than assuming the latest release tag has moved.
+- The later `v0.3.1`–`v0.3.5` releases are post-M9 scientific-hardening, documentation-convergence and audit-convergence releases. `v0.3.5` names the fully repaired Audit-v4 line at model semantics v33. Current protected `main` may later advance scientifically beyond the latest named package version; derive current semantics from executable provenance and living documentation rather than assuming a release tag has moved.
 - From M9 onward, a completed major roadmap milestone should normally culminate in the next minor software release, but milestone identity and release identity remain independent.
 - There is no standing feature list that agents should invent as “M10”. New substantive capability work should follow the question-led strategy in `docs/roadmap.md` and the current repository state.
 - During ordinary milestone implementation, leave the package version unchanged unless the task explicitly concerns release preparation.

@@ -2,7 +2,7 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**This source tree is the repaired post-v0.3.4 line at current model semantics v33.** The workspace package version remains `0.3.4` during development, but that does not rewrite the immutable `v0.3.4` release identity: the release tag remains `anthrosim-model-semantics-v25`, and immutable `v0.3.3` remains model semantics v21.
+**This source tree carries AnthroSim software version `0.3.5` at current model semantics v33.** The v0.3.5 release line names and preserves the fully repaired and independently re-verified Audit-v4 state. The immutable `v0.3.4` release remains model semantics v25 and the frozen Audit-v4 discovery target; immutable `v0.3.3` remains model semantics v21.
 
 **Scientific Audit v4 is complete.** It independently audited immutable `v0.3.4`/v25 across Areas A–N, demonstrated 15 findings (13 P1 and 2 P2), and all 15 were repaired and independently re-verified/dispositioned on the living line. The final repaired Audit-v4 line is `anthrosim-model-semantics-v33`; there are no open Audit-v4 findings. See [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md).
 
@@ -16,7 +16,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-The current post-v0.3.4 repaired line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
+The current v0.3.5/model-semantics-v33 line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -62,6 +62,7 @@ Culture, language, trade, states, religion, warfare, and AI-controlled agents re
 - **v0.3.2:** released documentation-convergence maintenance baseline at immutable model semantics v19.
 - **v0.3.3:** immutable post-Audit-v2 baseline at model semantics v21 and frozen Audit-v3 target.
 - **v0.3.4:** immutable post-Audit-v3 convergence baseline at model semantics v25 and frozen Audit-v4 target.
+- **v0.3.5:** current post-Audit-v4 repaired convergence baseline at model semantics v33; it packages the fully remediated/re-verified v4 line and subsequent documentation-consistency reconciliation without adding a new roadmap milestone.
 - **Scientific Audit v4:** discovery and remediation complete; 15/15 findings repaired and re-verified, with living semantics advanced through v26–v33 where authoritative scientific meaning changed.
 
 No fixed M10 feature list is declared. The next scientific work should remain question-led and must separately establish evidence, calibration/validation, uncertainty, sensitivity, applicability and corroboration appropriate to the intended inference.
