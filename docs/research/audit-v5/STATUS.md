@@ -19,7 +19,7 @@ Purpose: durable repository-authoritative state for the fifth independent/advers
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage state | **1/14 Areas complete — Area B next** |
+| Coverage state | **1/14 Areas complete — Area B in progress** |
 | Current P0 findings | none discovered |
 | Current P1 findings | **1 — AV5-001 / #606** |
 | Current P2 findings | none discovered |
@@ -61,14 +61,14 @@ The repository and this ledger remain authoritative if any of the live-state fac
 | ID | Audit area | Status | Fresh v5 evidence / findings |
 |---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | PR #605 demonstrated **AV5-001 / #606 (P1)**: isolated-founder/global-coupling locality failure in M9 equal-cost ties. PR #608 quantitatively falsified a material annual-background-mortality risk shift across 1/4/12/365 M3 cadences. PR #610 quantitatively confirmed that an M9 return completed exactly on an M4 boundary becomes immediately M4-visible. Frozen-source review also confirmed explicit M3 → M9 → M4 → annual-M2 fixed-day ordering and symmetric competing-risk attribution. |
-| B | Demography, fertility, mortality, ageing, population structure | **incomplete — next** | — |
+| B | Demography, fertility, mortality, ageing, population structure | **in progress** | PR #612 quantified focal fertility stream displacement under an added separate-cell reproductive pair (`523/1024` same-seed focal outcomes changed), but **no finding**: the documented Monte Carlo contract explicitly does not promise per-agent common-random-number coupling across structurally different arms. Fresh promised-invariant attacks still required. |
 | C | Households, kinship, social links, lifecycle structure | **incomplete** | — |
 | D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
 | E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | AV5-001 cross-cutting evidence only; Area E not yet independently audited |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
-| H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | AV5-001 cross-cutting evidence only; Area H not yet independently audited |
-| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | AV5-001 cross-cutting evidence only; Area I not yet independently audited |
+| H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | AV5-001 cross-cutting evidence only; PR #612 is a documented same-seed coupling limitation to revisit when Area H independently audits inference/coupling semantics. |
+| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | AV5-001 cross-cutting evidence only; PR #612 documents why per-agent same-seed invariance cannot be assumed for structural arms. |
 | J | Identifiability, equifinality, calibration, and discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
@@ -92,57 +92,45 @@ The repository and this ledger remain authoritative if any of the live-state fac
 - Audit-v5 coverage initialized at zero; no prior coverage inherited.
 - No open issue/PR overlap found at initialization.
 - Recommended first substantive area: **Area A — authoritative semantics and scheduler behaviour**.
-- Initial Area-A attack direction: challenge scheduler/order invariance and, independently of v4 replay, attack whether the v26–v33 shared stochastic-coupling/equivalence machinery composes without introducing new arbitrary ordering, tie, or simultaneous-event dependencies across demographic, resource, M4 and M9 mechanisms.
 
 ### 2026-09-07 — Area A pass 1: global coupling locality × M9 equal-cost ties
 
-- Reconstructed live state before evidence work: protected `main` `34abc607d3f9dcbc9c9972f790b623fe53251f02`; immutable discovery target remained `v0.3.5` / `e7667af52d48a1ffbae2bf7713a2388e65994b42` / v33; no open issue/PR overlap existed before the evidence branch.
-- Source inspection identified a fresh composition hypothesis: v33 initial stochastic coupling identities are globally unique ordinal ranks over the complete represented founder population, while M9 v31+ hashes the numeric minimum living-person rank as the equal-cost household destination key.
-- Evidence-only PR #605 exact head `b57ac276e07f89fb3179ad585a586b5be60e150c` added a dedicated Rust adversary and pinned Rust 1.97.1 workflow; no production model code changed.
-- Controlled arms kept the focal founder exactly unchanged at `PersonId(1)` / `HouseholdId(1)` / `CellId(13)` and appended only one older founder in a separate household at an M9-unreachable isolated `CellId(1)`.
-- The added founder changed the focal persisted stochastic-coupling rank from `1` to `2` despite being unreachable from the tested M9 component.
-- The focal origin had exactly two equal-cost destinations, `CellId(8)` and `CellId(18)`. Over tie seeds `0..=1023`, authoritative `resolution_for_coupling_key` changed the focal destination in **503/1024** cases.
-- Dedicated workflow run `34167265827`, job `101880669781`: checkout/toolchain/build succeeded; the test failed only at the intended locality assertion after compiling `anthrosim-core v0.3.5` successfully.
-- Duplicate search found no existing issue for M9 global coupling-rank/population-composition locality. Historical AV4-007/#500 is related but distinct: it demonstrated direct `HouseholdId` dependence and was independently reverified as repaired after v31; AV5-001 demonstrates a new nonlocal dependency introduced by the replacement globally ordinal key. Historical #324 concerns household-fission PersonId/cohort sorting and is also distinct.
+- Evidence-only PR #605 exact head `b57ac276e07f89fb3179ad585a586b5be60e150c` demonstrated that an M9-unreachable isolated founder changed the unchanged focal persisted stochastic-coupling rank from `1` to `2` and changed the focal equal-cost destination in **503/1024** tie seeds.
+- Dedicated workflow run `34167265827`, job `101880669781` reached the intended scientific assertion after successful build.
+- Duplicate search distinguished this from historical AV4-007/#500 and #324.
 - Finding preserved as **AV5-001 / #606, P1** before any production repair.
 
 ### 2026-09-07 — Area A pass 2: annual background mortality × M3 cadence
 
-- Evidence-only PR #608 exact head `6858b5ee721253c6097faf24b79c0447c12d48c1` attacked update-frequency dependence in the full executed scheduler rather than relying only on the interval-risk helper proof.
-- Controlled experiment: 8,192 one-year seeds per arm; one founder; one-cell world; annual background mortality fixed at `500,000/1,000,000` in every age band; fertility, migration, resource need and condition/scarcity mortality disabled; only M3 `periodsPerYear` varied across `1`, `4`, `12`, `365`.
-- Predeclared scientific guards: each empirical annual mortality estimate must remain within 47%–53%, and maximum-minus-minimum cadence mortality must remain at or below 4 percentage points. At `n=8192`, true `p=0.5` has standard error about 0.00552, so these thresholds are deliberately conservative against ordinary Monte Carlo noise.
-- Dedicated workflow run `34167878417`, job `101882427621`, pinned Rust 1.97.1: **success**. Exact results:
-  - 1 period/year: `4163/8192` deaths = `508178` per million = **50.818%**;
-  - 4 periods/year: `4082/8192` = `498291` per million = **49.829%**;
-  - 12 periods/year: `4141/8192` = `505493` per million = **50.549%**;
-  - 365 periods/year: `4197/8192` = `512329` per million = **51.233%**.
-- Observed max-minus-min spread: `4197 - 4082 = 115` deaths, `115/8192 = 1.404` percentage points, well inside the predeclared 4-point bound; all individual arms were inside 47%–53%.
-- **Disposition: no finding.** This falsifies a material one-year annual-risk shift from M3 partition cadence for the tested constant annual mortality configuration. It does not establish invariance of within-year death timing, age-band-crossing cases, or interactions with coincident mechanisms.
-- Source/document review also confirmed that age-specific background mortality uses the declared model-year-start age band and that mortality is intentionally resolved at M3 boundaries before coincident M4 opportunities; those declared semantics are not treated as defects merely because changing M3 cadence can change within-year timing.
+- Evidence-only PR #608 exact head `6858b5ee721253c6097faf24b79c0447c12d48c1` ran 8,192 one-year seeds per arm at 1/4/12/365 M3 periods/year with annual background mortality `500,000/1,000,000` and other causal mechanisms neutralized.
+- Dedicated run `34167878417`, job `101882427621`: deaths were `4163`, `4082`, `4141`, `4197`; empirical annual risks **50.818%**, **49.829%**, **50.549%**, **51.233%**; max spread **1.404 percentage points**.
+- **Disposition: no finding** for material one-year annual-risk shift under the tested constant-hazard configuration.
 
 ### 2026-09-07 — Area A pass 3: M9 return completion × coincident M4 boundary
 
-- Evidence-only PR #610 attacked the uncovered complement of the permanent same-day departure regression: whether a household whose temporary journey **completes exactly on an M4 boundary** becomes M4-eligible immediately or one decision boundary late.
-- The scientific construction fixed seed `50_003`, one year, 20 founders in four five-person households, zero fertility and background mortality, zero resource need and condition/scarcity mortality, synthetic M4 with four annual decision boundaries, and a day-0 M9 departure with zero outbound/return travel and `182` visiting days. Therefore every journey completes exactly on the second M4 boundary, day 182.
-- Initial dedicated run `34168320489`, job `101883665488`, was **not scientific evidence**: it failed to compile because the first external integration-test harness tried to use crate-private/internal conveniences (`Simulation::new_with_temporary_mobility` and root-level ID imports). No scientific assertion executed. The harness was corrected without changing the predeclared scientific oracle by moving the test into the existing internal M9 integration-test scope.
-- Corrected evidence head: `03176cf04f2f79e3cf944279e3b09dc5d0ae8aec`.
-- Corrected dedicated workflow run `34170168801`, job `101888814237`, pinned Rust 1.97.1: **success**. Exact output:
-  - represented households: `4`;
-  - baseline M4 evaluations: `16` (`4 × 4` boundaries);
-  - active-M9 M4 evaluations: `12` (`4 × 3` eligible boundaries);
-  - day-182 journey completions: `4`;
-  - last day-182 completion event sequence: `16`;
-  - first day-182 permanent-migration event: none for this seed.
-- The `12` active-M9 evaluations establish the intended same-day visibility: day 91 excludes all visiting households, while after all four returns complete at day 182 the same households are evaluated by M4 on days 182, 273 and 365. Full recorded-run invariants passed.
-- **Disposition: no finding.** The tested return-completion boundary is coherent with the declared M3 → M9 → M4 scheduler semantics.
+- Evidence-only PR #610 tested a day-182 return completion exactly coincident with the second M4 boundary.
+- Initial run `34168320489` / job `101883665488` was a harness-only compile failure and never reached the scientific oracle.
+- Corrected evidence head `03176cf04f2f79e3cf944279e3b09dc5d0ae8aec`, run `34170168801`, job `101888814237`: **success**. Four households produced baseline M4 evaluations `16`, active-M9 evaluations `12`, and four day-182 journey completions.
+- **Disposition: no finding**; completed returns are immediately visible to coincident M4 as documented.
 
 ### 2026-09-07 — Area A completion assessment
 
-- Frozen executable scheduler inspection confirmed that temporary transitions strictly before a fixed boundary are drained first; on the fixed day itself the executed order is elapsed M3 resource/background/condition mortality settlement, then M9 temporary transitions, then M4 permanent migration, followed by annual M2 demography after the subannual loop. Living scientific documentation states the same causal order.
-- Frozen competing-mortality implementation uses separate latent condition/background triggers and a symmetric dual-trigger attribution rule. Permanent controls include exact exchange-of-causes/streams attribution symmetry across 10,000 draws and a 100,000-trial frequency check against the independent-union/risk-weighted attribution contract.
-- Fresh v5 evidence covered three distinct Area-A attack classes: arbitrary shared coupling/tie identity (#605), operational update-frequency dependence (#608), and a same-day state-boundary composition (#610). Neighbouring M3/M4/M9/M2 interactions and documentation/executable agreement were explicitly inspected.
-- **Area A is complete under the audit protocol, but it is not a clean Area:** AV5-001 / #606 is a demonstrated open P1 finding and remains intentionally unrepaired during discovery. The other two fresh adversaries produced quantitative no-finding results. No unresolved Area-A uncertainty currently requires keeping the Area open; cross-cutting consequences of AV5-001 remain assigned to later Areas E/H/I/N for their independent passes.
+- Frozen executable scheduler and living documentation agree on fixed-day order: elapsed M3 settlement, M9 temporary transitions, M4 permanent migration, then annual M2 after the subannual loop.
+- Frozen competing-mortality implementation has separate latent triggers, symmetric dual-trigger attribution, exact cause-swap controls and large-sample union-risk checks.
+- Fresh v5 evidence covered arbitrary shared coupling/tie identity, update-frequency dependence and same-day state-boundary composition.
+- **Area A complete, non-clean:** AV5-001 / #606 remains an open unrepaired P1; PR #608 and #610 were quantitative no-finding results.
+
+### 2026-09-07 — Area B pass 1: remote fertility candidate × focal same-seed realization
+
+- Reconstructed state after Area-A closure: protected `main` `180ec0626de705a84a35d0b436ef1a9e42a48e7f`; no open PRs before the evidence branch; immutable target remained `v0.3.5` / `e7667af...` / v33. Changes on living `main` since the tag were Audit-v5 documentation only, so executable production semantics remained the frozen v33 target.
+- Source inspection confirmed that M2 freezes eligible females, orders them by persisted stochastic-coupling rank, and consumes one shared sequential `demography/fertility` stream. Parentage occupancy remains residence/cell-local.
+- Evidence-only PR #612 exact head `2018921f188f312567b984b8ad4403e8e00196cd` kept focal `PersonId(1)` female and `PersonId(2)` male unchanged at household 1 / cell 2 / age 30 / condition 1000. The augmented arm appended only an older 40-year-old female+male pair in household 2 / cell 1. Migration, resource demand and all mortality were disabled; annual fertility was fixed at 0.5.
+- Dedicated workflow run `34170606978`, job `101890040711`, pinned Rust 1.97.1 compiled `anthrosim-core v0.3.5` successfully and reached the intended assertion. Exact result: **523/1024** identical-seed focal female birth outcomes differed after the remote pair was added. First divergences included seeds `1,5,6,7,10,12,15,16,17,20,21,24`.
+- The observed effect is consistent with the added eligible female consuming an earlier draw from the shared sequential fertility stream and shifting the focal female to a later stream position.
+- **Disposition: no defect / documented coupling limitation, not AV5-002.** AnthroSim's current Monte Carlo contract explicitly states that `paired_mean_difference` is replicate-level seed pairing when justified and **does not claim per-agent common-random-number counterfactual coupling or alter simulator RNG semantics**. Therefore the test's stronger focal-agent locality assertion is not an existing model contract. The result is scientifically useful because it quantifies that limitation and prevents same-seed structural comparisons from being misread as focal-agent counterfactual identity.
+- This is also not a replay or regression of AV4-001/#486. That historical P1 concerned pure relabelling of a scientifically identical founder state; v33 preserves the corresponding label-invariance regression. PR #612 changes the represented scientific population by adding an eligible remote reproductive pair and therefore tests a different, explicitly unpromised coupling property.
+- Area B remains **in progress**. The next adversary must test a promised demographic invariant rather than strengthening the stochastic coupling contract implicitly.
 
 ## Next action
 
-Begin **Area B — demography, fertility, mortality, ageing, and population structure** from zero coverage against immutable `v0.3.5` / v33. Use a genuinely fresh adversarial construction rather than treating v2/v3/v4 demographic regressions as completion evidence. Prioritize limiting cases and population-structure interactions around fertility eligibility/timing, parent availability, mortality/age boundaries, newborn initialization, extinction/censoring, and finite-population behaviour. Do **not** repair #606 during discovery.
+Continue **Area B** against immutable `v0.3.5` / v33 with a fresh promised-invariant attack. Priority: construct a one-cell/local-pair case where an eligible male is subject to certain background mortality exactly at the day-365 M3/M2 boundary and verify that the death occurs before fertility/parentage, preventing that dead male from authorizing a same-day birth; include a matched surviving-male control. Continue with ageing/newborn/finite-population limiting cases as needed before Area-B closure. Do **not** repair #606 during discovery.
