@@ -4,25 +4,42 @@ AnthroSim uses several independent identities. They answer different questions a
 
 ## Identity layers
 
-- **Roadmap milestone (`M#`)** answers: what research/development capability stage has been reached?
-- **Software version (`vMAJOR.MINOR.PATCH`)** answers: which named release of AnthroSim is this?
-- **Model semantics identity** answers: is the authoritative scientific/model meaning compatible with another run or checkpoint?
-- **Git source revision** answers: exactly which source revision built the executable that produced a run?
+- **Roadmap milestone (`M#`)** — what research/development capability stage has been reached?
+- **Software version (`vMAJOR.MINOR.PATCH`)** — which named release/package version is this?
+- **Model semantics identity** — is authoritative scientific/model meaning compatible with another run or checkpoint?
+- **Git source revision** — exactly which source revision built the executable that produced an artifact or execution segment?
 
-Run provenance already records the software/model version, model-semantics identity and exact Git source identity. The Git identity is therefore the authoritative way to distinguish individual code changes; software versions are not commit counters.
+Run provenance records software/model version, model-semantics identity and exact Git source identity. Git is therefore the authoritative way to distinguish individual source changes; software versions are not commit counters.
 
 ## Versioning rules
 
-AnthroSim uses semantic-style versioning while it remains pre-1.0:
+AnthroSim uses semantic-style versioning while pre-1.0:
 
-- **Do not bump the package version for every commit or pull request.** Exact code identity is already captured by Git provenance.
-- **Patch releases** (`0.x.Y`) are for named compatible bug-fix or small maintenance releases after a minor release has been cut.
-- **Minor releases** (`0.X.0`) are for meaningful, deliberately named capability releases. From M9 onward, completion of a major roadmap milestone is normally expected to culminate in the next minor AnthroSim release after milestone acceptance, audit/hardening and release verification.
-- **Major release `1.0.0`** is reserved for a separately defined stable/research-ready compatibility baseline. Reaching a particular milestone number does not automatically imply `1.0.0`.
+- **Do not bump package version for every commit or PR.**
+- **Patch releases** (`0.x.Y`) are named compatible bug-fix/maintenance releases.
+- **Minor releases** (`0.X.0`) are meaningful named capability releases; major roadmap milestones normally culminate in a later minor release after acceptance/audit/hardening, but milestone and release identity remain separate.
+- **Major `1.0.0`** is reserved for a separately defined stable/research-ready compatibility baseline; no milestone number implies it automatically.
 
-A milestone number and software version remain intentionally independent. A milestone describes capability; a release identifies a named, preserved software baseline. A valid description may therefore look like `AnthroSim v0.3.1 — M9`.
+A milestone describes capability. A release identifies a named preserved source baseline. Model semantics describes scientific continuation compatibility. Git identifies exact source. These identities may advance independently.
 
-The normal post-M8 lifecycle is:
+## Current release history and living development line
+
+The practical release history is:
+
+- **M8 → `v0.2.0`**: completed, audited and released as the preserved M8 baseline.
+- **M9 → `v0.3.0`**: completed, audited and released as the preserved temporary-mobility / controlled-aggregation baseline.
+- **`v0.3.1`**: post-M9 scientific-audit and research-readiness hardening patch.
+- **`v0.3.2`**: documentation-convergence maintenance patch over the v19 model semantics preserved by the immutable `v0.3.2` tag; it corrects living-document drift present when v0.3.1 was tagged.
+- **`v0.3.3`**: post-scientific-audit-v2 hardening/convergence patch preserving the repaired v21 model-semantics baseline before another fresh independent release-baseline audit.
+- **`v0.3.4`**: post-Scientific-Audit-v3 convergence patch preserving the fully remediated and independently reverified v25 model-semantics baseline.
+
+The immutable `v0.3.4` tag remains `anthrosim-model-semantics-v25`. Scientific Audit v4 subsequently audited that frozen target, and authoritative repairs advanced the living development line through v26–v33. **Current protected `main` still carries workspace package version `0.3.4`, but its authoritative `MODEL_SEMANTICS_ID` is `anthrosim-model-semantics-v33`.** This is a post-release development state, not a retroactive mutation of the v0.3.4 tag and not a new named release.
+
+The same distinction applies to older releases: `v0.3.2` remains v19 and `v0.3.3` remains v21 even though living main is newer.
+
+Later major milestones should normally target the next minor release in sequence unless the repository deliberately records another release plan.
+
+## Normal milestone/release lifecycle
 
 ```text
 implement milestone capability
@@ -35,115 +52,56 @@ audit / harden / reverify the completed capability
         ↓
 prepare the named release candidate
         ↓
-cut and preserve the next minor release
+cut and preserve the release
 ```
 
-This expected cadence does **not** make milestone completion and release publication the same event. It preserves the useful distinction demonstrated by M8: the capability can be complete before the audited release baseline representing it is cut.
-
-## Current milestone-to-release targets
-
-The practical release cadence is currently:
-
-- **M8 → `v0.2.0`**: completed, audited and released as the preserved M8 baseline.
-- **M9 → `v0.3.0`**: completed, audited and released as the preserved temporary-mobility / controlled-aggregation baseline.
-- **`v0.3.1`**: post-M9 scientific-audit and research-readiness hardening patch.
-- **`v0.3.2`**: documentation-convergence maintenance patch over the v19 model semantics preserved by the immutable `v0.3.2` tag; it corrects living-document drift present when v0.3.1 was tagged.
-- **`v0.3.3`**: post-scientific-audit-v2 hardening/convergence patch preserving the repaired v21 model-semantics baseline before another fresh independent release-baseline audit.
-- **`v0.3.4`**: post-Scientific-Audit-v3 convergence patch preserving the fully remediated and independently reverified v25 model-semantics baseline.
-- **Later major milestones** should normally target the next minor release in sequence unless the repository deliberately records a reason to do otherwise.
-
-The living development line can and does advance its model-semantics identity after a named release. That does not rewrite preserved release tags: `v0.3.2` remains v19 and `v0.3.3` remains v21, while the v0.3.4 freeze preserves the later Audit-v3-remediated v25 scientific state.
-
-These are release targets, not identity equivalences. `M9` does not literally mean `v0.3.0`, and patch releases can exist within an already completed milestone.
-
-During ordinary M9 implementation work the package version remained on the v0.2 line. The change to `0.3.0` is made only by the explicit v0.3.0 release-preparation change after M9 acceptance and post-milestone audit/reverification.
+This does not make milestone completion and release publication the same event. Capability may be complete before the audited release baseline representing it is cut.
 
 ## Scientific changes are separate from release numbering
 
-A software version bump does not by itself say that scientific meaning changed. Changes that alter authoritative simulation meaning must also follow the model-semantics compatibility policy and update `MODEL_SEMANTICS_ID` when checkpoint continuation or interpretation would become scientifically incompatible.
+A software version bump does not by itself say scientific meaning changed. Changes that alter authoritative simulation meaning must follow the model-semantics compatibility policy and update `MODEL_SEMANTICS_ID` when checkpoint continuation or interpretation would become scientifically incompatible.
 
-Documentation, packaging, explorer-only or other source-neutral changes may warrant a software release without changing model semantics. Conversely, a scientifically meaningful change must never be hidden behind an unchanged semantics identity merely because the package version is unchanged.
+Documentation, packaging, explorer-only or other source-neutral changes may warrant a software release without changing model semantics. Conversely, a scientifically meaningful change must never be hidden behind an unchanged semantics identity merely because package version is unchanged.
 
-Each milestone release candidate must therefore independently review whether the milestone changed authoritative scientific/model meaning. The expected minor-version increase does not replace that review.
-
-The `v0.3.4` release-preparation change itself does not introduce new authoritative model behaviour; it names and preserves the already-reviewed v25 state produced by the Audit-v3 remediation line. Therefore the software version changes while `MODEL_SEMANTICS_ID` remains v25.
+The `v0.3.4` release-preparation change itself did not introduce new authoritative model behaviour; it named and preserved the already-reviewed v25 state produced by Audit-v3 remediation. Audit-v4 repairs after that release are why living package `0.3.4` can now coexist with model semantics v33.
 
 ## Milestone completion versus hardening
 
 A completed roadmap milestone is not automatically reopened because a later audit discovers defects.
 
-Use this distinction:
+- a defect in functionality already implemented for the milestone is **post-milestone hardening/remediation**;
+- functionality required by milestone acceptance criteria that was never implemented means milestone status should be corrected.
 
-- a defect in functionality that was implemented for the milestone is **post-milestone hardening/remediation**;
-- functionality required by the milestone acceptance criteria that was never actually implemented means the milestone was **not fully complete** and its status should be corrected.
-
-Audit findings that affect correctness, determinism, reproducibility, provenance, data integrity, or stated milestone acceptance criteria should be resolved before cutting the named release intended to represent that milestone as a stable baseline.
-
-## M8 / v0.2.0 baseline
-
-M8 is completed and its audited baseline was released as `v0.2.0` on 2026-08-24. The exact release commit is preserved by the `v0.2.0` tag.
-
-Compatible defects discovered in a preserved release baseline should normally be fixed in a patch release on the relevant release line when a named maintenance release is warranted. M9 development did not use opportunistic package-version bumps; its completed and audited minor release is `v0.3.0`.
+Audit findings affecting correctness, determinism, reproducibility, provenance, data integrity or stated acceptance criteria should be resolved before cutting a named release intended to represent the repaired state as a stable baseline.
 
 ## Preserving named release commits
 
 A named release is not complete until its exact Git commit is preserved by an immutable-intent SemVer tag such as `v0.3.0`.
 
-Use the `Preserve named release tag` workflow only after release preparation and exact-SHA verification are complete. Supply both the SemVer tag and the full 40-character commit SHA.
+Use the `Preserve named release tag` workflow only after release preparation and exact-SHA verification are complete. The workflow is fail-closed:
 
-### Existing tags
+- an existing tag that already resolves to the requested commit is accepted without mutation;
+- an existing tag that resolves elsewhere is not moved;
+- a new tag must match `vMAJOR.MINOR.PATCH`, target the exact current protected-main release candidate, agree with workspace/CITATION/release-note identity, and have the required exact-SHA protected/release-specific gates green before creation.
 
-Published release identity remains fail-closed and immutable:
+Named releases from `v0.3.0` onward additionally require the repository's release-specific benchmark/dependency-audit dispositions where configured. A release should be tagged before unrelated later work advances `main`; the tagging workflow must not assign a new release identity to an arbitrary older commit simply because the object exists.
 
-- if the requested tag already resolves to the requested commit, the workflow succeeds without changing it;
-- if the requested tag already resolves to another commit, the workflow refuses to move or rewrite it.
-
-This idempotent existing-tag path preserves historical releases without retroactively applying newer release-candidate rules to a tag that already exists.
-
-### Creating a new tag
-
-Creating a missing named release tag is deliberately stricter than merely proving that a Git object exists. Before mutation, the workflow verifies that the supplied candidate itself proves the requested release identity:
-
-1. the requested tag matches `vMAJOR.MINOR.PATCH` and the SHA is an exact lowercase 40-character commit identity;
-2. the candidate is the **current protected `main` HEAD**, not an arbitrary older repository commit;
-3. the root workspace package version equals the requested tag version;
-4. `CITATION.cff` declares the same version;
-5. `docs/releases/<tag>.md` exists and identifies the same release;
-6. every status context currently required by protected `main` is successful for that exact SHA;
-7. for named releases from `v0.3.0` onward, the exact SHA also has successful release-specific dispositions for:
-   - `Execute predeclared terrain null-model benchmark` (M8.6);
-   - `Execute predeclared M9.7 aggregation benchmark` (M9.7);
-   - `RustSec dependency audit`.
-
-The workflow prints the resolved tag, commit and gate disposition before creating the tag. Only after all checks pass does it create the lightweight `refs/tags/<version>` reference, and it immediately verifies that the new ref resolves to the exact requested SHA.
-
-The current-`main` rule is intentional. A release candidate should be tagged **before unrelated subsequent work advances `main`**. If `main` has already advanced, prepare and verify the intended new HEAD rather than permanently assigning a new release identity to an older arbitrary commit through the tagging workflow.
-
-The M8.6, M9.7 and RustSec checks are release-specific exact-SHA evidence, not substitutes for ordinary protected-main checks. When they are not produced automatically for a release-preparation change, run the corresponding workflows explicitly against the final release candidate before dispatching the tag workflow. The release workflow fails closed if those exact-SHA checks are absent, pending, skipped, cancelled or failing.
-
-The release-candidate verifier also refuses a truncated check-run response rather than assuming unobserved checks succeeded.
-
-The workflow retains a one-time push bootstrap for the already-audited `v0.2.0` release that predates repository-side release-candidate enforcement. Named release creation from `v0.3.0` onward uses the explicit manual workflow-dispatch path.
-
-Creating or preserving a release tag does not change `MODEL_SEMANTICS_ID`, package contents, or simulation semantics. It only preserves the exact source identity of the named software release.
+Creating/preserving a release tag does not itself change `MODEL_SEMANTICS_ID`, package contents or simulation semantics.
 
 ## Agent and contributor rule
 
-Agents and contributors must not opportunistically change the package version while implementing ordinary issues. A version bump should be an explicit release decision or part of a task that specifically calls for a named release.
-
-From M9 onward, agents should plan on a completed major milestone normally culminating in the next minor release, while still treating milestone completion, release publication, model-semantics identity and Git source identity as separate concerns. When uncertain during implementation, leave the package version unchanged and preserve exact provenance through the Git commit identity.
-
+Agents and contributors must not opportunistically change package version during ordinary issue implementation. A version bump should be an explicit release decision/task. When uncertain, leave the package version unchanged and preserve exact provenance through Git/source/model identities.
 
 ## Exceptional privacy-driven history rewrites
 
-Release tags are immutable-intent scientific/version identities and must not ordinarily move after publication. The sole exception is an explicitly authorized repository-wide privacy or sensitive-data sanitisation where retaining the original Git objects would preserve information that must be removed.
+Release tags are immutable-intent scientific/version identities and must not ordinarily move. The sole exception is an explicitly authorized repository-wide privacy/sensitive-data sanitisation where retaining original Git objects would preserve information that must be removed.
 
 When such an exceptional rewrite occurs:
 
-- the release version and `MODEL_SEMANTICS_ID` do not change merely because Git object identities change;
-- rewritten tags must continue to identify source trees with the same released scientific semantics, apart from non-semantic sanitisation;
-- living provenance documentation must be reconciled to the rewritten tag SHA and must state that a privacy-driven rewrite occurred rather than pretending the original Git SHA is still the live tag identity;
-- the rewrite does not constitute a new scientific validation or a new release; and
-- subsequent releases must use the ordinary exact-candidate protected-CI and release-specific verification gates.
+- release version and `MODEL_SEMANTICS_ID` do not change merely because Git object identities change;
+- rewritten tags must preserve released scientific semantics apart from non-semantic sanitisation;
+- living provenance documentation must reconcile to rewritten tag SHA and state that a privacy-driven rewrite occurred;
+- the rewrite is not a new scientific validation or release;
+- subsequent releases use ordinary exact-candidate protected/release verification.
 
 On 2026-09-02, AnthroSim underwent such an authorized privacy sanitisation. Historical release-tag commit identities were rewritten while release versions and model-semantics identities were preserved.
