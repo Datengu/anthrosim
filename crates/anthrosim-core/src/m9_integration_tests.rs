@@ -396,3 +396,86 @@ fn annual_same_day_order_is_resources_then_temporary_then_m4_then_m2() {
     assert!(last_temporary_sequence < first_birth_sequence);
     run.validate_invariants().unwrap();
 }
+
+#[test]
+fn audit_v5_area_a_return_m4_boundary_completed_return_is_immediately_visible() {
+    let seed = 50_003;
+    let config = m9_config(seed, 1, 20, stable_demography());
+    let household_count = Simulation::new(config.clone())
+        .unwrap()
+        .population()
+        .household_count() as u64;
+
+    let baseline = Simulation::new(config.clone())
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+    assert_eq!(baseline.manifest.migration.decision_boundaries, 4);
+    assert_eq!(
+        baseline.manifest.migration.households_evaluated,
+        household_count * 4
+    );
+
+    let program = temporary_program(
+        &config,
+        TemporaryTriggerTiming::DepartureDay,
+        vec![0],
+        182,
+        0,
+        true,
+    );
+    let active = Simulation::new_with_temporary_mobility(config, program)
+        .unwrap()
+        .run_recorded()
+        .unwrap();
+
+    assert_eq!(active.manifest.migration.decision_boundaries, 4);
+    assert_eq!(
+        active.manifest.migration.households_evaluated,
+        household_count * 3,
+        "a return completed at day 182 must be visible to the coincident M4 boundary"
+    );
+
+    let day_182_completions = active
+        .events()
+        .events
+        .iter()
+        .filter(|record| {
+            record.day == 182
+                && matches!(record.event, EventKind::TemporaryJourneyCompleted { .. })
+        })
+        .count() as u64;
+    assert_eq!(day_182_completions, household_count);
+
+    let last_completion_sequence = active
+        .events()
+        .events
+        .iter()
+        .filter(|record| {
+            record.day == 182
+                && matches!(record.event, EventKind::TemporaryJourneyCompleted { .. })
+        })
+        .map(|record| record.sequence)
+        .max()
+        .expect("day-182 completion events must be present");
+    let first_migration_sequence = active
+        .events()
+        .events
+        .iter()
+        .filter(|record| {
+            record.day == 182 && matches!(record.event, EventKind::HouseholdMigration { .. })
+        })
+        .map(|record| record.sequence)
+        .min();
+    if let Some(first_migration_sequence) = first_migration_sequence {
+        assert!(last_completion_sequence < first_migration_sequence);
+    }
+
+    println!(
+        "households={household_count} baseline_m4_evaluations={} active_m4_evaluations={} day_182_completions={day_182_completions} last_completion_sequence={last_completion_sequence} first_day_182_migration_sequence={first_migration_sequence:?}",
+        baseline.manifest.migration.households_evaluated,
+        active.manifest.migration.households_evaluated,
+    );
+
+    active.validate_invariants().unwrap();
+}
