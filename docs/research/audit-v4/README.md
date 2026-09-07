@@ -4,6 +4,8 @@ Scientific audit v4 is the fourth independent/adversarial comprehensive scientif
 
 Protocol: `docs/research/scientific-audit-protocol.md`
 
+Post-discovery re-verification under repository/version evolution: `docs/research/audit-reverification-version-drift.md`
+
 Authoritative ledger: `docs/research/audit-v4/STATUS.md`
 
 ## Fixed initial target
@@ -15,7 +17,7 @@ Audit v4 starts from the immutable release identity:
 - software version: `0.3.4`;
 - executable model semantics: `anthrosim-model-semantics-v25`.
 
-The tag is the fixed discovery target. Audit documentation and later repairs may move protected `main`, but findings attributed to the released baseline must be demonstrated against the tagged baseline or source shown to be causally equivalent.
+The tag is the fixed discovery target. Audit documentation and later repairs may move protected `main`, but findings attributed to the released baseline must be demonstrated against the tagged baseline or source shown to be causally equivalent. During remediation, living/current documentation must continue to describe the current repaired repository rather than being regressed to impersonate the frozen target solely for historical harness compatibility.
 
 ## Independence from prior audits
 
@@ -60,7 +62,7 @@ For every demonstrated defect:
 4. assign protocol severity from scientific consequence;
 5. record it in `STATUS.md` before repair;
 6. continue discovery against immutable v0.3.4;
-7. after discovery completes, repair findings on dedicated branches/PRs and independently reverify them.
+7. after discovery completes, repair findings on dedicated branches/PRs and independently reverify them under the reusable protocol plus the version-drift addendum when an unchanged frozen-target harness is no longer forward-compatible.
 
 ## Empirical boundary
 
@@ -68,4 +70,4 @@ Audit v4 assesses AnthroSim as a scientific simulation instrument under its decl
 
 ## Cross-session start instruction
 
-> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v4/README.md`, and `docs/research/audit-v4/STATUS.md`. Verify live `main`, immutable `v0.3.4`, open issues/PRs and overlapping work. Continue the next incomplete Audit-v4 Area from first principles using fresh adversarial/quantitative evidence, and preserve demonstrated defects before repair.
+> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v4/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v4/STATUS.md`. Verify live `main`, immutable `v0.3.4`, open issues/PRs and overlapping work. Continue the next incomplete Audit-v4 task according to the documented phase, preserving the frozen discovery target while re-verifying repairs against the living current state.
