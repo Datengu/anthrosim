@@ -1,5 +1,7 @@
 # AnthroSim scientific audit v4 — charter
 
+> **Status: complete / historical charter.** Scientific Audit v4 completed all A–N discovery and all 15 findings were repaired and independently re-verified/dispositioned. This file preserves the frozen target, methodology and operating rules used for that audit; do **not** restart or continue Audit v4 from this charter. `docs/research/audit-v4/STATUS.md` is the authoritative final state.
+
 Scientific audit v4 is the fourth independent/adversarial comprehensive scientific audit of AnthroSim and the next convergence audit after Audit v3 remediation. It audits the immutable `v0.3.4` release baseline from zero coverage. It is not a continuation of Audit v3 and is not empirical validation of any archaeological reconstruction.
 
 Protocol: `docs/research/scientific-audit-protocol.md`
@@ -68,6 +70,6 @@ For every demonstrated defect:
 
 Audit v4 assesses AnthroSim as a scientific simulation instrument under its declared assumptions. It does not establish empirical validity for a particular place, period, population, or archaeological reconstruction.
 
-## Cross-session start instruction
+## Cross-session use after closure
 
-> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v4/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v4/STATUS.md`. Verify live `main`, immutable `v0.3.4`, open issues/PRs and overlapping work. Continue the next incomplete Audit-v4 task according to the documented phase, preserving the frozen discovery target while re-verifying repairs against the living current state.
+> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v4/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v4/STATUS.md` when reconstructing Audit-v4 history. Treat this charter as historical. Do **not** restart or continue Audit v4 while its authoritative ledger records complete discovery and remediation; any later independent audit must receive its own explicit charter and frozen target.

@@ -36,6 +36,17 @@ V032_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.2.md"
 V033_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.3.md"
 V034_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.4.md"
 VERSIONING_DOC = ROOT / "docs" / "release-versioning.md"
+AGENT_GUIDANCE = ROOT / "AGENTS.md"
+VISION_DOC = ROOT / "docs" / "vision.md"
+CITATION_GUIDANCE = ROOT / "docs" / "research" / "citation.md"
+CITATION_CFF = ROOT / "CITATION.cff"
+CI_PATH_DOC = ROOT / "docs" / "ci-path-classification.md"
+REQUIRED_CHECKS_DOC = ROOT / "docs" / "required-status-checks.md"
+M9_IMPLEMENTATION_PLAN = ROOT / "docs" / "research" / "m9-implementation-sequence.md"
+M9_ACCEPTANCE_RECORD = ROOT / "docs" / "research" / "m9-6-acceptance.md"
+M9_INTEGRATION_RECORD = ROOT / "docs" / "research" / "m9-6-integration-audit.md"
+AUDIT_V3_CHARTER = ROOT / "docs" / "research" / "audit-v3" / "README.md"
+AUDIT_V4_CHARTER = ROOT / "docs" / "research" / "audit-v4" / "README.md"
 
 V032_SEMANTICS_ID = "anthrosim-model-semantics-v19"
 V032_SHORT = "v19"
@@ -187,6 +198,45 @@ def main() -> None:
         raise AssertionError("docs/release-versioning.md does not preserve v0.3.4/v25 identity")
     if current_id not in versioning_text:
         raise AssertionError("release-versioning policy does not state the current post-release development semantics")
+
+    forbidden_current_status = {
+        AGENT_GUIDANCE: ("M9 is the planned", "target named release is `v0.3.0`"),
+        VISION_DOC: ("Evidence-grounded environments are a natural next step", "planned M8 boundary"),
+        CI_PATH_DOC: ("is introducing conservative path-aware CI under issue #317", "Future #317 changes"),
+        REQUIRED_CHECKS_DOC: (
+            "After the aggregator is merged",
+            "Until that administrative reconciliation is complete, issue #175 is not governance-complete",
+        ),
+    }
+    for path, stale_phrases in forbidden_current_status.items():
+        surface = path.read_text(encoding="utf-8")
+        for stale in stale_phrases:
+            if stale in surface:
+                raise AssertionError(f"stale current-status text remains in {path.relative_to(ROOT)}: {stale}")
+
+    cff_text = CITATION_CFF.read_text(encoding="utf-8")
+    cff_version = re.search(r'^version:\s*["\']?([^"\'\s]+)', cff_text, flags=re.MULTILINE)
+    if cff_version is None:
+        raise AssertionError("CITATION.cff does not expose a version")
+    citation_text = CITATION_GUIDANCE.read_text(encoding="utf-8")
+    if f"version `{cff_version.group(1)}`" not in citation_text:
+        raise AssertionError("citation guidance does not match the current CITATION.cff release version")
+    if "For v0.1, the citation metadata identifies AnthroSim version `0.1.0`" in citation_text:
+        raise AssertionError("citation guidance still presents v0.1 metadata as current")
+
+    historical_markers = {
+        M9_IMPLEMENTATION_PLAN: "historical implementation plan",
+        M9_ACCEPTANCE_RECORD: "**Historical record.**",
+        M9_INTEGRATION_RECORD: "**Historical record.**",
+    }
+    for path, marker in historical_markers.items():
+        if marker not in path.read_text(encoding="utf-8"):
+            raise AssertionError(f"{path.relative_to(ROOT)} lacks an explicit historical-status marker")
+
+    for path in (AUDIT_V3_CHARTER, AUDIT_V4_CHARTER):
+        charter = path.read_text(encoding="utf-8")
+        if "**Status: complete / historical charter.**" not in charter or "Do **not** restart or continue Audit" not in charter:
+            raise AssertionError(f"{path.relative_to(ROOT)} can still be mistaken for an active audit charter")
 
 
 if __name__ == "__main__":

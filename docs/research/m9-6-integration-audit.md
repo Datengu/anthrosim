@@ -1,6 +1,8 @@
 # M9.6 temporary-mobility integration audit
 
-Status: M9.6 capability implementation complete; protected final validation is required before closing the umbrella issue.
+> **Historical record.** This document captures the M9.6 integration state before final M9 acceptance and the later `v0.3.0` release. M9 is now complete; the implementation evidence below remains time-scoped and should not be read as current project status. See `docs/roadmap.md` and `docs/release-versioning.md` for the living state.
+
+Status at time of record: M9.6 capability implementation complete; protected final validation was required before closing the umbrella issue.
 
 This note records the capability boundary identified while implementing M9.6. It is intentionally generic and does not encode a named archaeological interpretation or case-study rule.
 

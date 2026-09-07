@@ -1,5 +1,7 @@
 # AnthroSim scientific audit v3 — charter
 
+> **Status: complete / historical charter.** Scientific Audit v3 is closed. This file preserves the frozen target, methodology and operating rules used for that audit; do **not** restart or continue Audit v3 from this charter. Use `docs/research/audit-v3/STATUS.md` for its final state and the latest audit documentation for any later audit generation.
+
 Scientific audit v3 is the third independent/adversarial comprehensive scientific audit of AnthroSim. It is a convergence audit of the immutable `v0.3.3` release baseline, not a continuation of audit v2 and not an empirical validation of any archaeological reconstruction.
 
 Protocol: `docs/research/scientific-audit-protocol.md`
@@ -99,8 +101,6 @@ A non-clean v3 audit is useful progress, but it means another fresh full audit i
 
 Even a P1-clean audit does not validate AnthroSim for a specific archaeological site or any other prehistoric case. It supports confidence in the simulator as a scientific instrument under its declared assumptions. A later site-specific study still requires an explicit question, evidence roles, uncertainty/sensitivity design, identifiability analysis, Monte Carlo precision, model comparison, and held-out corroboration where feasible.
 
-## Cross-session start instruction
+## Cross-session use after closure
 
-A new audit agent should be able to continue with only:
-
-> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v3/README.md`, and `docs/research/audit-v3/STATUS.md`. Verify live `main`, immutable `v0.3.3`, open issues/PRs and overlapping work. Continue the next incomplete audit-v3 Area from first principles, using fresh adversarial/quantitative evidence and preserving any demonstrated defect before repair.
+> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v3/README.md`, and `docs/research/audit-v3/STATUS.md` when reconstructing Audit-v3 history. Treat this charter as historical. Do **not** restart or continue Audit v3 when its authoritative ledger records completion; a later audit generation must have its own explicit charter and frozen target.
