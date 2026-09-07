@@ -14,7 +14,7 @@ A further provenance problem arises when a compatible checkpoint is deliberately
 
 ## Decision
 
-AnthroSim defines a dedicated compatibility identifier, `MODEL_SEMANTICS_ID`, currently `anthrosim-model-semantics-v1`.
+AnthroSim defines a dedicated compatibility identifier, `MODEL_SEMANTICS_ID`. The value when this ADR was introduced was `anthrosim-model-semantics-v1`; it is **not** a permanently fixed value. The authoritative current value is defined in `crates/anthrosim-core/src/provenance.rs` and must advance when authoritative simulation meaning changes incompatibly. At the post-v0.3.4 documentation-audit snapshot, that executable value is `anthrosim-model-semantics-v33`.
 
 Checkpoint and run-manifest artifacts persist this value as `modelSemanticsId`. `Simulation::from_checkpoint(...)` compares the stored checkpoint value with the executable's current `MODEL_SEMANTICS_ID` and rejects the checkpoint when they differ.
 
@@ -22,9 +22,9 @@ The three identities have deliberately different meanings:
 
 - `modelSemanticsId` answers **may this executable continue this authoritative model state without changing its scientific meaning?** It is the scientific resume compatibility key.
 - `gitCommit` answers **which exact source revision produced this artifact or execution segment?** It remains provenance and is not, by itself, a resume gate.
-- `modelVersion` answers **which packaged AnthroSim software version produced this artifact?** It remains software/version provenance and the existing compatibility guard; it is not a substitute for the semantics identity.
+- `modelVersion` answers **which packaged AnthroSim software version produced this artifact?** It remains software/version provenance and a compatibility/provenance field; it is not a substitute for the semantics identity.
 
-A change must bump `MODEL_SEMANTICS_ID` when it alters authoritative simulation meaning in a way that makes continuation of an existing checkpoint scientifically incompatible. Examples include changes to demographic transition rules, resource accounting semantics, migration decisions, event ordering that affects state evolution, or RNG consumption that changes authoritative trajectories.
+A change must bump `MODEL_SEMANTICS_ID` when it alters authoritative simulation meaning in a way that makes continuation of an existing checkpoint scientifically incompatible. Examples include changes to demographic transition rules, resource accounting semantics, migration decisions, event ordering that affects state evolution, or RNG consumption/assignment that changes authoritative trajectories.
 
 A bump is not required solely for source-neutral changes such as documentation, CI configuration, explorer presentation, diagnostics that do not affect authoritative state, or refactoring proven to preserve the same model semantics and deterministic execution contract.
 
@@ -32,25 +32,18 @@ When uncertainty exists, prefer bumping the semantics identity and treating old 
 
 ### Resume source lineage
 
-Checkpoint schema v5 and run-manifest schema v10 add a versioned `resumeLineage` object. Fresh uninterrupted runs carry an empty lineage. Every successful `Simulation::from_checkpoint(...)` appends one deterministic boundary containing:
+Resume lineage is append-only provenance across compatible source-revision changes. Fresh uninterrupted runs carry an empty lineage. Every successful compatible resume appends a deterministic boundary containing the source and continuation model/source identities, the exact checkpoint boundary time, and the source checkpoint's preserved continuation/state identity.
 
-- the source checkpoint's `modelVersion`, `modelSemanticsId`, and `gitCommit`;
-- the continuing executable's corresponding identity;
-- the exact checkpoint boundary day and completed year;
-- the source checkpoint's authoritative `stateDigest64`.
-
-The lineage is append-only across successive resumes. The next boundary's source identity must equal the previous boundary's continuation identity, boundary times cannot move backwards, and the final continuation identity must reconcile with the containing checkpoint/run manifest.
+The next boundary's source identity must equal the previous boundary's continuation identity, boundary times cannot move backwards, and the final continuation identity must reconcile with the containing checkpoint/run manifest. Current schema constants are defined by the implementation; historical schema numbers mentioned in the Git history of this ADR document the migration state that originally introduced the lineage mechanism and should not be treated as permanently current values.
 
 This lineage is provenance, not an additional compatibility gate. A source-neutral Git revision change is therefore allowed when the existing model-version and model-semantics compatibility rules allow the resume, but the completed artifact records both revisions and where the continuation occurred.
 
-Semantic run validation reconciles the lineage carried by `manifest.json` and `checkpoint.json`. Historical boundary state digests are preserved as provenance; they are not recomputed from the final state because the earlier checkpoint state is no longer present in a completed bundle.
-
-Checkpoint schema v4 is accepted as a one-step migration input because it predates `resumeLineage`. Such a checkpoint must have no lineage boundaries; on resume AnthroSim records that v4 checkpoint itself as the first source boundary and emits schema v5 thereafter. Completed run validation continues to require current schemas.
+Semantic run validation reconciles the lineage carried by `manifest.json` and `checkpoint.json`. Historical boundary identities are preserved as provenance rather than recomputed from final state that no longer contains the earlier checkpoint state.
 
 ## Consequences
 
-Exact Git provenance is preserved even when one logical run spans multiple compatible source revisions. A completed resumed run can now distinguish which source created the checkpoint state, which source continued it, and at what authoritative state boundary that transition happened.
+Exact Git provenance is preserved even when one logical run spans multiple compatible source revisions. A completed resumed run can distinguish which source created checkpoint state, which source continued it, and at what authoritative state boundary that transition occurred.
 
-Uninterrupted and resumed executions remain expected to reach identical authoritative simulation state when their model semantics are identical. Their provenance artifacts are intentionally no longer byte/equality-identical, because the resumed artifact truthfully records that a resume occurred.
+Uninterrupted and resumed executions remain expected to reach identical authoritative simulation state when their model semantics are identical. Their provenance artifacts are intentionally not necessarily byte/equality-identical, because the resumed artifact truthfully records that a resume occurred.
 
 Changing `MODEL_SEMANTICS_ID` remains a deliberate scientific/provenance action and should be reviewed alongside the model change that requires it. Exact Git revision remains deliberately separate from that compatibility decision.
