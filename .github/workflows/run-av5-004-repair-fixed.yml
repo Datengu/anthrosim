@@ -21,33 +21,47 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Apply production repair with disposable anchor precondition
+      - name: Apply asserted production repair
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          # Adjust only the rustfmt whitespace that differs from asserted anchor 10.
-          # This checkout is disposable; cargo fmt below restores canonical formatting
-          # before any production commit is permitted.
-          mobility = Path('crates/anthrosim-core/src/temporary_mobility.rs')
-          text = mobility.read_text()
-          canonical = "            equal_cost_destinations: None,\n            destination_tie_seed: None,\n        };\n"
-          staged_anchor = "            equal_cost_destinations: None,\n        destination_tie_seed: None,\n    };\n"
-          if text.count(canonical) != 1:
-              raise SystemExit(
-                  f'anchor-10 precondition expected one canonical initializer, found {text.count(canonical)}'
-              )
-          mobility.write_text(text.replace(canonical, staged_anchor, 1))
-
           workflow = Path('.github/workflows/apply-av5-004-repair.yml').read_text().splitlines()
           start = next(i for i, line in enumerate(workflow) if line == '          from pathlib import Path')
           end = next(i for i in range(start + 1, len(workflow)) if workflow[i] == '          PY')
-          script = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in workflow[start:end]
-          ) + '\n'
-          exec(compile(script, '<av5-004-repair>', 'exec'), {'__name__': '__main__'})
+          source = [line[10:] if line.startswith('          ') else line for line in workflow[start:end]]
+
+          helper_start = source.index('def replace_once(path, old, new):')
+          helper_end = source.index('    path.write_text(text.replace(old, new, 1))') + 1
+          source[helper_start:helper_end] = [
+              'def replace_once(path, old, new):',
+              '    import re',
+              '    path = Path(path)',
+              '    text = path.read_text()',
+              '    count = text.count(old)',
+              '    if count == 1:',
+              '        path.write_text(text.replace(old, new, 1))',
+              '        return',
+              '    if count != 0:',
+              '        raise SystemExit(f"{path}: expected one replacement target, found {count}")',
+              '    parts = []',
+              '    for line in old.splitlines(keepends=True):',
+              '        has_newline = line.endswith("\\n")',
+              '        body = line[:-1] if has_newline else line',
+              '        content = body.lstrip(" \\t")',
+              '        parts.append(r"^[ \\t]*" + re.escape(content))',
+              '        if has_newline:',
+              '            parts.append(r"\\n")',
+              '    pattern = "".join(parts)',
+              '    matches = list(re.finditer(pattern, text, re.MULTILINE))',
+              '    if len(matches) != 1:',
+              '        first = old.splitlines()[0] if old.splitlines() else "<empty>"',
+              '        raise SystemExit(f"{path}: whitespace-tolerant target count={len(matches)} for {first!r}")',
+              '    match = matches[0]',
+              '    path.write_text(text[:match.start()] + new + text[match.end():])',
+          ]
+          exec(compile('\n'.join(source) + '\n', '<av5-004-repair>', 'exec'), {'__name__': '__main__'})
           PY
 
       - name: Install pinned Rust toolchain
