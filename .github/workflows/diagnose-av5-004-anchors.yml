@@ -24,35 +24,26 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           workflow = Path('.github/workflows/apply-av5-004-repair.yml').read_text().splitlines()
           start = next(i for i, line in enumerate(workflow) if line == '          from pathlib import Path')
           end = next(i for i in range(start + 1, len(workflow)) if workflow[i] == '          PY')
-          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in workflow[start:end]) + '\n'
-
-          old_helper = '''def replace_once(path, old, new):
-    path = Path(path)
-    text = path.read_text()
-    count = text.count(old)
-    if count != 1:
-        raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
-    path.write_text(text.replace(old, new, 1))
-'''
-          new_helper = '''_anchor_counter = 0
-def replace_once(path, old, new):
-    global _anchor_counter
-    _anchor_counter += 1
-    path = Path(path)
-    text = path.read_text()
-    count = text.count(old)
-    first = old.splitlines()[0] if old.splitlines() else '<empty>'
-    print(f"ANCHOR {_anchor_counter}: {path}: count={count}: {first!r}", flush=True)
-    if count != 1:
-        raise SystemExit(f"ANCHOR {_anchor_counter} {path}: expected exactly one replacement target, found {count}: {first!r}")
-    path.write_text(text.replace(old, new, 1))
-'''
-          if old_helper not in script:
-              raise SystemExit('could not instrument replace_once helper')
-          script = script.replace(old_helper, new_helper, 1)
-          exec(compile(script, '<av5-004-patch>', 'exec'), {'__name__': '__main__'})
+          source = [line[10:] if line.startswith('          ') else line for line in workflow[start:end]]
+          instrumented = []
+          for line in source:
+              if line == 'def replace_once(path, old, new):':
+                  instrumented.append('_anchor_counter = 0')
+                  instrumented.append(line)
+                  instrumented.append('    global _anchor_counter')
+                  instrumented.append('    _anchor_counter += 1')
+                  continue
+              if line == '    count = text.count(old)':
+                  instrumented.append(line)
+                  instrumented.append('    first = old.splitlines()[0] if old.splitlines() else "<empty>"')
+                  instrumented.append('    print(f"ANCHOR {_anchor_counter}: {path}: count={count}: {first!r}", flush=True)')
+                  continue
+              if line.strip() == 'raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")':
+                  instrumented.append('        raise SystemExit(f"ANCHOR {_anchor_counter} {path}: expected exactly one replacement target, found {count}: {first!r}")')
+                  continue
+              instrumented.append(line)
+          exec(compile('\n'.join(instrumented) + '\n', '<av5-004-patch>', 'exec'), {'__name__': '__main__'})
           PY
