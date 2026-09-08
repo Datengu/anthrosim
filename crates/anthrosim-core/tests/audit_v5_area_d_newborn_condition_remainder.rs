@@ -108,11 +108,11 @@ fn newborn_inherits_visible_maternal_condition_but_not_latent_m3_remainder() {
         .iter()
         .filter_map(|record| match &record.event {
             EventKind::Birth {
-                child,
+                person,
                 female_parent,
                 male_parent,
                 ..
-            } => Some((record.day, *child, *female_parent, *male_parent)),
+            } => Some((record.day, *person, *female_parent, *male_parent)),
             _ => None,
         })
         .collect::<Vec<_>>();
