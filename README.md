@@ -2,9 +2,9 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**This source tree carries AnthroSim software version `0.3.5` at current model semantics v33.** The v0.3.5 release line names and preserves the fully repaired and independently re-verified Audit-v4 state. The immutable `v0.3.4` release remains model semantics v25 and the frozen Audit-v4 discovery target; immutable `v0.3.3` remains model semantics v21.
+**This living source tree carries AnthroSim workspace software version `0.3.5` at current model semantics v34.** The immutable `v0.3.5` release/tag remains model semantics v33 and preserves the fully repaired and independently re-verified Audit-v4 state. The immutable `v0.3.4` release remains model semantics v25 and the frozen Audit-v4 discovery target; immutable `v0.3.3` remains model semantics v21. See [`docs/release-versioning.md`](docs/release-versioning.md) for the release/source/semantics distinction.
 
-**Scientific Audit v4 is complete.** It independently audited immutable `v0.3.4`/v25 across Areas A–N, demonstrated 15 findings (13 P1 and 2 P2), and all 15 were repaired and independently re-verified/dispositioned on the living line. The final repaired Audit-v4 line is `anthrosim-model-semantics-v33`; there are no open Audit-v4 findings. See [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md).
+**Scientific Audit v4 is complete.** It independently audited immutable `v0.3.4`/v25 across Areas A–N, demonstrated 15 findings (13 P1 and 2 P2), and all 15 were repaired and independently re-verified/dispositioned on the living line. The final repaired Audit-v4 line is `anthrosim-model-semantics-v33`; there are no open Audit-v4 findings. **Scientific Audit v5 discovery is also complete against immutable `v0.3.5`/v33, with post-discovery remediation in progress on the living line.** See [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md) and [`docs/research/audit-v5/STATUS.md`](docs/research/audit-v5/STATUS.md).
 
 This is strong framework-verification evidence, not empirical validation or proof of scientific correctness. The preserved M8.6 and M9.7 references are capability/regression baselines under declared assumptions, not archaeological validation. AnthroSim is not a civilisation game and it is not a validated model of human prehistory.
 
@@ -16,7 +16,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-The current v0.3.5/model-semantics-v33 line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
+The living `0.3.5` workspace/model-semantics-v34 development line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -42,8 +42,9 @@ The current v0.3.5/model-semantics-v33 line retains the completed M1–M9 capabi
 - long-run drift/regime diagnostics and explicit equilibrium-claim safeguards;
 - structural household/demographic sensitivity support, including the finding that no universal demographic baseline is currently justified;
 - fail-closed identifiability/equifinality and provenance/integrity analysis;
-- label/order-neutral scientific stochastic coupling introduced by Audit-v4 repairs for fertility, mortality, parentage, migration, resource remainder ties and M9 equal-cost destination choices;
-- M4 spatial-candidate uncertainty/choice coupling that is invariant to arbitrary canonical candidate ordering on the current v33 line.
+- label/order-neutral scientific stochastic coupling introduced by Audit-v4 repairs for fertility, mortality, parentage, migration and resource remainder ties;
+- an M9 equal-cost destination ambiguity key that is household-local rather than a globally ordinal population rank on the v34 development line;
+- M4 spatial-candidate uncertainty/choice coupling that is invariant to arbitrary canonical candidate ordering.
 
 Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them. M9 temporary mobility is deliberately a generic null mechanism rather than a cultural, ritual, political or economic motive model.
 
@@ -62,14 +63,15 @@ Culture, language, trade, states, religion, warfare, and AI-controlled agents re
 - **v0.3.2:** released documentation-convergence maintenance baseline at immutable model semantics v19.
 - **v0.3.3:** immutable post-Audit-v2 baseline at model semantics v21 and frozen Audit-v3 target.
 - **v0.3.4:** immutable post-Audit-v3 convergence baseline at model semantics v25 and frozen Audit-v4 target.
-- **v0.3.5:** current post-Audit-v4 repaired convergence baseline at model semantics v33; it packages the fully remediated/re-verified v4 line and subsequent documentation-consistency reconciliation without adding a new roadmap milestone.
-- **Scientific Audit v4:** discovery and remediation complete; 15/15 findings repaired and re-verified, with living semantics advanced through v26–v33 where authoritative scientific meaning changed.
+- **v0.3.5:** immutable post-Audit-v4 repaired convergence baseline at model semantics v33; it packages the fully remediated/re-verified v4 line and subsequent documentation-consistency reconciliation without adding a new roadmap milestone.
+- **Scientific Audit v4:** discovery and remediation complete; 15/15 findings repaired and re-verified, with semantics advanced through v26–v33 where authoritative scientific meaning changed.
+- **Scientific Audit v5:** Areas A–N discovery complete against immutable `v0.3.5`/v33; post-discovery remediation is in progress and may advance living model semantics without altering the frozen discovery target.
 
 No fixed M10 feature list is declared. The next scientific work should remain question-led and must separately establish evidence, calibration/validation, uncertainty, sensitivity, applicability and corroboration appropriate to the intended inference.
 
 M8 keeps evidence separate from model-facing transformations and results. Its terrain reference remains **fragile spatial structure** under the declared terrain-only null model; the current checked-in machine reference is on model semantics v33. See [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md).
 
-M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across journey states, and M9 observability is separate from M8 residence-based spatial observability. The M9.7 benchmark remains `capability_distinguished`; that is capability validation, not archaeological validation. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md) and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
+M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across journey states, and M9 observability is separate from M8 residence-based spatial observability. The M9.7 benchmark remains `capability_distinguished`; that is capability validation, not archaeological validation. Equal-cost destination ties are explicit ambiguity-policy decisions; the v34 development line removes unrelated global-population rank renumbering from that household tie key, while Audit-v5 AV5-004/#629 remains the separate spatial-reflection-equivariance repair. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md), [`docs/research/m9-temporary-travel-semantics-v1.md`](docs/research/m9-temporary-travel-semantics-v1.md), and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
 
 No historical destination, route, settlement, group or migration outcome is scripted into these loops.
 
@@ -160,9 +162,9 @@ The launcher records the exact definition digest, model identity and source iden
 
 AnthroSim is a **research-oriented simulation framework, not a validated anthropological or archaeological model**. Its synthetic demographic, resource, permanent-migration and temporary-mobility presets remain explicit model assumptions unless a particular experiment supplies and justifies stronger evidence grounding.
 
-Four independent/adversarial comprehensive audit generations have now been completed. Audit v4 is the latest: it challenged immutable v0.3.4/v25, demonstrated 13 P1 and 2 P2 findings, and all 15 were subsequently repaired and re-verified on the living v33 line. This strengthens implementation/convergence evidence, but repeated audits are evidence about verification maturity rather than proof of correctness.
+Five comprehensive audit generations have now reached discovery completion. Audit v4 fully closed 15/15 findings on the v33 repaired line; Audit v5 is the latest discovery pass, challenging immutable `v0.3.5`/v33 and currently proceeding through post-discovery remediation. This strengthens implementation/convergence evidence, but repeated audits are evidence about verification maturity rather than proof of correctness.
 
-Strong archaeological or anthropological claims still require question-specific problem formulation, evidence-role separation, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, comparison against independent observations, discriminating predictions and relevant domain review. See [`docs/research/trace.md`](docs/research/trace.md), [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md), and [`docs/roadmap.md`](docs/roadmap.md).
+Strong archaeological or anthropological claims still require question-specific problem formulation, evidence-role separation, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, comparison against independent observations, discriminating predictions and relevant domain review. See [`docs/research/trace.md`](docs/research/trace.md), [`docs/research/audit-v5/STATUS.md`](docs/research/audit-v5/STATUS.md), and [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Contributing and security
 
