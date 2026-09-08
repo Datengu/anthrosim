@@ -35,11 +35,7 @@ fn landscape(resource_values: [i32; 3]) -> LandscapeBundle {
             spatial_reference: "LOCAL_CS[audit-v5-area-e-m9-reflection]".to_owned(),
         },
         vec![
-            layer(
-                "terrain",
-                LandscapeLayerRole::TerrainTraversal,
-                [0, 0, 0],
-            ),
+            layer("terrain", LandscapeLayerRole::TerrainTraversal, [0, 0, 0]),
             layer(
                 "resources",
                 LandscapeLayerRole::ResourceOpportunity,
@@ -150,14 +146,11 @@ fn experiment(seed: u64) -> ExperimentConfig {
 }
 
 fn departure(seed: u64, resource_values: [i32; 3]) -> (CellId, u64) {
-    let run = SpatialLandscapeSimulation::new(
-        experiment(seed),
-        landscape(resource_values),
-        mechanisms(),
-    )
-    .unwrap()
-    .run_recorded()
-    .unwrap();
+    let run =
+        SpatialLandscapeSimulation::new(experiment(seed), landscape(resource_values), mechanisms())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
 
     let departures = run
         .events()
@@ -173,7 +166,11 @@ fn departure(seed: u64, resource_values: [i32; 3]) -> (CellId, u64) {
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(departures.len(), 1, "seed {seed}: departures={departures:?}");
+    assert_eq!(
+        departures.len(),
+        1,
+        "seed {seed}: departures={departures:?}"
+    );
     assert_eq!(departures[0].0, CellId::new(2));
     let coupling_key = departures[0]
         .2
