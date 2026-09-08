@@ -1,4 +1,4 @@
-name: Audit v5 AV5-004 M9.7 reference rebind check
+name: Finalize AV5-004 v35 benchmark reference note
 
 on:
   push:
@@ -7,132 +7,67 @@ on:
       - '.github/workflows/audit-v5-av5-004-reference-rebind-check.yml'
 
 permissions:
-  contents: read
-  actions: read
+  contents: write
 
 jobs:
-  verify-reference-rebind:
+  finalize-docs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Checkout exact repair branch
+      - name: Checkout repair branch
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: audit/repair-629-av5-004
-          persist-credentials: false
+          persist-credentials: true
 
-      - name: Verify source artifact provenance
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10077039588" > /tmp/artifact-meta.json
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          meta = json.loads(Path('/tmp/artifact-meta.json').read_text())
-          expected = {
-              'id': 10077039588,
-              'name': 'm9-controlled-aggregation-benchmark',
-              'digest': 'sha256:4a9dc89e96f78354cad062f23bd59a65f19d9480eaeaa92e8853a2589751d248',
-          }
-          for key, value in expected.items():
-              if meta.get(key) != value:
-                  raise SystemExit(f'artifact metadata mismatch for {key}: {meta.get(key)!r} != {value!r}')
-          run = meta.get('workflow_run') or {}
-          if run.get('id') != 34279129383:
-              raise SystemExit(f'wrong workflow run: {run!r}')
-          if run.get('head_sha') != '4cb1563e52b672f05761fb6938e975d521f4ab11':
-              raise SystemExit(f'wrong artifact head SHA: {run!r}')
-          print('artifact provenance matches exact failed scientific-gate execution')
-          PY
-
-      - name: Download exact M9.7 artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10077039588/zip" > /tmp/m9.zip
-          mkdir -p /tmp/m9-artifact
-          unzip -q /tmp/m9.zip -d /tmp/m9-artifact
-          test -f /tmp/m9-artifact/m9-benchmark-output/benchmark-summary.json
-
-      - name: Prove v35 changes only allowed reference identity fields
+      - name: Record reviewed v35 M9.7 reference
         shell: bash
         run: |
           python3 - <<'PY'
-          import json
           from pathlib import Path
+          path = Path('docs/research/m9-controlled-aggregation-benchmark-result.md')
+          text = path.read_text()
+          anchor = "**Current machine-readable reference: `anthrosim-model-semantics-v34`.**\n\n## Current regression reference — model semantics v34\n"
+          if text.count(anchor) != 1:
+              raise SystemExit(f'expected one v34 current-reference anchor, found {text.count(anchor)}')
+          v35 = """**Current machine-readable reference: `anthrosim-model-semantics-v35`.**
 
-          actual = json.loads(Path('/tmp/m9-artifact/m9-benchmark-output/benchmark-summary.json').read_text())
-          reference = json.loads(Path('examples/m9-controlled-aggregation-benchmark/reference-result.json').read_text())
-          travel_reference = json.loads(Path('examples/m9-controlled-aggregation-benchmark/travel-burden-reference.json').read_text())
+## Current regression reference — model semantics v35
 
-          def require(label, observed, expected):
-              if observed != expected:
-                  raise SystemExit(f'AV5-004 reference rebind mismatch for {label}: expected {expected!r}, found {observed!r}')
+Audit-v5 AV5-004 / #629 changes the causal representation used to resolve exactly equal-cost M9 destinations so the same physical tie is equivariant under the supported grid reflections. The frozen M9.7 design was rerun unchanged on production PR #679. The exact v35 execution preserved every frozen scientific projection and the independent M9.6 travel-burden reference, while the model/program identity change produced new authoritative terminal state digests as expected.
 
-          continuous_keys = (
-              'residentPersonDays','visitorPersonDays','daysWithAnyVisitors','peakVisitors',
-              'permanentMigrations','conditionMortalityDeaths','journeysStarted','journeysCompleted'
-          )
-          intermittent_keys = continuous_keys + (
-              'transitPersonDays','notStartedTotal','notStartedUnreachable','originCatchmentCells'
-          )
-          travel_keys = (
-              'plannedRoundTripTravelDays','observedTransitDays','unrealizedPlannedTransitDays',
-              'plannedRoundTripTravelCostUnits','realizedTravelCostUnits','unrealizedPlannedTravelCostUnits',
-              'plannedRoundTripRouteDistanceEdges','realizedRouteDistanceEdges','unrealizedPlannedRouteDistanceEdges',
-          )
+Reviewed v35 execution:
 
-          def project_legacy_pair(pair):
-              intermittent = {k: pair['intermittent'][k] for k in intermittent_keys}
-              intermittent.update({
-                  'totalTravelDays': pair['intermittent']['plannedRoundTripTravelDays'],
-                  'totalRoundTripTravelCostUnits': pair['intermittent']['plannedRoundTripTravelCostUnits'],
-                  'totalRoundTripRouteDistanceEdges': pair['intermittent']['plannedRoundTripRouteDistanceEdges'],
-              })
-              return {
-                  'seed': pair['seed'],
-                  'continuous': {k: pair['continuous'][k] for k in continuous_keys},
-                  'intermittent': intermittent,
-                  'totalFocalPersonDayDifferencePermilleExact': pair['totalFocalPersonDayDifferencePermilleExact'],
-                  'totalFocalPersonDayDifferencePermilleRounded': pair['totalFocalPersonDayDifferencePermilleRounded'],
-                  'intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact': pair['intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleExact'],
-                  'intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleRounded': pair['intermittentPeakVisitorShareOfContinuousMeanResidentsPermilleRounded'],
-                  'criteria': pair['criteria'],
-                  'pass': pair['pass'],
-              }
+- workflow run: `34279129383`;
+- artifact: `10077039588`;
+- artifact SHA-256: `4a9dc89e96f78354cad062f23bd59a65f19d9480eaeaa92e8853a2589751d248`;
+- reviewed branch head: `4cb1563e52b672f05761fb6938e975d521f4ab11`;
+- pull-request merge-ref build: `56b9e6665b0204b4ff6ab3838f5d8fffe06c7849`;
+- aggregate canonical SHA-256: `faca4608f3229769284ee819f57f53dec19a49000de710523b22d22cfa73b0d5`;
+- reference model semantics: `anthrosim-model-semantics-v35`.
 
-          require('actual schemaVersion', actual.get('schemaVersion'), 3)
-          require('reference schemaVersion', reference.get('schemaVersion'), 2)
-          for key in ('benchmarkId','definitionCanonicalSha256','declaredSeeds','classification','aggregate'):
-              require(key, actual.get(key), reference.get(key))
-          for arm in ('continuous','intermittent'):
-              require(f'{arm}.configCanonicalSha256', actual['arms'][arm].get('configCanonicalSha256'), reference['arms'][arm].get('configCanonicalSha256'))
-          require('legacy scientific pairs', [project_legacy_pair(p) for p in actual['pairs']], reference['pairs'])
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume equivalence both passed in the same scientific-gate execution.
 
-          require('travel reference schemaVersion', travel_reference.get('schemaVersion'), 1)
-          require('travel observability schema', travel_reference.get('temporaryObservabilitySchemaVersion'), 2)
-          by_seed = {str(pair['seed']): pair for pair in actual['pairs']}
-          seeds = [str(seed) for seed in actual['declaredSeeds']]
-          require('travel reference seeds', list(travel_reference['intermittentBySeed'].keys()), seeds)
-          for seed in seeds:
-              pair = by_seed[seed]
-              c = pair['continuous']
-              i = pair['intermittent']
-              require(f'continuous {seed} planned transit reconciliation', c['observedTransitDays'] + c['unrealizedPlannedTransitDays'], c['plannedRoundTripTravelDays'])
-              require(f'intermittent {seed} planned transit reconciliation', i['observedTransitDays'] + i['unrealizedPlannedTransitDays'], i['plannedRoundTripTravelDays'])
-              require(f'continuous {seed} cost reconciliation', c['realizedTravelCostUnits'] + c['unrealizedPlannedTravelCostUnits'], c['plannedRoundTripTravelCostUnits'])
-              require(f'intermittent {seed} cost reconciliation', i['realizedTravelCostUnits'] + i['unrealizedPlannedTravelCostUnits'], i['plannedRoundTripTravelCostUnits'])
-              require(f'continuous {seed} distance reconciliation', c['realizedRouteDistanceEdges'] + c['unrealizedPlannedRouteDistanceEdges'], c['plannedRoundTripRouteDistanceEdges'])
-              require(f'intermittent {seed} distance reconciliation', i['realizedRouteDistanceEdges'] + i['unrealizedPlannedRouteDistanceEdges'], i['plannedRoundTripRouteDistanceEdges'])
-              require(f'continuous {seed} travel burden', {k:c[k] for k in travel_keys}, {k:0 for k in travel_keys})
-              require(f'intermittent {seed} travel burden', {k:i[k] for k in travel_keys}, travel_reference['intermittentBySeed'][seed])
+A dedicated fail-closed rebind check then downloaded that exact artifact and proved equality with the v34 reference for the benchmark definition, declared seeds, classification, aggregate endpoints, all eight legacy scientific pair projections, both configuration identities, and every independently frozen travel-burden/reconciliation field. Only execution provenance, experiment identity and authoritative terminal state digests were permitted to change. The checked-in verifier remains strict; it was not weakened to accommodate v35.
 
-          expected_digest = 'faca4608f3229769284ee819f57f53dec19a49000de710523b22d22cfa73b0d5'
-          require('aggregateCanonicalSha256', actual.get('aggregateCanonicalSha256'), expected_digest)
-          print('v35 artifact exactly preserves all frozen M9.7 scientific projections and travel burden; only provenance/experiment IDs/state digests require rebind')
+This is a causal reference refresh and reproducibility record, not empirical calibration or archaeological validation.
+
+## Historical reviewed reference — model semantics v34
+"""
+          text = text.replace(anchor, v35, 1)
+          old_bottom = "The checked-in **v34** reference verifies that this capability distinction survives the Audit-v5 AV5-001 household-local M9 equal-cost destination coupling repair; the v31 execution remains the historical comparator for the prior AV4-007 repair. That is a regression/capability statement only; it is not empirical validation."
+          new_bottom = "The checked-in **v35** reference verifies that this capability distinction survives the Audit-v5 AV5-004 spatial-reflection-equivariant M9 tie repair. The v34 execution remains the immediate historical comparator for AV5-001 household-local coupling, and v31 remains the comparator for the prior AV4-007 repair. That is a regression/capability statement only; it is not empirical validation."
+          if text.count(old_bottom) != 1:
+              raise SystemExit(f'expected one current-result paragraph, found {text.count(old_bottom)}')
+          path.write_text(text.replace(old_bottom, new_bottom, 1))
           PY
+
+      - name: Commit documentation and remove one-shot helper
+        shell: bash
+        run: |
+          git config user.name "Datengu"
+          git config user.email "15160645+Datengu@users.noreply.github.com"
+          git rm .github/workflows/audit-v5-av5-004-reference-rebind-check.yml
+          git add docs/research/m9-controlled-aggregation-benchmark-result.md
+          git commit -m "docs: record v35 M9.7 reference rebind"
+          git push origin HEAD:audit/repair-629-av5-004
