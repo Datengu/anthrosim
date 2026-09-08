@@ -1,0 +1,30 @@
+name: Audit v5 AV5-001 post-merge re-verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v5_av5_001_postmerge_reverify.rs'
+      - '.github/workflows/audit-v5-av5-001-postmerge-reverify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  av5-001-postmerge-adversary:
+    name: AV5-001 isolated-founder locality post-merge adversary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run independent AV5-001 post-merge adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v5_av5_001_postmerge_reverify -- --nocapture
