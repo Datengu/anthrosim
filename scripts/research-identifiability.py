@@ -339,6 +339,12 @@ def analyse(
 
     if not isinstance(plan, dict) or not isinstance(data, dict):
         raise IdentifiabilityError("plan and data roots must be objects")
+    discrimination_tolerance = legacy._number(
+        plan.get("corroborationDiscriminationTolerance", 0.0),
+        "corroborationDiscriminationTolerance",
+    )
+    if discrimination_tolerance < 0:
+        raise IdentifiabilityError("corroborationDiscriminationTolerance must be >= 0")
     embedded = data.get("executedDesignBinding")
     if design_binding is None:
         if embedded is None:
