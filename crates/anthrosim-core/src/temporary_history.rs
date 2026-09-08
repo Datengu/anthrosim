@@ -20,15 +20,32 @@ fn invalid(message: impl Into<String>) -> TemporaryMobilityHistoryError {
 
 /// Validate authoritative M9 history without requiring a derived report artifact on disk.
 ///
+/// Ordinary core execution uses the experiment/process seed for synthetic founder initialization.
+/// Spatial hosts with an explicit population-realization seed must use the host-aware validation
+/// seam so replay reconstructs the same founder realization that authoritative execution used.
+pub fn validate_temporary_mobility_history(
+    world: &World,
+    checkpoint: &SimulationCheckpoint,
+) -> Result<(), TemporaryMobilityHistoryError> {
+    validate_temporary_mobility_history_with_population_seed(
+        world,
+        checkpoint,
+        checkpoint.experiment.seed,
+    )
+}
+
+/// Validate authoritative M9 history using the supplied synthetic-founder realization seed.
+///
 /// The existing temporary-observability replay is the single household-by-household authority for
 /// reconstructing residence, living membership, physical presence and active journeys. This
 /// validator runs that replay in memory, then adds historical guarantees that are intentionally
 /// stronger than report generation alone: program/schedule identity on every trigger outcome,
 /// canonical journey identifiers, exact transition days, and completeness for trigger days that
-/// have passed the checkpoint boundary.
-pub fn validate_temporary_mobility_history(
+/// have passed the checkpoint boundary. Declared-founder initialization remains seed-inert.
+pub(crate) fn validate_temporary_mobility_history_with_population_seed(
     world: &World,
     checkpoint: &SimulationCheckpoint,
+    synthetic_population_seed: u64,
 ) -> Result<(), TemporaryMobilityHistoryError> {
     let has_temporary_events = checkpoint.events.events.iter().any(|record| {
         matches!(
@@ -55,7 +72,7 @@ pub fn validate_temporary_mobility_history(
         PopulationInitialization::SyntheticValidationV1 => Population::initialize(
             population_config,
             world,
-            RngFactory::new(checkpoint.experiment.seed),
+            RngFactory::new(synthetic_population_seed),
         ),
         PopulationInitialization::DeclaredFounderStateV1 => {
             let definition = checkpoint
