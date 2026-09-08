@@ -6,7 +6,7 @@ Protocol: `docs/research/scientific-audit-protocol.md`
 Re-verification addendum: `docs/research/audit-reverification-version-drift.md`  
 Charter: `docs/research/audit-v5/README.md`
 
-This is the repository-authoritative compact ledger. Detailed completed-area reports and earlier chronological ledger revisions remain preserved in Git history.
+This is the repository-authoritative compact ledger. Detailed completed-area reports, discovery evidence and earlier chronological ledger revisions remain preserved in Git history.
 
 ## Current state
 
@@ -17,127 +17,97 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage | **14/14 Areas A–N complete — discovery complete** |
-| P0 | none |
-| P1 | **4 — AV5-001/#606; AV5-004/#629; AV5-005/#640; AV5-007/#651** |
-| P2 | **4 — AV5-002/#617; AV5-003/#627; AV5-006/#648; AV5-008/#658** |
-| P3 | none |
-| Open Audit-v5 findings | **#606, #617, #627, #629, #640, #648, #651, #658** |
-| Convergence | **full A–N discovery complete; non-clean with 8 findings** |
-| Repair state | **remediation may begin under protocol; findings remain open/unrepaired** |
+| Discovery coverage | **14/14 Areas A–N complete** |
+| Discovery result | **non-clean: 8 findings — 4 P1, 4 P2; no P0/P3** |
+| Live `main` reconciled for this update | `96b4efd07f6c78a5a0c80dfc2c883ee2bd5c908f` |
+| Closed Audit-v5 findings | **4/8 — #617, #640, #648, #658** |
+| Open Audit-v5 findings | **4/8 — #606, #627, #629, #651** |
+| Open P1 | **3 — AV5-001/#606; AV5-004/#629; AV5-007/#651** |
+| Open P2 | **1 — AV5-003/#627** |
+| Repair state | **post-discovery remediation in progress; 4/8 findings closed** |
+| Next selected repair | **AV5-003/#627 — spatial M9 replay population-seed provenance** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-## Phase-transition rules
+The immutable `v0.3.5` / v33 target remains the discovery baseline even as production fixes advance `main`. A finding being closed means its required production disposition has been completed; the ledger separately records independent post-merge re-verification where it was required or performed.
 
-- Immutable `v0.3.5` / v33 remains the scientific discovery target and historical baseline for Audit-v5 findings.
-- v2/v3/v4 evidence is historical control/hypothesis material only; it does not substitute for the completed v5 evidence ledger.
-- Full A–N discovery is complete. Do not restart discovery or create duplicate findings for the eight preserved defects.
-- Production remediation may now proceed one authoritative finding at a time under the scientific-audit protocol.
-- Each repair requires a dedicated production PR and exact-head protected/scientific CI before merge.
-- P0/P1 repairs require independent post-merge adversarial re-verification; apply the repository re-verification protocol to other findings where required by the original finding/repair contract.
-- If an issue auto-closes before required post-merge evidence is complete, reopen it and only close it after the evidence chain is complete.
-- Repair current `main` while preserving the immutable `v0.3.5` discovery target and original adversaries as historical evidence.
+## Phase rules
 
-## Coverage matrix
+- Do **not** restart Audit-v5 discovery or create duplicate findings for AV5-001 through AV5-008.
+- Repair current `main`, while preserving the immutable discovery target and original evidence as historical controls.
+- Use one dedicated production repair PR per authoritative finding.
+- Require exact-head protected/scientific CI before merge.
+- P0/P1 repairs require independent post-merge adversarial re-verification before final closure. Apply re-verification to P2 findings when required by their acceptance contract or when it materially strengthens the evidence chain.
+- If an issue auto-closes before required re-verification is complete, reopen it until the evidence chain is complete.
+- Do not infer empirical, archaeological or case-specific readiness from framework/software audit closure.
 
-| ID | Area | Status | Fresh v5 evidence / disposition |
+## Discovery coverage matrix
+
+| ID | Area | Discovery status | Fresh v5 evidence / disposition |
 |---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | #605 demonstrated AV5-001/#606 P1. #608 and #610 no new finding. |
 | B | Demography, fertility, mortality, ageing, population structure | **complete — non-clean** | #612 documented coupling limitation; #614 no finding; #616 demonstrated AV5-002/#617 P2. |
 | C | Households, kinship, social links, lifecycle structure | **complete — non-clean only via AV5-002** | #619 and #620 no new finding. |
-| D | Resources, condition, subsistence, depletion/recovery | **complete — clean** | #622 and #624 no finding; #623 cadence sensitivity bounded in I. |
-| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — non-clean** | #626 demonstrated AV5-003/#627 P2. #628 demonstrated AV5-004/#629 P1. AV5-001 also cross-cutting. |
-| F | Aggregation and interaction mechanisms | **complete — clean** | #631, #632 and #633 no finding. Detailed report: `area-f-2026-09-08.md`. |
-| G | Initialization, burn-in, path dependence, continuation state | **complete — non-clean only via AV5-003** | #635, #636 and #637 no new finding. Detailed report: `area-g-2026-09-08.md`. |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — non-clean** | #639 demonstrated AV5-005/#640 P1; #642 matched Wilson control no finding. Detailed report: `area-h-2026-09-08.md`. |
-| I | Sensitivity, uncertainty, convergence, robustness | **complete — non-clean via cross-cutting findings** | #644 cadence refinement and #645 analysis-end sensitivity produced no new finding. Detailed report: `area-i-2026-09-08.md`. |
-| J | Identifiability, equifinality, calibration, discrimination | **complete — non-clean** | #647 demonstrated AV5-006/#648 P2; #650 demonstrated AV5-007/#651 P1; #653 valid discriminator control no finding. Detailed report: `area-j-2026-09-08.md`. |
-| K | Experiment orchestration, configuration, provenance, reproducibility | **complete — non-clean via cross-cutting findings** | #655 operational relocation/retry preserved identity; no new finding. Detailed report: `area-k-2026-09-08.md`. |
-| L | Observability, analysis outputs, statistical summaries | **complete — non-clean** | #657 demonstrated **AV5-008/#658 P2**: terminal survivor-conditioned condition can pass using an early-window survival/population observable. AV5-003, AV5-005, AV5-006 and AV5-007 remain cross-cutting. Detailed report: `area-l-2026-09-08.md`. |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **complete — non-clean via existing findings** | #660 demonstrated absent claim-surface disclosure for AV5-002 close-kin scope, AV5-006 non-negative threshold domain and AV5-008 same-window survivor conditioning. No duplicate finding opened. Detailed report: `area-m-2026-09-08.md`. |
-| N | Cross-system integration | **complete — non-clean via AV5-001 through AV5-008** | #662 fresh M2/M4/M9 integration control passed: same-day M9 physical absence reduced M4 evaluation from 160 to 120 households while preserving all 98 M2 birth/parentage signatures. No ninth finding. Detailed report: `area-n-2026-09-08.md`. |
+| D | Resources, condition, subsistence, depletion/recovery | **complete — clean** | #622 and #624 no finding; #623 cadence sensitivity bounded in Area I. |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — non-clean** | #626 demonstrated AV5-003/#627 P2; #628 demonstrated AV5-004/#629 P1; AV5-001 also cross-cutting. |
+| F | Aggregation and interaction mechanisms | **complete — clean** | #631, #632 and #633 no finding. |
+| G | Initialization, burn-in, path dependence, continuation state | **complete — non-clean only via AV5-003** | #635, #636 and #637 no new finding. |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — non-clean** | #639 demonstrated AV5-005/#640 P1; #642 matched Wilson control no finding. |
+| I | Sensitivity, uncertainty, convergence, robustness | **complete — non-clean via cross-cutting findings** | #644 cadence refinement and #645 analysis-end sensitivity produced no new finding. |
+| J | Identifiability, equifinality, calibration, discrimination | **complete — non-clean** | #647 demonstrated AV5-006/#648 P2; #650 demonstrated AV5-007/#651 P1; #653 valid discriminator control no finding. |
+| K | Experiment orchestration, configuration, provenance, reproducibility | **complete — non-clean via cross-cutting findings** | #655 operational relocation/retry preserved identity; no new finding. |
+| L | Observability, analysis outputs, statistical summaries | **complete — non-clean** | #657 demonstrated AV5-008/#658 P2; AV5-003, AV5-005, AV5-006 and AV5-007 also cross-cutting. |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **complete — non-clean via existing findings** | #660 demonstrated missing disclosure for AV5-002, AV5-006 and AV5-008; no duplicate finding. |
+| N | Cross-system integration | **complete — non-clean via AV5-001 through AV5-008** | #662 M2/M4/M9 integration control passed; no ninth finding. |
 
-## Finding register
+## Finding register and live remediation state
 
-| Finding | Severity | Area(s) | Issue | Exact discovery evidence | State |
-|---|---:|---|---|---|---|
-| `AV5-001 — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination` | P1 | A; E/H/I/N | #606 | PR #605, head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; destination divergence `503/1024` | **open; unrepaired** |
-| `AV5-002 — parentage ignores declared close kin and permits first-degree mating` | P2 | B; C/M/N | #617 | PR #616, head `b130fdac8c2ee421203af8a8e5a044a48de29d26`, run `34171257065`, job `101891843233` | **open; unrepaired** |
-| `AV5-003 — spatial M9 history replay uses process seed instead of population seed` | P2 | E; G/K/L/N | #627 | PR #626, head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`, run `34175807550`, job `101904842100` | **open; unrepaired** |
-| `AV5-004 — M9 equal-cost destination choice is not spatial-reflection equivariant` | P1 | E; H/N | #629 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; `256/256` mismatches | **open; unrepaired** |
-| `AV5-005 — small-n normal-CLT mean gate can certify severely under-covered intervals` | P1 | H; J/K/L/N | #640 | PR #639, head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`, run `34179975096`, job `101916912997`; false-stop probability `0.81`, maximum coverage `0.19` vs nominal `0.95` | **open; unrepaired** |
-| `AV5-006 — negative held-out discrimination tolerance can label overlapping structural envelopes as discriminating` | P2 | J; L/M/N | #648 | PR #647, head `5e57dd95bf268c7bb13bf27d711bd2ad1a414e0f`, run `34183461176`, job `101927040185`; zero-gap overlap accepted with tolerance `-1` | **open; unrepaired** |
-| `AV5-007 — binary64 parameter-coordinate collapse can falsely certify a wide compatible region as identified` | P1 | J; I/L/N | #651 | PR #650, head `6147ae898f959aec9068f0ae2e3d654a2509afca`, run `34183710162`, job `101927759593`; exact width `0.5`, reported width `0.0` | **open; unrepaired** |
-| `AV5-008 — survivor-conditioning gate accepts mismatched survival analysis window` | P2 | L; M/N | #658 | PR #657, head `58f7b6bd5dd7d20330804e6091ce7b3e65c8a4ab`, run `34187243024`, job `101937940280`; matched control valid and terminal/early mismatch also `valid=True` with `failures=[]` | **open; unrepaired** |
+| Finding | Severity | Discovery evidence | Live state |
+|---|---:|---|---|
+| **AV5-001 / #606** — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination | P1 | PR #605, head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; destination divergence `503/1024` | **open; unrepaired** |
+| **AV5-002 / #617** — parentage ignores declared close kin and permits first-degree mating | P2 | PR #616, head `b130fdac8c2ee421203af8a8e5a044a48de29d26`, run `34171257065`, job `101891843233` | **closed; explicit null-model scope disposition merged in #669 as `96b4efd07f6c78a5a0c80dfc2c883ee2bd5c908f`** |
+| **AV5-003 / #627** — spatial M9 history replay uses process seed instead of population seed | P2 | PR #626, head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`, run `34175807550`, job `101904842100` | **open; next selected repair** |
+| **AV5-004 / #629** — M9 equal-cost destination choice is not spatial-reflection equivariant | P1 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; `256/256` mismatches | **open; unrepaired** |
+| **AV5-005 / #640** — small-n normal-CLT mean gate can certify severely under-covered intervals | P1 | PR #639, head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`, run `34179975096`, job `101916912997`; maximum coverage `0.19` vs nominal `0.95` | **closed; repaired by #664 and independently reverified by evidence-only #665** |
+| **AV5-006 / #648** — negative held-out discrimination tolerance can label overlapping structural envelopes as discriminating | P2 | PR #647, head `5e57dd95bf268c7bb13bf27d711bd2ad1a414e0f`, run `34183461176`, job `101927040185`; zero-gap overlap accepted at tolerance `-1` | **closed; repaired by #666** |
+| **AV5-007 / #651** — binary64 parameter-coordinate collapse can falsely certify a wide compatible region as identified | P1 | PR #650, head `6147ae898f959aec9068f0ae2e3d654a2509afca`, run `34183710162`, job `101927759593`; exact width `0.5`, reported width `0.0` | **open; unrepaired** |
+| **AV5-008 / #658** — survivor-conditioning gate accepts mismatched survival analysis window | P2 | PR #657, head `58f7b6bd5dd7d20330804e6091ce7b3e65c8a4ab`, run `34187243024`, job `101937940280` | **closed; repaired by #667 and independently reverified by evidence-only #668** |
 
-## Fresh evidence register
+## Completed remediation evidence
 
-### Area A
-- #605 / AV5-001 — run `34167265827`, job `101880669781`.
-- #608 — run `34167878417`, job `101882427621`; no finding.
-- #610 — corrected run `34170168801`, job `101888814237`; no finding.
+### AV5-002 / #617 — M2 parentage relatedness scope
 
-### Area B
-- #612 — run `34170606978`, job `101890040711`; documented coupling limitation.
-- #614 — run `34170852651`, job `101890718683`; no finding.
-- #616 / AV5-002 — run `34171257065`, job `101891843233`.
+Production PR **#669** was merged to `main` as `96b4efd07f6c78a5a0c80dfc2c883ee2bd5c908f` after exact-head protected/scientific CI passed. The accepted disposition deliberately does **not** invent a new genealogy-aware mate-choice mechanism. Instead it:
 
-### Area C
-- #619 — run `34172549189`, job `101895508298`; no finding.
-- #620 — corrected run `34172954061`, job `101896675856`; no finding.
+- defines M2 parentage as a residence-local eligible-male null model with no marriage/incest/relatedness-exclusion semantics;
+- states explicitly that first-degree pairings can be generated;
+- constrains scientific interpretation of generated genealogy and downstream kin-driven patterns;
+- preserves the complete-genealogy father/daughter construction as a permanent executable regression.
 
-### Area D
-- #622 — run `34173500474`, job `101898257594`; no finding.
-- #623 — corrected run `34174156771`, job `101900133852`; declared cadence sensitivity.
-- #624 — corrected run `34174434312`, job `101900925979`; no finding.
+No causal model-semantics or checkpoint-schema change was required.
 
-### Area E
-- #626 / AV5-003 — corrected run `34175807550`, job `101904842100`.
-- #628 / AV5-004 — run `34176415296`, job `101906603997`.
+### AV5-005 / #640 — small-n mean stopping validity
 
-### Area F
-- #631 — run `34176902246`, job `101907992004`; no finding.
-- #632 — run `34178268167`, job `101911905647`; no finding.
-- #633 — run `34178544437`, job `101912698794`; no finding.
+Production PR **#664** added executable validity guards for normal-CLT mean-family stopping, including a minimum replicate floor and fail-closed zero-observed-variance handling. Because AV5-005 is P1, evidence-only PR **#665** independently restored the original adversary against merged `main` and confirmed the repaired behavior before closure.
 
-### Area G
-- #635 — run `34179017837`, job `101914085007`; no finding.
-- #636 — run `34179236440`, job `101914732283`; no finding.
-- #637 — run `34179379004`, job `101915149933`; no finding.
+### AV5-006 / #648 — discrimination threshold domain
 
-### Area H
-- #639 / AV5-005 — run `34179975096`, job `101916912997`; P1 finding.
-- #642 — run `34180240625`, job `101917689688`; no finding.
+Production PR **#666** rejects negative `corroborationDiscriminationTolerance` before the discrimination calculation while preserving zero/positive thresholds, conservative structural envelopes and the calibration/held-out firewall. The issue is closed.
 
-### Area I
-- #644 — corrected run `34180737754`, job `101919165133`; no finding.
-- #645 — run `34180965342`, job `101919828088`; no finding.
+### AV5-008 / #658 — survivor-window alignment
 
-### Area J
-- #647 / AV5-006 — run `34183461176`, job `101927040185`; P2 finding.
-- #650 / AV5-007 — run `34183710162`, job `101927759593`; P1 finding.
-- #653 — corrected run `34184015481`, job `101928620097`; no finding.
+Production PR **#667** requires survivor-conditioned condition observables and their accompanying survival/population observables to share the same `analysisWindowId`. Evidence-only PR **#668** independently restored the original mismatch adversary against merged `main` and confirmed the repaired behavior before closure.
 
-### Area K
-- #655 — run `34186026881`, job `101934406468`; no new finding.
+## Remaining remediation set
 
-### Area L
-- **#657 / AV5-008** — exact head `58f7b6bd5dd7d20330804e6091ce7b3e65c8a4ab`; dedicated run `34187243024`; job `101937940280`; `matched_window_valid=True; mismatched_window_valid=True; mismatched_failures=[]`; intentional scientific-oracle failure. **P2 finding.** Evidence PR closed unmerged.
+1. **AV5-003 / #627 (P2) — next selected repair.** Spatial explicit-split runs initialize synthetic founders from the bound population seed, but M9 history replay reconstructs them from `ExperimentConfig.seed` (the process seed). The repair must propagate the authoritative population-realization identity through the shared invariant/replay seam without weakening provenance or tamper detection, while preserving ordinary non-spatial and declared-founder behavior.
+2. **AV5-001 / #606 (P1).** Remove nonlocal M9 tie dependence on globally renumbered stochastic-coupling ranks while preserving deterministic and label-invariant coupling.
+3. **AV5-004 / #629 (P1).** Make M9 equal-cost destination selection spatially equivariant under reflection/isomorphism without collapsing to an arbitrary deterministic canonical winner.
+4. **AV5-007 / #651 (P1).** Preserve sufficient numeric fidelity for exact parameter coordinates used by identifiability/equifinality diagnostics and gates.
 
-### Area M
-- **#660** — exact head `ae202efe0c640c6802311cc6d9a0bed205985f2d`; dedicated run `34189099811`; job `101943293363`; `close_kin_parentage_disclosed=False; threshold_domain_disclosed=False; survivor_window_alignment_disclosed=False`. Cross-cutting evidence for existing AV5-002/#617, AV5-006/#648 and AV5-008/#658; no duplicate issue. Evidence PR closed unmerged.
-
-### Area N
-- **#662** — corrected exact head `081507da5ef53d375141430de3b82e4ca1cbfa5d`; dedicated run `34189666657`; job `101944954802`; `baseline_births=98; away_births=98; birth_signatures_equal=true; baseline_m4_households_evaluated=160; away_m4_households_evaluated=120`. Fresh M2/M4/M9 integration control passed; no additional finding. Evidence PR closed unmerged.
-
-## Audit-v5 discovery conclusion
-
-Scientific Audit v5 discovery is complete across **14/14 Areas A–N**. The independent fifth-pass discovery result is non-clean with eight preserved findings: four P1 and four P2. No P0 or P3 finding was demonstrated.
-
-Area N supplied the final explicit cross-system challenge rather than inferring integration coverage from earlier areas. The fresh #662 control showed that M9 temporary physical absence can reduce M4 household evaluation while the persistent-residence-based M2 birth/parentage signature remains invariant. That successful control found no ninth defect, but AV5-001 through AV5-008 remain open and unrepaired with their original evidence chains intact.
-
-The completed discovery ledger establishes framework/software scientific-audit coverage only. It does **not** establish empirical validation, archaeological validity, or case-specific research readiness.
+AV5-001 and AV5-004 both touch M9 stochastic destination identity and may require coordinated design review; do not repair them concurrently on overlapping branches unless their shared keying contract is explicitly reconciled.
 
 ## Next action
 
-Begin **post-discovery Audit-v5 remediation** from the authoritative open finding set (#606, #617, #627, #629, #640, #648, #651, #658). Reconstruct live state before selecting a finding; avoid overlap with other repair branches/agents; use a dedicated production repair PR; require exact-head protected/scientific CI before merge; and perform the required independent post-merge adversarial re-verification before closing the original finding. Do not restart Audit-v5 discovery or create duplicate issues for these findings.
+Begin dedicated production remediation for **AV5-003/#627** from the current live `main` after this ledger synchronization is merged. At selection time there was no `audit/repair-627-*` branch and no open PR overlapping the finding. Preserve the original #626 evidence as the historical adversary, add a permanent regression for explicit-split population/process seed replay, run exact-head protected/scientific CI, and close #627 only after its acceptance contract is satisfied.
+
+Audit-v5 discovery remains complete. No further discovery pass is implied by remediation, and no empirical or archaeological readiness claim follows from closing these software/scientific-method findings.
