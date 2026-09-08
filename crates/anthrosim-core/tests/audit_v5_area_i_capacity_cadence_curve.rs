@@ -30,7 +30,7 @@ fn capacity_stress_resources(periods_per_year: u16) -> ResourceConfig {
 }
 
 fn run(periods_per_year: u16) -> SimulationCheckpoint {
-    let config = ExperimentConfig::new(50_409, 1)
+    let config = ExperimentConfig::new(50_403, 1)
         .with_world(WorldConfig::new(1, 1))
         .with_population(PopulationConfig::new(1).with_target_household_size(1))
         .with_demography(no_event_demography())
