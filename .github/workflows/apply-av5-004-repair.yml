@@ -1,0 +1,1371 @@
+name: Apply AV5-004 repair patch
+
+on:
+  push:
+    branches: [audit/repair-629-av5-004]
+    paths:
+      - '.github/workflows/apply-av5-004-repair.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-629-av5-004
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply production repair and regressions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              path = Path(path)
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+              path.write_text(text.replace(old, new, 1))
+
+          travel = 'crates/anthrosim-core/src/temporary_travel.rs'
+          replace_once(
+              travel,
+              '''const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+          const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+          ''',
+              '''const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+          const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+
+          /// Versioned spatial state used only to couple otherwise exchangeable M9 destination ties.
+          ///
+          /// Movement cost is always present because it is authoritative M9 travel state. Spatial-host
+          /// runs additionally opt in model-facing fields that were explicitly supplied by M8 transforms;
+          /// residual synthetic fields are deliberately excluded from that host-level correspondence.
+          #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+          #[serde(rename_all = "snake_case")]
+          pub(crate) enum TemporaryDestinationCouplingContextKind {
+              CoreWorldMovementV1,
+              SpatialDeclaredFieldsV1,
+          }
+
+          #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+          #[serde(rename_all = "camelCase")]
+          pub(crate) struct TemporaryDestinationCouplingContext {
+              pub schema_version: u32,
+              pub kind: TemporaryDestinationCouplingContextKind,
+              pub include_water_access: bool,
+              pub include_base_productivity: bool,
+          }
+
+          impl TemporaryDestinationCouplingContext {
+              pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+              #[must_use]
+              pub(crate) const fn core_world_movement_v1() -> Self {
+                  Self {
+                      schema_version: Self::CURRENT_SCHEMA_VERSION,
+                      kind: TemporaryDestinationCouplingContextKind::CoreWorldMovementV1,
+                      include_water_access: false,
+                      include_base_productivity: false,
+                  }
+              }
+
+              #[must_use]
+              pub(crate) const fn spatial_declared_fields_v1(
+                  include_water_access: bool,
+                  include_base_productivity: bool,
+              ) -> Self {
+                  Self {
+                      schema_version: Self::CURRENT_SCHEMA_VERSION,
+                      kind: TemporaryDestinationCouplingContextKind::SpatialDeclaredFieldsV1,
+                      include_water_access,
+                      include_base_productivity,
+                  }
+              }
+
+              #[must_use]
+              pub(crate) const fn is_valid(self) -> bool {
+                  self.schema_version == Self::CURRENT_SCHEMA_VERSION
+                      && match self.kind {
+                          TemporaryDestinationCouplingContextKind::CoreWorldMovementV1 => {
+                              !self.include_water_access && !self.include_base_productivity
+                          }
+                          TemporaryDestinationCouplingContextKind::SpatialDeclaredFieldsV1 => true,
+                      }
+              }
+
+              #[must_use]
+              pub(crate) const fn kind_rank(self) -> u64 {
+                  match self.kind {
+                      TemporaryDestinationCouplingContextKind::CoreWorldMovementV1 => 0,
+                      TemporaryDestinationCouplingContextKind::SpatialDeclaredFieldsV1 => 1,
+                  }
+              }
+          }
+
+          #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+          enum GridReflection {
+              Identity,
+              Horizontal,
+              Vertical,
+              Both,
+          }
+
+          const GRID_REFLECTIONS: [GridReflection; 4] = [
+              GridReflection::Identity,
+              GridReflection::Horizontal,
+              GridReflection::Vertical,
+              GridReflection::Both,
+          ];
+
+          /// All grid-reflection frames that realize the exact lexicographically minimal declared
+          /// model-facing spatial state. More than one frame means the declared state itself has an
+          /// automorphism; destinations related inside that automorphism remain one exchangeable class.
+          #[derive(Debug, Clone, PartialEq, Eq)]
+          pub(crate) struct TemporaryDestinationCanonicalFrame {
+              reflections: Vec<GridReflection>,
+          }
+
+          pub(crate) fn destination_canonical_frame(
+              world: &World,
+              context: TemporaryDestinationCouplingContext,
+          ) -> Option<TemporaryDestinationCanonicalFrame> {
+              if !context.is_valid() || world.width() == 0 || world.height() == 0 {
+                  return None;
+              }
+              let mut best_signature: Option<Vec<u16>> = None;
+              let mut reflections = Vec::new();
+              for reflection in GRID_REFLECTIONS {
+                  let signature = reflected_context_signature(world, context, reflection)?;
+                  match best_signature.as_ref() {
+                      None => {
+                          best_signature = Some(signature);
+                          reflections.push(reflection);
+                      }
+                      Some(best) => match signature.cmp(best) {
+                          Ordering::Less => {
+                              best_signature = Some(signature);
+                              reflections.clear();
+                              reflections.push(reflection);
+                          }
+                          Ordering::Equal => reflections.push(reflection),
+                          Ordering::Greater => {}
+                      },
+                  }
+              }
+              (!reflections.is_empty()).then_some(TemporaryDestinationCanonicalFrame { reflections })
+          }
+
+          pub(crate) fn destination_coupling_classes(
+              world: &World,
+              frame: &TemporaryDestinationCanonicalFrame,
+              origin: CellId,
+              candidates: &[TemporaryTravelDestinationCandidate],
+          ) -> Option<Vec<u32>> {
+              let mut keyed = Vec::with_capacity(candidates.len());
+              for (index, candidate) in candidates.iter().enumerate() {
+                  let mut best_pair = None;
+                  for &reflection in &frame.reflections {
+                      let mapped_origin = reflected_cell(world, reflection, origin)?;
+                      let mapped_destination =
+                          reflected_cell(world, reflection, candidate.destination)?;
+                      let key = (
+                          mapped_origin.0,
+                          mapped_destination.0,
+                          candidate.route_distance_edges,
+                      );
+                      best_pair = Some(best_pair.map_or(key, |prior| prior.min(key)));
+                  }
+                  keyed.push((best_pair?, index));
+              }
+              keyed.sort_unstable_by_key(|(key, index)| (*key, *index));
+
+              let mut classes = vec![0_u32; candidates.len()];
+              let mut previous = None;
+              let mut class = 0_u32;
+              for (key, index) in keyed {
+                  if previous.is_some_and(|prior| prior != key) {
+                      class = class.checked_add(1)?;
+                  }
+                  classes[index] = class;
+                  previous = Some(key);
+              }
+              Some(classes)
+          }
+
+          fn reflected_context_signature(
+              world: &World,
+              context: TemporaryDestinationCouplingContext,
+              reflection: GridReflection,
+          ) -> Option<Vec<u16>> {
+              let fields_per_cell = 1
+                  + if context.include_water_access { 1 } else { 0 }
+                  + if context.include_base_productivity { 1 } else { 0 };
+              let capacity = world.cell_count().checked_mul(fields_per_cell)?;
+              let mut signature = Vec::with_capacity(capacity);
+              for y in 0..world.height() {
+                  for x in 0..world.width() {
+                      let (source_x, source_y) = reflected_coordinates(
+                          reflection,
+                          x,
+                          y,
+                          world.width(),
+                          world.height(),
+                      );
+                      let source = world.cell_id(source_x, source_y)?;
+                      let cell = world.cell(source)?;
+                      signature.push(cell.movement_cost);
+                      if context.include_water_access {
+                          signature.push(cell.water_access);
+                      }
+                      if context.include_base_productivity {
+                          signature.push(cell.base_productivity);
+                      }
+                  }
+              }
+              Some(signature)
+          }
+
+          fn reflected_cell(
+              world: &World,
+              reflection: GridReflection,
+              cell: CellId,
+          ) -> Option<CellId> {
+              let (x, y) = world.coordinates(cell)?;
+              let (x, y) =
+                  reflected_coordinates(reflection, x, y, world.width(), world.height());
+              world.cell_id(x, y)
+          }
+
+          fn reflected_coordinates(
+              reflection: GridReflection,
+              x: u32,
+              y: u32,
+              width: u32,
+              height: u32,
+          ) -> (u32, u32) {
+              match reflection {
+                  GridReflection::Identity => (x, y),
+                  GridReflection::Horizontal => (width - 1 - x, y),
+                  GridReflection::Vertical => (x, height - 1 - y),
+                  GridReflection::Both => (width - 1 - x, height - 1 - y),
+              }
+          }
+          ''',
+          )
+
+          old_derive = '''    /// Derive M9.4 travel geometry while preserving every exactly equal minimum destination.
+              ///
+              /// `destination_tie_seed` does not affect route cost or reachability. It is retained in the
+              /// table solely so M9 execution can resolve an equal-cost destination with the declared keyed
+              /// tie policy without consuming any sequential RNG stream.
+              pub fn derive_table_with_tie_seed(
+                  &self,
+                  region: &FocalRegion,
+                  world: &World,
+                  destination_tie_seed: u64,
+              ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
+                  self.validate()?;
+                  region.validate(world)?;
+                  for &cell in region.member_cells() {
+                      if !self.is_traversable(world, cell) {
+                          return Err(TemporaryTravelModelError::RegionCellImpassable { cell });
+                      }
+                  }
+
+                  let labels = minimum_cost_labels(self, region, world)?;
+                  let mut resolutions = Vec::with_capacity(world.cell_count());
+                  let mut accumulated_costs = Vec::with_capacity(world.cell_count());
+                  let mut equal_cost_destinations = Vec::with_capacity(world.cell_count());
+
+                  for label in labels {
+                      let Some(label) = label else {
+                          resolutions.push(TemporaryTravelResolution::Unreachable);
+                          accumulated_costs.push(None);
+                          equal_cost_destinations.push(Vec::new());
+                          continue;
+                      };
+                      let candidates = label
+                          .destinations
+                          .into_iter()
+                          .map(
+                              |(destination, route_distance_edges)| TemporaryTravelDestinationCandidate {
+                                  destination,
+                                  route_distance_edges,
+                              },
+                          )
+                          .collect::<Vec<_>>();
+                      let destination = candidates
+                          .first()
+                          .expect("reachable M9.4 label must retain at least one destination")
+                          .destination;
+                      let travel_days = self.travel_days(label.cost)?;
+                      resolutions.push(TemporaryTravelResolution::Reachable {
+                          destination,
+                          outbound_travel_days: travel_days,
+                          return_travel_days: travel_days,
+                      });
+                      accumulated_costs.push(Some(label.cost));
+                      equal_cost_destinations.push(candidates);
+                  }
+
+                  TemporaryTravelTable::new_m9_4(
+                      resolutions,
+                      accumulated_costs,
+                      equal_cost_destinations,
+                      destination_tie_seed,
+                      self.clone(),
+                      region,
+                      world,
+                  )
+                  .map_err(TemporaryTravelModelError::TravelTable)
+              }
+          '''
+          new_derive = '''    /// Derive M9.4 travel geometry while preserving every exactly equal minimum destination.
+              ///
+              /// `destination_tie_seed` does not affect route cost or reachability. It is retained in the
+              /// table solely so M9 execution can resolve an equal-cost destination with the declared keyed
+              /// tie policy without consuming any sequential RNG stream.
+              pub fn derive_table_with_tie_seed(
+                  &self,
+                  region: &FocalRegion,
+                  world: &World,
+                  destination_tie_seed: u64,
+              ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
+                  self.derive_table_with_tie_seed_and_coupling_context(
+                      region,
+                      world,
+                      destination_tie_seed,
+                      TemporaryDestinationCouplingContext::core_world_movement_v1(),
+                  )
+              }
+
+              pub(crate) fn derive_table_with_tie_seed_and_coupling_context(
+                  &self,
+                  region: &FocalRegion,
+                  world: &World,
+                  destination_tie_seed: u64,
+                  destination_coupling_context: TemporaryDestinationCouplingContext,
+              ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
+                  self.validate()?;
+                  region.validate(world)?;
+                  if !destination_coupling_context.is_valid() {
+                      return Err(TemporaryTravelModelError::InvalidDestinationCouplingContext);
+                  }
+                  for &cell in region.member_cells() {
+                      if !self.is_traversable(world, cell) {
+                          return Err(TemporaryTravelModelError::RegionCellImpassable { cell });
+                      }
+                  }
+                  let canonical_frame = destination_canonical_frame(world, destination_coupling_context)
+                      .ok_or(TemporaryTravelModelError::InvalidDestinationCouplingContext)?;
+
+                  let labels = minimum_cost_labels(self, region, world)?;
+                  let mut resolutions = Vec::with_capacity(world.cell_count());
+                  let mut accumulated_costs = Vec::with_capacity(world.cell_count());
+                  let mut equal_cost_destinations = Vec::with_capacity(world.cell_count());
+
+                  for (origin_index, label) in labels.into_iter().enumerate() {
+                      let origin = CellId::new(origin_index as u64 + 1);
+                      let Some(label) = label else {
+                          resolutions.push(TemporaryTravelResolution::Unreachable);
+                          accumulated_costs.push(None);
+                          equal_cost_destinations.push(Vec::new());
+                          continue;
+                      };
+                      let mut candidates = label
+                          .destinations
+                          .into_iter()
+                          .map(
+                              |(destination, route_distance_edges)| TemporaryTravelDestinationCandidate {
+                                  destination,
+                                  route_distance_edges,
+                                  destination_coupling_class: 0,
+                              },
+                          )
+                          .collect::<Vec<_>>();
+                      let classes = destination_coupling_classes(
+                          world,
+                          &canonical_frame,
+                          origin,
+                          &candidates,
+                      )
+                      .ok_or(TemporaryTravelModelError::DestinationCouplingClassificationFailed {
+                          origin,
+                      })?;
+                      for (candidate, class) in candidates.iter_mut().zip(classes) {
+                          candidate.destination_coupling_class = class;
+                      }
+                      let destination = candidates
+                          .first()
+                          .expect("reachable M9.4 label must retain at least one destination")
+                          .destination;
+                      let travel_days = self.travel_days(label.cost)?;
+                      resolutions.push(TemporaryTravelResolution::Reachable {
+                          destination,
+                          outbound_travel_days: travel_days,
+                          return_travel_days: travel_days,
+                      });
+                      accumulated_costs.push(Some(label.cost));
+                      equal_cost_destinations.push(candidates);
+                  }
+
+                  TemporaryTravelTable::new_m9_4(
+                      resolutions,
+                      accumulated_costs,
+                      equal_cost_destinations,
+                      destination_tie_seed,
+                      destination_coupling_context,
+                      self.clone(),
+                      region,
+                      world,
+                  )
+                  .map_err(TemporaryTravelModelError::TravelTable)
+              }
+          '''
+          replace_once(travel, old_derive, new_derive)
+          replace_once(
+              travel,
+              '''    #[error(
+                  "temporary travel maximum traversable movement cost {ceiling} is below world baseline {minimum}"
+              )]
+              InvalidTraversableCostCeiling { ceiling: u16, minimum: u16 },
+          ''',
+              '''    #[error(
+                  "temporary travel maximum traversable movement cost {ceiling} is below world baseline {minimum}"
+              )]
+              InvalidTraversableCostCeiling { ceiling: u16, minimum: u16 },
+              #[error("temporary travel destination coupling context is invalid")]
+              InvalidDestinationCouplingContext,
+              #[error("temporary travel destination coupling classification failed for origin {origin:?}")]
+              DestinationCouplingClassificationFailed { origin: CellId },
+          ''',
+          )
+
+          mobility = 'crates/anthrosim-core/src/temporary_mobility.rs'
+          replace_once(
+              mobility,
+              '''    temporary_travel::{TemporaryTravelModel, TemporaryTravelModelError},
+          ''',
+              '''    temporary_travel::{
+                  TemporaryDestinationCouplingContext, TemporaryTravelModel, TemporaryTravelModelError,
+                  destination_canonical_frame, destination_coupling_classes,
+              },
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-local-household-coupling-v3";
+          ''',
+              '''const M9_DESTINATION_TIE_POLICY_ID: &str =
+              "m9/equal-cost-destination-local-household-spatial-equivalence-v4";
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''    pub fn derive_program_with_seed(
+                  &self,
+                  world: &World,
+                  destination_tie_seed: u64,
+              ) -> Result<TemporaryMobilityProgram, TemporaryMobilityConfigError> {
+                  self.validate()?;
+                  self.region.validate(world)?;
+                  let travel = self.travel_model.derive_table_with_tie_seed(
+                      &self.region,
+                      world,
+                      destination_tie_seed,
+                  )?;
+                  Ok(TemporaryMobilityProgram::new(
+                      self.region.clone(),
+                      self.schedule.clone(),
+                      travel,
+                      world,
+                  )?)
+              }
+          ''',
+              '''    pub fn derive_program_with_seed(
+                  &self,
+                  world: &World,
+                  destination_tie_seed: u64,
+              ) -> Result<TemporaryMobilityProgram, TemporaryMobilityConfigError> {
+                  self.derive_program_with_seed_and_coupling_context(
+                      world,
+                      destination_tie_seed,
+                      TemporaryDestinationCouplingContext::core_world_movement_v1(),
+                  )
+              }
+
+              pub(crate) fn derive_program_with_seed_and_coupling_context(
+                  &self,
+                  world: &World,
+                  destination_tie_seed: u64,
+                  destination_coupling_context: TemporaryDestinationCouplingContext,
+              ) -> Result<TemporaryMobilityProgram, TemporaryMobilityConfigError> {
+                  self.validate()?;
+                  self.region.validate(world)?;
+                  let travel = self
+                      .travel_model
+                      .derive_table_with_tie_seed_and_coupling_context(
+                          &self.region,
+                          world,
+                          destination_tie_seed,
+                          destination_coupling_context,
+                      )?;
+                  Ok(TemporaryMobilityProgram::new(
+                      self.region.clone(),
+                      self.schedule.clone(),
+                      travel,
+                      world,
+                  )?)
+              }
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''pub struct TemporaryTravelDestinationCandidate {
+              pub destination: CellId,
+              pub route_distance_edges: u32,
+          }
+          ''',
+              '''pub struct TemporaryTravelDestinationCandidate {
+              pub destination: CellId,
+              pub route_distance_edges: u32,
+              /// Local scientific equivalence class for keyed M9 destination coupling.
+              ///
+              /// The class is derived from an exact canonical reflection frame. Canonical CellId is
+              /// used only to serialize members inside one class, where they are scientifically
+              /// indistinguishable to the declared ambiguity-coupling context.
+              #[serde(default)]
+              pub destination_coupling_class: u32,
+          }
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''    #[serde(default, skip_serializing_if = "Option::is_none")]
+              destination_tie_seed: Option<u64>,
+          }
+          ''',
+              '''    #[serde(default, skip_serializing_if = "Option::is_none")]
+              destination_tie_seed: Option<u64>,
+              #[serde(default, skip_serializing_if = "Option::is_none")]
+              destination_coupling_context: Option<TemporaryDestinationCouplingContext>,
+          }
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+          ''',
+              '''    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''            equal_cost_destinations: None,
+                  destination_tie_seed: None,
+              };
+          ''',
+              '''            equal_cost_destinations: None,
+                  destination_tie_seed: None,
+                  destination_coupling_context: None,
+              };
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''    pub(crate) fn new_m9_4(
+              resolutions: Vec<TemporaryTravelResolution>,
+              accumulated_cost_units: Vec<Option<u64>>,
+              equal_cost_destinations: Vec<Vec<TemporaryTravelDestinationCandidate>>,
+              destination_tie_seed: u64,
+              travel_model: TemporaryTravelModel,
+              region: &FocalRegion,
+              world: &World,
+          ) -> Result<Self, TemporaryMobilityProgramError> {
+              let table = Self {
+                  schema_version: Self::CURRENT_SCHEMA_VERSION,
+                  resolutions,
+                  travel_model: Some(travel_model),
+                  accumulated_cost_units: Some(accumulated_cost_units),
+                  equal_cost_destinations: Some(equal_cost_destinations),
+                  destination_tie_seed: Some(destination_tie_seed),
+              };
+          ''',
+              '''    pub(crate) fn new_m9_4(
+              resolutions: Vec<TemporaryTravelResolution>,
+              accumulated_cost_units: Vec<Option<u64>>,
+              equal_cost_destinations: Vec<Vec<TemporaryTravelDestinationCandidate>>,
+              destination_tie_seed: u64,
+              destination_coupling_context: TemporaryDestinationCouplingContext,
+              travel_model: TemporaryTravelModel,
+              region: &FocalRegion,
+              world: &World,
+          ) -> Result<Self, TemporaryMobilityProgramError> {
+              let table = Self {
+                  schema_version: Self::CURRENT_SCHEMA_VERSION,
+                  resolutions,
+                  travel_model: Some(travel_model),
+                  accumulated_cost_units: Some(accumulated_cost_units),
+                  equal_cost_destinations: Some(equal_cost_destinations),
+                  destination_tie_seed: Some(destination_tie_seed),
+                  destination_coupling_context: Some(destination_coupling_context),
+              };
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''    pub const fn destination_tie_seed(&self) -> Option<u64> {
+              self.destination_tie_seed
+          }
+          ''',
+              '''    pub const fn destination_tie_seed(&self) -> Option<u64> {
+              self.destination_tie_seed
+          }
+
+          #[must_use]
+          pub(crate) const fn destination_coupling_context(
+              &self,
+          ) -> Option<TemporaryDestinationCouplingContext> {
+              self.destination_coupling_context
+          }
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''        let mut hash = FNV_OFFSET_BASIS;
+              digest_str(&mut hash, M9_DESTINATION_TIE_POLICY_ID);
+              digest_u64(&mut hash, self.destination_tie_seed.unwrap_or(0));
+              digest_u64(&mut hash, origin.0);
+              digest_u64(&mut hash, household_coupling_key);
+              digest_u64(&mut hash, u64::from(trigger_index));
+              hash = avalanche64(hash);
+              let index = usize::try_from(hash % candidates.len() as u64).ok()?;
+              Some(TemporaryTravelResolution::Reachable {
+                  destination: candidates[index].destination,
+                  outbound_travel_days,
+                  return_travel_days,
+              })
+          ''',
+              '''        let mut hash = FNV_OFFSET_BASIS;
+              digest_str(&mut hash, M9_DESTINATION_TIE_POLICY_ID);
+              digest_u64(&mut hash, self.destination_tie_seed.unwrap_or(0));
+              digest_u64(&mut hash, household_coupling_key);
+              digest_u64(&mut hash, u64::from(trigger_index));
+              digest_u64(&mut hash, candidates.len() as u64);
+              hash = avalanche64(hash);
+              let target_rank = usize::try_from(hash % candidates.len() as u64).ok()?;
+              let selected = candidates.iter().find(|candidate| {
+                  let key = (candidate.destination_coupling_class, candidate.destination);
+                  let rank = candidates
+                      .iter()
+                      .filter(|other| {
+                          (other.destination_coupling_class, other.destination) < key
+                      })
+                      .count();
+                  rank == target_rank
+              })?;
+              Some(TemporaryTravelResolution::Reachable {
+                  destination: selected.destination,
+                  outbound_travel_days,
+                  return_travel_days,
+              })
+          ''',
+          )
+          old_match = '''        let m9_4 = match (
+              &self.travel_model,
+              &self.accumulated_cost_units,
+              &self.equal_cost_destinations,
+              self.destination_tie_seed,
+          ) {
+              (None, None, None, None) => None,
+              (Some(model), Some(costs), Some(candidates), Some(_tie_seed)) => {
+                  model.validate().map_err(|error| {
+                      TemporaryMobilityProgramError::InvalidTravelModel {
+                          reason: error.to_string(),
+                      }
+                  })?;
+                  if costs.len() != world.cell_count() {
+                      return Err(
+                          TemporaryMobilityProgramError::TravelCostTableShapeMismatch {
+                              table: costs.len(),
+                              world: world.cell_count(),
+                          },
+                      );
+                  }
+                  if candidates.len() != world.cell_count() {
+                      return Err(
+                          TemporaryMobilityProgramError::TravelDestinationCandidateShapeMismatch {
+                              table: candidates.len(),
+                              world: world.cell_count(),
+                          },
+                      );
+                  }
+                  for &cell in region.member_cells() {
+                      if !model.is_traversable(world, cell) {
+                          return Err(TemporaryMobilityProgramError::TravelRegionCellImpassable {
+                              cell,
+                          });
+                      }
+                  }
+                  Some((model, costs, candidates))
+              }
+              _ => {
+                  return Err(TemporaryMobilityProgramError::IncompleteTravelCostMetadata);
+              }
+          };
+          '''
+          new_match = '''        let m9_4 = match (
+              &self.travel_model,
+              &self.accumulated_cost_units,
+              &self.equal_cost_destinations,
+              self.destination_tie_seed,
+              self.destination_coupling_context,
+          ) {
+              (None, None, None, None, None) => None,
+              (Some(model), Some(costs), Some(candidates), Some(_tie_seed), Some(context)) => {
+                  model.validate().map_err(|error| {
+                      TemporaryMobilityProgramError::InvalidTravelModel {
+                          reason: error.to_string(),
+                      }
+                  })?;
+                  if !context.is_valid() {
+                      return Err(TemporaryMobilityProgramError::InvalidDestinationCouplingContext);
+                  }
+                  let frame = destination_canonical_frame(world, context)
+                      .ok_or(TemporaryMobilityProgramError::InvalidDestinationCouplingContext)?;
+                  if costs.len() != world.cell_count() {
+                      return Err(
+                          TemporaryMobilityProgramError::TravelCostTableShapeMismatch {
+                              table: costs.len(),
+                              world: world.cell_count(),
+                          },
+                      );
+                  }
+                  if candidates.len() != world.cell_count() {
+                      return Err(
+                          TemporaryMobilityProgramError::TravelDestinationCandidateShapeMismatch {
+                              table: candidates.len(),
+                              world: world.cell_count(),
+                          },
+                      );
+                  }
+                  for &cell in region.member_cells() {
+                      if !model.is_traversable(world, cell) {
+                          return Err(TemporaryMobilityProgramError::TravelRegionCellImpassable {
+                              cell,
+                          });
+                      }
+                  }
+                  Some((model, costs, candidates, frame))
+              }
+              _ => {
+                  return Err(TemporaryMobilityProgramError::IncompleteTravelCostMetadata);
+              }
+          };
+          '''
+          replace_once(mobility, old_match, new_match)
+          replace_once(
+              mobility,
+              '''            if let Some((model, costs, candidates)) = m9_4 {
+                  match (*resolution, costs[index], candidates[index].as_slice()) {
+          ''',
+              '''            if let Some((model, costs, candidate_rows, frame)) = m9_4.as_ref() {
+                  match (*resolution, costs[index], candidate_rows[index].as_slice()) {
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''                    ) if !candidates.is_empty() => {
+                          if candidates[0].destination != destination
+                              || candidates
+                                  .windows(2)
+                                  .any(|pair| pair[0].destination >= pair[1].destination)
+                              || candidates.iter().any(|candidate| {
+                                  world.cell(candidate.destination).is_none()
+                                      || !region.contains(candidate.destination)
+                              })
+                          {
+                              return Err(
+                                  TemporaryMobilityProgramError::InvalidTravelDestinationCandidates {
+                                      origin,
+                                  },
+                              );
+                          }
+                          let expected = model.travel_days(cost).map_err(|error| {
+          ''',
+              '''                    ) if !candidates.is_empty() => {
+                          let expected_classes = destination_coupling_classes(
+                              world,
+                              frame,
+                              origin,
+                              candidates,
+                          )
+                          .ok_or(
+                              TemporaryMobilityProgramError::InvalidDestinationCouplingClasses {
+                                  origin,
+                              },
+                          )?;
+                          if candidates[0].destination != destination
+                              || candidates
+                                  .windows(2)
+                                  .any(|pair| pair[0].destination >= pair[1].destination)
+                              || candidates.iter().any(|candidate| {
+                                  world.cell(candidate.destination).is_none()
+                                      || !region.contains(candidate.destination)
+                              })
+                              || candidates
+                                  .iter()
+                                  .zip(expected_classes.iter())
+                                  .any(|(candidate, expected_class)| {
+                                      candidate.destination_coupling_class != *expected_class
+                                  })
+                          {
+                              return Err(
+                                  TemporaryMobilityProgramError::InvalidTravelDestinationCandidates {
+                                      origin,
+                                  },
+                              );
+                          }
+                          let expected = model.travel_days(cost).map_err(|error| {
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''                    for candidate in row {
+                          digest_u64(hash, candidate.destination.0);
+                          digest_u64(hash, u64::from(candidate.route_distance_edges));
+                      }
+                  }
+              }
+              match self.destination_tie_seed {
+          ''',
+              '''                    for candidate in row {
+                          digest_u64(hash, candidate.destination.0);
+                          digest_u64(hash, u64::from(candidate.route_distance_edges));
+                          digest_u64(hash, u64::from(candidate.destination_coupling_class));
+                      }
+                  }
+              }
+              match self.destination_coupling_context {
+                  None => digest_u64(hash, 0),
+                  Some(context) => {
+                      digest_u64(hash, 1);
+                      digest_u64(hash, u64::from(context.schema_version));
+                      digest_u64(hash, context.kind_rank());
+                      digest_u64(hash, if context.include_water_access { 1 } else { 0 });
+                      digest_u64(hash, if context.include_base_productivity { 1 } else { 0 });
+                  }
+              }
+              match self.destination_tie_seed {
+          ''',
+          )
+          replace_once(
+              mobility,
+              '''    #[error("temporary travel table has incomplete M9.4 model/cost metadata")]
+              IncompleteTravelCostMetadata,
+              #[error("temporary travel model is invalid: {reason}")]
+          ''',
+              '''    #[error("temporary travel table has incomplete M9.4 model/cost metadata")]
+              IncompleteTravelCostMetadata,
+              #[error("temporary travel destination coupling context is invalid")]
+              InvalidDestinationCouplingContext,
+              #[error("temporary travel destination coupling classes are invalid for {origin:?}")]
+              InvalidDestinationCouplingClasses { origin: CellId },
+              #[error("temporary travel model is invalid: {reason}")]
+          ''',
+          )
+
+          observability = 'crates/anthrosim-core/src/temporary_observability.rs'
+          replace_once(
+              observability,
+              '''        let expected = config
+                  .derive_program_with_seed(world, destination_tie_seed)
+                  .map_err(|error| {
+                      invalid(format!(
+                          "temporary mobility config cannot derive program: {error}"
+                      ))
+                  })?;
+          ''',
+              '''        let destination_coupling_context = program
+                  .travel
+                  .destination_coupling_context()
+                  .ok_or_else(|| {
+                      invalid(
+                          "configured temporary mobility program is missing destination coupling context",
+                      )
+                  })?;
+              let expected = config
+                  .derive_program_with_seed_and_coupling_context(
+                      world,
+                      destination_tie_seed,
+                      destination_coupling_context,
+                  )
+                  .map_err(|error| {
+                      invalid(format!(
+                          "temporary mobility config cannot derive program: {error}"
+                      ))
+                  })?;
+          ''',
+          )
+
+          spatial = 'crates/anthrosim-core/src/spatial_simulation.rs'
+          replace_once(
+              spatial,
+              '''    spatial_mechanisms::{
+              SPATIAL_MODEL_SEMANTICS_ID, SpatialMechanismConfig, SpatialMechanismError,
+              transform_landscape,
+          },
+          ''',
+              '''    spatial_mechanisms::{
+              SPATIAL_MODEL_SEMANTICS_ID, SpatialMechanismConfig, SpatialMechanismError,
+              SpatialTargetField, transform_landscape,
+          },
+          ''',
+          )
+          replace_once(
+              spatial,
+              '''    temporary_mobility::{
+              TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
+              TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
+          },
+          ''',
+              '''    temporary_mobility::{
+              TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
+              TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
+          },
+              temporary_travel::TemporaryDestinationCouplingContext,
+          ''',
+          )
+          replace_once(
+              spatial,
+              '''        let configured_program = config
+              .temporary_mobility
+              .as_ref()
+              .map(|definition| {
+                  definition.derive_program_with_seed(
+                      &world,
+                      spatial_binding.environment.realization.process_seed,
+                  )
+              })
+              .transpose()?;
+          ''',
+              '''        let destination_coupling_context =
+              spatial_temporary_destination_coupling_context(&spatial_binding.config);
+              let configured_program = config
+                  .temporary_mobility
+                  .as_ref()
+                  .map(|definition| {
+                      definition.derive_program_with_seed_and_coupling_context(
+                          &world,
+                          spatial_binding.environment.realization.process_seed,
+                          destination_coupling_context,
+                      )
+                  })
+                  .transpose()?;
+          ''',
+          )
+          replace_once(
+              spatial,
+              '''        validate_spatial_temporary_mobility(
+              &checkpoint.core_checkpoint,
+              &landscape,
+              &world,
+              checkpoint.spatial.environment.realization.process_seed,
+          )?;
+          ''',
+              '''        validate_spatial_temporary_mobility(
+              &checkpoint.core_checkpoint,
+              &landscape,
+              &world,
+              &checkpoint.spatial.config,
+              checkpoint.spatial.environment.realization.process_seed,
+          )?;
+          ''',
+          )
+          replace_once(
+              spatial,
+              '''    validate_spatial_temporary_mobility(
+              &run.checkpoint.core_checkpoint,
+              landscape,
+              &world,
+              run.checkpoint.spatial.environment.realization.process_seed,
+          )?;
+          ''',
+              '''    validate_spatial_temporary_mobility(
+              &run.checkpoint.core_checkpoint,
+              landscape,
+              &world,
+              &run.checkpoint.spatial.config,
+              run.checkpoint.spatial.environment.realization.process_seed,
+          )?;
+          ''',
+          )
+          replace_once(
+              spatial,
+              '''fn validate_spatial_temporary_mobility(
+              checkpoint: &SimulationCheckpoint,
+              landscape: &LandscapeBundle,
+              world: &World,
+              process_seed: u64,
+          ) -> Result<(), SpatialLandscapeError> {
+          ''',
+              '''fn spatial_temporary_destination_coupling_context(
+              mechanisms: &SpatialMechanismConfig,
+          ) -> TemporaryDestinationCouplingContext {
+              let include_water_access = mechanisms
+                  .transforms
+                  .iter()
+                  .any(|transform| transform.target == SpatialTargetField::WaterAccess);
+              let include_base_productivity = mechanisms
+                  .transforms
+                  .iter()
+                  .any(|transform| transform.target == SpatialTargetField::BaseProductivity);
+              TemporaryDestinationCouplingContext::spatial_declared_fields_v1(
+                  include_water_access,
+                  include_base_productivity,
+              )
+          }
+
+          fn validate_spatial_temporary_mobility(
+              checkpoint: &SimulationCheckpoint,
+              landscape: &LandscapeBundle,
+              world: &World,
+              mechanisms: &SpatialMechanismConfig,
+              process_seed: u64,
+          ) -> Result<(), SpatialLandscapeError> {
+          ''',
+          )
+          replace_once(
+              spatial,
+              '''    if let Some(definition) = &checkpoint.experiment.temporary_mobility {
+              let expected = definition.derive_program_with_seed(world, process_seed)?;
+              if checkpoint.temporary_mobility.program() != Some(&expected) {
+          ''',
+              '''    if let Some(definition) = &checkpoint.experiment.temporary_mobility {
+              let expected = definition.derive_program_with_seed_and_coupling_context(
+                  world,
+                  process_seed,
+                  spatial_temporary_destination_coupling_context(mechanisms),
+              )?;
+              if checkpoint.temporary_mobility.program() != Some(&expected) {
+          ''',
+          )
+
+          provenance = 'crates/anthrosim-core/src/provenance.rs'
+          replace_once(
+              provenance,
+              '''/// v34 removes the remaining nonlocal population-order dependency from M9 equal-cost
+          /// destination coupling. Tied M9 departures use a household-local, label-neutral demographic
+          /// equivalence key instead of the minimum globally ordinal person stochastic-coupling rank.
+          /// Unrelated founder insertion/removal can therefore no longer perturb an unchanged focal
+          /// household's tie realization. A v33 checkpoint must not resume under v34 while silently
+          /// changing future tied M9 destinations.
+          pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v34";
+          ''',
+              '''/// v34 removes the remaining nonlocal population-order dependency from M9 equal-cost
+          /// destination coupling. Tied M9 departures use a household-local, label-neutral demographic
+          /// equivalence key instead of the minimum globally ordinal person stochastic-coupling rank.
+          /// Unrelated founder insertion/removal can therefore no longer perturb an unchanged focal
+          /// household's tie realization. A v33 checkpoint must not resume under v34 while silently
+          /// changing future tied M9 destinations.
+          ///
+          /// v35 removes canonical spatial representation from M9 equal-cost destination coupling.
+          /// The keyed draw is shared across scientifically corresponding tied origins, while each
+          /// derived travel table classifies destination alternatives in an exact reflection-canonical
+          /// frame built from authoritative movement cost plus explicitly transformed spatial fields.
+          /// Canonical CellId only orders members inside a genuinely indistinguishable equivalence
+          /// class. A v34 checkpoint must not resume under v35 while silently changing future tied M9
+          /// destinations.
+          pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v35";
+          ''',
+          )
+
+          test = r'''use anthrosim_core::{
+              DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource,
+              FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+              GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole,
+              LandscapeValueDomain, MigrationConfig, NoDataPolicy, ParameterProvenance,
+              PopulationConfig, ReproductiveSex, ResourceConfig, SpatialFieldTransform,
+              SpatialLandscapeSimulation, SpatialMechanismConfig, SpatialRunRealization,
+              SpatialTargetField, TemporaryMobilityConfig, TemporaryMobilitySchedule,
+              TemporaryTravelModel, TemporaryTriggerTiming, TransformDirection, WorldConfig,
+              ids::{CellId, HouseholdId, PersonId},
+          };
+
+          const DOMAIN: LandscapeValueDomain = LandscapeValueDomain { min: 0, max: 1_000 };
+
+          fn layer(id: &str, role: LandscapeLayerRole, values: [i32; 3]) -> LandscapeLayer {
+              LandscapeLayer {
+                  layer_id: id.to_owned(),
+                  role,
+                  unit: "normalized_index".to_owned(),
+                  value_domain: Some(DOMAIN),
+                  evidence_input_id: None,
+                  values: values.into_iter().map(Some).collect(),
+              }
+          }
+
+          fn landscape(width: u32, height: u32, resource_values: [i32; 3]) -> LandscapeBundle {
+              LandscapeBundle::new(
+                  width,
+                  height,
+                  GridGeometry {
+                      origin_x: 0,
+                      origin_y: 0,
+                      cell_size_x: 1,
+                      cell_size_y: 1,
+                      coordinate_unit: "metre".to_owned(),
+                      spatial_reference: "LOCAL_CS[av5-004-m9-isomorphism]".to_owned(),
+                  },
+                  vec![
+                      layer("terrain", LandscapeLayerRole::TerrainTraversal, [0, 0, 0]),
+                      layer(
+                          "resources",
+                          LandscapeLayerRole::ResourceOpportunity,
+                          resource_values,
+                      ),
+                  ],
+              )
+          }
+
+          fn mechanisms() -> SpatialMechanismConfig {
+              SpatialMechanismConfig::new(
+                  "av5-004-m9-spatial-isomorphism",
+                  vec![
+                      SpatialFieldTransform::new(
+                          SpatialTargetField::MovementCost,
+                          "terrain",
+                          "normalized_index",
+                          DOMAIN,
+                          1_000,
+                          1_000,
+                          TransformDirection::Direct,
+                          NoDataPolicy::Reject,
+                      ),
+                      SpatialFieldTransform::new(
+                          SpatialTargetField::BaseProductivity,
+                          "resources",
+                          "normalized_index",
+                          DOMAIN,
+                          0,
+                          1_000,
+                          TransformDirection::Direct,
+                          NoDataPolicy::Reject,
+                      ),
+                  ],
+              )
+              .with_run_realization(SpatialRunRealization::new(71_001, 81_001))
+          }
+
+          fn founders() -> FounderPopulationDefinition {
+              FounderPopulationDefinition::new(
+                  "av5-004-m9-spatial-isomorphism-founders",
+                  ParameterProvenance::SyntheticValidation,
+                  FounderGenealogyStatus::Unspecified,
+                  vec![FounderHousehold {
+                      id: HouseholdId::new(1),
+                      location: CellId::new(2),
+                  }],
+                  vec![FounderPerson {
+                      id: PersonId::new(1),
+                      birth_day: -(30 * 365),
+                      reproductive_sex: ReproductiveSex::Male,
+                      household: HouseholdId::new(1),
+                      female_parent: None,
+                      male_parent: None,
+                      last_birth_day: None,
+                      condition_permille: 1_000,
+                  }],
+              )
+          }
+
+          fn demography() -> DemographyConfig {
+              let mut config = DemographyConfig::synthetic_validation_v1();
+              for band in &mut config.mortality_bands {
+                  band.annual_probability_per_million = 0;
+              }
+              for band in &mut config.fertility_bands {
+                  band.annual_probability_per_million = 0;
+              }
+              config
+          }
+
+          fn temporary_mobility() -> TemporaryMobilityConfig {
+              let region = FocalRegion::new(
+                  "av5-004-m9-spatial-isomorphism-region",
+                  FocalRegionSource::Synthetic,
+                  vec![CellId::new(1), CellId::new(3)],
+              )
+              .unwrap();
+              let schedule = TemporaryMobilitySchedule::new(
+                  "av5-004-m9-spatial-isomorphism-schedule",
+                  TemporaryTriggerTiming::DepartureDay,
+                  vec![100],
+                  1,
+              )
+              .unwrap();
+              TemporaryMobilityConfig::new(
+                  region,
+                  schedule,
+                  TemporaryTravelModel::synthetic_validation_v1(),
+              )
+              .unwrap()
+          }
+
+          fn experiment(seed: u64, width: u32, height: u32) -> ExperimentConfig {
+              let mut resources = ResourceConfig::synthetic_validation_v1();
+              resources.annual_need_units_per_person = 0;
+              resources.seasonality_scale_permille = 0;
+              resources.max_scarcity_mortality_probability_per_million = 0;
+
+              ExperimentConfig::new(seed, 1)
+                  .with_world(WorldConfig::new(width, height))
+                  .with_population(PopulationConfig::new(1).with_target_household_size(1))
+                  .with_founder_population(founders())
+                  .with_demography(demography())
+                  .with_resources(resources)
+                  .with_migration(MigrationConfig::synthetic_validation_v1().with_enabled(false))
+                  .with_temporary_mobility(temporary_mobility())
+          }
+
+          fn departure(
+              seed: u64,
+              width: u32,
+              height: u32,
+              resource_values: [i32; 3],
+          ) -> (CellId, u64) {
+              let run = SpatialLandscapeSimulation::new(
+                  experiment(seed, width, height),
+                  landscape(width, height, resource_values),
+                  mechanisms(),
+              )
+              .unwrap()
+              .run_recorded()
+              .unwrap();
+
+              let departures = run
+                  .events()
+                  .events
+                  .iter()
+                  .filter_map(|record| match &record.event {
+                      EventKind::TemporaryJourneyDeparted {
+                          residence,
+                          destination,
+                          destination_tie_coupling_key,
+                          ..
+                      } => Some((*residence, *destination, *destination_tie_coupling_key)),
+                      _ => None,
+                  })
+                  .collect::<Vec<_>>();
+              assert_eq!(departures.len(), 1, "seed {seed}: departures={departures:?}");
+              assert_eq!(departures[0].0, CellId::new(2));
+              let coupling_key = departures[0]
+                  .2
+                  .expect("tied M9 execution must expose its household-local coupling key");
+              (departures[0].1, coupling_key)
+          }
+
+          fn mirror_three(cell: CellId) -> CellId {
+              match cell.0 {
+                  1 => CellId::new(3),
+                  2 => CellId::new(2),
+                  3 => CellId::new(1),
+                  other => panic!("unexpected three-cell id {other}"),
+              }
+          }
+
+          fn assert_reflection_sweep(width: u32, height: u32) {
+              let mut first = 0_u32;
+              let mut third = 0_u32;
+              for seed in 1..=256_u64 {
+                  let canonical = departure(seed, width, height, [900, 100, 500]);
+                  let reflected = departure(seed, width, height, [500, 100, 900]);
+                  assert_eq!(
+                      canonical.1, reflected.1,
+                      "pure spatial reflection altered household-local M9 coupling at seed {seed}"
+                  );
+                  assert_eq!(
+                      reflected.0,
+                      mirror_three(canonical.0),
+                      "same physical M9 tie failed reflection equivariance at seed {seed}, {width}x{height}: canonical={canonical:?}, reflected={reflected:?}"
+                  );
+                  match canonical.0 {
+                      cell if cell == CellId::new(1) => first += 1,
+                      cell if cell == CellId::new(3) => third += 1,
+                      other => panic!("seed {seed}: unexpected tied destination {other:?}"),
+                  }
+              }
+              assert!(
+                  first > 0 && third > 0,
+                  "reflection-coupled ambiguity policy must preserve both marginal alternatives: first={first}, third={third}"
+              );
+          }
+
+          #[test]
+          fn m9_equal_cost_destination_is_equivariant_under_horizontal_reflection() {
+              assert_reflection_sweep(3, 1);
+          }
+
+          #[test]
+          fn m9_equal_cost_destination_is_equivariant_under_vertical_reflection() {
+              assert_reflection_sweep(1, 3);
+          }
+
+          #[test]
+          fn exact_spatial_symmetry_remains_exchangeable_and_replay_exact() {
+              let mut first = 0_u32;
+              let mut third = 0_u32;
+              for seed in 1..=256_u64 {
+                  let run = departure(seed, 3, 1, [900, 100, 900]);
+                  let replay = departure(seed, 3, 1, [900, 100, 900]);
+                  assert_eq!(run, replay, "seed {seed}: exact replay diverged");
+                  match run.0 {
+                      cell if cell == CellId::new(1) => first += 1,
+                      cell if cell == CellId::new(3) => third += 1,
+                      other => panic!("seed {seed}: unexpected symmetric destination {other:?}"),
+                  }
+              }
+              assert!(
+                  first > 0 && third > 0,
+                  "exact automorphic alternatives must remain marginally exchangeable: first={first}, third={third}"
+              );
+          }
+          '''
+          Path('crates/anthrosim-core/tests/m9_spatial_isomorphism_invariance.rs').write_text(test)
+          PY
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Format and run focused regressions
+        shell: bash
+        run: |
+          cargo fmt --all
+          cargo test --locked -p anthrosim-core --test m9_spatial_isomorphism_invariance --test m9_remote_founder_tie_locality --test m9_household_label_invariance
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          git config user.name "Datengu"
+          git config user.email "15160645+Datengu@users.noreply.github.com"
+          git add crates/anthrosim-core/src/temporary_travel.rs \
+                  crates/anthrosim-core/src/temporary_mobility.rs \
+                  crates/anthrosim-core/src/temporary_observability.rs \
+                  crates/anthrosim-core/src/spatial_simulation.rs \
+                  crates/anthrosim-core/src/provenance.rs \
+                  crates/anthrosim-core/tests/m9_spatial_isomorphism_invariance.rs
+          git commit -m "fix: make M9 destination ties spatially equivariant"
+          git push origin HEAD:audit/repair-629-av5-004
