@@ -29,7 +29,13 @@ fn movement_values() -> Vec<i32> {
 fn controlled_world() -> World {
     let movement = movement_values()
         .into_iter()
-        .map(|value| if value == 65_000 { 65_000_u16 } else { 1_000_u16 })
+        .map(|value| {
+            if value == 65_000 {
+                65_000_u16
+            } else {
+                1_000_u16
+            }
+        })
         .collect::<Vec<_>>();
     World::generate(WorldConfig::new(5, 5), RngFactory::new(50_001))
         .unwrap()
@@ -253,7 +259,10 @@ fn authoritative_focal_departure(seed: u64, include_remote: bool) -> (CellId, u6
 fn av5_001_isolated_founder_locality_holds_after_v34_repair() {
     let baseline = population(false);
     let augmented = population(true);
-    assert_eq!(baseline.person(PersonId::new(1)), augmented.person(PersonId::new(1)));
+    assert_eq!(
+        baseline.person(PersonId::new(1)),
+        augmented.person(PersonId::new(1))
+    );
 
     // Preserve the original discovery mechanism as a positive control. Population-wide ranks
     // still legitimately renumber 1 -> 2 because they remain authoritative for other mechanisms.
