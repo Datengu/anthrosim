@@ -17,6 +17,7 @@ def protocol(
     condition_interpretation: str,
     include_survival: bool = True,
     survival_source: str = "metrics.population.finalLivingPopulation",
+    survival_window: str = "terminal",
 ) -> dict:
     observables = [
         {
@@ -34,8 +35,8 @@ def protocol(
                 "id": "terminal_population",
                 "role": "secondary",
                 "source": survival_source,
-                "analysisWindowId": "terminal",
-                "interpretation": "Terminal living population; defined even after extinction.",
+                "analysisWindowId": survival_window,
+                "interpretation": "Living population at the declared analysis boundary.",
             }
         )
         ids.append("terminal_population")
@@ -103,6 +104,30 @@ assert any("death_handling=no_post_death_imputation" in failure for failure in m
 missing_survival = module.validate_protocol(protocol(DECLARATION, include_survival=False))
 assert missing_survival["valid"] is False
 assert any("survival/population observable" in failure for failure in missing_survival["failures"])
+
+mismatched_window = module.validate_protocol(
+    protocol(DECLARATION, survival_window="early")
+)
+assert mismatched_window["valid"] is False
+assert any(
+    "same analysis window 'terminal'" in failure
+    for failure in mismatched_window["failures"]
+), mismatched_window["failures"]
+
+# A recognized earlier survival observable cannot satisfy the terminal safeguard merely
+# because both IDs appear in the same comparison.
+matched_again = protocol(DECLARATION)
+matched_again["observables"].append(
+    {
+        "id": "early_population",
+        "role": "secondary",
+        "source": "metrics.population.finalLivingPopulation",
+        "analysisWindowId": "early",
+        "interpretation": "Earlier living population.",
+    }
+)
+matched_again["comparisons"][0]["observableIds"].append("early_population")
+assert module.validate_protocol(matched_again)["valid"] is True
 
 # Synthetic reversal: the treatment has a higher survivor mean only because the
 # low-condition person is absent from the survivor set.
