@@ -19,13 +19,13 @@ Purpose: durable repository-authoritative state for the fifth independent/advers
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage state | **3/14 Areas complete — Area D next** |
+| Coverage state | **4/14 Areas complete — Area E next** |
 | Current P0 findings | none discovered |
 | Current P1 findings | **1 — AV5-001 / #606** |
 | Current P2 findings | **1 — AV5-002 / #617** |
 | Current P3 findings | none discovered |
 | Current open Audit-v5 findings | **#606 / AV5-001; #617 / AV5-002** |
-| Convergence classification | **pending full A–N discovery; non-clean because Area A demonstrated AV5-001 (P1) and Area B demonstrated AV5-002 (P2)** |
+| Convergence classification | **pending full A–N discovery; non-clean because Area A demonstrated AV5-001 (P1) and Area B demonstrated AV5-002 (P2); Areas C and D added no new findings** |
 | Repair state | **discovery only; do not repair v5 findings until A–N discovery completes** |
 | Empirical readiness implication | **none — Audit v5 does not establish empirical validity or archaeological research readiness for a specific case** |
 
@@ -63,12 +63,12 @@ The repository and this ledger remain authoritative if any of the live-state fac
 | A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | PR #605 demonstrated **AV5-001 / #606 (P1)**. PR #608 falsified a material annual-background-mortality risk shift across 1/4/12/365 M3 cadences. PR #610 confirmed that an M9 return completed exactly on an M4 boundary becomes immediately M4-visible. Frozen-source review confirmed M3 → M9 → M4 → annual-M2 fixed-day ordering and symmetric competing-risk attribution. |
 | B | Demography, fertility, mortality, ageing, population structure | **complete — non-clean** | PR #612 quantified a documented same-seed structural-coupling limitation (`523/1024` focal outcomes changed; no defect). PR #614 confirmed survival-conditioned parentage at the exact day-365 M3/M2 boundary: `64/64` surviving-male controls produced one birth, while `64/64` certain-male-death arms produced one day-365 death and zero births. PR #616 demonstrated **AV5-002 / #617 (P2)**: even complete declared genealogy does not constrain M2 mate eligibility, permitting a daughter’s own father to be selected as the male parent of her child. Historical age/newborn/birth-spacing boundary tests were reviewed as controls rather than counted as fresh v5 evidence. |
 | C | Households, kinship, social links, lifecycle structure | **complete — non-clean only via cross-cutting AV5-002** | PR #619 quantified the documented dependency-safety rule: a dependent can leave a household at size 3 under target `maxLivingMembers=2` when its only living parent is in the full group; **no defect** because the authoritative contract explicitly makes target size subordinate to dependency safety. PR #620 confirmed same-boundary mortality is respected by dependency-aware fission: a mother killed at day 365 is not retained as an anchor, and the child is reassigned with the surviving father. Source/control review covered relationship-role refinement, reciprocal first-degree kin semantics, fission-event membership/household-age observability, temporary-mobility topology extension and checkpoint determinism. No new Area-C finding; AV5-002 remains a cross-cutting kinship limitation. |
-| D | Resources, condition, subsistence, depletion/recovery | **incomplete — next** | — |
-| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | AV5-001 cross-cutting evidence only; Area E not yet independently audited |
+| D | Resources, condition, subsistence, depletion/recovery | **complete — clean** | PR #622 confirmed same-cell household fission preserves the next-period aggregate resource budget exactly (`regenerated/supplied=482`, `unmet=399518` in both arms). PR #623 quantified the explicitly documented finite-capacity timing effect: `P=1` harvested `350` with `650` unmet, while `P=365` harvested `700` with `300` unmet; both arms conserved exactly, so this is a resolution sensitivity for Area I rather than a defect. PR #624 confirmed the v20 fixed-point/newborn boundary exactly: resource `400/350/50`, one day-365 birth, terminal condition-loss remainders `[500,500,0]`. Historical AV2-005/#326 and related M3 repairs were reviewed as controls, not fresh coverage. No new Area-D finding. |
+| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete — next** | AV5-001 cross-cutting evidence only; Area E not yet independently audited |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
 | H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | AV5-001 cross-cutting evidence only; PR #612 is a documented same-seed coupling limitation to revisit during independent Area-H inference/coupling audit. |
-| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | AV5-001 cross-cutting evidence only; PR #612 documents why per-agent same-seed invariance cannot be assumed for structural arms. |
+| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | AV5-001 cross-cutting evidence only; PR #612 documents why per-agent same-seed invariance cannot be assumed for structural arms. PR #623 adds a large but contract-consistent finite-capacity M3 resolution sensitivity (`350→700` harvested between `P=1` and `P=365`) that Area I must explicitly bound/converge rather than assume negligible. |
 | J | Identifiability, equifinality, calibration, and discrimination | **incomplete** | — |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | — |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | — |
@@ -177,6 +177,41 @@ The repository and this ledger remain authoritative if any of the live-state fac
 - AV5-002/#617 remains scientifically relevant to Area C because generated genealogy can contain first-degree mating and subsequently feed kin-sensitive mechanisms, but Area C found no additional lifecycle/kinship implementation defect beyond that already-preserved cross-cutting limitation.
 - **Area C is complete under the audit protocol.** It is non-clean only through the already-open cross-cutting AV5-002 / #617; no AV5-003 was created.
 
+### 2026-09-08 — Area D pass 1: same-cell fission × aggregate resource conservation
+
+- Area D began from protected `main` `c322842f7f10c8b7201c81661fbb836abfcd78d4`; immutable scientific target remained v0.3.5/v33.
+- Historical Area-D/resource findings were searched first. In particular, AV2-005/#326's per-boundary partial-supply ceiling amplification was confirmed historical and repaired by the v20 fixed-point condition remainder; it was not replayed as fresh v5 evidence.
+- Evidence-only PR #622 exact head `276b134f52b9db0b546752072add14045f5a013a`, run `34173500474`, job `101898257594`, compared two otherwise-identical two-year four-person same-cell runs: one retained a fixed founder household and one fissioned into two same-cell households after year 1.
+- Mortality, fertility, migration, condition response and condition mortality were neutralized. The predeclared invariant allowed household-level sharing outcomes to differ but required the unchanged cell-level resource budget to remain conserved.
+- Exact year-2 output was `fixed=(stock_before=0, regenerated=482, need=400000, supplied=482, unmet=399518, stock_after=0); split=(stock_before=0, regenerated=482, need=400000, supplied=482, unmet=399518, stock_after=0)`.
+- Full recorded-run invariants passed. **Disposition: no finding.** PR #622 was closed unmerged.
+
+### 2026-09-08 — Area D pass 2: finite storage capacity × M3 settlement timing
+
+- Evidence-only PR #623 compared a one-person, one-cell, one-year capacity-stress fixture at `P=1` versus `P=365`, holding annual need, annual regeneration, initial stock, productivity and all non-resource causal mechanisms fixed. Day-zero stock began exactly at a one-year storage cap.
+- The first run `34174073058` / job `101899891114` was a harness-only compile failure caused by naming a non-exported recorded-run type; no scientific assertion executed.
+- Corrected exact head `e8c844da5b1f41ee4f5158eae0993bc68b95a60d`, run `34174156771`, job `101900133852`: **success**.
+- Exact output was `initial_stock=350; P=1 regenerated=0, harvested=350, unmet=650, final_stock=0; P=365 regenerated=350, harvested=700, unmet=300, final_stock=0`.
+- Both arms exactly conserved `initial stock + regeneration = harvest + final stock` and `harvest + unmet = annual need`; full recorded-run invariants passed.
+- **Disposition: no Area-D finding.** The magnitude is large, but the v20 resource-time contract explicitly permits finite-capacity partition sensitivity because regeneration clipping occurs before harvest at each settlement. This quantified `350→700` harvest difference is assigned to Area I for explicit convergence/robustness bounding rather than assumed negligible. PR #623 was closed unmerged.
+
+### 2026-09-08 — Area D pass 3: latent M3 deterioration × newborn condition initialization
+
+- Evidence-only PR #624 exercised the documented v20 boundary where a newborn inherits the mother's visible integer condition but not her latent `conditionLossRemainderThousandths`.
+- The controlled one-year fixture used two 30-year-old parents, no initial stock, one resource settlement, resource supply `350/400`, zero mortality, certain fertility, no migration, zero recovery, no condition mortality, and a reference-quarter maximum condition loss of one point.
+- The first run `34174345793` / job `101900670417` was harness-only: `EventKind::Birth` was destructured with field `child` rather than the actual `person`; compilation stopped before the scientific oracle.
+- Corrected exact head `2fe40a8d7541ede93a95f61ebffd76f708f5641a`, run `34174434312`, job `101900925979`: **success**.
+- Exact output was `resource=(need=400, supplied=350, unmet=50); births=[(365, PersonId(3), PersonId(1), PersonId(2))]; remainders=[500, 500, 0]`.
+- The 875‰ supply fraction creates exactly 500 thousandths latent deterioration in each parent with no whole-point condition loss; the newborn begins at visible maternal condition 1000 and zero latent remainder exactly as declared. Full recorded-run invariants passed.
+- **Disposition: no finding.** PR #624 was closed unmerged.
+
+### 2026-09-08 — Area D completion assessment
+
+- Fresh Area-D coverage tested cross-household-topology resource conservation (#622), a strong finite-capacity temporal-resolution stress (#623), and the repaired fixed-point condition/newborn integration boundary (#624).
+- Historical controls/source review covered annual demand conservation, seasonal mean-preserving integration, largest-remainder household allocation, M9 duration-aware demand, zero-demand neutrality, fixed-point partial-supply response, condition-mediated mortality timing, initial stock/capacity separation, resource checkpoint accounting and period-level observability.
+- No fresh implementation defect was demonstrated. The only large new effect, #623, is explicitly allowed by the declared model and is therefore a sensitivity/convergence obligation for Area I rather than AV5-003.
+- **Area D is complete and clean under the Audit-v5 protocol; no AV5-003 was created.**
+
 ## Next action
 
-Begin **Area D — resources, condition, subsistence, depletion/recovery** from zero independent coverage against immutable `v0.3.5` / v33. Reconstruct live state and historical resource/condition findings before creating evidence. Prioritize fresh limiting cases around conservation/accounting, depletion/replenishment cadence, household competition/order independence, condition recovery/loss bounds, initial stock assumptions, and interactions among M3 resources, temporary presence and mortality. Do **not** repair #606 or #617 during discovery.
+Begin **Area E — spatial landscape, movement, migration, temporary mobility, and boundaries** from zero independent coverage against immutable `v0.3.5` / v33. Reconstruct live state and historical spatial/movement findings before creating evidence. AV5-001/#606 is cross-cutting spatial evidence but does not itself complete Area E. Prioritize a genuinely fresh spatial/boundary attack rather than replaying AV5-001 or repaired movement defects; candidate surfaces include edge/candidate truncation, M8 overlay/environment-realization binding, M4/M9 interaction at spatial boundaries, movement-utility locality, and temporary-mobility state across world/focal-region edges. Do **not** repair #606 or #617 during discovery.
