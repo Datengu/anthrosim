@@ -1,0 +1,27 @@
+name: Audit v5 Area C parent-anchored household cap adversary
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v5_area_c_parent_anchored_cap.rs'
+      - '.github/workflows/audit-v5-area-c-parent-cap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: Parent-anchored household cap adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v5 Area-C cap adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v5_area_c_parent_anchored_cap -- --nocapture
