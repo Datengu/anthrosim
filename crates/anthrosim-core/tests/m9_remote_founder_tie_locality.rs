@@ -177,7 +177,13 @@ fn controlled_world() -> World {
     let values = movement_values();
     let movement = values
         .into_iter()
-        .map(|value| if value == 65_000 { 65_000_u16 } else { 1_000_u16 })
+        .map(|value| {
+            if value == 65_000 {
+                65_000_u16
+            } else {
+                1_000_u16
+            }
+        })
         .collect::<Vec<_>>();
     World::generate(WorldConfig::new(5, 5), RngFactory::new(50_001))
         .unwrap()
@@ -203,10 +209,14 @@ fn serialized_focal_rank(include_remote: bool) -> u64 {
 }
 
 fn focal_departure(seed: u64, include_remote: bool) -> (CellId, u64) {
-    let run = SpatialLandscapeSimulation::new(experiment(seed, include_remote), landscape(), mechanisms())
-        .unwrap()
-        .run_recorded()
-        .unwrap();
+    let run = SpatialLandscapeSimulation::new(
+        experiment(seed, include_remote),
+        landscape(),
+        mechanisms(),
+    )
+    .unwrap()
+    .run_recorded()
+    .unwrap();
 
     let departure = run
         .events()
@@ -219,9 +229,7 @@ fn focal_departure(seed: u64, include_remote: bool) -> (CellId, u64) {
                 destination,
                 destination_tie_coupling_key: Some(coupling_key),
                 ..
-            } if household == HouseholdId::new(1) => {
-                Some((residence, destination, coupling_key))
-            }
+            } if household == HouseholdId::new(1) => Some((residence, destination, coupling_key)),
             _ => None,
         })
         .expect("focal household must depart from the tied origin");
