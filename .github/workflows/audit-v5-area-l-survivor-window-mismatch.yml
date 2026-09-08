@@ -1,0 +1,23 @@
+name: Audit v5 Area L survivor window mismatch
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit-v5-area-l-survivor-window-mismatch.py'
+      - 'scripts/research-survivor-conditioning.py'
+      - '.github/workflows/audit-v5-area-l-survivor-window-mismatch.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: Survivor-conditioning window alignment adversary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Run fresh Audit-v5 Area-L adversary
+        run: python scripts/audit-v5-area-l-survivor-window-mismatch.py
