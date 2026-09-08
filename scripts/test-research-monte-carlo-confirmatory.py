@@ -4,9 +4,16 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+ENGINE = HERE / "research-monte-carlo-sufficiency.py"
+CONFIRMATORY = HERE / "research-monte-carlo-confirmatory.py"
 
 
 def _load(name: str, path: Path):
@@ -44,13 +51,13 @@ def write_json(path: Path, value) -> None:
                 "source": value.get(
                     "source",
                     {
-                        "modelVersion": "0.3.0",
-                        "modelSemanticsId": "anthrosim-model-semantics-v14",
+                        "modelVersion": "0.3.5",
+                        "modelSemanticsId": "anthrosim-model-semantics-v33",
                         "gitCommit": "synthetic-fixture",
                     },
                 ),
                 "researchRelativeDir": value.get("researchRelativeDir", "research"),
-                "runCounts": value.get("runCounts", {"completed": 4, "failed": 0}),
+                "runCounts": value.get("runCounts", {"completed": 40, "failed": 0}),
                 "resultArtifacts": value.get("resultArtifacts", []),
             }
         )
@@ -67,5 +74,141 @@ for _name in dir(_legacy):
     globals()[_name] = getattr(_legacy, _name)
 
 
+def guarded_main() -> None:
+    """Keep the seed-binding regression scientifically valid under the repaired mean gate."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        study = root / "study"
+        study.mkdir()
+        plan_path = root / "plan.json"
+        samples_path = root / "samples.json"
+        output_path = root / "diagnostic.json"
+        seeds = list(range(11, 51))
+
+        plan = {
+            "schemaVersion": 1,
+            "planIdentity": "",
+            "planId": "confirmatory-seed-binding",
+            "uncertaintyCategory": "process_stochastic_monte_carlo",
+            "estimand": {
+                "kind": "mean",
+                "confidenceLevel": 0.95,
+                "maxHalfWidth": 20.0,
+            },
+            "design": {"mode": "fixed", "seedBatches": [seeds]},
+            "pairing": "independent",
+            "rationale": "Synthetic exact frozen seed binding test above the guarded normal-CLT sample floor.",
+        }
+        write_json(plan_path, plan)
+        plan["planIdentity"] = _legacy.plan_identity(plan_path)
+        write_json(plan_path, plan)
+
+        protocol = {
+            "schemaVersion": 1,
+            "protocolRevision": 1,
+            "studyId": "synthetic-seed-binding",
+            "status": "confirmatory",
+            "researchQuestion": "Is the planned Monte Carlo sample exactly the executed frozen sample?",
+            "applicabilityDomain": "Synthetic verification",
+            "hypotheses": [],
+            "analysisWindows": [],
+            "observables": [],
+            "comparisons": [],
+            "evidenceRoles": [],
+            "uncertainty": {"parameterUncertainty": [], "structuralUncertainty": []},
+            "ensemblePolicy": {
+                "seedPolicy": "Exact ordered frozen seeds",
+                "pairingPolicy": "Independent",
+                "replicationPolicy": "monte-carlo-precision-plan-v1:" + plan["planIdentity"],
+            },
+            "runHandling": {
+                "stoppingRules": [],
+                "exclusionRules": [],
+                "censoringRules": [],
+            },
+            "sensitivityPlan": [],
+            "equifinalityPlan": [],
+            "manipulationChecks": [],
+            "analysisMethod": "Synthetic",
+            "multiplicityPolicy": "One estimand",
+            "heldOutCorroboration": [],
+            "permittedInterpretations": [],
+            "prohibitedInterpretations": [],
+        }
+        write_json(study / "study-protocol.json", protocol)
+        write_json(
+            study / "study-result-binding.json",
+            {
+                "protocolIdentity": _legacy.protocol_identity(protocol),
+                "protocolRevision": 1,
+                "studyId": "synthetic-seed-binding",
+                "resultIdentity": "synthetic-result",
+                "researchId": "synthetic-research",
+                "scientificStatus": "confirmatory",
+                "boundBeforeExecution": True,
+                "confirmatoryPreResultClaimEligible": True,
+            },
+        )
+        write_json(study / "research-definition.json", {"seeds": seeds})
+        write_json(
+            samples_path,
+            {
+                "schemaVersion": 1,
+                "groups": [
+                    {
+                        "id": "mean",
+                        "replicates": [
+                            {
+                                "seed": seed,
+                                "value": 10.0 + ((index % 5) - 2) * 0.1,
+                            }
+                            for index, seed in enumerate(seeds)
+                        ],
+                    }
+                ],
+            },
+        )
+
+        accepted = subprocess.run(
+            [
+                sys.executable,
+                str(CONFIRMATORY),
+                str(plan_path),
+                str(samples_path),
+                str(output_path),
+                "--study-dir",
+                str(study),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert accepted.returncode == 0, (accepted.stdout, accepted.stderr)
+        diagnostic = json.loads(output_path.read_text(encoding="utf-8"))
+        assert diagnostic["seedIdentities"] == seeds
+        assert diagnostic["precision"]["normalApproximationValidity"]["validForStopping"] is True
+
+        changed_seeds = seeds[:-1] + [999]
+        write_json(study / "research-definition.json", {"seeds": changed_seeds})
+        rejected = subprocess.run(
+            [
+                sys.executable,
+                str(CONFIRMATORY),
+                str(plan_path),
+                str(samples_path),
+                str(output_path),
+                "--study-dir",
+                str(study),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert rejected.returncode == 1
+        assert "do not exactly equal" in rejected.stderr
+
+    print("confirmatory Monte Carlo frozen-seed binding suite passed")
+
+
 if __name__ == "__main__":
-    _legacy.main()
+    guarded_main()
