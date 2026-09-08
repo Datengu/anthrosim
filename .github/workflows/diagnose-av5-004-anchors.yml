@@ -1,0 +1,58 @@
+name: Diagnose AV5-004 patch anchors
+
+on:
+  push:
+    branches: [audit/repair-629-av5-004]
+    paths:
+      - '.github/workflows/diagnose-av5-004-anchors.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-629-av5-004
+          persist-credentials: false
+      - name: Replay patch with numbered anchors
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/apply-av5-004-repair.yml').read_text().splitlines()
+          start = next(i for i, line in enumerate(workflow) if line == '          from pathlib import Path')
+          end = next(i for i in range(start + 1, len(workflow)) if workflow[i] == '          PY')
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in workflow[start:end]) + '\n'
+
+          old_helper = '''def replace_once(path, old, new):
+    path = Path(path)
+    text = path.read_text()
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+    path.write_text(text.replace(old, new, 1))
+'''
+          new_helper = '''_anchor_counter = 0
+def replace_once(path, old, new):
+    global _anchor_counter
+    _anchor_counter += 1
+    path = Path(path)
+    text = path.read_text()
+    count = text.count(old)
+    first = old.splitlines()[0] if old.splitlines() else '<empty>'
+    print(f"ANCHOR {_anchor_counter}: {path}: count={count}: {first!r}", flush=True)
+    if count != 1:
+        raise SystemExit(f"ANCHOR {_anchor_counter} {path}: expected exactly one replacement target, found {count}: {first!r}")
+    path.write_text(text.replace(old, new, 1))
+'''
+          if old_helper not in script:
+              raise SystemExit('could not instrument replace_once helper')
+          script = script.replace(old_helper, new_helper, 1)
+          exec(compile(script, '<av5-004-patch>', 'exec'), {'__name__': '__main__'})
+          PY
