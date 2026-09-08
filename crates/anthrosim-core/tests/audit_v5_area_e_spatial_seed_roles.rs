@@ -260,7 +260,7 @@ fn process_seed_cannot_move_fixed_environment_or_synthetic_founders_with_active_
     validate_spatial_landscape_recorded_run(&second_run, &landscape()).unwrap();
 
     eprintln!(
-        "process split: world={:016x}; population={:016x}; process_seeds=({}, {}); event_counts=({}, {})",
+        "process split: world={}; population={}; process_seeds=({}, {}); event_counts=({}, {})",
         first_run.core_manifest().world.digest64,
         first_run.core_manifest().population.digest64,
         first_run.manifest.spatial.environment.realization.process_seed,
@@ -300,8 +300,8 @@ fn population_seed_is_causally_inert_for_declared_founders_even_with_active_seas
         "declared-founder initialization must not acquire a causal dependency on populationSeed"
     );
     assert_eq!(
-        first.manifest.spatial.environment.transformed_world_digest64,
-        second.manifest.spatial.environment.transformed_world_digest64
+        first.manifest.spatial.transformed_world_digest64,
+        second.manifest.spatial.transformed_world_digest64
     );
     assert_ne!(
         first.manifest.spatial.environment.realization.population_seed,
