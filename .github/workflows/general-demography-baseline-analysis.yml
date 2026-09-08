@@ -120,7 +120,7 @@ jobs:
       - name: Verify preserved scientific conclusion
         run: |
           python3 - <<'PY'
-          import json,re
+          import copy,json,re
           from pathlib import Path
           s=json.loads(Path('/tmp/a304/summary.json').read_text())
           prec={p.stem:json.loads(p.read_text()) for p in Path('/tmp/a304/precision').glob('*-diagnostic.json')}
@@ -133,10 +133,36 @@ jobs:
           actual=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
           assert re.fullmatch(r'research-execution-v1-[0-9a-f]{16}', actual.get('researchId',''))
           assert re.fullmatch(r'research-execution-v1-[0-9a-f]{16}', expected.get('researchId',''))
-          actual_science={k:v for k,v in actual.items() if k!='researchId'}
-          expected_science={k:v for k,v in expected.items() if k!='researchId'}
-          assert actual_science == expected_science, 'preserved issue #304 scientific result no longer matches reproducible confirmatory analysis/model semantics'
+
+          # AV5-005 adds executable validity metadata to current mean-family diagnostics.
+          # The checked-in result is a historical canonical artifact produced before that
+          # metadata existed. Preserve its bytes/history rather than rewriting it, but still
+          # require every scientific estimate, interval, sufficiency decision, seed identity,
+          # and recommendation to reproduce exactly. The new current guard is asserted
+          # independently below and is not stripped from the uploaded current diagnostic.
+          guard_only_precision_fields={'normalApproximationValidity','confidenceSemantics'}
+          def comparable_science(value):
+              value=copy.deepcopy(value)
+              value.pop('researchId',None)
+              for diagnostic in value.get('monteCarloPrecision',{}).values():
+                  precision=diagnostic.get('precision',{})
+                  for key in guard_only_precision_fields:
+                      precision.pop(key,None)
+              return value
+
+          assert comparable_science(actual) == comparable_science(expected), 'preserved issue #304 scientific result no longer matches reproducible confirmatory analysis/model semantics'
           assert actual['recommendation']=='no_universal_demographic_baseline'
+
+          guarded=[]
+          for name,diagnostic in prec.items():
+              precision=diagnostic['precision']
+              if precision['precisionMethod'] in {'normal_clt_mean_se','normal_clt_independent_difference_in_means','normal_clt_paired_seed_difference'}:
+                  validity=precision.get('normalApproximationValidity')
+                  assert validity is not None, f'{name} missing AV5-005 normal-approximation validity metadata'
+                  assert validity['validForStopping'] is True, f'{name} fails current AV5-005 stopping-validity guard: {validity}'
+                  assert precision['sufficient'] is True, f'{name} no longer satisfies its frozen precision target'
+                  guarded.append(name)
+          assert set(guarded)=={'positive-fixed-growth-diagnostic','positive-household-population-effect-diagnostic'}
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
