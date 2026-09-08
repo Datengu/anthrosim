@@ -17,7 +17,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage | **12/14 Areas complete — Area M next** |
+| Coverage | **13/14 Areas complete — Area N next** |
 | P0 | none |
 | P1 | **4 — AV5-001/#606; AV5-004/#629; AV5-005/#640; AV5-007/#651** |
 | P2 | **4 — AV5-002/#617; AV5-003/#627; AV5-006/#648; AV5-008/#658** |
@@ -53,8 +53,8 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | J | Identifiability, equifinality, calibration, discrimination | **complete — non-clean** | #647 demonstrated AV5-006/#648 P2; #650 demonstrated AV5-007/#651 P1; #653 valid discriminator control no finding. Detailed report: `area-j-2026-09-08.md`. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **complete — non-clean via cross-cutting findings** | #655 operational relocation/retry preserved identity; no new finding. Detailed report: `area-k-2026-09-08.md`. |
 | L | Observability, analysis outputs, statistical summaries | **complete — non-clean** | #657 demonstrated **AV5-008/#658 P2**: terminal survivor-conditioned condition can pass using an early-window survival/population observable. AV5-003, AV5-005, AV5-006 and AV5-007 remain cross-cutting. Detailed report: `area-l-2026-09-08.md`. |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete — next** | AV5-002 documentation/scope obligation; AV5-006 threshold-domain contract; AV5-008 analysis-window semantic obligation are cross-cutting. |
-| N | Cross-system integration | **incomplete** | AV5-001 through AV5-008 are early cross-system evidence; explicit N pass still required. |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **complete — non-clean via existing findings** | #660 demonstrated absent claim-surface disclosure for AV5-002 close-kin scope, AV5-006 non-negative threshold domain and AV5-008 same-window survivor conditioning. No duplicate finding opened. Detailed report: `area-m-2026-09-08.md`. |
+| N | Cross-system integration | **incomplete — next** | AV5-001 through AV5-008 are early cross-system evidence; explicit N pass still required. |
 
 ## Finding register
 
@@ -123,14 +123,19 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 ### Area L
 - **#657 / AV5-008** — exact head `58f7b6bd5dd7d20330804e6091ce7b3e65c8a4ab`; dedicated run `34187243024`; job `101937940280`; `matched_window_valid=True; mismatched_window_valid=True; mismatched_failures=[]`; intentional scientific-oracle failure. **P2 finding.** Evidence PR closed unmerged.
 
-## Area-L completion assessment
+### Area M
+- **#660** — exact head `ae202efe0c640c6802311cc6d9a0bed205985f2d`; dedicated run `34189099811`; job `101943293363`; `close_kin_parentage_disclosed=False; threshold_domain_disclosed=False; survivor_window_alignment_disclosed=False`. Cross-cutting evidence for existing AV5-002/#617, AV5-006/#648 and AV5-008/#658; no duplicate issue. Evidence PR closed unmerged.
 
-Fresh Area-L discovery reviewed authoritative/derived observability, missing/undefined/censored semantics, analysis-window binding, aggregation and denominator/weighting semantics, survivor conditioning, statistical precision/fidelity, downstream fail-closed behavior and provenance compatibility. Historical audit evidence was used only to avoid duplicate attacks.
+## Area-M completion assessment
 
-The fresh survivor-window adversary demonstrated AV5-008/#658 (P2): the survivor-conditioning gate can accept a survival/population observable from an unrelated analysis window. Existing AV5-003/#627, AV5-005/#640, AV5-006/#648 and AV5-007/#651 remain directly cross-cutting Area-L defects.
+Fresh Area-M discovery reviewed the authoritative current claim surface across README, scientific-model, ODD, ODD+D, TRACE, release/version identity and M8/M9 benchmark interpretation. Historical audit evidence was used only to avoid duplicate findings and preserve causal context.
 
-**Area L is complete — non-clean.** Evidence PR #657 is closed unmerged. No production remediation was performed. Detailed report: `docs/research/audit-v5/area-l-2026-09-08.md`.
+The fresh documentation-contract adversary showed that three already-demonstrated scientific defects are also under-specified in authoritative documentation: close/direct-kin parentage scope (AV5-002/#617), the non-negative held-out discrimination-tolerance domain (AV5-006/#648), and same-window survivor-conditioning disclosure (AV5-008/#658). These are cross-cutting manifestations of preserved findings, not new causal defects, so no duplicate issue was opened.
+
+Release/model identity, empirical-versus-synthetic boundaries and frozen benchmark interpretation were otherwise internally consistent in the reviewed claim surface. M8.6 remains explicitly a terrain-only sensitivity/capability result rather than archaeological validation; M9.7 remains a synthetic capability benchmark whose v31 machine reference is intentionally causally scoped rather than mechanically relabelled to global v33; TRACE remains not empirically research-ready.
+
+**Area M is complete — non-clean via existing findings.** Evidence PR #660 is closed unmerged. No production remediation was performed. Detailed report: `docs/research/audit-v5/area-m-2026-09-08.md`.
 
 ## Next action
 
-Begin **Area M — documentation, TRACE/ODD/ODD+D and claim consistency** against immutable `v0.3.5`/v33 from zero v5 Area-M coverage. Reconcile current/frozen scientific claims against executable semantics and already-preserved findings, with special attention to AV5-002 close-kin eligibility, AV5-006 threshold-domain semantics and AV5-008 analysis-window obligations. Do not begin remediation while Area N remains incomplete.
+Begin **Area N — cross-system integration** against immutable `v0.3.5`/v33 from zero explicit v5 Area-N coverage. Integrate the already-preserved AV5-001 through AV5-008 evidence across subsystem boundaries and perform at least one fresh falsification-oriented end-to-end integration challenge. Do not begin remediation until Area N discovery and the full A–N ledger are complete.
