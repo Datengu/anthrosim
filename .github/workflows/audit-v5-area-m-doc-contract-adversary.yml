@@ -1,0 +1,26 @@
+name: Audit v5 Area M documentation contract adversary
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit-v5-area-m-doc-contract-adversary.py'
+      - 'docs/scientific-model.md'
+      - 'docs/research/odd.md'
+      - 'docs/research/odd-d.md'
+      - 'docs/research/trace.md'
+      - '.github/workflows/audit-v5-area-m-doc-contract-adversary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: Documentation scientific-contract adversary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Run fresh Audit-v5 Area-M adversary
+        run: python scripts/audit-v5-area-m-doc-contract-adversary.py
