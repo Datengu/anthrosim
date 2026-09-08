@@ -17,7 +17,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage | **8/14 Areas complete — Area I next** |
+| Coverage | **9/14 Areas complete — Area J next** |
 | P0 | none |
 | P1 | **3 — AV5-001/#606; AV5-004/#629; AV5-005/#640** |
 | P2 | **2 — AV5-002/#617; AV5-003/#627** |
@@ -49,8 +49,8 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | F | Aggregation and interaction mechanisms | **complete — clean** | #631 household-partition person exposure no finding; #632 birth-during-visit exposure no finding; #633 visitor-resource demand partition no finding. Detailed report: `area-f-2026-09-08.md`. |
 | G | Initialization, burn-in, path dependence, continuation state | **complete — non-clean only via AV5-003** | #635 dynamic topology + active-M9 resume exact; #636 declared-founder synthetic knobs inert; #637 future-horizon common prefix exact. Detailed report: `area-g-2026-09-08.md`. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — non-clean** | #639 demonstrated **AV5-005/#640 P1**: a sequential `mean` plan stopped at `n=2` with nominal 95% `[0,0]` although an exact bounded process makes the false-stop event probability 0.81, bounding coverage at 0.19. #642 matched Bernoulli/Wilson control retained half-width `0.6576` and correctly continued. Frozen RNG/paired-seed controls and AV5-001/004 stochastic keying evidence reviewed. Detailed report: `area-h-2026-09-08.md`. |
-| I | Sensitivity, uncertainty, convergence, robustness | **incomplete — next** | AV5-001 cross-cutting; #612 structural-coupling limitation; #623 finite-capacity cadence effect `350→700` harvest to bound explicitly; AV5-005 means unsupported small-n mean precision cannot establish convergence. |
-| J | Identifiability, equifinality, calibration, discrimination | **incomplete** | AV5-005 cross-cutting inference/discrimination obligation. |
+| I | Sensitivity, uncertainty, convergence, robustness | **complete — non-clean via existing cross-cutting findings** | #644 bounded the #623 finite-capacity cadence effect with a conserving monotone refinement curve: harvest `350,526,613,672,694,700` for P=`1,2,4,12,52,365`; no finding. #645 confirmed long-run equilibrium-like gating fails closed when a stable terminal plateau conflicts with a drifting declared earlier endpoint; no finding. Frozen v0.3.5 research-dimension overlap rejection, executable structural projection and explicit raster-resolution dependence were independently inspected. AV5-001/#606, #612 and AV5-005/#640 remain robustness limitations. Detailed report: `area-i-2026-09-08.md`. |
+| J | Identifiability, equifinality, calibration, discrimination | **incomplete — next** | AV5-005 cross-cutting inference/discrimination obligation. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | AV5-003 replay seed-role defect; AV5-005 research-gate/provenance cross-cutting. |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 replay reconstruction defect; AV5-005 statistical-summary cross-cutting. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | AV5-002 documentation/scope obligation around close-kin/null mate eligibility. |
@@ -105,12 +105,16 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 - **#639 / AV5-005** — head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`; run `34179975096`; job `101916912997`; `sufficient_stop` at `n=2`, `[0,0]`, false-stop probability `0.81`, maximum coverage `0.19` vs nominal `0.95`. **P1 finding.**
 - #642 — head `6aff44a7610d6ee6cdf7384ff17cade8c9b9bb2b`; run `34180240625`; job `101917689688`; all-zero Wilson interval `[0,0.6576197725]`, all-one `[0.3423802275,1]`, both half-width `0.6576197725` and `insufficient_continue_with_declared_next_batch`; no finding.
 
-## Area-H completion assessment
+### Area I
+- #644 — corrected head `438245d9fdf2572573e9d18fb8624214c8100b1a`; run `34180737754`; job `101919165133`; finite-capacity cadence curve conserved accounting and converged monotonically toward the daily endpoint; no finding.
+- #645 — head `46b36e6cfcfa2e84c67f25ed39109e66f408ee8b`; run `34180965342`; job `101919828088`; stable terminal plateau plus drifting declared earlier endpoint correctly produced analysis-end sensitivity, unsupported equilibrium-like claim and failed research gate; no finding.
 
-Fresh Area-H evidence covered an executable Monte Carlo precision/stopping defect, a matched method-specific early-boundary control, and frozen RNG/paired-seed semantics. AV5-001/#606 and AV5-004/#629 provide independent cross-cutting evidence that stochastic keying/exchangeability remains non-clean even though named stream derivation and checkpoint position restoration are deterministic. Historical #334/#410/#528/#214 were reviewed only as controls/nonduplicates.
+## Area-I completion assessment
 
-**Area H is complete — non-clean.** AV5-005/#640 is the new primary H finding; AV5-001/#606 and AV5-004/#629 remain cross-cutting. All remain intentionally unrepaired during discovery.
+Fresh Area-I evidence covered a quantitative finite-capacity M3 temporal-refinement curve, a fresh contradictory-window long-run robustness adversary, direct frozen-target research-dimension/factorial/structural validation inspection, and the explicit raster-resolution-dependence contract. Initialization and replicate limitations were carried from fresh v5 Areas G/H without conflating them with parameter sensitivity. Historical v2/v3/v4 Area-I findings were treated only as regression hypotheses/nonduplicates.
+
+**Area I is complete — non-clean via existing cross-cutting findings, with no new Area-I finding.** AV5-001/#606 and AV5-005/#640 remain open and unrepaired; #612 remains a documented structural-coupling limitation. Evidence-only PRs #644 and #645 close unmerged after this ledger capture.
 
 ## Next action
 
-Begin **Area I — sensitivity, uncertainty, convergence and robustness** against immutable v0.3.5/v33. Prioritize fresh quantitative attacks on the finite-capacity resource cadence effect from #623, sensitivity to declared discretization/clock choices, and whether robustness/convergence reporting distinguishes Monte Carlo uncertainty from structural/parameter/resolution uncertainty. Carry AV5-001 and #612 as coupling limitations and AV5-005 as a warning that unsupported small-n mean precision cannot establish convergence.
+Begin **Area J — identifiability, equifinality, calibration and discrimination** against immutable v0.3.5/v33 from zero v5 coverage. Prioritize fresh attacks on parameter/structural compensation, false optimizer/acceptable-region uniqueness, profile/conditional identifiability, calibration-versus-held-out evidence separation, and a genuinely discriminating held-out observable. Carry AV5-005 as a warning that affected small-n mean precision cannot safely support calibration or identifiability decisions.
