@@ -177,3 +177,63 @@ fn non_tied_minimum_is_identical_for_all_tie_keys() {
         }
     }
 }
+
+#[test]
+fn asymmetric_focal_region_is_part_of_the_spatial_equivalence_frame() {
+    let world = flat_world(5, 1);
+    let canonical_region = region(
+        &world,
+        vec![CellId::new(1), CellId::new(2), CellId::new(4)],
+    );
+    let reflected_region = region(
+        &world,
+        vec![CellId::new(2), CellId::new(4), CellId::new(5)],
+    );
+    let origin = CellId::new(3);
+    let coupling_key = 77_u64;
+    let mut seen_second = false;
+    let mut seen_fourth = false;
+
+    for seed in 0..128_u64 {
+        let canonical = TemporaryTravelModel::default()
+            .derive_table_with_tie_seed(&canonical_region, &world, seed)
+            .unwrap();
+        let reflected = TemporaryTravelModel::default()
+            .derive_table_with_tie_seed(&reflected_region, &world, seed)
+            .unwrap();
+
+        assert_eq!(canonical.equal_cost_destination_count(origin), Some(2));
+        assert_eq!(reflected.equal_cost_destination_count(origin), Some(2));
+
+        let canonical_destination = destination(
+            canonical
+                .resolution_for_coupling_key(origin, coupling_key, 0)
+                .unwrap(),
+        );
+        let reflected_destination = destination(
+            reflected
+                .resolution_for_coupling_key(origin, coupling_key, 0)
+                .unwrap(),
+        );
+        let expected_reflection = match canonical_destination {
+            cell if cell == CellId::new(2) => {
+                seen_second = true;
+                CellId::new(4)
+            }
+            cell if cell == CellId::new(4) => {
+                seen_fourth = true;
+                CellId::new(2)
+            }
+            cell => panic!("unexpected canonical tied destination {cell:?}"),
+        };
+        assert_eq!(
+            reflected_destination, expected_reflection,
+            "seed {seed}: asymmetric focal-region reflection was not equivariant"
+        );
+    }
+
+    assert!(
+        seen_second && seen_fourth,
+        "focal-region reflection must preserve both marginal tie alternatives"
+    );
+}
