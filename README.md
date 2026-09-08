@@ -43,7 +43,7 @@ The v0.3.6/model-semantics-v35 release line retains the completed M1–M9 capabi
 - structural household/demographic sensitivity support, including the finding that no universal demographic baseline is currently justified;
 - fail-closed identifiability/equifinality and provenance/integrity analysis;
 - label/order-neutral scientific stochastic coupling introduced by Audit-v4 repairs for fertility, mortality, parentage, migration and resource remainder ties;
-- an M9 equal-cost destination ambiguity key that is household-local rather than a globally ordinal population rank, with supported-grid-reflection-equivariant destination realization on the v35 development line;
+- an M9 equal-cost destination ambiguity key that is household-local rather than a globally ordinal population rank, with supported-grid-reflection-equivariant destination realization on the v0.3.6/v35 release line;
 - M4 spatial-candidate uncertainty/choice coupling that is invariant to arbitrary canonical candidate ordering.
 
 Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them. M9 temporary mobility is deliberately a generic null mechanism rather than a cultural, ritual, political or economic motive model.
@@ -163,7 +163,7 @@ The launcher records the exact definition digest, model identity and source iden
 
 AnthroSim is a **research-oriented simulation framework, not a validated anthropological or archaeological model**. Its synthetic demographic, resource, permanent-migration and temporary-mobility presets remain explicit model assumptions unless a particular experiment supplies and justifies stronger evidence grounding.
 
-Five comprehensive audit generations have now reached discovery completion. Audit v4 fully closed 15/15 findings on the v33 repaired line; Audit v5 is the latest discovery pass, challenging immutable `v0.3.5`/v33 and currently proceeding through post-discovery remediation. This strengthens implementation/convergence evidence, but repeated audits are evidence about verification maturity rather than proof of correctness.
+Five comprehensive audit generations have now completed discovery. Audit v5 challenged immutable `v0.3.5`/v33, demonstrated 8 findings (4 P1 and 4 P2), and all 8 were subsequently repaired/dispositioned and closed on the v35 line with required P1 post-merge adversarial re-verification. Because Audit v5 discovered new P1 defects, it is a non-clean convergence pass; another fresh full audit of the frozen v0.3.6/v35 baseline is required before the first empirical/site-specific study. Repeated audits are evidence about verification maturity rather than proof of correctness.
 
 Strong archaeological or anthropological claims still require question-specific problem formulation, evidence-role separation, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, comparison against independent observations, discriminating predictions and relevant domain review. See [`docs/research/trace.md`](docs/research/trace.md), [`docs/research/audit-v5/STATUS.md`](docs/research/audit-v5/STATUS.md), and [`docs/roadmap.md`](docs/roadmap.md).
 

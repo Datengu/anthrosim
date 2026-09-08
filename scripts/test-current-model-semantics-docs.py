@@ -156,6 +156,10 @@ def main() -> None:
             "Repair and independent post-merge re-verification take priority",
             "post-discovery remediation in progress",
             "#629 remains open until",
+            "currently proceeding through post-discovery remediation",
+            "Scientific Audit v4 is the latest comprehensive framework audit",
+            "Four comprehensive audit generations have now been completed",
+            "Framework-level conceptual audit evidence is strong for the repaired v33 line",
         )
         for stale in stale_status:
             if stale in text:
