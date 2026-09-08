@@ -1,6 +1,6 @@
 # Architecture
 
-**Current framework identity:** software version v0.3.5 / current model semantics v33. The immutable v0.3.4/v25 release remains the frozen Audit-v4 discovery target; other historical release/audit baselines retain their own identities.
+**Current framework identity:** software version v0.3.5 / current model semantics v34. The immutable v0.3.4/v25 release remains the frozen Audit-v4 discovery target; other historical release/audit baselines retain their own identities.
 
 ## Architectural objective
 
