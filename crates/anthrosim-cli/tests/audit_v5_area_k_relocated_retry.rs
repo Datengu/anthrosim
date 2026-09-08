@@ -138,15 +138,9 @@ fn relocated_root_and_missing_mutable_state_preserve_scientific_identity_on_retr
 
     assert_eq!(plan_after, manifest_after, "immutable root copies diverged");
     assert_eq!(plan_after["researchId"], research_id_before);
-    assert_eq!(
-        plan_after["definitionIdentity"],
-        definition_identity_before
-    );
+    assert_eq!(plan_after["definitionIdentity"], definition_identity_before);
     assert_eq!(runs_after["runs"][0]["runId"], run_id_before);
-    assert_eq!(
-        runs_after["runs"][0]["stateDigest64"],
-        state_digest_before
-    );
+    assert_eq!(runs_after["runs"][0]["stateDigest64"], state_digest_before);
     assert_eq!(runs_after["runs"][0]["state"], "completed");
     assert!(
         relocated_research_root
@@ -156,16 +150,15 @@ fn relocated_root_and_missing_mutable_state_preserve_scientific_identity_on_retr
         "validated completed child bundle was re-executed/replaced instead of retained"
     );
     assert!(
-        relocated_research_root.join("research-state.json").is_file(),
+        relocated_research_root
+            .join("research-state.json")
+            .is_file(),
         "missing mutable state was not reconstructed"
     );
 
     eprintln!("research_id={}", plan_after["researchId"]);
     eprintln!("run_id={}", runs_after["runs"][0]["runId"]);
-    eprintln!(
-        "state_digest64={}",
-        runs_after["runs"][0]["stateDigest64"]
-    );
+    eprintln!("state_digest64={}", runs_after["runs"][0]["stateDigest64"]);
     eprintln!("retained_child_bundle=true");
     eprintln!("reconstructed_mutable_state=true");
 
