@@ -8,11 +8,13 @@ on:
       - "scripts/research-identifiability-bind-design.py"
       - "scripts/test-research-identifiability-fixed-design.py"
       - "scripts/test-research-identifiability-held-out-envelope.py"
+      - "scripts/test-research-identifiability-discrimination-tolerance.py"
       - "scripts/test-research-identifiability-equifinality-compensation.py"
       - "scripts/test-research-identifiability-executed-design-binding.py"
       - "research/identifiability-benchmark-v1/**"
       - "research/general-demography-baseline-v1/confirmatory-definition.json"
       - "docs/research/identifiability-equifinality-v1.md"
+      - "docs/research/identifiability-discrimination-tolerance-v1.md"
       - "docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py"
       - "crates/anthrosim-cli/src/bin/anthrosim-research.rs"
       - "crates/anthrosim-core/src/research_experiment.rs"
@@ -42,7 +44,8 @@ jobs:
             scripts/research-identifiability.py \
             scripts/research-identifiability-legacy.py \
             scripts/research-identifiability-bind-design.py \
-            scripts/test-research-identifiability-executed-design-binding.py
+            scripts/test-research-identifiability-executed-design-binding.py \
+            scripts/test-research-identifiability-discrimination-tolerance.py
           python3 scripts/research-identifiability.py --self-test
       - name: Verify AV4-011 executed-design binding against the real research runner
         run: |
@@ -53,6 +56,8 @@ jobs:
         run: python3 scripts/test-research-identifiability-fixed-design.py
       - name: Verify held-out discrimination uses conservative structural envelopes
         run: python3 scripts/test-research-identifiability-held-out-envelope.py
+      - name: Verify held-out discrimination tolerance domain
+        run: python3 scripts/test-research-identifiability-discrimination-tolerance.py
       - name: Verify equifinality preserves nuisance-parameter compensation
         run: python3 scripts/test-research-identifiability-equifinality-compensation.py
       - name: Run independent audit-v2 Area J uncertainty checker
