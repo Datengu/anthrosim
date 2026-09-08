@@ -1,0 +1,81 @@
+name: AV5-001 M9 v34 reference documentation sync
+
+on:
+  push:
+    branches:
+      - audit/repair-606-av5-001
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-606-av5-001
+          fetch-depth: 0
+      - name: Record reviewed v34 M9.7 reference
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          ref = json.loads(Path('examples/m9-controlled-aggregation-benchmark/reference-result.json').read_text(encoding='utf-8'))
+          execution = ref['referenceExecution']
+          assert execution['modelSemanticsId'] == 'anthrosim-model-semantics-v34'
+          assert execution['workflowRunId'] == 34260754903
+          assert execution['artifactId'] == 10069914914
+          assert ref['classification']['benchmarkClass'] == 'capability_distinguished'
+          assert ref['aggregate']['pairedSeedsPassing'] == 8
+          assert ref['aggregate']['pairedSeedsTotal'] == 8
+
+          path = Path('docs/research/m9-controlled-aggregation-benchmark-result.md')
+          text = path.read_text(encoding='utf-8')
+          old_intro = '''**Current machine-readable reference: `anthrosim-model-semantics-v31`.**
+
+## Current regression reference — model semantics v31
+'''
+          assert text.count(old_intro) == 1
+          new_intro = f'''**Current machine-readable reference: `anthrosim-model-semantics-v34`.**
+
+## Current regression reference — model semantics v34
+
+Audit-v5 AV5-001 / #606 removes unrelated global-population ordinal renumbering from M9 equal-cost destination coupling. The frozen M9.7 design was rerun unchanged on the production repair PR after the household-local coupling policy was introduced. The v34 execution preserved the complete legacy scientific pair projection and the independent M9.6 travel-burden reference while updating the reviewed execution identity and authoritative terminal state digests for current semantics.
+
+Reviewed v34 execution:
+
+- workflow run: `34260754903`;
+- artifact: `10069914914`;
+- artifact SHA-256: `a7aa1a114186af8d585e209d304916116a6597ba9c520c7bfed0dd53f39eddd5`;
+- reviewed branch head: `75f708404f337fc29c43472a55b101e1388e26b5`;
+- pull-request merge-ref build: `58c6ef003d0a74c225e8eecda6a4d44a08ad6ee0`;
+- aggregate canonical SHA-256: `{execution['fullAggregateCanonicalSha256']}`;
+- reference model semantics: `anthrosim-model-semantics-v34`.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume equivalence both passed on the same exact-head workflow. The independent travel-burden reference remains separately enforced by the M9.7 verifier.
+
+This is a causal reference refresh, not empirical calibration: AV5-001 directly changes the M9 ambiguity-key policy represented by the benchmark. Audit-v5 AV5-004 / #629 remains the separate spatial-reflection-equivariance question and is not claimed resolved here.
+
+## Historical reviewed reference — model semantics v31
+'''
+          text = text.replace(old_intro, new_intro)
+          text = text.replace(
+              'The current machine reference is v31 rather than global current model semantics v33 because a benchmark reference records the latest **causally applicable reviewed execution**, not merely the newest global semantics label.',
+              'The v31 machine reference was retained through global model semantics v33 because a benchmark reference records the latest **causally applicable reviewed execution**, not merely the newest global semantics label.'
+          )
+          text = text.replace(
+              'The checked-in **v31** reference verifies that this capability distinction survives the reviewed M9 equal-cost destination coupling repair represented by AV4-007.',
+              'The checked-in **v34** reference verifies that this capability distinction survives the Audit-v5 AV5-001 household-local M9 equal-cost destination coupling repair; the v31 execution remains the historical comparator for the prior AV4-007 repair.'
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/research/m9-controlled-aggregation-benchmark-result.md
+          git commit -m "docs: record reviewed M9.7 v34 reference"
+          git push origin HEAD:audit/repair-606-av5-001
