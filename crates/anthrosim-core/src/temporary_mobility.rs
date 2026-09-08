@@ -12,14 +12,18 @@ use crate::{
     temporary_resource::{
         TemporaryResourceAccountingError, TemporaryResourceLedger, TemporaryResourcePeriod,
     },
-    temporary_travel::{TemporaryTravelModel, TemporaryTravelModelError},
+    temporary_travel::{
+        TemporaryDestinationCouplingContext, TemporaryTravelModel, TemporaryTravelModelError,
+        destination_canonical_frame, destination_coupling_classes,
+    },
     world::World,
 };
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 pub(crate) const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
-const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-local-household-coupling-v3";
+const M9_DESTINATION_TIE_POLICY_ID: &str =
+    "m9/equal-cost-destination-local-household-spatial-equivalence-v4";
 const M9_HOUSEHOLD_COUPLING_POLICY_ID: &str = "m9/household-local-demographic-equivalence-v1";
 
 /// Authoritative M9 physical-presence state for one household.
@@ -238,13 +242,29 @@ impl TemporaryMobilityConfig {
         world: &World,
         destination_tie_seed: u64,
     ) -> Result<TemporaryMobilityProgram, TemporaryMobilityConfigError> {
-        self.validate()?;
-        self.region.validate(world)?;
-        let travel = self.travel_model.derive_table_with_tie_seed(
-            &self.region,
+        self.derive_program_with_seed_and_coupling_context(
             world,
             destination_tie_seed,
-        )?;
+            TemporaryDestinationCouplingContext::core_world_movement_v1(),
+        )
+    }
+
+    pub(crate) fn derive_program_with_seed_and_coupling_context(
+        &self,
+        world: &World,
+        destination_tie_seed: u64,
+        destination_coupling_context: TemporaryDestinationCouplingContext,
+    ) -> Result<TemporaryMobilityProgram, TemporaryMobilityConfigError> {
+        self.validate()?;
+        self.region.validate(world)?;
+        let travel = self
+            .travel_model
+            .derive_table_with_tie_seed_and_coupling_context(
+                &self.region,
+                world,
+                destination_tie_seed,
+                destination_coupling_context,
+            )?;
         Ok(TemporaryMobilityProgram::new(
             self.region.clone(),
             self.schedule.clone(),
@@ -300,6 +320,13 @@ pub enum TemporaryMobilityConfigError {
 pub struct TemporaryTravelDestinationCandidate {
     pub destination: CellId,
     pub route_distance_edges: u32,
+    /// Local scientific equivalence class for keyed M9 destination coupling.
+    ///
+    /// The class is derived from an exact canonical reflection frame. Canonical CellId is
+    /// used only to serialize members inside one class, where they are scientifically
+    /// indistinguishable to the declared ambiguity-coupling context.
+    #[serde(default)]
+    pub destination_coupling_class: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -330,10 +357,12 @@ pub struct TemporaryTravelTable {
     equal_cost_destinations: Option<Vec<Vec<TemporaryTravelDestinationCandidate>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     destination_tie_seed: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    destination_coupling_context: Option<TemporaryDestinationCouplingContext>,
 }
 
 impl TemporaryTravelTable {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 4;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
 
     pub fn new(
         resolutions: Vec<TemporaryTravelResolution>,
@@ -347,6 +376,7 @@ impl TemporaryTravelTable {
             accumulated_cost_units: None,
             equal_cost_destinations: None,
             destination_tie_seed: None,
+            destination_coupling_context: None,
         };
         table.validate(region, world)?;
         Ok(table)
@@ -357,6 +387,7 @@ impl TemporaryTravelTable {
         accumulated_cost_units: Vec<Option<u64>>,
         equal_cost_destinations: Vec<Vec<TemporaryTravelDestinationCandidate>>,
         destination_tie_seed: u64,
+        destination_coupling_context: TemporaryDestinationCouplingContext,
         travel_model: TemporaryTravelModel,
         region: &FocalRegion,
         world: &World,
@@ -368,6 +399,7 @@ impl TemporaryTravelTable {
             accumulated_cost_units: Some(accumulated_cost_units),
             equal_cost_destinations: Some(equal_cost_destinations),
             destination_tie_seed: Some(destination_tie_seed),
+            destination_coupling_context: Some(destination_coupling_context),
         };
         table.validate(region, world)?;
         Ok(table)
@@ -414,6 +446,13 @@ impl TemporaryTravelTable {
     #[must_use]
     pub const fn destination_tie_seed(&self) -> Option<u64> {
         self.destination_tie_seed
+    }
+
+    #[must_use]
+    pub(crate) const fn destination_coupling_context(
+        &self,
+    ) -> Option<TemporaryDestinationCouplingContext> {
+        self.destination_coupling_context
     }
 
     #[must_use]
@@ -466,13 +505,21 @@ impl TemporaryTravelTable {
         let mut hash = FNV_OFFSET_BASIS;
         digest_str(&mut hash, M9_DESTINATION_TIE_POLICY_ID);
         digest_u64(&mut hash, self.destination_tie_seed.unwrap_or(0));
-        digest_u64(&mut hash, origin.0);
         digest_u64(&mut hash, household_coupling_key);
         digest_u64(&mut hash, u64::from(trigger_index));
+        digest_u64(&mut hash, candidates.len() as u64);
         hash = avalanche64(hash);
-        let index = usize::try_from(hash % candidates.len() as u64).ok()?;
+        let target_rank = usize::try_from(hash % candidates.len() as u64).ok()?;
+        let selected = candidates.iter().find(|candidate| {
+            let key = (candidate.destination_coupling_class, candidate.destination);
+            let rank = candidates
+                .iter()
+                .filter(|other| (other.destination_coupling_class, other.destination) < key)
+                .count();
+            rank == target_rank
+        })?;
         Some(TemporaryTravelResolution::Reachable {
-            destination: candidates[index].destination,
+            destination: selected.destination,
             outbound_travel_days,
             return_travel_days,
         })
@@ -503,14 +550,20 @@ impl TemporaryTravelTable {
             &self.accumulated_cost_units,
             &self.equal_cost_destinations,
             self.destination_tie_seed,
+            self.destination_coupling_context,
         ) {
-            (None, None, None, None) => None,
-            (Some(model), Some(costs), Some(candidates), Some(_tie_seed)) => {
+            (None, None, None, None, None) => None,
+            (Some(model), Some(costs), Some(candidates), Some(_tie_seed), Some(context)) => {
                 model.validate().map_err(|error| {
                     TemporaryMobilityProgramError::InvalidTravelModel {
                         reason: error.to_string(),
                     }
                 })?;
+                if !context.is_valid() {
+                    return Err(TemporaryMobilityProgramError::InvalidDestinationCouplingContext);
+                }
+                let frame = destination_canonical_frame(world, context)
+                    .ok_or(TemporaryMobilityProgramError::InvalidDestinationCouplingContext)?;
                 if costs.len() != world.cell_count() {
                     return Err(
                         TemporaryMobilityProgramError::TravelCostTableShapeMismatch {
@@ -534,7 +587,7 @@ impl TemporaryTravelTable {
                         });
                     }
                 }
-                Some((model, costs, candidates))
+                Some((model, costs, candidates, frame))
             }
             _ => {
                 return Err(TemporaryMobilityProgramError::IncompleteTravelCostMetadata);
@@ -567,8 +620,8 @@ impl TemporaryTravelTable {
                 }
             }
 
-            if let Some((model, costs, candidates)) = m9_4 {
-                match (*resolution, costs[index], candidates[index].as_slice()) {
+            if let Some((model, costs, candidate_rows, frame)) = m9_4.as_ref() {
+                match (*resolution, costs[index], candidate_rows[index].as_slice()) {
                     (TemporaryTravelResolution::Unreachable, None, []) => {}
                     (
                         TemporaryTravelResolution::Reachable {
@@ -579,6 +632,12 @@ impl TemporaryTravelTable {
                         Some(cost),
                         candidates,
                     ) if !candidates.is_empty() => {
+                        let expected_classes =
+                            destination_coupling_classes(world, frame, origin, candidates).ok_or(
+                                TemporaryMobilityProgramError::InvalidDestinationCouplingClasses {
+                                    origin,
+                                },
+                            )?;
                         if candidates[0].destination != destination
                             || candidates
                                 .windows(2)
@@ -587,6 +646,11 @@ impl TemporaryTravelTable {
                                 world.cell(candidate.destination).is_none()
                                     || !region.contains(candidate.destination)
                             })
+                            || candidates.iter().zip(expected_classes.iter()).any(
+                                |(candidate, expected_class)| {
+                                    candidate.destination_coupling_class != *expected_class
+                                },
+                            )
                         {
                             return Err(
                                 TemporaryMobilityProgramError::InvalidTravelDestinationCandidates {
@@ -673,8 +737,26 @@ impl TemporaryTravelTable {
                     for candidate in row {
                         digest_u64(hash, candidate.destination.0);
                         digest_u64(hash, u64::from(candidate.route_distance_edges));
+                        digest_u64(hash, u64::from(candidate.destination_coupling_class));
                     }
                 }
+            }
+        }
+        match self.destination_coupling_context {
+            None => digest_u64(hash, 0),
+            Some(context) => {
+                digest_u64(hash, 1);
+                digest_u64(hash, u64::from(context.schema_version));
+                digest_u64(hash, context.kind_rank());
+                digest_u64(hash, if context.include_water_access { 1 } else { 0 });
+                digest_u64(
+                    hash,
+                    if context.include_base_productivity {
+                        1
+                    } else {
+                        0
+                    },
+                );
             }
         }
         match self.destination_tie_seed {
@@ -2259,6 +2341,10 @@ pub enum TemporaryMobilityProgramError {
     TravelDestinationCandidateShapeMismatch { table: usize, world: usize },
     #[error("temporary travel table has incomplete M9.4 model/cost metadata")]
     IncompleteTravelCostMetadata,
+    #[error("temporary travel destination coupling context is invalid")]
+    InvalidDestinationCouplingContext,
+    #[error("temporary travel destination coupling classes are invalid for {origin:?}")]
+    InvalidDestinationCouplingClasses { origin: CellId },
     #[error("temporary travel model is invalid: {reason}")]
     InvalidTravelModel { reason: String },
     #[error("temporary travel M9.4 cost presence does not match resolution for {origin:?}")]

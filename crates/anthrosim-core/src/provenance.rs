@@ -81,7 +81,15 @@ use crate::time::DAYS_PER_YEAR;
 /// Unrelated founder insertion/removal can therefore no longer perturb an unchanged focal
 /// household's tie realization. A v33 checkpoint must not resume under v34 while silently
 /// changing future tied M9 destinations.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v34";
+///
+/// v35 removes canonical spatial representation from M9 equal-cost destination coupling.
+/// The keyed draw is shared across scientifically corresponding tied origins, while each
+/// derived travel table classifies destination alternatives in an exact reflection-canonical
+/// frame built from authoritative movement cost plus explicitly transformed spatial fields.
+/// Canonical CellId only orders members inside a genuinely indistinguishable equivalence
+/// class. A v34 checkpoint must not resume under v35 while silently changing future tied M9
+/// destinations.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v35";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
