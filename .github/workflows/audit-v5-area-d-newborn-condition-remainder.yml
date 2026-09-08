@@ -1,0 +1,26 @@
+name: Audit v5 Area D newborn condition remainder adversary
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v5_area_d_newborn_condition_remainder.rs'
+      - '.github/workflows/audit-v5-area-d-newborn-condition-remainder.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  newborn-condition-remainder:
+    name: Newborn condition-remainder adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v5 Area-D newborn condition-remainder adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v5_area_d_newborn_condition_remainder -- --nocapture
