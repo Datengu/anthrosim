@@ -1,0 +1,110 @@
+name: Stage AV5-004 focal-region context fix
+
+on:
+  push:
+    branches: [audit/repair-629-av5-004]
+    paths:
+      - '.github/workflows/av5-004-region-context-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-629-av5-004
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Bind focal-region membership into canonical frame
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              path = Path(path)
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one target, found {count}: {old!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          travel = Path('crates/anthrosim-core/src/temporary_travel.rs')
+          replace_once(
+              travel,
+              'pub(crate) fn destination_canonical_frame(\n    world: &World,\n    context: TemporaryDestinationCouplingContext,\n)',
+              'pub(crate) fn destination_canonical_frame(\n    world: &World,\n    region: &FocalRegion,\n    context: TemporaryDestinationCouplingContext,\n)',
+          )
+          replace_once(
+              travel,
+              '        let signature = reflected_context_signature(world, context, reflection)?;',
+              '        let signature = reflected_context_signature(world, region, context, reflection)?;',
+          )
+          replace_once(
+              travel,
+              'fn reflected_context_signature(\n    world: &World,\n    context: TemporaryDestinationCouplingContext,\n    reflection: GridReflection,\n)',
+              'fn reflected_context_signature(\n    world: &World,\n    region: &FocalRegion,\n    context: TemporaryDestinationCouplingContext,\n    reflection: GridReflection,\n)',
+          )
+          replace_once(
+              travel,
+              '    let fields_per_cell = 1\n',
+              '    let fields_per_cell = 2\n',
+          )
+          replace_once(
+              travel,
+              '            let cell = world.cell(source)?;\n            signature.push(cell.movement_cost);',
+              '            let cell = world.cell(source)?;\n            signature.push(if region.contains(source) { 1 } else { 0 });\n            signature.push(cell.movement_cost);',
+          )
+          replace_once(
+              travel,
+              '        let canonical_frame = destination_canonical_frame(world, destination_coupling_context)\n',
+              '        let canonical_frame =\n            destination_canonical_frame(world, region, destination_coupling_context)\n',
+          )
+          replace_once(
+              travel,
+              '/// All grid-reflection frames that realize the exact lexicographically minimal declared\n/// model-facing spatial state.',
+              '/// All grid-reflection frames that realize the exact lexicographically minimal focal-region\n/// membership mask and declared model-facing spatial state.',
+          )
+
+          mobility = Path('crates/anthrosim-core/src/temporary_mobility.rs')
+          replace_once(
+              mobility,
+              '                let frame = destination_canonical_frame(world, context)\n',
+              '                let frame = destination_canonical_frame(world, region, context)\n',
+          )
+          PY
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Format and run M9 symmetry regressions
+        shell: bash
+        run: |
+          cargo fmt --all
+          cargo test --locked -p anthrosim-core \
+            --test m9_equal_cost_destinations \
+            --test m9_spatial_isomorphism_invariance \
+            --test m9_remote_founder_tie_locality \
+            --test m9_household_label_invariance
+
+      - name: Commit reviewed repair delta
+        shell: bash
+        run: |
+          git config user.name "Datengu"
+          git config user.email "15160645+Datengu@users.noreply.github.com"
+          git add crates/anthrosim-core/src/temporary_travel.rs \
+                  crates/anthrosim-core/src/temporary_mobility.rs \
+                  crates/anthrosim-core/tests/m9_equal_cost_destinations.rs
+          git diff --cached --quiet && { echo 'no repair delta staged'; exit 1; }
+          git commit -m "fix: bind M9 tie symmetry to focal region geometry"
+          git push origin HEAD:audit/repair-629-av5-004
