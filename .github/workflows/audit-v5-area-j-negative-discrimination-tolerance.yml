@@ -1,0 +1,23 @@
+name: Audit v5 Area J negative discrimination tolerance
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit-v5-area-j-negative-discrimination-tolerance.py'
+      - 'scripts/research-identifiability.py'
+      - 'scripts/research-identifiability-legacy.py'
+      - '.github/workflows/audit-v5-area-j-negative-discrimination-tolerance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: Negative held-out discrimination tolerance adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Run fresh Audit-v5 Area-J adversary
+        run: python3 scripts/audit-v5-area-j-negative-discrimination-tolerance.py
