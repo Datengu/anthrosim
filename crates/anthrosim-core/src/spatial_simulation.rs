@@ -41,13 +41,14 @@ use crate::{
     rng::RngFactory,
     spatial_mechanisms::{
         SPATIAL_MODEL_SEMANTICS_ID, SpatialMechanismConfig, SpatialMechanismError,
-        transform_landscape,
+        SpatialTargetField, transform_landscape,
     },
     spatial_realization::SpatialEnvironmentProvenance,
     temporary_mobility::{
         TemporaryMobilityConfigError, TemporaryMobilityExecutionError, TemporaryMobilityProgram,
         TemporaryMobilityProgramError, TemporaryMobilityState, TemporaryMobilityValidationError,
     },
+    temporary_travel::TemporaryDestinationCouplingContext,
     time::{DAYS_PER_YEAR, MAX_SUPPORTED_DURATION_YEARS, SimTime},
     world::{World, WorldError},
 };
@@ -262,13 +263,16 @@ impl SpatialLandscapeSimulation {
                 )?
             }
         };
+        let destination_coupling_context =
+            spatial_temporary_destination_coupling_context(&spatial_binding.config);
         let configured_program = config
             .temporary_mobility
             .as_ref()
             .map(|definition| {
-                definition.derive_program_with_seed(
+                definition.derive_program_with_seed_and_coupling_context(
                     &world,
                     spatial_binding.environment.realization.process_seed,
+                    destination_coupling_context,
                 )
             })
             .transpose()?;
@@ -350,6 +354,7 @@ impl SpatialLandscapeSimulation {
             &checkpoint.core_checkpoint,
             &landscape,
             &world,
+            &checkpoint.spatial.config,
             checkpoint.spatial.environment.realization.process_seed,
         )?;
         checkpoint
@@ -931,6 +936,7 @@ pub fn validate_spatial_landscape_recorded_run(
         &run.checkpoint.core_checkpoint,
         landscape,
         &world,
+        &run.checkpoint.spatial.config,
         run.checkpoint.spatial.environment.realization.process_seed,
     )?;
     run.checkpoint
@@ -1198,10 +1204,28 @@ fn validate_core_checkpoint_header(
     Ok(())
 }
 
+fn spatial_temporary_destination_coupling_context(
+    mechanisms: &SpatialMechanismConfig,
+) -> TemporaryDestinationCouplingContext {
+    let include_water_access = mechanisms
+        .transforms
+        .iter()
+        .any(|transform| transform.target == SpatialTargetField::WaterAccess);
+    let include_base_productivity = mechanisms
+        .transforms
+        .iter()
+        .any(|transform| transform.target == SpatialTargetField::BaseProductivity);
+    TemporaryDestinationCouplingContext::spatial_declared_fields_v1(
+        include_water_access,
+        include_base_productivity,
+    )
+}
+
 fn validate_spatial_temporary_mobility(
     checkpoint: &SimulationCheckpoint,
     landscape: &LandscapeBundle,
     world: &World,
+    mechanisms: &SpatialMechanismConfig,
     process_seed: u64,
 ) -> Result<(), SpatialLandscapeError> {
     validate_spatial_temporary_mobility_definition(&checkpoint.experiment, landscape, world)?;
@@ -1212,7 +1236,11 @@ fn validate_spatial_temporary_mobility(
             reason: error.to_string(),
         })?;
     if let Some(definition) = &checkpoint.experiment.temporary_mobility {
-        let expected = definition.derive_program_with_seed(world, process_seed)?;
+        let expected = definition.derive_program_with_seed_and_coupling_context(
+            world,
+            process_seed,
+            spatial_temporary_destination_coupling_context(mechanisms),
+        )?;
         if checkpoint.temporary_mobility.program() != Some(&expected) {
             return Err(SpatialLandscapeError::ConfiguredTemporaryMobilityMismatch {
                 expected: expected.identity(),

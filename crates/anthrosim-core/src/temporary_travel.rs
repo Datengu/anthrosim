@@ -20,6 +20,218 @@ use crate::{
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
+/// Versioned spatial state used only to couple otherwise exchangeable M9 destination ties.
+///
+/// Movement cost is always present because it is authoritative M9 travel state. Spatial-host
+/// runs additionally opt in model-facing fields that were explicitly supplied by M8 transforms;
+/// residual synthetic fields are deliberately excluded from that host-level correspondence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum TemporaryDestinationCouplingContextKind {
+    CoreWorldMovementV1,
+    SpatialDeclaredFieldsV1,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TemporaryDestinationCouplingContext {
+    pub schema_version: u32,
+    pub kind: TemporaryDestinationCouplingContextKind,
+    pub include_water_access: bool,
+    pub include_base_productivity: bool,
+}
+
+impl TemporaryDestinationCouplingContext {
+    pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+    #[must_use]
+    pub(crate) const fn core_world_movement_v1() -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            kind: TemporaryDestinationCouplingContextKind::CoreWorldMovementV1,
+            include_water_access: false,
+            include_base_productivity: false,
+        }
+    }
+
+    #[must_use]
+    pub(crate) const fn spatial_declared_fields_v1(
+        include_water_access: bool,
+        include_base_productivity: bool,
+    ) -> Self {
+        Self {
+            schema_version: Self::CURRENT_SCHEMA_VERSION,
+            kind: TemporaryDestinationCouplingContextKind::SpatialDeclaredFieldsV1,
+            include_water_access,
+            include_base_productivity,
+        }
+    }
+
+    #[must_use]
+    pub(crate) const fn is_valid(self) -> bool {
+        self.schema_version == Self::CURRENT_SCHEMA_VERSION
+            && match self.kind {
+                TemporaryDestinationCouplingContextKind::CoreWorldMovementV1 => {
+                    !self.include_water_access && !self.include_base_productivity
+                }
+                TemporaryDestinationCouplingContextKind::SpatialDeclaredFieldsV1 => true,
+            }
+    }
+
+    #[must_use]
+    pub(crate) const fn kind_rank(self) -> u64 {
+        match self.kind {
+            TemporaryDestinationCouplingContextKind::CoreWorldMovementV1 => 0,
+            TemporaryDestinationCouplingContextKind::SpatialDeclaredFieldsV1 => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GridReflection {
+    Identity,
+    Horizontal,
+    Vertical,
+    Both,
+}
+
+const GRID_REFLECTIONS: [GridReflection; 4] = [
+    GridReflection::Identity,
+    GridReflection::Horizontal,
+    GridReflection::Vertical,
+    GridReflection::Both,
+];
+
+/// All grid-reflection frames that realize the exact lexicographically minimal focal-region
+/// membership mask and declared model-facing spatial state. More than one frame means the declared state itself has an
+/// automorphism; destinations related inside that automorphism remain one exchangeable class.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TemporaryDestinationCanonicalFrame {
+    reflections: Vec<GridReflection>,
+}
+
+pub(crate) fn destination_canonical_frame(
+    world: &World,
+    region: &FocalRegion,
+    context: TemporaryDestinationCouplingContext,
+) -> Option<TemporaryDestinationCanonicalFrame> {
+    if !context.is_valid() || world.width() == 0 || world.height() == 0 {
+        return None;
+    }
+    let mut best_signature: Option<Vec<u16>> = None;
+    let mut reflections = Vec::new();
+    for reflection in GRID_REFLECTIONS {
+        let signature = reflected_context_signature(world, region, context, reflection)?;
+        match best_signature.as_ref() {
+            None => {
+                best_signature = Some(signature);
+                reflections.push(reflection);
+            }
+            Some(best) => match signature.cmp(best) {
+                Ordering::Less => {
+                    best_signature = Some(signature);
+                    reflections.clear();
+                    reflections.push(reflection);
+                }
+                Ordering::Equal => reflections.push(reflection),
+                Ordering::Greater => {}
+            },
+        }
+    }
+    (!reflections.is_empty()).then_some(TemporaryDestinationCanonicalFrame { reflections })
+}
+
+pub(crate) fn destination_coupling_classes(
+    world: &World,
+    frame: &TemporaryDestinationCanonicalFrame,
+    origin: CellId,
+    candidates: &[TemporaryTravelDestinationCandidate],
+) -> Option<Vec<u32>> {
+    let mut keyed = Vec::with_capacity(candidates.len());
+    for (index, candidate) in candidates.iter().enumerate() {
+        let mut best_pair: Option<(u64, u64, u32)> = None;
+        for &reflection in &frame.reflections {
+            let mapped_origin = reflected_cell(world, reflection, origin)?;
+            let mapped_destination = reflected_cell(world, reflection, candidate.destination)?;
+            let key = (
+                mapped_origin.0,
+                mapped_destination.0,
+                candidate.route_distance_edges,
+            );
+            best_pair = Some(best_pair.map_or(key, |prior| prior.min(key)));
+        }
+        keyed.push((best_pair?, index));
+    }
+    keyed.sort_unstable_by_key(|(key, index)| (*key, *index));
+
+    let mut classes = vec![0_u32; candidates.len()];
+    let mut previous = None;
+    let mut class = 0_u32;
+    for (key, index) in keyed {
+        if previous.is_some_and(|prior| prior != key) {
+            class = class.checked_add(1)?;
+        }
+        classes[index] = class;
+        previous = Some(key);
+    }
+    Some(classes)
+}
+
+fn reflected_context_signature(
+    world: &World,
+    region: &FocalRegion,
+    context: TemporaryDestinationCouplingContext,
+    reflection: GridReflection,
+) -> Option<Vec<u16>> {
+    let fields_per_cell = 2
+        + if context.include_water_access { 1 } else { 0 }
+        + if context.include_base_productivity {
+            1
+        } else {
+            0
+        };
+    let capacity = world.cell_count().checked_mul(fields_per_cell)?;
+    let mut signature = Vec::with_capacity(capacity);
+    for y in 0..world.height() {
+        for x in 0..world.width() {
+            let (source_x, source_y) =
+                reflected_coordinates(reflection, x, y, world.width(), world.height());
+            let source = world.cell_id(source_x, source_y)?;
+            let cell = world.cell(source)?;
+            signature.push(if region.contains(source) { 1 } else { 0 });
+            signature.push(cell.movement_cost);
+            if context.include_water_access {
+                signature.push(cell.water_access);
+            }
+            if context.include_base_productivity {
+                signature.push(cell.base_productivity);
+            }
+        }
+    }
+    Some(signature)
+}
+
+fn reflected_cell(world: &World, reflection: GridReflection, cell: CellId) -> Option<CellId> {
+    let (x, y) = world.coordinates(cell)?;
+    let (x, y) = reflected_coordinates(reflection, x, y, world.width(), world.height());
+    world.cell_id(x, y)
+}
+
+fn reflected_coordinates(
+    reflection: GridReflection,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+) -> (u32, u32) {
+    match reflection {
+        GridReflection::Identity => (x, y),
+        GridReflection::Horizontal => (width - 1 - x, y),
+        GridReflection::Vertical => (x, height - 1 - y),
+        GridReflection::Both => (width - 1 - x, height - 1 - y),
+    }
+}
+
 /// Versioned M9.4 route-cost assumptions.
 ///
 /// The cost unit is the abstract model-facing `movement_cost` unit. Capacity therefore converts
@@ -155,36 +367,66 @@ impl TemporaryTravelModel {
         world: &World,
         destination_tie_seed: u64,
     ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
+        self.derive_table_with_tie_seed_and_coupling_context(
+            region,
+            world,
+            destination_tie_seed,
+            TemporaryDestinationCouplingContext::core_world_movement_v1(),
+        )
+    }
+
+    pub(crate) fn derive_table_with_tie_seed_and_coupling_context(
+        &self,
+        region: &FocalRegion,
+        world: &World,
+        destination_tie_seed: u64,
+        destination_coupling_context: TemporaryDestinationCouplingContext,
+    ) -> Result<TemporaryTravelTable, TemporaryTravelModelError> {
         self.validate()?;
         region.validate(world)?;
+        if !destination_coupling_context.is_valid() {
+            return Err(TemporaryTravelModelError::InvalidDestinationCouplingContext);
+        }
         for &cell in region.member_cells() {
             if !self.is_traversable(world, cell) {
                 return Err(TemporaryTravelModelError::RegionCellImpassable { cell });
             }
         }
+        let canonical_frame =
+            destination_canonical_frame(world, region, destination_coupling_context)
+                .ok_or(TemporaryTravelModelError::InvalidDestinationCouplingContext)?;
 
         let labels = minimum_cost_labels(self, region, world)?;
         let mut resolutions = Vec::with_capacity(world.cell_count());
         let mut accumulated_costs = Vec::with_capacity(world.cell_count());
         let mut equal_cost_destinations = Vec::with_capacity(world.cell_count());
 
-        for label in labels {
+        for (origin_index, label) in labels.into_iter().enumerate() {
+            let origin = CellId::new(origin_index as u64 + 1);
             let Some(label) = label else {
                 resolutions.push(TemporaryTravelResolution::Unreachable);
                 accumulated_costs.push(None);
                 equal_cost_destinations.push(Vec::new());
                 continue;
             };
-            let candidates = label
+            let mut candidates = label
                 .destinations
                 .into_iter()
                 .map(
                     |(destination, route_distance_edges)| TemporaryTravelDestinationCandidate {
                         destination,
                         route_distance_edges,
+                        destination_coupling_class: 0,
                     },
                 )
                 .collect::<Vec<_>>();
+            let classes =
+                destination_coupling_classes(world, &canonical_frame, origin, &candidates).ok_or(
+                    TemporaryTravelModelError::DestinationCouplingClassificationFailed { origin },
+                )?;
+            for (candidate, class) in candidates.iter_mut().zip(classes) {
+                candidate.destination_coupling_class = class;
+            }
             let destination = candidates
                 .first()
                 .expect("reachable M9.4 label must retain at least one destination")
@@ -204,6 +446,7 @@ impl TemporaryTravelModel {
             accumulated_costs,
             equal_cost_destinations,
             destination_tie_seed,
+            destination_coupling_context,
             self.clone(),
             region,
             world,
@@ -406,6 +649,10 @@ pub enum TemporaryTravelModelError {
         "temporary travel maximum traversable movement cost {ceiling} is below world baseline {minimum}"
     )]
     InvalidTraversableCostCeiling { ceiling: u16, minimum: u16 },
+    #[error("temporary travel destination coupling context is invalid")]
+    InvalidDestinationCouplingContext,
+    #[error("temporary travel destination coupling classification failed for origin {origin:?}")]
+    DestinationCouplingClassificationFailed { origin: CellId },
     #[error("temporary travel references invalid world cell {cell:?}")]
     InvalidCell { cell: CellId },
     #[error("temporary travel edge requires adjacent cells, got {a:?} and {b:?}")]

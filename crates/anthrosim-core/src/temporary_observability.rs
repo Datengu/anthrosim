@@ -394,8 +394,20 @@ pub fn derive_temporary_mobility_observability(
                 "configured temporary mobility program is missing authoritative destination tie seed",
             )
         })?;
+        let destination_coupling_context = program
+            .travel
+            .destination_coupling_context()
+            .ok_or_else(|| {
+                invalid(
+                    "configured temporary mobility program is missing destination coupling context",
+                )
+            })?;
         let expected = config
-            .derive_program_with_seed(world, destination_tie_seed)
+            .derive_program_with_seed_and_coupling_context(
+                world,
+                destination_tie_seed,
+                destination_coupling_context,
+            )
             .map_err(|error| {
                 invalid(format!(
                     "temporary mobility config cannot derive program: {error}"

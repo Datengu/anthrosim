@@ -2,7 +2,7 @@
 
 AnthroSim is an experimental, reproducible agent-based simulation framework for exploring human demography, resource-constrained movement, kinship, evidence-grounded spatial experiments, and temporary mobility/aggregation under explicit model assumptions.
 
-**This living source tree carries AnthroSim workspace software version `0.3.5` at current model semantics v34.** The immutable `v0.3.5` release/tag remains model semantics v33 and preserves the fully repaired and independently re-verified Audit-v4 state. The immutable `v0.3.4` release remains model semantics v25 and the frozen Audit-v4 discovery target; immutable `v0.3.3` remains model semantics v21. See [`docs/release-versioning.md`](docs/release-versioning.md) for the release/source/semantics distinction.
+**This living source tree carries AnthroSim workspace software version `0.3.5` at current model semantics v35.** The immutable `v0.3.5` release/tag remains model semantics v33 and preserves the fully repaired and independently re-verified Audit-v4 state. The immutable `v0.3.4` release remains model semantics v25 and the frozen Audit-v4 discovery target; immutable `v0.3.3` remains model semantics v21. See [`docs/release-versioning.md`](docs/release-versioning.md) for the release/source/semantics distinction.
 
 **Scientific Audit v4 is complete.** It independently audited immutable `v0.3.4`/v25 across Areas A–N, demonstrated 15 findings (13 P1 and 2 P2), and all 15 were repaired and independently re-verified/dispositioned on the living line. The final repaired Audit-v4 line is `anthrosim-model-semantics-v33`; there are no open Audit-v4 findings. **Scientific Audit v5 discovery is also complete against immutable `v0.3.5`/v33, with post-discovery remediation in progress on the living line.** See [`docs/research/audit-v4/STATUS.md`](docs/research/audit-v4/STATUS.md) and [`docs/research/audit-v5/STATUS.md`](docs/research/audit-v5/STATUS.md).
 
@@ -16,7 +16,7 @@ If a pattern appears in AnthroSim, the goal is for it to be explainable from sim
 
 ## Current capabilities
 
-The living `0.3.5` workspace/model-semantics-v34 development line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
+The living `0.3.5` workspace/model-semantics-v35 development line retains the completed M1–M9 capability set and the scientific/reproducibility hardening added through subsequent audits:
 
 - deterministic synthetic spatial environments;
 - persistent individuals, genealogy and households;
@@ -43,7 +43,7 @@ The living `0.3.5` workspace/model-semantics-v34 development line retains the co
 - structural household/demographic sensitivity support, including the finding that no universal demographic baseline is currently justified;
 - fail-closed identifiability/equifinality and provenance/integrity analysis;
 - label/order-neutral scientific stochastic coupling introduced by Audit-v4 repairs for fertility, mortality, parentage, migration and resource remainder ties;
-- an M9 equal-cost destination ambiguity key that is household-local rather than a globally ordinal population rank on the v34 development line;
+- an M9 equal-cost destination ambiguity key that is household-local rather than a globally ordinal population rank, with supported-grid-reflection-equivariant destination realization on the v35 development line;
 - M4 spatial-candidate uncertainty/choice coupling that is invariant to arbitrary canonical candidate ordering.
 
 Culture, language, trade, states, religion, warfare, and AI-controlled agents remain deferred until a research question or validation target justifies adding them. M9 temporary mobility is deliberately a generic null mechanism rather than a cultural, ritual, political or economic motive model.
@@ -71,7 +71,7 @@ No fixed M10 feature list is declared. The next scientific work should remain qu
 
 M8 keeps evidence separate from model-facing transformations and results. Its terrain reference remains **fragile spatial structure** under the declared terrain-only null model; the current checked-in machine reference is on model semantics v33. See [`docs/research/m8-first-evidence-grounded-benchmark-result.md`](docs/research/m8-first-evidence-grounded-benchmark-result.md).
 
-M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across journey states, and M9 observability is separate from M8 residence-based spatial observability. The M9.7 benchmark remains `capability_distinguished`; that is capability validation, not archaeological validation. Equal-cost destination ties are explicit ambiguity-policy decisions; the v34 development line removes unrelated global-population rank renumbering from that household tie key, while Audit-v5 AV5-004/#629 remains the separate spatial-reflection-equivariance repair. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md), [`docs/research/m9-temporary-travel-semantics-v1.md`](docs/research/m9-temporary-travel-semantics-v1.md), and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
+M9 does **not** reinterpret M4 migration. Permanent migration changes residence; temporary mobility changes physical presence while preserving residence. Transit deliberately has no authoritative per-day world cell. Resource demand is duration-weighted across journey states, and M9 observability is separate from M8 residence-based spatial observability. The M9.7 benchmark remains `capability_distinguished`; that is capability validation, not archaeological validation. Equal-cost destination ties are explicit ambiguity-policy decisions; the v35 development line preserves AV5-001/#606 household-local coupling and adds AV5-004/#629 supported-grid-reflection equivariance while retaining marginal exchangeability. #629 remains open until its required independent post-merge P1 adversarial re-verification is complete. See [`docs/research/temporary-mobility-v1.md`](docs/research/temporary-mobility-v1.md), [`docs/research/m9-temporary-travel-semantics-v1.md`](docs/research/m9-temporary-travel-semantics-v1.md), and [`docs/research/m9-controlled-aggregation-benchmark-result.md`](docs/research/m9-controlled-aggregation-benchmark-result.md).
 
 No historical destination, route, settlement, group or migration outcome is scripted into these loops.
 

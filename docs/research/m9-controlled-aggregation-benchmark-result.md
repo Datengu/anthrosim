@@ -7,9 +7,29 @@
 
 The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`. Earlier reviewed references remain preserved below and in Git history.
 
-**Current machine-readable reference: `anthrosim-model-semantics-v34`.**
+**Current machine-readable reference: `anthrosim-model-semantics-v35`.**
 
-## Current regression reference — model semantics v34
+## Current regression reference — model semantics v35
+
+Audit-v5 AV5-004 / #629 changes the causal representation used to resolve exactly equal-cost M9 destinations so the same physical tie is equivariant under the supported grid reflections. The frozen M9.7 design was rerun unchanged on production PR #679. The exact v35 execution preserved every frozen scientific projection and the independent M9.6 travel-burden reference, while the model/program identity change produced new authoritative terminal state digests as expected.
+
+Reviewed v35 execution:
+
+- workflow run: `34279129383`;
+- artifact: `10077039588`;
+- artifact SHA-256: `4a9dc89e96f78354cad062f23bd59a65f19d9480eaeaa92e8853a2589751d248`;
+- reviewed branch head: `4cb1563e52b672f05761fb6938e975d521f4ab11`;
+- pull-request merge-ref build: `56b9e6665b0204b4ff6ab3838f5d8fffe06c7849`;
+- aggregate canonical SHA-256: `faca4608f3229769284ee819f57f53dec19a49000de710523b22d22cfa73b0d5`;
+- reference model semantics: `anthrosim-model-semantics-v35`.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume equivalence both passed in the same scientific-gate execution.
+
+Dedicated fail-closed rebind-check run `34280779898` downloaded that exact artifact and proved equality with the v34 reference for the benchmark definition, declared seeds, classification, aggregate endpoints, all eight legacy scientific pair projections, both configuration identities, and every independently frozen travel-burden/reconciliation field. Only execution provenance, experiment identity and authoritative terminal state digests were permitted to change. The checked-in verifier remains strict and was not weakened for v35. The one-shot rebind-check workflow was removed before the final production head.
+
+This is a causal reference refresh and reproducibility record, not empirical calibration or archaeological validation.
+
+## Historical reviewed reference — model semantics v34
 
 Audit-v5 AV5-001 / #606 removes unrelated global-population ordinal renumbering from M9 equal-cost destination coupling. The frozen M9.7 design was rerun unchanged on the production repair PR after the household-local coupling policy was introduced. The v34 execution preserved the complete legacy scientific pair projection and the independent M9.6 travel-burden reference while updating the reviewed execution identity and authoritative terminal state digests for current semantics.
 
@@ -23,9 +43,9 @@ Reviewed v34 execution:
 - aggregate canonical SHA-256: `de762fcf3b7c18daf27eebf3e1fcd95bda540ecabbba43c2a70c3fcbb71bbe13`;
 - reference model semantics: `anthrosim-model-semantics-v34`.
 
-The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume equivalence both passed on the same exact-head workflow. The independent travel-burden reference remains separately enforced by the M9.7 verifier.
+The capability conclusion remained **`capability_distinguished`**: all **8/8** paired seeds passed, median focal-person-day difference remained **31 permille**, the maximum remained **36 permille**, median intermittent peak-visitor share remained **432 permille**, and the minimum remained **396 permille**. Exact intermittent replay and active annual checkpoint/resume equivalence both passed on the same exact-head workflow. The independent travel-burden reference remained separately enforced by the M9.7 verifier.
 
-This is a causal reference refresh, not empirical calibration: AV5-001 directly changes the M9 ambiguity-key policy represented by the benchmark. Audit-v5 AV5-004 / #629 remains the separate spatial-reflection-equivariance question and is not claimed resolved here.
+This was a causal reference refresh, not empirical calibration: AV5-001 directly changed the M9 ambiguity-key policy represented by the benchmark. At that point Audit-v5 AV5-004 / #629 remained the separate spatial-reflection-equivariance question.
 
 ## Historical reviewed reference — model semantics v31
 
@@ -180,7 +200,7 @@ Audit-v4 AV4-006 / #497 reran the complete M9.7 applicable gate under `anthrosim
 
 Under one controlled synthetic design, AnthroSim can represent two regimes with very similar aggregate focal-region use but materially different temporal occupancy structure, preserve that difference through authoritative state/events and checkpoint/resume, and expose it reproducibly through downstream observability and ordinary ensemble machinery.
 
-The checked-in **v34** reference verifies that this capability distinction survives the Audit-v5 AV5-001 household-local M9 equal-cost destination coupling repair; the v31 execution remains the historical comparator for the prior AV4-007 repair. That is a regression/capability statement only; it is not empirical validation.
+The checked-in **v35** reference verifies that this capability distinction survives the Audit-v5 AV5-004 spatial-reflection-equivariant M9 tie repair. The v34 execution remains the immediate historical comparator for AV5-001 household-local coupling, and v31 remains the comparator for the prior AV4-007 repair. That is a regression/capability statement only; it is not empirical validation.
 
 That does **not** establish invariance to all resource, demographic, condition or temporary-mobility alternatives. It establishes only the behavior of this frozen capability benchmark for the latest causally applicable reviewed reference execution.
 
