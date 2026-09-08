@@ -22,7 +22,10 @@ use crate::{
     resources::{ResourceConfigError, ResourceError, ResourceSummary, validate_resource_config},
     rng::RngFactory,
     simulation::RecordedRun,
-    temporary_history::validate_temporary_mobility_history,
+    temporary_history::{
+        validate_temporary_mobility_history,
+        validate_temporary_mobility_history_with_population_seed,
+    },
     temporary_mobility::TEMPORARY_EVENT_SCHEMA_VERSION,
     time::{DAYS_PER_YEAR, SimTime},
     world::{PERMILLE_MAX, World, WorldError},
@@ -74,7 +77,7 @@ pub fn validate_checkpoint_invariants(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<InvariantReport, InvariantError> {
     let world = reconstruct_synthetic_world(checkpoint)?;
-    validate_checkpoint_invariants_for_world(checkpoint, None, &world)
+    validate_checkpoint_invariants_for_world(checkpoint, None, &world, checkpoint.experiment.seed)
 }
 
 /// Validate a checkpoint against an already reconstructed authoritative world.
@@ -86,7 +89,7 @@ pub fn validate_checkpoint_invariants_with_world(
     checkpoint: &SimulationCheckpoint,
     world: &World,
 ) -> Result<InvariantReport, InvariantError> {
-    validate_checkpoint_invariants_for_world(checkpoint, None, world)
+    validate_checkpoint_invariants_for_world(checkpoint, None, world, checkpoint.experiment.seed)
 }
 
 pub fn validate_recorded_run_invariants(
@@ -107,8 +110,31 @@ pub fn validate_run_artifacts_with_world(
     checkpoint: &SimulationCheckpoint,
     world: &World,
 ) -> Result<InvariantReport, InvariantError> {
-    let report =
-        validate_checkpoint_invariants_for_world(checkpoint, Some(manifest.stop_reason), world)?;
+    validate_run_artifacts_with_world_and_population_seed(
+        manifest,
+        checkpoint,
+        world,
+        checkpoint.experiment.seed,
+    )
+}
+
+/// Apply the complete core recorded-run invariant suite while supplying the synthetic-founder
+/// realization seed used by a non-core host.
+///
+/// This preserves the checkpoint's authoritative process-seed identity while allowing replay-only
+/// founder reconstruction to use the population realization that actually created the run.
+pub(crate) fn validate_run_artifacts_with_world_and_population_seed(
+    manifest: &RunManifest,
+    checkpoint: &SimulationCheckpoint,
+    world: &World,
+    synthetic_population_seed: u64,
+) -> Result<InvariantReport, InvariantError> {
+    let report = validate_checkpoint_invariants_for_world(
+        checkpoint,
+        Some(manifest.stop_reason),
+        world,
+        synthetic_population_seed,
+    )?;
     validate_manifest_against_checkpoint_with_world(manifest, checkpoint, world)?;
     Ok(report)
 }
@@ -124,6 +150,7 @@ fn validate_checkpoint_invariants_for_world(
     checkpoint: &SimulationCheckpoint,
     recorded_stop_reason: Option<StopReason>,
     world: &World,
+    synthetic_population_seed: u64,
 ) -> Result<InvariantReport, InvariantError> {
     validate_checkpoint_identity(checkpoint, recorded_stop_reason)?;
 
@@ -179,7 +206,16 @@ fn validate_checkpoint_invariants_for_world(
         &resources,
         &migration_summary,
     )?;
-    validate_temporary_mobility_history(world, checkpoint).map_err(|error| {
+    if synthetic_population_seed == checkpoint.experiment.seed {
+        validate_temporary_mobility_history(world, checkpoint)
+    } else {
+        validate_temporary_mobility_history_with_population_seed(
+            world,
+            checkpoint,
+            synthetic_population_seed,
+        )
+    }
+    .map_err(|error| {
         InvariantError::Violation(format!(
             "temporary mobility event history is invalid: {error}"
         ))

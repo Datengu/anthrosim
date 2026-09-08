@@ -46,6 +46,14 @@ processSeed     = ExperimentConfig.seed
 
 The resolved values and mode are stored in the spatial mechanism binding. Checkpoint reconstruction and completed-run validation re-use and verify that binding rather than silently substituting the current process seed for the environment.
 
+## Replay and invariant validation
+
+Any validator that reconstructs stochastic founder state must use the same population-initialization realization as authoritative execution. In particular, M9 temporary-mobility history replay reconstructs the founder residence state before replaying departures, arrivals, returns, migrations, fissions, births and deaths.
+
+For ordinary non-spatial execution, synthetic founders continue to use `ExperimentConfig.seed`, so the ordinary invariant path supplies that seed exactly as before. For transformed spatial execution, the spatial invariant host supplies the resolved `populationSeed` from its verified spatial binding while leaving `checkpoint.experiment.seed` unchanged as the process seed. Declared founder-state initialization remains seed-inert.
+
+This is a validation/reconstruction distinction only: the repair for Audit-v5 AV5-003/#627 does not change authoritative trajectories, serialized checkpoint schema, model-semantics identity, or spatial-transform-semantics identity. It restores replay to the seed-role contract already established by spatial semantics v2.
+
 ## Transformation identity versus realization identity
 
 `SpatialMechanismConfig::identity()` describes the scientific landscape-to-model transformation only. It deliberately excludes `runRealization`.
@@ -129,7 +137,11 @@ The implementation and regression suite must preserve these properties:
 
 - changing only the process seed in explicit-split mode leaves the complete authoritative `World` digest unchanged;
 - with the same stochastic founder seed and same world, initial synthetic population state is unchanged while dynamic histories may diverge;
+- changing the population seed under synthetic initialization can change founder state, and each resulting M9 history remains replay-valid;
+- declared founder-state runs remain invariant to an otherwise unused population seed;
 - changing the environment seed can change the authoritative world without changing the transformation identity;
 - resolved realization provenance is present in spatial manifest/checkpoint bindings;
 - checkpoint and completed-run validation reconstruct the world from the bound environment realization and fail closed on provenance/world mismatch;
+- M9 history replay reconstructs synthetic founders from the bound population realization rather than the process seed;
+- explicit-split M9 checkpoint/resume remains equivalent to uninterrupted execution apart from recorded resume lineage;
 - omitting `runRealization` preserves the established joint-seed spatial behavior.
