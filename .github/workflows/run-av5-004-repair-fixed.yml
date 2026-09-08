@@ -1,0 +1,74 @@
+name: Run corrected AV5-004 repair staging
+
+on:
+  push:
+    branches: [audit/repair-629-av5-004]
+    paths:
+      - '.github/workflows/run-av5-004-repair-fixed.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-629-av5-004
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply corrected production patch in memory
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/apply-av5-004-repair.yml').read_text().splitlines()
+          start = next(i for i, line in enumerate(workflow) if line == '          from pathlib import Path')
+          end = next(i for i in range(start + 1, len(workflow)) if workflow[i] == '          PY')
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in workflow[start:end]) + '\n'
+
+          old_a = "              '''            equal_cost_destinations: None,\n                  destination_tie_seed: None,\n              };\n          ''',"
+          new_a = "              '''            equal_cost_destinations: None,\n                      destination_tie_seed: None,\n                  };\n          ''',"
+          old_b = "              '''            equal_cost_destinations: None,\n                  destination_tie_seed: None,\n                  destination_coupling_context: None,\n              };\n          ''',"
+          new_b = "              '''            equal_cost_destinations: None,\n                      destination_tie_seed: None,\n                      destination_coupling_context: None,\n                  };\n          ''',"
+          if script.count(old_a) != 1 or script.count(old_b) != 1:
+              raise SystemExit(f'anchor correction counts old={script.count(old_a)} new={script.count(old_b)}')
+          script = script.replace(old_a, new_a, 1).replace(old_b, new_b, 1)
+          exec(compile(script, '<av5-004-repair>', 'exec'), {'__name__': '__main__'})
+          PY
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Format and run focused regressions
+        shell: bash
+        run: |
+          cargo fmt --all
+          cargo test --locked -p anthrosim-core \
+            --test m9_spatial_isomorphism_invariance \
+            --test m9_remote_founder_tie_locality \
+            --test m9_household_label_invariance
+
+      - name: Commit production repair
+        shell: bash
+        run: |
+          git config user.name "Datengu"
+          git config user.email "15160645+Datengu@users.noreply.github.com"
+          git add crates/anthrosim-core/src/temporary_travel.rs \
+                  crates/anthrosim-core/src/temporary_mobility.rs \
+                  crates/anthrosim-core/src/temporary_observability.rs \
+                  crates/anthrosim-core/src/spatial_simulation.rs \
+                  crates/anthrosim-core/src/provenance.rs \
+                  crates/anthrosim-core/tests/m9_spatial_isomorphism_invariance.rs
+          git diff --cached --quiet && { echo 'no production changes staged'; exit 1; }
+          git commit -m "fix: make M9 destination ties spatially equivariant"
+          git push origin HEAD:audit/repair-629-av5-004
