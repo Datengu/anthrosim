@@ -17,25 +17,26 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage | **13/14 Areas complete — Area N next** |
+| Coverage | **14/14 Areas A–N complete — discovery complete** |
 | P0 | none |
 | P1 | **4 — AV5-001/#606; AV5-004/#629; AV5-005/#640; AV5-007/#651** |
 | P2 | **4 — AV5-002/#617; AV5-003/#627; AV5-006/#648; AV5-008/#658** |
 | P3 | none |
 | Open Audit-v5 findings | **#606, #617, #627, #629, #640, #648, #651, #658** |
-| Convergence | **pending full A–N discovery; non-clean** |
-| Repair state | **discovery only; do not repair until A–N discovery completes** |
+| Convergence | **full A–N discovery complete; non-clean with 8 findings** |
+| Repair state | **remediation may begin under protocol; findings remain open/unrepaired** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-## Discovery rules
+## Phase-transition rules
 
-- Immutable `v0.3.5` / v33 remains the scientific discovery target as `main` advances through audit documentation.
-- v2/v3/v4 evidence is historical control/hypothesis material only; it does not establish v5 coverage.
-- Every Area requires fresh independent falsification evidence.
-- Preserve demonstrated defects as issues and in this ledger before repair.
-- Evidence-only adversary PRs close unmerged after classification/ledger capture.
-- Production remediation starts only after A–N discovery, absent a documented repository-integrity emergency.
-- P0/P1 remediation later requires exact-head validation and independent post-merge adversarial re-verification.
+- Immutable `v0.3.5` / v33 remains the scientific discovery target and historical baseline for Audit-v5 findings.
+- v2/v3/v4 evidence is historical control/hypothesis material only; it does not substitute for the completed v5 evidence ledger.
+- Full A–N discovery is complete. Do not restart discovery or create duplicate findings for the eight preserved defects.
+- Production remediation may now proceed one authoritative finding at a time under the scientific-audit protocol.
+- Each repair requires a dedicated production PR and exact-head protected/scientific CI before merge.
+- P0/P1 repairs require independent post-merge adversarial re-verification; apply the repository re-verification protocol to other findings where required by the original finding/repair contract.
+- If an issue auto-closes before required post-merge evidence is complete, reopen it and only close it after the evidence chain is complete.
+- Repair current `main` while preserving the immutable `v0.3.5` discovery target and original adversaries as historical evidence.
 
 ## Coverage matrix
 
@@ -54,7 +55,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | K | Experiment orchestration, configuration, provenance, reproducibility | **complete — non-clean via cross-cutting findings** | #655 operational relocation/retry preserved identity; no new finding. Detailed report: `area-k-2026-09-08.md`. |
 | L | Observability, analysis outputs, statistical summaries | **complete — non-clean** | #657 demonstrated **AV5-008/#658 P2**: terminal survivor-conditioned condition can pass using an early-window survival/population observable. AV5-003, AV5-005, AV5-006 and AV5-007 remain cross-cutting. Detailed report: `area-l-2026-09-08.md`. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **complete — non-clean via existing findings** | #660 demonstrated absent claim-surface disclosure for AV5-002 close-kin scope, AV5-006 non-negative threshold domain and AV5-008 same-window survivor conditioning. No duplicate finding opened. Detailed report: `area-m-2026-09-08.md`. |
-| N | Cross-system integration | **incomplete — next** | AV5-001 through AV5-008 are early cross-system evidence; explicit N pass still required. |
+| N | Cross-system integration | **complete — non-clean via AV5-001 through AV5-008** | #662 fresh M2/M4/M9 integration control passed: same-day M9 physical absence reduced M4 evaluation from 160 to 120 households while preserving all 98 M2 birth/parentage signatures. No ninth finding. Detailed report: `area-n-2026-09-08.md`. |
 
 ## Finding register
 
@@ -126,16 +127,17 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 ### Area M
 - **#660** — exact head `ae202efe0c640c6802311cc6d9a0bed205985f2d`; dedicated run `34189099811`; job `101943293363`; `close_kin_parentage_disclosed=False; threshold_domain_disclosed=False; survivor_window_alignment_disclosed=False`. Cross-cutting evidence for existing AV5-002/#617, AV5-006/#648 and AV5-008/#658; no duplicate issue. Evidence PR closed unmerged.
 
-## Area-M completion assessment
+### Area N
+- **#662** — corrected exact head `081507da5ef53d375141430de3b82e4ca1cbfa5d`; dedicated run `34189666657`; job `101944954802`; `baseline_births=98; away_births=98; birth_signatures_equal=true; baseline_m4_households_evaluated=160; away_m4_households_evaluated=120`. Fresh M2/M4/M9 integration control passed; no additional finding. Evidence PR closed unmerged.
 
-Fresh Area-M discovery reviewed the authoritative current claim surface across README, scientific-model, ODD, ODD+D, TRACE, release/version identity and M8/M9 benchmark interpretation. Historical audit evidence was used only to avoid duplicate findings and preserve causal context.
+## Audit-v5 discovery conclusion
 
-The fresh documentation-contract adversary showed that three already-demonstrated scientific defects are also under-specified in authoritative documentation: close/direct-kin parentage scope (AV5-002/#617), the non-negative held-out discrimination-tolerance domain (AV5-006/#648), and same-window survivor-conditioning disclosure (AV5-008/#658). These are cross-cutting manifestations of preserved findings, not new causal defects, so no duplicate issue was opened.
+Scientific Audit v5 discovery is complete across **14/14 Areas A–N**. The independent fifth-pass discovery result is non-clean with eight preserved findings: four P1 and four P2. No P0 or P3 finding was demonstrated.
 
-Release/model identity, empirical-versus-synthetic boundaries and frozen benchmark interpretation were otherwise internally consistent in the reviewed claim surface. M8.6 remains explicitly a terrain-only sensitivity/capability result rather than archaeological validation; M9.7 remains a synthetic capability benchmark whose v31 machine reference is intentionally causally scoped rather than mechanically relabelled to global v33; TRACE remains not empirically research-ready.
+Area N supplied the final explicit cross-system challenge rather than inferring integration coverage from earlier areas. The fresh #662 control showed that M9 temporary physical absence can reduce M4 household evaluation while the persistent-residence-based M2 birth/parentage signature remains invariant. That successful control found no ninth defect, but AV5-001 through AV5-008 remain open and unrepaired with their original evidence chains intact.
 
-**Area M is complete — non-clean via existing findings.** Evidence PR #660 is closed unmerged. No production remediation was performed. Detailed report: `docs/research/audit-v5/area-m-2026-09-08.md`.
+The completed discovery ledger establishes framework/software scientific-audit coverage only. It does **not** establish empirical validation, archaeological validity, or case-specific research readiness.
 
 ## Next action
 
-Begin **Area N — cross-system integration** against immutable `v0.3.5`/v33 from zero explicit v5 Area-N coverage. Integrate the already-preserved AV5-001 through AV5-008 evidence across subsystem boundaries and perform at least one fresh falsification-oriented end-to-end integration challenge. Do not begin remediation until Area N discovery and the full A–N ledger are complete.
+Begin **post-discovery Audit-v5 remediation** from the authoritative open finding set (#606, #617, #627, #629, #640, #648, #651, #658). Reconstruct live state before selecting a finding; avoid overlap with other repair branches/agents; use a dedicated production repair PR; require exact-head protected/scientific CI before merge; and perform the required independent post-merge adversarial re-verification before closing the original finding. Do not restart Audit-v5 discovery or create duplicate issues for these findings.
