@@ -4,7 +4,7 @@
 
 AnthroSim's roadmap is driven by research capability rather than feature count. The project should add new mechanisms or infrastructure when they are needed to ask a clearer question, distinguish competing explanations, expose uncertainty, or make an experiment more reproducible and inspectable.
 
-**Current framework line:** software version `v0.3.5` / current model semantics v34. Immutable `v0.3.4` remains the v25 Audit-v4 discovery/release baseline; the v0.3.5 release line preserves the repaired v33 state without rewriting that historical target.
+**Current framework line:** software version `v0.3.5` / current model semantics v35. Immutable `v0.3.4` remains the v25 Audit-v4 discovery/release baseline; the v0.3.5 release line preserves the repaired v33 state without rewriting that historical target.
 
 The long-term direction remains the one described in `docs/vision.md`: build enough defensible lower-level rules that history-like structure can emerge without scripting historical outcomes.
 
@@ -103,7 +103,7 @@ Scientific Audit v3 challenged immutable v0.3.3/v21, demonstrated 17 findings an
 
 Scientific Audit v4 then restarted Areas A–N from zero against immutable v0.3.4/v25. It demonstrated **13 P1 and 2 P2 findings**. Post-discovery remediation repaired and independently re-verified/dispositioned all 15 findings. Authoritative repairs advanced the living development line through **model semantics v26–v33** where continuation/scientific meaning changed. The repository-authoritative record is [`research/audit-v4/STATUS.md`](research/audit-v4/STATUS.md).
 
-Audit v4 is therefore **complete**, not “in remediation.” Its historical discovery result remains non-clean because the frozen target contained those defects, while the living current model semantics v34 line contains the repairs. This is verification/convergence evidence, not empirical validation.
+Audit v4 is therefore **complete**, not “in remediation.” Its historical discovery result remains non-clean because the frozen target contained those defects, while the living current model semantics v35 line contains the repairs. This is verification/convergence evidence, not empirical validation.
 
 ## Direction after Audit v4
 

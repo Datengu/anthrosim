@@ -1,6 +1,6 @@
 # Architecture
 
-**Current framework identity:** software version v0.3.5 / current model semantics v34. The immutable v0.3.4/v25 release remains the frozen Audit-v4 discovery target; other historical release/audit baselines retain their own identities.
+**Current framework identity:** software version v0.3.5 / current model semantics v35. The immutable v0.3.4/v25 release remains the frozen Audit-v4 discovery target; other historical release/audit baselines retain their own identities.
 
 ## Architectural objective
 
@@ -77,6 +77,8 @@ Audit-v4 repairs introduced persistent **scientific stochastic-coupling ranks** 
 - M9 equal-cost destination ties use household scientific coupling rather than `HouseholdId` (v31);
 - scarce-resource largest-remainder ties use household scientific coupling plus the declared period/cell fairness rotation rather than claim-vector/household-label order (v32);
 - M4 candidate uncertainty and proportional-choice assignment are invariant to canonical candidate ordering by coupling exact deterministic utility/distance equivalence classes and sampling exchangeable members symmetrically (v33).
+- M9 equal-cost destination coupling uses a household-local identity rather than a globally ordinal population rank (v34).
+- M9 equal-cost destination realization is equivariant under the supported grid-reflection group while preserving marginal exchangeability within scientifically indistinguishable alternatives (v35).
 
 This progression is summarized in `crates/anthrosim-core/src/provenance.rs`, whose `MODEL_SEMANTICS_ID` is the authoritative current compatibility identity.
 
@@ -86,7 +88,7 @@ Randomness is explicit. The master seed derives named deterministic streams; add
 
 M2/M3 use separate streams for background mortality, condition-mediated mortality, fertility, parentage and newborn reproductive sex. M4 uses independent migration choice and uncertainty streams. M9 uses its declared deterministic/tie semantics. Stream separation is necessary but not sufficient: draw **assignment** also follows the scientific coupling rules above so arbitrary storage labels/order do not become hidden causes.
 
-M4 candidate discovery may use deterministic enumeration internally, but under current v33 semantics candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
+M4 candidate discovery may use deterministic enumeration internally, but under current v35 semantics (rule introduced at v33) candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
 
 Parallelism is introduced only with a declared deterministic strategy. Faster nondeterministic execution may be offered later only as an explicitly separate mode, never silently substituted for research runs.
 
