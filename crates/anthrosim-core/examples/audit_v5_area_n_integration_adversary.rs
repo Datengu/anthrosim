@@ -1,11 +1,8 @@
-use std::collections::BTreeSet;
-
 use anthrosim_core::{
-    DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, HouseholdId,
-    MigrationConfig, PopulationConfig, ResourceConfig, Simulation, TemporaryMobilityProgram,
-    TemporaryMobilitySchedule, TemporaryTravelResolution, TemporaryTravelTable,
-    TemporaryTriggerTiming, WorldConfig,
-    config::PROBABILITY_PER_MILLION,
+    DemographyConfig, EventKind, ExperimentConfig, FocalRegion, FocalRegionSource, MigrationConfig,
+    PopulationConfig, ResourceConfig, Simulation, TemporaryMobilityConfig, TemporaryMobilitySchedule,
+    TemporaryTravelModel, TemporaryTriggerTiming, WorldConfig, config::PROBABILITY_PER_MILLION,
+    ids::{HouseholdId, PersonId},
 };
 
 fn forced_fertility_demography() -> DemographyConfig {
@@ -22,7 +19,7 @@ fn forced_fertility_demography() -> DemographyConfig {
     config
 }
 
-fn config() -> ExperimentConfig {
+fn base_config() -> ExperimentConfig {
     let mut resources = ResourceConfig::synthetic_validation_v1();
     resources.annual_need_units_per_person = 0;
     resources.max_scarcity_mortality_probability_per_million = 0;
@@ -34,38 +31,23 @@ fn config() -> ExperimentConfig {
         .with_migration(MigrationConfig::synthetic_validation_v1())
 }
 
-fn all_households_away_program(config: &ExperimentConfig) -> TemporaryMobilityProgram {
-    let probe = Simulation::new(config.clone()).unwrap();
-    let residences: BTreeSet<_> = (1..=probe.population().household_count() as u64)
-        .filter_map(|raw| probe.population().household_location(HouseholdId::new(raw)))
-        .collect();
+fn configured_away_run(base: ExperimentConfig) -> ExperimentConfig {
+    let probe = Simulation::new(base.clone()).unwrap();
     let destination = (1..=probe.world().cell_count() as u64)
         .map(anthrosim_core::ids::CellId::new)
-        .find(|cell| !residences.contains(cell))
-        .expect("world must have an unoccupied destination");
-    let region = FocalRegion::new(
-        "audit-v5-area-n-region",
-        FocalRegionSource::Synthetic,
-        vec![destination],
-    )
-    .unwrap();
-    let resolutions = (1..=probe.world().cell_count() as u64)
-        .map(|raw| {
-            let origin = anthrosim_core::ids::CellId::new(raw);
-            if region.contains(origin) {
-                TemporaryTravelResolution::Unreachable
-            } else {
-                TemporaryTravelResolution::Reachable {
-                    destination,
-                    outbound_travel_days: 0,
-                    return_travel_days: 0,
-                }
-            }
+        .find(|cell| {
+            !(1..=probe.population().household_count() as u64).any(|raw| {
+                probe.population().household_location(HouseholdId::new(raw)) == Some(*cell)
+            })
         })
-        .collect();
-    let travel = TemporaryTravelTable::new(resolutions, &region, probe.world()).unwrap();
-    TemporaryMobilityProgram::new(
-        region,
+        .expect("world must have an unoccupied destination");
+    let definition = TemporaryMobilityConfig::new(
+        FocalRegion::new(
+            "audit-v5-area-n-region",
+            FocalRegionSource::Synthetic,
+            vec![destination],
+        )
+        .unwrap(),
         TemporaryMobilitySchedule::new(
             "audit-v5-area-n-schedule",
             TemporaryTriggerTiming::DepartureDay,
@@ -73,13 +55,15 @@ fn all_households_away_program(config: &ExperimentConfig) -> TemporaryMobilityPr
             400,
         )
         .unwrap(),
-        travel,
-        probe.world(),
+        TemporaryTravelModel::synthetic_validation_v1(),
     )
-    .unwrap()
+    .unwrap();
+    base.with_temporary_mobility(definition)
 }
 
-fn birth_signature(run: &anthrosim_core::RecordedRun) -> Vec<(u64, u64, u64, u64)> {
+type BirthSignature = (PersonId, PersonId, PersonId, HouseholdId);
+
+fn birth_signature(run: &anthrosim_core::RecordedRun) -> Vec<BirthSignature> {
     run.events()
         .events
         .iter()
@@ -90,22 +74,16 @@ fn birth_signature(run: &anthrosim_core::RecordedRun) -> Vec<(u64, u64, u64, u64
                 male_parent,
                 household,
                 ..
-            } => Some((
-                person.get(),
-                female_parent.get(),
-                male_parent.get(),
-                household.get(),
-            )),
+            } => Some((person, female_parent, male_parent, household)),
             _ => None,
         })
         .collect()
 }
 
 fn main() {
-    let base = config();
+    let base = base_config();
     let baseline = Simulation::new(base.clone()).unwrap().run_recorded().unwrap();
-    let program = all_households_away_program(&base);
-    let away = Simulation::new_with_temporary_mobility(base, program)
+    let away = Simulation::new(configured_away_run(base))
         .unwrap()
         .run_recorded()
         .unwrap();
@@ -125,10 +103,12 @@ fn main() {
     );
 
     // M9 physical presence is intentionally separate from persistent M2 residence/locality.
-    // The same-day M9 transition should suppress M4 eligibility while leaving residence-based
-    // M2 fertility/parentage outcomes invariant. A failure would be a fresh cross-system defect.
+    // Same-day M9 should reduce M4 eligibility while leaving residence-based M2 outcomes invariant.
     assert!(!baseline_births.is_empty());
     assert_eq!(baseline_births, away_births);
-    assert!(baseline.manifest.migration.households_evaluated > away.manifest.migration.households_evaluated);
+    assert!(
+        baseline.manifest.migration.households_evaluated
+            > away.manifest.migration.households_evaluated
+    );
     away.validate_invariants().unwrap();
 }
