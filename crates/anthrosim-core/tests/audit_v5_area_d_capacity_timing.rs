@@ -1,6 +1,6 @@
 use anthrosim_core::{
     DemographyConfig, ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig,
-    Simulation, WorldConfig, validate_recorded_run_invariants,
+    Simulation, SimulationCheckpoint, WorldConfig, validate_recorded_run_invariants,
 };
 
 fn no_event_demography() -> DemographyConfig {
@@ -29,7 +29,7 @@ fn capacity_stress_resources(periods_per_year: u16) -> ResourceConfig {
     config
 }
 
-fn run(periods_per_year: u16) -> anthrosim_core::RecordedSimulationRun {
+fn run(periods_per_year: u16) -> SimulationCheckpoint {
     let config = ExperimentConfig::new(50_403, 1)
         .with_world(WorldConfig::new(1, 1))
         .with_population(PopulationConfig::new(1).with_target_household_size(1))
@@ -39,7 +39,7 @@ fn run(periods_per_year: u16) -> anthrosim_core::RecordedSimulationRun {
 
     let run = Simulation::new(config).unwrap().run_recorded().unwrap();
     validate_recorded_run_invariants(&run).unwrap();
-    run
+    run.checkpoint
 }
 
 #[test]
@@ -47,17 +47,11 @@ fn finite_capacity_timing_effect_is_explicit_and_accounting_conserving() {
     let annual = run(1);
     let daily = run(365);
 
-    let annual_summary = annual
-        .checkpoint
-        .resources
-        .summary(&annual.checkpoint.population);
-    let daily_summary = daily
-        .checkpoint
-        .resources
-        .summary(&daily.checkpoint.population);
+    let annual_summary = annual.resources.summary(&annual.population);
+    let daily_summary = daily.resources.summary(&daily.population);
 
-    let annual_periods = annual.checkpoint.resources.period_observations();
-    let daily_periods = daily.checkpoint.resources.period_observations();
+    let annual_periods = annual.resources.period_observations();
+    let daily_periods = daily.resources.period_observations();
 
     assert_eq!(annual_periods.len(), 1);
     assert_eq!(daily_periods.len(), 365);
