@@ -24,6 +24,17 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
+          mobility = Path('crates/anthrosim-core/src/temporary_mobility.rs')
+          text = mobility.read_text()
+          canonical = "            equal_cost_destinations: None,\n            destination_tie_seed: None,\n        };\n"
+          staged_anchor = "            equal_cost_destinations: None,\n        destination_tie_seed: None,\n    };\n"
+          if text.count(canonical) != 1:
+              raise SystemExit(
+                  f'anchor-10 precondition expected one canonical initializer, found {text.count(canonical)}'
+              )
+          mobility.write_text(text.replace(canonical, staged_anchor, 1))
+
           workflow = Path('.github/workflows/apply-av5-004-repair.yml').read_text().splitlines()
           start = next(i for i, line in enumerate(workflow) if line == '          from pathlib import Path')
           end = next(i for i in range(start + 1, len(workflow)) if workflow[i] == '          PY')
