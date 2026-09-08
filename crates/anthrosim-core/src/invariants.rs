@@ -77,12 +77,7 @@ pub fn validate_checkpoint_invariants(
     checkpoint: &SimulationCheckpoint,
 ) -> Result<InvariantReport, InvariantError> {
     let world = reconstruct_synthetic_world(checkpoint)?;
-    validate_checkpoint_invariants_for_world(
-        checkpoint,
-        None,
-        &world,
-        checkpoint.experiment.seed,
-    )
+    validate_checkpoint_invariants_for_world(checkpoint, None, &world, checkpoint.experiment.seed)
 }
 
 /// Validate a checkpoint against an already reconstructed authoritative world.
@@ -94,30 +89,7 @@ pub fn validate_checkpoint_invariants_with_world(
     checkpoint: &SimulationCheckpoint,
     world: &World,
 ) -> Result<InvariantReport, InvariantError> {
-    validate_checkpoint_invariants_for_world(
-        checkpoint,
-        None,
-        world,
-        checkpoint.experiment.seed,
-    )
-}
-
-/// Validate a checkpoint against an authoritative world while supplying the synthetic-founder
-/// realization seed used by a non-core host.
-///
-/// The seed is consumed only when replay reconstructs synthetic founders for M9 history. Declared
-/// founder state remains seed-inert, and the checkpoint's process seed/provenance is not rewritten.
-pub(crate) fn validate_checkpoint_invariants_with_world_and_population_seed(
-    checkpoint: &SimulationCheckpoint,
-    world: &World,
-    synthetic_population_seed: u64,
-) -> Result<InvariantReport, InvariantError> {
-    validate_checkpoint_invariants_for_world(
-        checkpoint,
-        None,
-        world,
-        synthetic_population_seed,
-    )
+    validate_checkpoint_invariants_for_world(checkpoint, None, world, checkpoint.experiment.seed)
 }
 
 pub fn validate_recorded_run_invariants(
