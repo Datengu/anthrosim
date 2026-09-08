@@ -66,6 +66,14 @@ jobs:
               '    path.write_text("".join(text_lines[:start] + new_lines + text_lines[stop:]))',
           ]
           exec(compile('\n'.join(source) + '\n', '<av5-004-repair>', 'exec'), {'__name__': '__main__'})
+
+          travel = Path('crates/anthrosim-core/src/temporary_travel.rs')
+          text = travel.read_text()
+          old = '            let mut best_pair = None;'
+          new = '            let mut best_pair: Option<(u64, u64, u32)> = None;'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one untyped canonical pair, found {text.count(old)}')
+          travel.write_text(text.replace(old, new, 1))
           PY
 
       - name: Install pinned Rust toolchain
