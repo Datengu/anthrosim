@@ -43,7 +43,7 @@ A missing token is a research-gate failure.
 
 ## Joint survival requirement
 
-Every StudyProtocol comparison that includes a survivor-conditioned terminal condition observable must also include at least one survival/population observable in the same comparison.
+Every StudyProtocol comparison that includes a survivor-conditioned condition observable must also include at least one survival/population observable in the same comparison **and in the same `analysisWindowId` as that survivor-conditioned observable**. A terminal survivor-conditioned condition endpoint therefore cannot be safeguarded by an early-window population or mortality measurement: the joint observable must expose survival at the boundary that defines the survivor set being summarized.
 
 The machine gate recognizes only exact, producer-defined source identities. Current recognized identities are:
 
@@ -59,7 +59,9 @@ metrics.population.populationExtinct
 
 These names are semantic identifiers, not search tokens. A free-form label such as `derived.not_a_real_mortality_observable`, `derived.fake_survival`, or `derived.finalLivingPopulation` is not evidence of a population outcome and must fail closed even though it contains a mortality/survival-related word. New source identities must be added deliberately when their produced semantics are established; substring matching is not permitted.
 
-This does not combine condition and survival into an invented scalar. It requires them to be reported jointly so survivor composition remains visible.
+If a comparison contains multiple survivor-conditioned condition observables at different analysis boundaries, each one independently requires a recognized survival/population observable at its own boundary. Merely including one survival observable somewhere in the comparison is insufficient.
+
+This does not combine condition and survival into an invented scalar. It requires them to be reported jointly at the same analysis boundary so survivor composition remains visible.
 
 ## Death handling
 
@@ -84,7 +86,7 @@ The same warning applies conceptually to metrics such as means among movers when
 - control: `finalLivingPopulation = 10`, `meanLivingConditionPermille = 740`;
 - treatment: `finalLivingPopulation = 9`, `meanLivingConditionPermille = 800`.
 
-The regression also proves that the recognized exact population/death/extinction identities pass while fabricated labels containing mortality/survival terms fail closed.
+The regression also proves that the recognized exact population/death/extinction identities pass while fabricated labels containing mortality/survival terms fail closed. It additionally fixes the Audit-v5 AV5-008 boundary condition: a recognized survival/population observable in an earlier analysis window cannot satisfy a terminal survivor-conditioned condition comparison, while the same recognized observable at the terminal boundary does satisfy it.
 
 The derived assessment must report:
 
