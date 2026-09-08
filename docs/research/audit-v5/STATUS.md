@@ -17,7 +17,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage | **7/14 Areas complete — Area H in progress** |
+| Coverage | **8/14 Areas complete — Area I next** |
 | P0 | none |
 | P1 | **3 — AV5-001/#606; AV5-004/#629; AV5-005/#640** |
 | P2 | **2 — AV5-002/#617; AV5-003/#627** |
@@ -48,8 +48,8 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — non-clean** | #626 demonstrated AV5-003/#627 P2. #628 demonstrated AV5-004/#629 P1 (`256/256` M9 reflection mismatches). AV5-001 also cross-cutting. |
 | F | Aggregation and interaction mechanisms | **complete — clean** | #631 household-partition person exposure no finding; #632 birth-during-visit exposure no finding; #633 visitor-resource demand partition no finding. Detailed report: `area-f-2026-09-08.md`. |
 | G | Initialization, burn-in, path dependence, continuation state | **complete — non-clean only via AV5-003** | #635 dynamic topology + active-M9 resume exact; #636 declared-founder synthetic knobs inert; #637 future-horizon common prefix exact. Detailed report: `area-g-2026-09-08.md`. |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **in progress — non-clean** | #639 demonstrated **AV5-005/#640 P1**: a sequential `mean` plan can stop at `n=2` with nominal 95% interval `[0,0]` although an exact bounded process makes that false-stop event probability 0.81, bounding coverage at 0.19. AV5-001/004 remain cross-cutting. Further independent H control evidence required before closure. |
-| I | Sensitivity, uncertainty, convergence, robustness | **incomplete** | AV5-001 cross-cutting; #612 structural-coupling limitation; #623 finite-capacity cadence effect `350→700` harvest to bound explicitly. |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — non-clean** | #639 demonstrated **AV5-005/#640 P1**: a sequential `mean` plan stopped at `n=2` with nominal 95% `[0,0]` although an exact bounded process makes the false-stop event probability 0.81, bounding coverage at 0.19. #642 matched Bernoulli/Wilson control retained half-width `0.6576` and correctly continued. Frozen RNG/paired-seed controls and AV5-001/004 stochastic keying evidence reviewed. Detailed report: `area-h-2026-09-08.md`. |
+| I | Sensitivity, uncertainty, convergence, robustness | **incomplete — next** | AV5-001 cross-cutting; #612 structural-coupling limitation; #623 finite-capacity cadence effect `350→700` harvest to bound explicitly; AV5-005 means unsupported small-n mean precision cannot establish convergence. |
 | J | Identifiability, equifinality, calibration, discrimination | **incomplete** | AV5-005 cross-cutting inference/discrimination obligation. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | AV5-003 replay seed-role defect; AV5-005 research-gate/provenance cross-cutting. |
 | L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 replay reconstruction defect; AV5-005 statistical-summary cross-cutting. |
@@ -64,7 +64,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | `AV5-002 — parentage ignores declared close kin and permits first-degree mating` | P2 | B; C/M/N | #617 | PR #616, head `b130fdac8c2ee421203af8a8e5a044a48de29d26`, run `34171257065`, job `101891843233` | **open; unrepaired** |
 | `AV5-003 — spatial M9 history replay uses process seed instead of population seed` | P2 | E; G/K/L/N | #627 | PR #626, corrected head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`, run `34175807550`, job `101904842100` | **open; unrepaired** |
 | `AV5-004 — M9 equal-cost destination choice is not spatial-reflection equivariant` | P1 | E; H/N | #629 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; `256/256` mismatches | **open; unrepaired** |
-| `AV5-005 — small-n normal-CLT mean gate can certify severely under-covered intervals` | P1 | H; J/K/L/N | #640 | PR #639, head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`, run `34179975096`, job `101916912997`; `n=2`, `[0,0]`, `sufficient_stop`, exact false-stop probability `0.81`, maximum overall coverage `0.19` vs nominal `0.95` | **open; unrepaired** |
+| `AV5-005 — small-n normal-CLT mean gate can certify severely under-covered intervals` | P1 | H; J/K/L/N | #640 | PR #639, head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`, run `34179975096`, job `101916912997`; `n=2`, `[0,0]`, `sufficient_stop`, false-stop probability `0.81`, maximum overall coverage `0.19` vs nominal `0.95` | **open; unrepaired** |
 
 ## Fresh evidence register
 
@@ -102,20 +102,15 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 - #637 — head `6a83f9819235bb44fe6fa97eb68ef2ac63750302`; run `34179379004`; job `101915149933`; no finding.
 
 ### Area H
-- **#639 / AV5-005** — head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`; run `34179975096`; job `101916912997`. Exact diagnostic: `decision=sufficient_stop; n=2; estimate=0.0; interval=[0.0,0.0]; half_width=0.0; false_stop_probability=0.81; max_overall_coverage=0.19; nominal_confidence=0.95`. **P1 finding.**
+- **#639 / AV5-005** — head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`; run `34179975096`; job `101916912997`; `sufficient_stop` at `n=2`, `[0,0]`, false-stop probability `0.81`, maximum coverage `0.19` vs nominal `0.95`. **P1 finding.**
+- #642 — head `6aff44a7610d6ee6cdf7384ff17cade8c9b9bb2b`; run `34180240625`; job `101917689688`; all-zero Wilson interval `[0,0.6576197725]`, all-one `[0.3423802275,1]`, both half-width `0.6576197725` and `insufficient_continue_with_declared_next_batch`; no finding.
 
-## Area-G completion assessment
+## Area-H completion assessment
 
-Area G independently covered complex continuation after dynamic topology + active M9, initialization isolation from dormant synthetic-only parameters, and future-horizon common-prefix path independence. AV5-003/#627 remains cross-cutting because explicit spatial population realization is not correctly supplied to M9 history reconstruction.
+Fresh Area-H evidence covered an executable Monte Carlo precision/stopping defect, a matched method-specific early-boundary control, and frozen RNG/paired-seed semantics. AV5-001/#606 and AV5-004/#629 provide independent cross-cutting evidence that stochastic keying/exchangeability remains non-clean even though named stream derivation and checkpoint position restoration are deterministic. Historical #334/#410/#528/#214 were reviewed only as controls/nonduplicates.
 
-**Area G is complete, non-clean only via AV5-003/#627.**
-
-## Area-H current assessment
-
-Fresh Area-H discovery has demonstrated AV5-005/#640. Historical #334 (quantile coverage), #410 (independent-arm covariance), #528 (large-integer numeric fidelity) and paired-seed limitation #214 were reviewed as nonduplicates/controls and are not counted as fresh v5 evidence.
-
-Area H remains **in progress**. At least one additional independent fresh control/adversary should exercise another supported inference/RNG surface before completion; do not repair AV5-005 or any other v5 finding during discovery.
+**Area H is complete — non-clean.** AV5-005/#640 is the new primary H finding; AV5-001/#606 and AV5-004/#629 remain cross-cutting. All remain intentionally unrepaired during discovery.
 
 ## Next action
 
-Continue **Area H — stochasticity, RNG, ensembles and Monte Carlo inference** against immutable v0.3.5/v33. Prioritize a fresh control that is not a replay of #334/#410/#528: e.g. a method-specific probability/Wilson sequential precision construction or an ensemble-order/seed-set invariance probe. Then assess whether H has sufficient fresh breadth to close.
+Begin **Area I — sensitivity, uncertainty, convergence and robustness** against immutable v0.3.5/v33. Prioritize fresh quantitative attacks on the finite-capacity resource cadence effect from #623, sensitivity to declared discretization/clock choices, and whether robustness/convergence reporting distinguishes Monte Carlo uncertainty from structural/parameter/resolution uncertainty. Carry AV5-001 and #612 as coupling limitations and AV5-005 as a warning that unsupported small-n mean precision cannot establish convergence.
