@@ -17,7 +17,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage | **10/14 Areas complete — Area K next** |
+| Coverage | **11/14 Areas complete — Area L next** |
 | P0 | none |
 | P1 | **4 — AV5-001/#606; AV5-004/#629; AV5-005/#640; AV5-007/#651** |
 | P2 | **3 — AV5-002/#617; AV5-003/#627; AV5-006/#648** |
@@ -51,8 +51,8 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — non-clean** | #639 demonstrated **AV5-005/#640 P1**: a sequential `mean` plan stopped at `n=2` with nominal 95% `[0,0]` although an exact bounded process makes the false-stop event probability 0.81, bounding coverage at 0.19. #642 matched Bernoulli/Wilson control retained half-width `0.6576` and correctly continued. Frozen RNG/paired-seed controls and AV5-001/004 stochastic keying evidence reviewed. Detailed report: `area-h-2026-09-08.md`. |
 | I | Sensitivity, uncertainty, convergence, robustness | **complete — non-clean via existing cross-cutting findings** | #644 bounded the #623 finite-capacity cadence effect with a conserving monotone refinement curve: harvest `350,526,613,672,694,700` for P=`1,2,4,12,52,365`; no finding. #645 confirmed long-run equilibrium-like gating fails closed when a stable terminal plateau conflicts with a drifting declared earlier endpoint; no finding. Frozen v0.3.5 research-dimension overlap rejection, executable structural projection and explicit raster-resolution dependence were independently inspected. AV5-001/#606, #612 and AV5-005/#640 remain robustness limitations. Detailed report: `area-i-2026-09-08.md`. |
 | J | Identifiability, equifinality, calibration, discrimination | **complete — non-clean** | #647 demonstrated **AV5-006/#648 P2**: negative `corroborationDiscriminationTolerance` makes zero-gap overlapping held-out structural envelopes report `discriminating=true`. #650 demonstrated **AV5-007/#651 P1**: exact large-integer parameter coordinates collapse through binary64 so an exact normalized compatible width of `0.5` becomes `0.0` and the parameter-identification gate passes. Corrected #653 showed a valid separated held-out discriminator while the equifinal calibration gate remained failed; no finding. Frozen executed-design binding and equifinality/compensation logic independently inspected. Detailed report: `area-j-2026-09-08.md`. |
-| K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete — next** | AV5-003 replay seed-role defect; AV5-005 research-gate/provenance cross-cutting. |
-| L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 replay reconstruction defect; AV5-005, AV5-006 and AV5-007 cross-cutting analysis/statistical defects. |
+| K | Experiment orchestration, configuration, provenance, reproducibility | **complete — non-clean via existing cross-cutting findings** | #655 operational-relocation + missing-mutable-state retry preserved exact research/run/result identity, retained the validated child bundle and reconstructed mutable state; no new finding. AV5-003 replay seed-role defect and AV5-005 research-gate/provenance defect remain cross-cutting. Detailed report: `area-k-2026-09-08.md`. |
+| L | Observability, analysis outputs, statistical summaries | **incomplete — next** | AV5-003 replay reconstruction defect; AV5-005, AV5-006 and AV5-007 cross-cutting analysis/statistical defects. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | AV5-002 documentation/scope obligation around close-kin/null mate eligibility; AV5-006 threshold-domain contract cross-cutting. |
 | N | Cross-system integration | **incomplete** | AV5-001 through AV5-007 are early cross-system evidence; explicit N pass still required. |
 
@@ -116,12 +116,21 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 - **#650 / AV5-007** — head `6147ae898f959aec9068f0ae2e3d654a2509afca`; run `34183710162`; job `101927759593`; matched small-integer design reports exact width `0.5` and non-identification, while exact large-integer levels `[2^53,2^53+1,2^53+2]` collapse the compatible first two coordinates through binary64, report width `0.0` and make the parameter gate pass. **P1 finding.**
 - #653 — corrected head `91b0a5a3fb523ca9661a787e44b16c91d17c8748`; run `34184015481`; job `101928620097`; calibration kept all four points and both structures compatible with `researchGate.passes=false`; held-out A=`[0,2]`, B=`[10,12]` produced minimum separation `8` at tolerance `1` and `discriminating=true` without changing the calibration region/gate. No finding.
 
+### Area K
+- #655 — exact head `13ab2cb14e4b3865c74e36166ac209621c392c10`; dedicated run `34186026881`; job `101934406468`; `research_id=research-execution-v1-f7d1ad4cde205266`, `run_id=research-run-v1-a5c6ba3ac127b83d`, `state_digest64=15163693648870077371`, `retained_child_bundle=true`, `reconstructed_mutable_state=true`; no new finding.
+
 ## Area-J completion assessment
 
 Fresh Area-J discovery covered invalid held-out threshold semantics, exact numeric-coordinate fidelity in practical identification, a matched valid held-out discriminator/calibration firewall, real executed-design coordinate binding, compatible-region/equifinality/nuisance-compensation semantics, and the AV5-005 Monte Carlo cross-cut.
 
 **Area J is complete — non-clean.** New Area-J findings are AV5-006/#648 (P2) and AV5-007/#651 (P1). AV5-005/#640 remains a cross-cutting P1. Evidence PRs #647 and #650 are closed unmerged; #653 closes unmerged after this completion record reaches protected `main`.
 
+## Area-K completion assessment
+
+Fresh Area-K discovery exercised the operational/scientific identity boundary by relocating a complete research root, removing mutable orchestration state and retrying from an equivalent definition at a different path. Exact research/run/result identity remained stable, the valid completed child bundle was retained, and mutable state was reconstructed. Frozen-target source inspection additionally covered exact configuration/source identity, transactional publication/recovery, bundle validation/packing and checkpoint/resume lineage.
+
+**Area K is complete — non-clean via existing cross-cutting findings AV5-003/#627 (P2) and AV5-005/#640 (P1).** No new Area-K finding was demonstrated. PR #655 closes unmerged after this completion record reaches protected `main`.
+
 ## Next action
 
-Begin **Area K — experiment orchestration, configuration, provenance and reproducibility** against immutable v0.3.5/v33 from zero v5 Area-K coverage. Prioritize immutable plan/execution/finalization binding, retry/resume and partial-failure integrity, result-binding self-identity, canonical analysis-index consistency with executed configurations, source identity, and cross-artifact point/run/seed identity. Carry AV5-003 and AV5-005 as cross-cutting obligations without treating them as Area-K completion evidence.
+Begin **Area L — observability, analysis outputs and statistical summaries** against immutable v0.3.5/v33 from zero v5 Area-L coverage. Prioritize authoritative-vs-derived output reconciliation, missing/undefined/censored-value semantics, temporal/spatial aggregation, summary weighting/denominators, replay-derived analysis identity, precision/fidelity of statistical outputs and fail-closed downstream research-gate behavior. Carry AV5-003, AV5-005, AV5-006 and AV5-007 as cross-cutting obligations without treating them as Area-L completion evidence.
