@@ -19,7 +19,7 @@ Purpose: durable repository-authoritative state for the fifth independent/advers
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage state | **2/14 Areas complete — Area C next** |
+| Coverage state | **3/14 Areas complete — Area D next** |
 | Current P0 findings | none discovered |
 | Current P1 findings | **1 — AV5-001 / #606** |
 | Current P2 findings | **1 — AV5-002 / #617** |
@@ -62,8 +62,8 @@ The repository and this ledger remain authoritative if any of the live-state fac
 |---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | PR #605 demonstrated **AV5-001 / #606 (P1)**. PR #608 falsified a material annual-background-mortality risk shift across 1/4/12/365 M3 cadences. PR #610 confirmed that an M9 return completed exactly on an M4 boundary becomes immediately M4-visible. Frozen-source review confirmed M3 → M9 → M4 → annual-M2 fixed-day ordering and symmetric competing-risk attribution. |
 | B | Demography, fertility, mortality, ageing, population structure | **complete — non-clean** | PR #612 quantified a documented same-seed structural-coupling limitation (`523/1024` focal outcomes changed; no defect). PR #614 confirmed survival-conditioned parentage at the exact day-365 M3/M2 boundary: `64/64` surviving-male controls produced one birth, while `64/64` certain-male-death arms produced one day-365 death and zero births. PR #616 demonstrated **AV5-002 / #617 (P2)**: even complete declared genealogy does not constrain M2 mate eligibility, permitting a daughter’s own father to be selected as the male parent of her child. Historical age/newborn/birth-spacing boundary tests were reviewed as controls rather than counted as fresh v5 evidence. |
-| C | Households, kinship, social links, lifecycle structure | **incomplete — next** | AV5-002 is cross-cutting kinship/population-structure evidence only; Area C still requires an independent fresh pass. |
-| D | Resources, condition, subsistence, depletion/recovery | **incomplete** | — |
+| C | Households, kinship, social links, lifecycle structure | **complete — non-clean only via cross-cutting AV5-002** | PR #619 quantified the documented dependency-safety rule: a dependent can leave a household at size 3 under target `maxLivingMembers=2` when its only living parent is in the full group; **no defect** because the authoritative contract explicitly makes target size subordinate to dependency safety. PR #620 confirmed same-boundary mortality is respected by dependency-aware fission: a mother killed at day 365 is not retained as an anchor, and the child is reassigned with the surviving father. Source/control review covered relationship-role refinement, reciprocal first-degree kin semantics, fission-event membership/household-age observability, temporary-mobility topology extension and checkpoint determinism. No new Area-C finding; AV5-002 remains a cross-cutting kinship limitation. |
+| D | Resources, condition, subsistence, depletion/recovery | **incomplete — next** | — |
 | E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **incomplete** | AV5-001 cross-cutting evidence only; Area E not yet independently audited |
 | F | Aggregation and interaction mechanisms | **incomplete** | — |
 | G | Initialization, burn-in, path dependence, continuation state | **incomplete** | — |
@@ -150,6 +150,33 @@ The repository and this ledger remain authoritative if any of the live-state fac
 - The direct mortality→parentage invariant passed cleanly, while the close-kin limiting case demonstrated AV5-002 / #617.
 - **Area B is complete under the audit protocol, but not clean:** AV5-002 / #617 remains open and intentionally unrepaired during discovery. Its kinship/integration consequences are assigned to Areas C and N; its documentation-scope consequences are assigned to Area M.
 
+### 2026-09-08 — Area C pass 1: dependency-safe fission × target-size overage
+
+- Area C began from protected `main` `a19ef66241d52425eb86ec263f2a02a016c03fff`; immutable scientific target remained v0.3.5/v33, with living changes since the tag limited to Audit-v5 documentation.
+- Historical issue search separated the fresh hypothesis from #324 (PersonId/cohort slicing) and #399 (relationship-role tie-breaking). Frozen source showed dependents preferentially follow groups containing living parents and use remaining target capacity only as a secondary criterion.
+- Evidence-only PR #619 exact head `79ecc7888887906f60ed20995b5a22e1d385d273`, run `34172549189`, job `101895508298`, constructed three independent-age adults plus one 10-year-old dependent with `maxLivingMembers=2`; the dependent’s only living parent was deliberately in the already-full anchor group.
+- Full recorded-run invariants passed. Exact post-fission observability was `sizes=[(1,1),(3,1)]`, largest living household `3`, configured target `2`.
+- The evidence test’s stronger absolute-ceiling assertion failed, but authoritative `household-lifecycle-structural-sensitivity-v2.md` explicitly defines `maxLivingMembers` as a target subordinate to dependency safety and permits a group to remain above target rather than violate the dependency rule.
+- **Disposition: no finding / documented limiting case.** PR #619 was closed unmerged after classification.
+
+### 2026-09-08 — Area C pass 2: same-boundary mortality × dependency-aware fission
+
+- Evidence-only PR #620 attacked whether a parent killed earlier on the annual boundary could remain a dependency anchor for the same day’s fission.
+- The first fixture accidentally set the unrelated intended survivor to age 60 under certain mortality at age 45+, so both that anchor and the 50-year-old mother died and no fission was possible. That initial red was a fixture error and is not scientific evidence.
+- The unrelated anchor was corrected to age 44 without changing the hypothesis. A subsequent central-CI red was `rustfmt` import ordering only and likewise did not reach scientific model logic.
+- Corrected exact evidence head `7ad02415ed72a358381aa1d075771910cf6a0dc8`; dedicated run `34172954061`, job `101896675856`, pinned Rust 1.97.1: **success**.
+- Exact event evidence: `deaths=[(365, PersonId(2))]; fissions=[(365, HouseholdId(1), HouseholdId(2), [PersonId(3), PersonId(4)])]`.
+- Thus the mother killed on day 365 was excluded from dependency anchoring, and the dependent child was reassigned with the surviving father in the daughter household. Full recorded-run invariants passed.
+- **Disposition: no finding.** PR #620 was closed unmerged after classification.
+
+### 2026-09-08 — Area C completion assessment
+
+- Fresh Area-C evidence covered both a structural limiting case (#619) and a same-boundary mortality/lifecycle composition (#620).
+- Frozen-source review confirmed the v33 dependency-aware treatment uses independent-age anchors, living-parent-aware dependent assignment, relationship-role refinement before PersonId tie-breaking, and explicit source/daughter household event membership.
+- Existing permanent controls were inspected for reciprocal direct-parent kin semantics, fission observability/creation-day reconstruction, temporary-mobility household-topology extension, deterministic replay and checkpoint continuation; they were treated as controls rather than fresh v5 evidence.
+- AV5-002/#617 remains scientifically relevant to Area C because generated genealogy can contain first-degree mating and subsequently feed kin-sensitive mechanisms, but Area C found no additional lifecycle/kinship implementation defect beyond that already-preserved cross-cutting limitation.
+- **Area C is complete under the audit protocol.** It is non-clean only through the already-open cross-cutting AV5-002 / #617; no AV5-003 was created.
+
 ## Next action
 
-Begin **Area C — households, kinship, social links, and lifecycle structure** from zero independent coverage against immutable `v0.3.5` / v33. Reconstruct live state and search historical household/kin findings before creating evidence. Prioritize a genuinely fresh lifecycle/kinship composition attack rather than replaying repaired record-order, parent-role or household-fission findings. Candidate surfaces include dependency-aware fission under ambiguous parent availability, reciprocal/direct-kin invariants across fission, household dissolution/extinction edges, and interactions between generated parentage (including AV5-002) and later kin/lifecycle state. Do **not** repair #606 or #617 during discovery.
+Begin **Area D — resources, condition, subsistence, depletion/recovery** from zero independent coverage against immutable `v0.3.5` / v33. Reconstruct live state and historical resource/condition findings before creating evidence. Prioritize fresh limiting cases around conservation/accounting, depletion/replenishment cadence, household competition/order independence, condition recovery/loss bounds, initial stock assumptions, and interactions among M3 resources, temporary presence and mortality. Do **not** repair #606 or #617 during discovery.
