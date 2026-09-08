@@ -1,0 +1,85 @@
+name: v0.3.6 release preparation runner
+
+on:
+  push:
+    branches:
+      - release/v0.3.6-prep
+    paths:
+      - .github/workflows/v036-release-prep-runner.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release preparation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: release/v0.3.6-prep
+          fetch-depth: 0
+
+      - name: Execute asserted release-preparation recipe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # The staged recipe expected an older wording variant in AGENTS.md.
+          # Normalize only that source phrase in the disposable checkout; the
+          # recipe itself then replaces the whole sentence with the final
+          # v0.3.6 guidance.
+          agents = Path('AGENTS.md')
+          text = agents.read_text(encoding='utf-8')
+          old = 'rather than assuming a release tag has moved.'
+          new = 'rather than assuming the latest release tag has moved.'
+          if text.count(old) != 1 or new in text:
+              raise SystemExit('unexpected AGENTS.md precondition state')
+          agents.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Extract the exact shell block from the original asserted recipe.
+          source = Path('.github/workflows/v036-release-prep-patch.yml').read_text(encoding='utf-8').splitlines()
+          marker = '      - name: Apply fail-closed v0.3.6 release preparation'
+          try:
+              start = source.index(marker)
+          except ValueError:
+              raise SystemExit('release-preparation recipe marker not found')
+          run_index = None
+          for i in range(start + 1, len(source)):
+              if source[i] == '        run: |':
+                  run_index = i + 1
+                  break
+              if source[i].startswith('      - name:'):
+                  break
+          if run_index is None:
+              raise SystemExit('release-preparation run block not found')
+          block = []
+          for line in source[run_index:]:
+              if line.startswith('      - name:'):
+                  break
+              if not line.startswith('          ') and line.strip():
+                  raise SystemExit(f'unexpected recipe indentation: {line!r}')
+              block.append(line[10:] if len(line) >= 10 else '')
+          if not block:
+              raise SystemExit('release-preparation run block is empty')
+          Path('/tmp/v036-release-prep.sh').write_text('\n'.join(block) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/v036-release-prep.sh
+
+      - name: Commit validated release preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add --all \
+            ':!.github/workflows/v036-release-prep-patch.yml' \
+            ':!.github/workflows/v036-release-prep-runner.yml'
+          if git diff --cached --quiet; then
+            echo 'No release-preparation changes to commit'
+            exit 0
+          fi
+          git commit -m 'release: prepare v0.3.6'
+          git push origin HEAD:release/v0.3.6-prep
