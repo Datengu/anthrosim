@@ -7,9 +7,27 @@
 
 The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`. Earlier reviewed references remain preserved below and in Git history.
 
-**Current machine-readable reference: `anthrosim-model-semantics-v31`.**
+**Current machine-readable reference: `anthrosim-model-semantics-v34`.**
 
-## Current regression reference — model semantics v31
+## Current regression reference — model semantics v34
+
+Audit-v5 AV5-001 / #606 removes unrelated global-population ordinal renumbering from M9 equal-cost destination coupling. The frozen M9.7 design was rerun unchanged on the production repair PR after the household-local coupling policy was introduced. The v34 execution preserved the complete legacy scientific pair projection and the independent M9.6 travel-burden reference while updating the reviewed execution identity and authoritative terminal state digests for current semantics.
+
+Reviewed v34 execution:
+
+- workflow run: `34260754903`;
+- artifact: `10069914914`;
+- artifact SHA-256: `a7aa1a114186af8d585e209d304916116a6597ba9c520c7bfed0dd53f39eddd5`;
+- reviewed branch head: `75f708404f337fc29c43472a55b101e1388e26b5`;
+- pull-request merge-ref build: `58c6ef003d0a74c225e8eecda6a4d44a08ad6ee0`;
+- aggregate canonical SHA-256: `de762fcf3b7c18daf27eebf3e1fcd95bda540ecabbba43c2a70c3fcbb71bbe13`;
+- reference model semantics: `anthrosim-model-semantics-v34`.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Exact intermittent replay and active annual checkpoint/resume equivalence both passed on the same exact-head workflow. The independent travel-burden reference remains separately enforced by the M9.7 verifier.
+
+This is a causal reference refresh, not empirical calibration: AV5-001 directly changes the M9 ambiguity-key policy represented by the benchmark. Audit-v5 AV5-004 / #629 remains the separate spatial-reflection-equivariance question and is not claimed resolved here.
+
+## Historical reviewed reference — model semantics v31
 
 Audit-v4 AV4-007 / #500 removes canonical `HouseholdId` from M9 equal-cost destination stochastic coupling. Authoritative M9 tied destinations now use household scientific coupling derived from living-member stochastic-coupling identity. The frozen M9.7 design was rerun/reviewed and the checked-in machine reference advanced to v31.
 
@@ -24,7 +42,7 @@ Reviewed v31 execution:
 
 The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Replay/checkpoint-resume equivalence remains separately workflow-gated.
 
-The current machine reference is v31 rather than global current model semantics v33 because a benchmark reference records the latest **causally applicable reviewed execution**, not merely the newest global semantics label. Audit-v4 v32 scarce-resource remainder coupling and v33 M4 candidate-order coupling are not reasons to relabel this frozen benchmark when those pathways are absent/inapplicable under its declared design.
+The v31 machine reference was retained through global model semantics v33 because a benchmark reference records the latest **causally applicable reviewed execution**, not merely the newest global semantics label. Audit-v4 v32 scarce-resource remainder coupling and v33 M4 candidate-order coupling are not reasons to relabel this frozen benchmark when those pathways are absent/inapplicable under its declared design.
 
 ## Historical reviewed reference — model semantics v29
 
@@ -35,7 +53,7 @@ Reviewed v29 execution:
 - evidence-generating workflow run: `33813559006`, job `100840645688`;
 - evidence-generating production head: `0e69401b82c512c1f66d15303bc98a8dc75da7e5`;
 - artifact: `9915799402`;
-- artifact SHA-256: `8e14622e26728c6e4a300c6c834c6085aa9c2e84013704f237e4aaa4a1221a4c`;
+- artifact SHA-256: `8e14622e26728c6c834c6085aa9c2e84013704f237e4aaa4a1221a4c`;
 - aggregate canonical SHA-256: `be17795b0ed35aba0c39a6c76b1d45934dd165d75199551464dcbdc589c9294b`;
 - reference model semantics: `anthrosim-model-semantics-v29`;
 - subsequent checked-reference verification: applicable-gates run `33815769032` passed the canonical comparison, replay/resume checks and tamper rejection.
@@ -63,7 +81,7 @@ Reviewed v27 execution:
 - pull-request merge-ref build: `pre-sanitisation-ref-omitted-after-2026-09-02-privacy-rewrite`;
 - artifact: `9905367753`;
 - artifact SHA-256: `350c6344ec721d201ee4e528de9daec9c5136faa0d6bf90727f5ec24a17c5020`;
-- aggregate canonical SHA-256: `4c17ac0e9d1ee601f46baff8392203cc99ce267ed9e3028596a2f2871aaa65a9`;
+- aggregate canonical SHA-256: `4c17ac0d9ee601f46baff8392203cc99ce267ed9e3028596a2f2871aaa65a9`;
 - reference model semantics: `anthrosim-model-semantics-v27`.
 
 ### v27 reference result
@@ -162,7 +180,7 @@ Audit-v4 AV4-006 / #497 reran the complete M9.7 applicable gate under `anthrosim
 
 Under one controlled synthetic design, AnthroSim can represent two regimes with very similar aggregate focal-region use but materially different temporal occupancy structure, preserve that difference through authoritative state/events and checkpoint/resume, and expose it reproducibly through downstream observability and ordinary ensemble machinery.
 
-The checked-in **v31** reference verifies that this capability distinction survives the reviewed M9 equal-cost destination coupling repair represented by AV4-007. That is a regression/capability statement only; it is not empirical validation.
+The checked-in **v34** reference verifies that this capability distinction survives the Audit-v5 AV5-001 household-local M9 equal-cost destination coupling repair; the v31 execution remains the historical comparator for the prior AV4-007 repair. That is a regression/capability statement only; it is not empirical validation.
 
 That does **not** establish invariance to all resource, demographic, condition or temporary-mobility alternatives. It establishes only the behavior of this frozen capability benchmark for the latest causally applicable reviewed reference execution.
 
