@@ -67,7 +67,8 @@ fn run_checked(command: &mut Command, role: &str) -> Output {
 }
 
 fn read_value(path: &Path) -> Value {
-    serde_json::from_slice(&fs::read(path).expect("read JSON artifact")).expect("parse JSON artifact")
+    serde_json::from_slice(&fs::read(path).expect("read JSON artifact"))
+        .expect("parse JSON artifact")
 }
 
 #[test]
@@ -108,8 +109,11 @@ fn relocated_root_and_missing_mutable_state_preserve_scientific_identity_on_retr
 
     let child_before = original_research_root.join(relative_dir);
     let sentinel_name = "audit-v5-retention-sentinel.txt";
-    fs::write(child_before.join(sentinel_name), "must survive retained-bundle retry\n")
-        .expect("write retention sentinel");
+    fs::write(
+        child_before.join(sentinel_name),
+        "must survive retained-bundle retry\n",
+    )
+    .expect("write retention sentinel");
 
     fs::create_dir_all(relocated_research_root.parent().expect("relocated parent"))
         .expect("create relocation parent");
@@ -134,9 +138,15 @@ fn relocated_root_and_missing_mutable_state_preserve_scientific_identity_on_retr
 
     assert_eq!(plan_after, manifest_after, "immutable root copies diverged");
     assert_eq!(plan_after["researchId"], research_id_before);
-    assert_eq!(plan_after["definitionIdentity"], definition_identity_before);
+    assert_eq!(
+        plan_after["definitionIdentity"],
+        definition_identity_before
+    );
     assert_eq!(runs_after["runs"][0]["runId"], run_id_before);
-    assert_eq!(runs_after["runs"][0]["stateDigest64"], state_digest_before);
+    assert_eq!(
+        runs_after["runs"][0]["stateDigest64"],
+        state_digest_before
+    );
     assert_eq!(runs_after["runs"][0]["state"], "completed");
     assert!(
         relocated_research_root
@@ -152,7 +162,10 @@ fn relocated_root_and_missing_mutable_state_preserve_scientific_identity_on_retr
 
     eprintln!("research_id={}", plan_after["researchId"]);
     eprintln!("run_id={}", runs_after["runs"][0]["runId"]);
-    eprintln!("state_digest64={}", runs_after["runs"][0]["stateDigest64"]);
+    eprintln!(
+        "state_digest64={}",
+        runs_after["runs"][0]["stateDigest64"]
+    );
     eprintln!("retained_child_bundle=true");
     eprintln!("reconstructed_mutable_state=true");
 
