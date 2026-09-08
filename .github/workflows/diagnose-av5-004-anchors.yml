@@ -53,6 +53,7 @@ jobs:
                   instrumented.append('    print(f"ANCHOR {_anchor_counter}: {path}: count={count}: {first!r}", flush=True)')
                   continue
               if line.strip() == 'raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")':
+                  instrumented.append('        print(f"FULL_OLD_{_anchor_counter}={old!r}", flush=True)')
                   instrumented.append('        raise SystemExit(f"ANCHOR {_anchor_counter} {path}: expected exactly one replacement target, found {count}: {first!r}")')
                   continue
               instrumented.append(line)
