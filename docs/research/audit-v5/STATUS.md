@@ -19,13 +19,14 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target model semantics | `anthrosim-model-semantics-v33` |
 | Discovery coverage | **14/14 Areas A–N complete** |
 | Discovery result | **non-clean: 8 findings — 4 P1, 4 P2; no P0/P3** |
-| Production `main` reconciled for this update | `b4ac5a46164b3abe7e5d2336858c399f0f7bf94d` |
-| Closed Audit-v5 findings | **6/8 — #617, #627, #640, #648, #651, #658** |
-| Open Audit-v5 findings | **2/8 — #606, #629** |
-| Open P1 | **2 — AV5-001/#606; AV5-004/#629** |
+| Production `main` reconciled for this update | `f20b7f78103884c6982c86a5d70472153e3a524d` |
+| Living production model semantics | `anthrosim-model-semantics-v34` |
+| Closed Audit-v5 findings | **7/8 — #606, #617, #627, #640, #648, #651, #658** |
+| Open Audit-v5 findings | **1/8 — #629** |
+| Open P1 | **1 — AV5-004/#629** |
 | Open P2 | **0** |
-| Repair state | **post-discovery remediation in progress; 6/8 findings closed** |
-| Next repair phase | **shared M9 tie-coupling design review for AV5-001/#606 and AV5-004/#629, followed by one dedicated production repair at a time** |
+| Repair state | **post-discovery remediation in progress; 7/8 findings closed** |
+| Next repair phase | **AV5-004/#629 M9 spatial-reflection/isomorphism repair, preserving the v34 AV5-001 locality contract and AV4-007 label invariance** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
 The immutable `v0.3.5` / v33 target remains the discovery baseline even as production fixes advance `main`. A finding being closed means its required production disposition has been completed; the ledger separately records independent post-merge re-verification where it was required or performed.
@@ -64,7 +65,7 @@ The immutable `v0.3.5` / v33 target remains the discovery baseline even as produ
 
 | Finding | Severity | Discovery evidence | Live state |
 |---|---:|---|---|
-| **AV5-001 / #606** — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination | P1 | PR #605, head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; destination divergence `503/1024` | **open; unrepaired** |
+| **AV5-001 / #606** — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination | P1 | PR #605, head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; destination divergence `503/1024` | **closed; repaired by #676 as `f20b7f78103884c6982c86a5d70472153e3a524d`, model semantics advanced to v34, independently reverified by evidence-only #677** |
 | **AV5-002 / #617** — parentage ignores declared close kin and permits first-degree mating | P2 | PR #616, head `b130fdac8c2ee421203af8a8e5a044a48de29d26`, run `34171257065`, job `101891843233` | **closed; explicit null-model scope disposition merged in #669 as `96b4efd07f6c78a5a0c80dfc2c883ee2bd5c908f`** |
 | **AV5-003 / #627** — spatial M9 history replay uses process seed instead of population seed | P2 | PR #626, head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`, run `34175807550`, job `101904842100` | **closed; repaired by #671 and merged as `9cf8131240d1e8dce45306773a54b68a3964c64b`** |
 | **AV5-004 / #629** — M9 equal-cost destination choice is not spatial-reflection equivariant | P1 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; `256/256` mismatches | **open; unrepaired** |
@@ -74,6 +75,35 @@ The immutable `v0.3.5` / v33 target remains the discovery baseline even as produ
 | **AV5-008 / #658** — survivor-conditioning gate accepts mismatched survival analysis window | P2 | PR #657, head `58f7b6bd5dd7d20330804e6091ce7b3e65c8a4ab`, run `34187243024`, job `101937940280` | **closed; repaired by #667 and independently reverified by evidence-only #668** |
 
 ## Completed remediation evidence
+
+### AV5-001 / #606 — M9 household-local equal-cost coupling
+
+Production PR **#676** was squash-merged to `main` as `f20b7f78103884c6982c86a5d70472153e3a524d` after every PR-triggered workflow on exact final production head `fa263602945bdb402496f11229a606f1dd4b4ab0` completed successfully. The repair advances living model semantics from v33 to v34 and replaces the M9 destination key's globally ordinal minimum-person coupling rank with versioned household-local demographic equivalence:
+
+- M9 household coupling policy `m9/household-local-demographic-equivalence-v1` hashes the sorted living-member multiset of exact birth day plus reproductive sex;
+- destination policy identity advances to `m9/equal-cost-destination-local-household-coupling-v3`;
+- `HouseholdId`, `PersonId`, packed-record order, global stochastic-coupling ordinals and unrelated population composition are excluded from the M9 household-local key;
+- persistent stochastic-coupling ranks remain unchanged for mechanisms where they are still authoritative;
+- exact travel costs, reachability, equal-minimum candidate construction, travel duration, M4 migration, mortality, resource allocation and sequential RNG streams are unchanged;
+- existing M9 tie-key event observability and program/policy provenance remain preserved.
+
+The permanent authoritative regression sweeps 1,024 seeds with the original unreachable-founder construction. It retains the positive control that the focal founder's population-wide stochastic-coupling rank renumbers `1 -> 2`, while requiring the emitted M9 tie key and destination to remain identical in baseline and augmented arms. The existing AV4-007 HouseholdId relabelling invariance also remained green.
+
+The semantics bump required scientific-reference provenance reconciliation. The Canonical M7.6 resource/migration factorial does not exercise M9; exact-head CI reran all 18 points and 144/144 declared runs under v34 and reproduced the frozen numerical `pointResults` exactly. Its reference was therefore rebound to v34 as provenance-only, with the numerical reference, definition digest and original reference provenance otherwise unchanged. M8.6 and M9.7 applicable gates also passed on the final production head.
+
+Because AV5-001 is P1, GitHub's automatic issue closure at production merge was reversed until independent evidence completed. Evidence-only PR **#677** was then created from exact repaired `main` `f20b7f78103884c6982c86a5d70472153e3a524d`; exact evidence head `6e541eb9bf9d2a94759b6c1807b19bd501241c73` contains only the independent adversarial test and its workflow.
+
+Post-merge evidence:
+
+- workflow: `Audit v5 AV5-001 post-merge re-verification`;
+- run `34268883114`;
+- job `102205123640` — `AV5-001 isolated-founder locality post-merge adversary`;
+- conclusion: **success**;
+- the original population-wide rank still renumbered `1 -> 2`;
+- manually injecting those obsolete rank keys into the generic keyed resolver remained non-degenerate, proving the old attack construction still had discriminatory power;
+- actual v34 authoritative M9 execution emitted the same household-local tie key and same destination in baseline/augmented arms for every process seed `0..=1023`.
+
+All other PR-triggered workflows on the exact evidence head completed successfully, including format, clippy, full workspace tests, release build, core benchmarks, M5/M6 bundle integration, 1000-run soak, Canonical M7.6, performance/memory acceptance and applicable M8.6/M9.7 scientific gates. PR #677 was closed **unmerged**, its exact evidence was recorded on #606, and #606 was closed as completed only after the P1 evidence chain was complete.
 
 ### AV5-002 / #617 — M2 parentage relatedness scope
 
@@ -130,25 +160,23 @@ Production PR **#667** requires survivor-conditioned condition observables and t
 
 ## Remaining remediation set
 
-1. **AV5-001 / #606 (P1).** Remove nonlocal M9 tie dependence on globally renumbered stochastic-coupling ranks while preserving deterministic, label-invariant coupling. The exact isolated-founder locality adversary must pass across a substantial tie-seed range, AV4-007 HouseholdId relabelling invariance must remain green, and the replacement must not substitute another arbitrary global ordinal/storage label. Independent post-merge adversarial re-verification is required.
-2. **AV5-004 / #629 (P1).** Make M9 equal-cost destination selection spatially equivariant under reflection/isomorphism while preserving marginal exchangeability rather than collapsing to a deterministic canonical winner. The exact #628 horizontal-reflection adversary plus additional spatial symmetry coverage must pass. The repair must also preserve the #606 locality contract and AV4-007 label invariance. Independent post-merge adversarial re-verification is required.
+1. **AV5-004 / #629 (P1).** Make M9 equal-cost destination selection spatially equivariant under reflection/isomorphism while preserving marginal exchangeability rather than collapsing to a deterministic canonical winner. The exact #628 horizontal-reflection adversary plus additional spatial symmetry coverage must pass. The repair must preserve the completed AV5-001 household-locality contract and AV4-007 label invariance. Independent post-merge adversarial re-verification is required.
 
-These findings touch the same authoritative boundary: `TemporaryTravelTable::resolution_for_coupling_key` currently hashes tie-policy identity, destination tie seed, numeric origin `CellId`, household coupling key and trigger index, then indexes a canonically `CellId`-ordered equal-cost candidate vector. The household coupling key is currently the minimum living-person persistent stochastic-coupling rank, and day-zero ranks are globally ordinal even though their ordering is derived from represented scientific state. That creates AV5-001's nonlocal renumbering path; the canonical origin/candidate representation creates AV5-004's spatial-reflection path.
-
-Do **not** open independent overlapping repair branches for #606 and #629 until a shared stochastic-keying/spatial-coupling contract has been made explicit. One authoritative finding should still be repaired per production PR, but the first repair must not choose an identity scheme that makes the second acceptance contract impossible or reintroduces AV4-007.
+The remaining defect is at the spatial identity side of the same M9 tie-resolution boundary. Under v34, authoritative M9 no longer uses a globally ordinal population identity for its household coupling key. However, `TemporaryTravelTable::resolution_for_coupling_key` still couples a keyed draw to a numeric origin/canonically ordered equal-cost candidate representation. In the #628 reflection-fixed-origin construction, the same paired stochastic realization therefore remains attached to the same canonical `CellId` rather than transforming with the reflected physical alternative.
 
 The accepted Audit-v4 AV4-009/#518 M4 repair is a relevant precedent: v33 removed arbitrary `CellId` candidate-order coupling by ordering scientifically distinct deterministic candidate classes by active M4 state and sharing uncertainty within exact equivalence classes. It also deliberately changed model semantics/checkpoint identity. M9 is not identical to that problem—its equal-cost alternatives can remain exchangeable under active travel semantics—so the M4 implementation should inform, not mechanically dictate, the M9 design.
 
 ## Next action
 
-Reconstruct live `main`, open PRs/branches and both remaining issue contracts, then perform a focused shared-design review for **AV5-001/#606 + AV5-004/#629** before editing production code. The design must explicitly address:
+Reconstruct live `main`, open PRs/branches and issue **AV5-004/#629**, then repair that final finding on one dedicated production branch. The design and acceptance evidence must explicitly address:
 
-- a local/persistent scientific household coupling identity that is invariant to unrelated population insertion/removal and canonical household/person labels;
 - a spatially equivariant destination-coupling strategy that does not attach same-seed choices to arbitrary `CellId`/candidate order;
+- preservation of the v34 household-local M9 coupling key and the completed AV5-001 unreachable-founder locality regression;
+- preservation of AV4-007 HouseholdId-label invariance and marginal exchangeability across equal-cost alternatives;
 - preservation of equal-cost candidate, route-cost and reachability semantics;
 - deterministic replay, checkpoint/resume, M9 history validation, event/provenance observability and cross-platform determinism;
-- whether the required causal/stochastic-coupling change necessitates a model-semantics, checkpoint-schema, event-schema or policy-identity bump.
-
-After that shared contract is explicit, select one finding for the next dedicated production repair and keep the other open until its own acceptance contract and independent P1 re-verification are satisfied.
+- horizontal reflection plus vertical reflection and/or additional spatial-isomorphism regression coverage where geometry permits;
+- whether the required spatial stochastic-coupling change necessitates a model-semantics, checkpoint-schema, event-schema or policy-identity bump;
+- independent post-merge adversarial re-verification before final P1 closure.
 
 Audit-v5 discovery remains complete. No further discovery pass is implied by remediation, and no empirical or archaeological readiness claim follows from closing these software/scientific-method findings.
