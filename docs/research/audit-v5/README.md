@@ -1,5 +1,7 @@
 # AnthroSim scientific audit v5 — charter
 
+**Status: complete / historical charter.** Discovery and remediation are complete: Audit v5 demonstrated 8 findings (4 P1, 4 P2), all are closed, and every P1 repair received independent post-merge adversarial re-verification. Because new P1 findings were discovered, Audit v5 is a **non-clean convergence pass**. Do **not** restart or continue Audit v5. A future convergence audit must use a new audit generation against a newly frozen release baseline.
+
 Scientific Audit v5 is the fifth independent/adversarial comprehensive scientific audit of AnthroSim and the next convergence audit after completion of Audit v4 remediation and preservation of the `v0.3.5` release. It audits the immutable `v0.3.5` release baseline from zero coverage. It is not a continuation of Audit v4 and is not empirical validation of any archaeological reconstruction.
 
 Protocol: `docs/research/scientific-audit-protocol.md`

@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** v0.3.5 release line / current model semantics v35 (immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** v0.3.6 release line / current model semantics v35 (immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
@@ -21,7 +21,7 @@ A green software build, deterministic replay, an ODD description, completed scie
 | TRACE element | Current status | Main reason |
 |---|---|---|
 | 1. Problem formulation | Partial / study-specific | Framework purposes are explicit, but real research questions require their own frozen hypotheses, observables and applicability domain. |
-| 2. Model description | Established for the living v33 framework line | ODD 2020, ODD+D and the detailed scientific specification describe current model semantics while preserving immutable v0.3.4/v25 and v0.3.3/v21 history. |
+| 2. Model description | Established for the living v35 framework line | ODD 2020, ODD+D and the detailed scientific specification describe current model semantics while preserving immutable v0.3.4/v25 and v0.3.3/v21 history. |
 | 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty, representativeness and evidence-role separation remain study-specific. |
 | 4. Conceptual model evaluation | Strong framework audit evidence; study-specific evaluation remains required | Scientific Audit v4 completed the fourth independent A–N audit generation against immutable v0.3.4/v25, demonstrated 15 findings, and all 15 were repaired and independently re-verified/dispositioned on the living line. Structural assumptions and empirical applicability remain study-specific. |
 | 5. Implementation verification | Strong framework-level convergence; never proof of correctness | Four comprehensive audit generations have now been completed. Audit v4 closed 15/15 demonstrated findings after protected production repair and independent post-merge/current-state evidence, leaving no open Audit-v4 finding on the repaired v33 line. |

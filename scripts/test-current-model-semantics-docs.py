@@ -36,6 +36,7 @@ V032_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.2.md"
 V033_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.3.md"
 V034_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.4.md"
 V035_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.5.md"
+V036_RELEASE_DOC = ROOT / "docs" / "releases" / "v0.3.6.md"
 VERSIONING_DOC = ROOT / "docs" / "release-versioning.md"
 AGENT_GUIDANCE = ROOT / "AGENTS.md"
 VISION_DOC = ROOT / "docs" / "vision.md"
@@ -49,6 +50,7 @@ M9_ACCEPTANCE_RECORD = ROOT / "docs" / "research" / "m9-6-acceptance.md"
 M9_INTEGRATION_RECORD = ROOT / "docs" / "research" / "m9-6-integration-audit.md"
 AUDIT_V3_CHARTER = ROOT / "docs" / "research" / "audit-v3" / "README.md"
 AUDIT_V4_CHARTER = ROOT / "docs" / "research" / "audit-v4" / "README.md"
+AUDIT_V5_CHARTER = ROOT / "docs" / "research" / "audit-v5" / "README.md"
 
 V032_SEMANTICS_ID = "anthrosim-model-semantics-v19"
 V032_SHORT = "v19"
@@ -58,6 +60,8 @@ V034_SEMANTICS_ID = "anthrosim-model-semantics-v25"
 V034_SHORT = "v25"
 V035_SEMANTICS_ID = "anthrosim-model-semantics-v33"
 V035_SHORT = "v33"
+V036_SEMANTICS_ID = "anthrosim-model-semantics-v35"
+V036_SHORT = "v35"
 
 
 def current_semantics_id() -> str:
@@ -107,6 +111,7 @@ def main() -> None:
         raise AssertionError("Cargo.toml workspace.package is missing version")
     current_software_version = workspace_version_match.group(1)
     current_release_tag = f"v{current_software_version}"
+    latest_historical_release_phrase = f"immutable v0.3.5 release baseline: {V035_SHORT}"
     release_phrase = f"immutable v0.3.4 release baseline: {V034_SHORT}"
     prior_release_phrase = f"immutable v0.3.3 release baseline: {V033_SHORT}"
 
@@ -130,6 +135,10 @@ def main() -> None:
         ROOT / "docs" / "research" / "trace.md",
     ):
         text = path.read_text(encoding="utf-8")
+        if latest_historical_release_phrase not in text:
+            raise AssertionError(
+                f"{path.relative_to(ROOT)} does not distinguish immutable v0.3.5/{V035_SHORT} from living main"
+            )
         if release_phrase not in text:
             raise AssertionError(
                 f"{path.relative_to(ROOT)} does not distinguish immutable v0.3.4/{V034_SHORT} from living main"
@@ -145,6 +154,8 @@ def main() -> None:
             "Scientific Audit v4 remediation in progress",
             "entered remediation; AV4-001",
             "Repair and independent post-merge re-verification take priority",
+            "post-discovery remediation in progress",
+            "#629 remains open until",
         )
         for stale in stale_status:
             if stale in text:
@@ -199,6 +210,12 @@ def main() -> None:
     if "Software version: `0.3.5`" not in v035_release_text or f"Model semantics: `{V035_SEMANTICS_ID}`" not in v035_release_text:
         raise AssertionError("docs/releases/v0.3.5.md does not identify the v0.3.5/v33 release identity")
 
+    v036_release_text = V036_RELEASE_DOC.read_text(encoding="utf-8")
+    if "Software version: `0.3.6`" not in v036_release_text or f"Model semantics: `{V036_SEMANTICS_ID}`" not in v036_release_text:
+        raise AssertionError("docs/releases/v0.3.6.md does not identify the v0.3.6/v35 release identity")
+    if "non-clean convergence pass" not in v036_release_text:
+        raise AssertionError("docs/releases/v0.3.6.md must preserve the Audit-v5 non-clean convergence boundary")
+
     versioning_text = VERSIONING_DOC.read_text(encoding="utf-8")
     if (
         "v0.3.2`**: documentation-convergence maintenance patch over the v19 model semantics "
@@ -224,6 +241,11 @@ def main() -> None:
         not in versioning_text
     ):
         raise AssertionError("docs/release-versioning.md does not preserve v0.3.5/v33 identity")
+    if (
+        "v0.3.6`**: post-Scientific-Audit-v5 repaired baseline preserving model semantics v35"
+        not in versioning_text
+    ):
+        raise AssertionError("docs/release-versioning.md does not preserve v0.3.6/v35 identity")
     if current_id not in versioning_text:
         raise AssertionError("release-versioning policy does not state the current model semantics")
 
@@ -263,7 +285,7 @@ def main() -> None:
         if marker not in path.read_text(encoding="utf-8"):
             raise AssertionError(f"{path.relative_to(ROOT)} lacks an explicit historical-status marker")
 
-    for path in (AUDIT_V3_CHARTER, AUDIT_V4_CHARTER):
+    for path in (AUDIT_V3_CHARTER, AUDIT_V4_CHARTER, AUDIT_V5_CHARTER):
         charter = path.read_text(encoding="utf-8")
         if "**Status: complete / historical charter.**" not in charter or "Do **not** restart or continue Audit" not in charter:
             raise AssertionError(f"{path.relative_to(ROOT)} can still be mistaken for an active audit charter")
