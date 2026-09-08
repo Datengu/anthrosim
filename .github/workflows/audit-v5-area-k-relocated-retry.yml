@@ -1,0 +1,30 @@
+name: Audit v5 Area K relocated retry recovery
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-cli/tests/audit_v5_area_k_relocated_retry.rs'
+      - 'crates/anthrosim-cli/src/bin/anthrosim-research.rs'
+      - 'crates/anthrosim-cli/src/run_directory.rs'
+      - 'crates/anthrosim-cli/src/bundle.rs'
+      - '.github/workflows/audit-v5-area-k-relocated-retry.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: Relocated retry recovery adversary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v5 Area-K adversary
+        run: cargo test --locked -p anthrosim-cli --test audit_v5_area_k_relocated_retry -- --nocapture
