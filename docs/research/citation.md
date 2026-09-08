@@ -6,7 +6,7 @@ AnthroSim carries machine-readable citation metadata in the repository-root `CIT
 
 When referring to AnthroSim as software, cite the released version that was used. The software version identifies the named public release baseline and should not be treated as a substitute for exact experiment provenance.
 
-The current repository citation metadata identifies AnthroSim version `0.3.5` and the Apache-2.0 software licence. The v0.3.5 release line preserves `anthrosim-model-semantics-v33`, the fully repaired Audit-v4 state. The immutable `v0.3.4`/v25 release remains the prior Audit-v4 discovery target and is not rewritten by this patch release; consult `docs/release-versioning.md` for the identity distinction.
+The current repository citation metadata identifies AnthroSim version `0.3.5` and the Apache-2.0 software licence. The immutable `v0.3.5` release preserves `anthrosim-model-semantics-v33`, the fully repaired Audit-v4 state. Later Audit-v5 remediation can advance the living development semantics without rewriting that named release; for example AV5-001/#606 advances the living source line to `anthrosim-model-semantics-v34` while the workspace package/citation version remains `0.3.5`. The immutable `v0.3.4`/v25 release remains the prior Audit-v4 discovery target. Consult `docs/release-versioning.md` for the identity distinction.
 
 If a study uses a different named release, cite that release rather than mechanically citing whatever version happens to appear in the current repository metadata.
 

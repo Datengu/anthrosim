@@ -74,7 +74,14 @@ use crate::time::DAYS_PER_YEAR;
 /// full aggregate proportional-choice probability, with exchangeable members sampled uniformly
 /// by equal subintervals of the existing choice draw. A v32 checkpoint must therefore not resume
 /// under v33 with unchanged migration RNG positions while silently reassigning candidate draws.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v33";
+///
+/// v34 removes the remaining nonlocal population-order dependency from M9 equal-cost
+/// destination coupling. Tied M9 departures use a household-local, label-neutral demographic
+/// equivalence key instead of the minimum globally ordinal person stochastic-coupling rank.
+/// Unrelated founder insertion/removal can therefore no longer perturb an unchanged focal
+/// household's tie realization. A v33 checkpoint must not resume under v34 while silently
+/// changing future tied M9 destinations.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v34";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

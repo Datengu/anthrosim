@@ -19,7 +19,8 @@ use crate::{
 const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 pub(crate) const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
-const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-scientific-coupling-v2";
+const M9_DESTINATION_TIE_POLICY_ID: &str = "m9/equal-cost-destination-local-household-coupling-v3";
+const M9_HOUSEHOLD_COUPLING_POLICY_ID: &str = "m9/household-local-demographic-equivalence-v1";
 
 /// Authoritative M9 physical-presence state for one household.
 ///
@@ -1631,8 +1632,7 @@ impl TemporaryMobilityState {
         let residence = population
             .household_location(household)
             .ok_or(TemporaryMobilityExecutionError::InvalidHousehold { household })?;
-        let destination_tie_coupling_key =
-            household_stochastic_coupling_key(population, household)?;
+        let destination_tie_coupling_key = household_m9_coupling_key(population, household)?;
         let resolution = program
             .travel
             .resolution_for_coupling_key(residence, destination_tie_coupling_key, trigger_index)
@@ -2122,23 +2122,48 @@ fn validate_presence(
     Ok(())
 }
 
-fn household_stochastic_coupling_key(
+fn household_m9_coupling_key(
     population: &Population,
     household: HouseholdId,
 ) -> Result<u64, TemporaryMobilityExecutionError> {
-    let mut key: Option<u64> = None;
+    // M9 needs a label-neutral local coupling class, not a globally unique population
+    // ordinal. Birth day and reproductive sex are stable person-level scientific state
+    // that do not change when unrelated records are inserted, removed, or relabelled.
+    // Sorting the local multiset makes the key independent of PersonId/packed-record
+    // order. Exact demographic duplicates deliberately share one ambiguity realization
+    // rather than being separated by an arbitrary storage/global-order label.
+    let mut members = Vec::new();
     for index in 0..population.person_count() {
         if !population.is_alive_index(index)
             || population.household_at_index(index) != Some(household)
         {
             continue;
         }
-        let rank = population
-            .stochastic_coupling_rank_at_index(index)
+        let person_id = population
+            .person_id_at_index(index)
             .ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })?;
-        key = Some(key.map_or(rank, |prior| prior.min(rank)));
+        let person = population
+            .person(person_id)
+            .ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })?;
+        let sex_rank = match person.reproductive_sex {
+            crate::population::ReproductiveSex::Female => 0_u64,
+            crate::population::ReproductiveSex::Male => 1_u64,
+        };
+        members.push((person.birth_day, sex_rank));
     }
-    key.ok_or(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household })
+    if members.is_empty() {
+        return Err(TemporaryMobilityExecutionError::MissingHouseholdCouplingKey { household });
+    }
+    members.sort_unstable();
+
+    let mut hash = FNV_OFFSET_BASIS;
+    digest_str(&mut hash, M9_HOUSEHOLD_COUPLING_POLICY_ID);
+    digest_u64(&mut hash, members.len() as u64);
+    for (birth_day, sex_rank) in members {
+        digest_u64(&mut hash, birth_day as u64);
+        digest_u64(&mut hash, sex_rank);
+    }
+    Ok(avalanche64(hash))
 }
 
 fn household_living_count(population: &Population, household: HouseholdId) -> u32 {
