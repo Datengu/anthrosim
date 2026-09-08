@@ -27,20 +27,13 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          # The asserted staging patch's anchor 10 was authored with continuation
-          # whitespace that differs from rustfmt. Adjust only that whitespace in this
-          # disposable checkout; the patch then applies normally and cargo fmt below
-          # restores canonical formatting before any production commit is permitted.
+          # Adjust only the rustfmt whitespace that differs from asserted anchor 10.
+          # This checkout is disposable; cargo fmt below restores canonical formatting
+          # before any production commit is permitted.
           mobility = Path('crates/anthrosim-core/src/temporary_mobility.rs')
           text = mobility.read_text()
-          canonical = '''            equal_cost_destinations: None,
-            destination_tie_seed: None,
-        };
-'''
-          staged_anchor = '''            equal_cost_destinations: None,
-        destination_tie_seed: None,
-    };
-'''
+          canonical = "            equal_cost_destinations: None,\n            destination_tie_seed: None,\n        };\n"
+          staged_anchor = "            equal_cost_destinations: None,\n        destination_tie_seed: None,\n    };\n"
           if text.count(canonical) != 1:
               raise SystemExit(
                   f'anchor-10 precondition expected one canonical initializer, found {text.count(canonical)}'
