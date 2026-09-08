@@ -1,12 +1,13 @@
 use anthrosim_core::{
     DemographyConfig, EventKind, ExperimentConfig, HouseholdLifecycleConfig, MigrationConfig,
-    PopulationConfig, ResourceConfig, Simulation, WorldConfig, validate_recorded_run_invariants,
+    PopulationConfig, ResourceConfig, Simulation, WorldConfig,
     config::{AgeProbabilityBand, ParameterProvenance},
     founder_initialization::{
         FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
     },
     ids::{CellId, HouseholdId, PersonId},
     population::ReproductiveSex,
+    validate_recorded_run_invariants,
 };
 
 const DAYS_PER_YEAR: i64 = 365;
