@@ -58,8 +58,8 @@ fn parent_dying_on_annual_boundary_cannot_anchor_same_day_household_fission() {
             location: CellId::new(1),
         }],
         vec![
-            // Oldest surviving independent anchor -> group 0.
-            founder(1, 60, ReproductiveSex::Male, None, None),
+            // Oldest surviving independent anchor below the certain-mortality threshold -> group 0.
+            founder(1, 44, ReproductiveSex::Male, None, None),
             // Child's mother; certain to die at the day-365 M3 mortality boundary.
             founder(2, 50, ReproductiveSex::Female, None, None),
             // Surviving father -> group 1 after the mother's death.
