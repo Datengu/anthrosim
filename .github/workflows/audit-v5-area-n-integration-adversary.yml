@@ -1,0 +1,23 @@
+name: Audit v5 Area N integration adversary
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/examples/audit_v5_area_n_integration_adversary.rs'
+      - '.github/workflows/audit-v5-area-n-integration-adversary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adversary:
+    name: M2/M9 same-day integration adversary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run fresh Audit-v5 Area-N integration adversary
+        run: cargo run --locked -p anthrosim-core --example audit_v5_area_n_integration_adversary
