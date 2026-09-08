@@ -2,17 +2,13 @@
 
 Audit target: immutable AnthroSim `v0.3.5`, tag commit `e7667af52d48a1ffbae2bf7713a2388e65994b42`, model semantics `anthrosim-model-semantics-v33`.
 
-Protocol: `docs/research/scientific-audit-protocol.md`
-
-Re-verification addendum: `docs/research/audit-reverification-version-drift.md`
-
+Protocol: `docs/research/scientific-audit-protocol.md`  
+Re-verification addendum: `docs/research/audit-reverification-version-drift.md`  
 Charter: `docs/research/audit-v5/README.md`
 
-Purpose: durable repository-authoritative state for the fifth independent/adversarial comprehensive scientific audit and the fresh post-Audit-v4 convergence pass.
+This is the repository-authoritative compact ledger. Detailed completed-area reports and earlier chronological ledger revisions remain preserved in Git history.
 
-> Ledger maintenance note (2026-09-08): after Area F this file was compacted from the earlier chronological session-log form into the evidence register below. Exact earlier narrative remains preserved in Git history, while this revision retains the authoritative target, area disposition, finding identities, exact fresh-evidence heads/runs/jobs, cross-cutting obligations and next action.
-
-## Current baseline and state
+## Current state
 
 | Field | Value |
 |---|---|
@@ -21,128 +17,107 @@ Purpose: durable repository-authoritative state for the fifth independent/advers
 | Target tag SHA | `e7667af52d48a1ffbae2bf7713a2388e65994b42` |
 | Target software version | `0.3.5` |
 | Target model semantics | `anthrosim-model-semantics-v33` |
-| Coverage state | **6/14 Areas complete — Area G next** |
-| Current P0 findings | none discovered |
-| Current P1 findings | **2 — AV5-001 / #606; AV5-004 / #629** |
-| Current P2 findings | **2 — AV5-002 / #617; AV5-003 / #627** |
-| Current P3 findings | none discovered |
-| Current open Audit-v5 findings | **#606 / AV5-001; #617 / AV5-002; #627 / AV5-003; #629 / AV5-004** |
-| Convergence classification | **pending full A–N discovery; non-clean because Areas A/B/E demonstrated four findings; Areas C/D/F added no new findings** |
-| Repair state | **discovery only; do not repair v5 findings until A–N discovery completes** |
-| Empirical readiness implication | **none — Audit v5 does not establish empirical validity or archaeological research readiness for a specific case** |
-
-## Initialization reconstruction
-
-At Audit-v5 initialization on 2026-09-07:
-
-- protected `main` was exactly `e7667af52d48a1ffbae2bf7713a2388e65994b42`;
-- immutable tag `v0.3.5` resolved to the same exact commit;
-- executable model semantics at that tag were `anthrosim-model-semantics-v33`;
-- there were 0 open pull requests and 0 open issues;
-- no overlapping active Audit-v5 work existed;
-- Scientific Audit v4 was complete and historical, with all 15 frozen-target findings repaired and independently re-verified/dispositioned on the living line before v0.3.5 was frozen.
-
-Living `main` may advance only through audit documentation/evidence bookkeeping during discovery. Scientific evidence continues to interrogate immutable `v0.3.5` / v33 or source proven causally identical to it.
+| Coverage | **7/14 Areas complete — Area H next** |
+| P0 | none |
+| P1 | **2 — AV5-001/#606; AV5-004/#629** |
+| P2 | **2 — AV5-002/#617; AV5-003/#627** |
+| P3 | none |
+| Open Audit-v5 findings | **#606, #617, #627, #629** |
+| Convergence | **pending full A–N discovery; non-clean** |
+| Repair state | **discovery only; do not repair until A–N discovery completes** |
+| Empirical readiness | **none implied — this audit is framework/software scientific verification, not case-study archaeological validation** |
 
 ## Discovery rules
 
-- The immutable `v0.3.5` tag is the scientific discovery target.
-- Audit v2/v3/v4 evidence is historical context and regression-hypothesis material only.
-- Each Area starts incomplete and requires fresh evidence.
-- Existing regressions/release checks may be reused as controls, but cannot by themselves establish v5 coverage.
-- Preserve demonstrated defects in issues and this ledger before repair.
-- Use sequential finding identifiers `AV5-001`, `AV5-002`, and so on.
-- Continue later Areas against frozen v0.3.5/v33 even after findings are discovered.
-- Production repair is deferred until A–N discovery is complete, absent an explicitly documented repository-integrity emergency.
-- Evidence-only adversary PRs close unmerged after classification/ledger capture unless a separate production decision promotes a test into the permanent suite.
+- Immutable `v0.3.5` / v33 is the scientific discovery target even as `main` advances through audit documentation.
+- v2/v3/v4 evidence is historical control/hypothesis material only; it does not establish v5 coverage.
+- Every Area requires fresh independent falsification evidence.
+- Preserve demonstrated defects as issues and in this ledger before repair.
+- Evidence-only adversary PRs close unmerged after classification/ledger capture.
+- Production remediation starts only after A–N discovery, absent a documented repository-integrity emergency.
 - P0/P1 remediation later requires exact-head validation and independent post-merge adversarial re-verification.
-- Version-drift re-verification follows `docs/research/audit-reverification-version-drift.md`.
 
 ## Coverage matrix
 
-| ID | Audit area | Status | Fresh v5 evidence / findings |
+| ID | Area | Status | Fresh v5 evidence / disposition |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | #605 demonstrated AV5-001/#606 P1. #608 falsified a material annual-background-mortality risk shift across 1/4/12/365 M3 cadences. #610 confirmed same-day M9 return completion becomes immediately M4-visible. Frozen scheduler review confirmed M3 → M9 → M4 → annual-M2 ordering. |
-| B | Demography, fertility, mortality, ageing, population structure | **complete — non-clean** | #612 quantified a documented same-seed structural-coupling limitation (no defect). #614 confirmed survival-conditioned parentage at the exact M3/M2 boundary. #616 demonstrated AV5-002/#617 P2: complete declared genealogy does not constrain mate eligibility, permitting first-degree parentage. |
-| C | Households, kinship, social links, lifecycle structure | **complete — non-clean only via cross-cutting AV5-002** | #619 confirmed dependency safety legitimately overrides target household size. #620 confirmed same-boundary mortality is respected by dependency-aware fission. No new Area-C finding. |
-| D | Resources, condition, subsistence, depletion/recovery | **complete — clean** | #622 confirmed same-cell fission preserves aggregate resource budget. #623 quantified a large but declared finite-capacity cadence sensitivity for later Area I. #624 confirmed fixed-point condition/newborn boundary semantics. No new Area-D finding. |
-| E | Spatial landscape, movement, migration, temporary mobility, and boundaries | **complete — non-clean** | #626 demonstrated AV5-003/#627 P2: spatial explicit-split synthetic M9 replay uses process seed instead of population seed. #628 demonstrated AV5-004/#629 P1: M9 equal-cost destination choice failed horizontal-reflection equivariance in 256/256 paired seeds. AV5-001 is additional cross-cutting E evidence. |
-| F | Aggregation and interaction mechanisms | **complete — clean** | #631 confirmed person-level aggregation exposure is invariant to one-vs-four household partition when the same four people make the same visit. #632 confirmed a day-365 birth during an active visit adds exactly post-birth visitor exposure (120→166 person-days; peak 2→3). #633 confirmed identical positive aggregation-driven resource demand under the same partition transformation (total 1460, home 1340, visitor 120 in both arms). See `area-f-2026-09-08.md`. |
-| G | Initialization, burn-in, path dependence, continuation state | **incomplete — next** | AV5-003 cross-cutting evidence: explicit spatial population-realization identity is not propagated into M9 history reconstruction. Fresh independent Area-G evidence still required. |
-| H | Stochasticity, RNG, ensembles, and Monte Carlo inference | **incomplete** | AV5-001 and AV5-004 cross-cutting evidence; #612 documents a legitimate same-seed structural-coupling limitation to revisit in inference/coupling analysis. |
-| I | Sensitivity, uncertainty, convergence, and robustness | **incomplete** | AV5-001 cross-cutting evidence; #612 documents why structural arms cannot assume per-agent common-random-number invariance. #623 quantified `350→700` harvested between P=1 and P=365 under a declared finite-capacity timing contract. |
-| J | Identifiability, equifinality, calibration, and discrimination | **incomplete** | — |
-| K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | AV5-003 cross-cutting: fixed-environment/fixed-population process-replicate spatial runs with M9 can fail recorded-run integrity because replay consumes the wrong seed role. |
-| L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 cross-cutting: M9 history replay cannot reconstruct the authoritative synthetic founder state in explicit-split spatial mode. |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | AV5-002 includes a documentation/scope obligation around close-kin parentage and null mate eligibility. |
-| N | Cross-system integration | **incomplete** | AV5-001, AV5-002, AV5-003 and AV5-004 are early cross-system evidence; explicit Area-N pass still required. |
+| A | Authoritative semantics and scheduler behaviour | **complete — non-clean** | #605 demonstrated AV5-001/#606 P1. #608 mortality-cadence stress no finding. #610 M9-return/M4-boundary stress no finding. |
+| B | Demography, fertility, mortality, ageing, population structure | **complete — non-clean** | #612 documented same-seed structural-coupling limitation, no defect. #614 same-boundary mortality→parentage no finding. #616 demonstrated AV5-002/#617 P2. |
+| C | Households, kinship, social links, lifecycle structure | **complete — non-clean only via AV5-002** | #619 dependency-safe fission target overage is documented. #620 same-boundary mortality/fission no finding. |
+| D | Resources, condition, subsistence, depletion/recovery | **complete — clean** | #622 same-cell fission resource conservation no finding. #623 quantified finite-capacity cadence sensitivity for Area I. #624 fixed-point/newborn boundary no finding. |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — non-clean** | #626 demonstrated AV5-003/#627 P2. #628 demonstrated AV5-004/#629 P1 with 256/256 M9 reflection mismatches. AV5-001 also cross-cutting. |
+| F | Aggregation and interaction mechanisms | **complete — clean** | #631 household-partition person exposure no finding; #632 birth-during-visit half-open exposure no finding; #633 visitor-resource demand partition no finding. Detailed report: `area-f-2026-09-08.md`. |
+| G | Initialization, burn-in, path dependence, continuation state | **complete — non-clean only via AV5-003** | #635 post-fission + 3 active-M9-journey resume matched uninterrupted exactly. #636 declared-founder synthetic-only knobs remained inert through 5 births. #637 2-year vs 3-year common-prefix trajectory matched exactly at day 730. AV5-003 remains the cross-cutting initialization/reconstruction defect. Detailed report: `area-g-2026-09-08.md`. |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **incomplete — next** | AV5-001 and AV5-004 cross-cutting. #612 documents that structural arms do not promise per-agent common-random-number coupling. Fresh H evidence required. |
+| I | Sensitivity, uncertainty, convergence, robustness | **incomplete** | AV5-001 cross-cutting; #612 structural-coupling limitation; #623 finite-capacity cadence effect `350→700` harvest to bound explicitly. |
+| J | Identifiability, equifinality, calibration, discrimination | **incomplete** | — |
+| K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | AV5-003 cross-cutting: explicit-split process replicates with M9 can fail integrity replay. |
+| L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 cross-cutting: M9 replay reconstructs the wrong synthetic founder state under explicit split. |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | AV5-002 documentation/scope obligation around close-kin/null mate eligibility. |
+| N | Cross-system integration | **incomplete** | AV5-001 through AV5-004 are early cross-system evidence; explicit Area-N pass still required. |
 
 ## Finding register
 
-| Finding | Severity | Primary / cross-cutting area | Issue | Discovery evidence | Remediation state |
+| Finding | Severity | Area(s) | Issue | Exact discovery evidence | State |
 |---|---:|---|---|---|---|
-| `AV5-001 — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination` | P1 | A; E/H/I/N | #606 | PR #605, head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; coupling key `1→2`, destination divergence `503/1024` tie seeds | **open; unrepaired during discovery** |
-| `AV5-002 — parentage ignores declared close kin and permits first-degree mating` | P2 | B; C/M/N | #617 | PR #616, head `b130fdac8c2ee421203af8a8e5a044a48de29d26`, run `34171257065`, job `101891843233`; day-365 birth used the female parent's declared father as male parent | **open; unrepaired during discovery** |
-| `AV5-003 — spatial M9 history replay uses process seed instead of population seed` | P2 | E; G/K/L/N | #627 | PR #626, corrected head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`, run `34175807550`, job `101904842100`; valid explicit-split synthetic-founder + active-M9 run failed replay residence validation | **open; unrepaired during discovery** |
-| `AV5-004 — M9 equal-cost destination choice is not spatial-reflection equivariant` | P1 | E; H/N | #629 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; reflection oracle failed `256/256` paired seeds with coupling key fixed at `1` | **open; unrepaired during discovery** |
+| `AV5-001 — global coupling-rank renumbering lets an isolated founder change an unchanged focal household's M9 equal-cost destination` | P1 | A; E/H/I/N | #606 | PR #605, head `b57ac276e07f89fb3179ad585a586b5be60e150c`, run `34167265827`, job `101880669781`; key `1→2`, destination divergence `503/1024` | **open; unrepaired** |
+| `AV5-002 — parentage ignores declared close kin and permits first-degree mating` | P2 | B; C/M/N | #617 | PR #616, head `b130fdac8c2ee421203af8a8e5a044a48de29d26`, run `34171257065`, job `101891843233` | **open; unrepaired** |
+| `AV5-003 — spatial M9 history replay uses process seed instead of population seed` | P2 | E; G/K/L/N | #627 | PR #626, corrected head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`, run `34175807550`, job `101904842100` | **open; unrepaired** |
+| `AV5-004 — M9 equal-cost destination choice is not spatial-reflection equivariant` | P1 | E; H/N | #629 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; `256/256` mismatches | **open; unrepaired** |
 
 ## Fresh evidence register
 
 ### Area A
-
-- **#605 / AV5-001** — isolated-founder coupling locality × M9 equal-cost tie; head `b57ac276e07f89fb3179ad585a586b5be60e150c`; run `34167265827`; job `101880669781`; P1 finding.
-- **#608** — annual background mortality × 1/4/12/365 M3 cadences; head `6858b5ee721253c6097faf24b79c0447c12d48c1`; run `34167878417`; job `101882427621`; death risks 50.818%, 49.829%, 50.549%, 51.233%; no finding.
-- **#610** — M9 return completion exactly on coincident M4 boundary; corrected head `03176cf04f2f79e3cf944279e3b09dc5d0ae8aec`; run `34170168801`; job `101888814237`; no finding.
+- #605 / AV5-001 — head `b57ac276e07f89fb3179ad585a586b5be60e150c`; run `34167265827`; job `101880669781`.
+- #608 — head `6858b5ee721253c6097faf24b79c0447c12d48c1`; run `34167878417`; job `101882427621`; death risks 50.818%, 49.829%, 50.549%, 51.233%; no finding.
+- #610 — corrected head `03176cf04f2f79e3cf944279e3b09dc5d0ae8aec`; run `34170168801`; job `101888814237`; no finding.
 
 ### Area B
-
-- **#612** — remote fertility candidate × focal same-seed realization; head `2018921f188f312567b984b8ad4403e8e00196cd`; run `34170606978`; job `101890040711`; `523/1024` focal outcomes changed, classified as documented coupling limitation rather than defect.
-- **#614** — certain day-365 male mortality × same-day parentage; head `828b143adbb7ebbc831dd265eeb3557444e506fd`; run `34170852651`; job `101890718683`; 64/64 surviving controls birthed, 64/64 certain-death arms had zero births; no finding.
-- **#616 / AV5-002** — complete genealogy × close-kin parentage; head `b130fdac8c2ee421203af8a8e5a044a48de29d26`; run `34171257065`; job `101891843233`; P2 finding.
+- #612 — head `2018921f188f312567b984b8ad4403e8e00196cd`; run `34170606978`; job `101890040711`; 523/1024 focal outcomes changed; documented coupling limitation, no defect.
+- #614 — head `828b143adbb7ebbc831dd265eeb3557444e506fd`; run `34170852651`; job `101890718683`; no finding.
+- #616 / AV5-002 — head `b130fdac8c2ee421203af8a8e5a044a48de29d26`; run `34171257065`; job `101891843233`.
 
 ### Area C
-
-- **#619** — dependency-safe fission × target-size overage; head `79ecc7888887906f60ed20995b5a22e1d385d273`; run `34172549189`; job `101895508298`; documented target subordinate to dependency safety; no finding.
-- **#620** — same-boundary mortality × dependency-aware fission; corrected head `7ad02415ed72a358381aa1d075771910cf6a0dc8`; run `34172954061`; job `101896675856`; no finding.
+- #619 — head `79ecc7888887906f60ed20995b5a22e1d385d273`; run `34172549189`; job `101895508298`; no finding.
+- #620 — corrected head `7ad02415ed72a358381aa1d075771910cf6a0dc8`; run `34172954061`; job `101896675856`; no finding.
 
 ### Area D
-
-- **#622** — same-cell household fission × aggregate resource conservation; head `276b134f52b9db0b546752072add14045f5a013a`; run `34173500474`; job `101898257594`; identical year-2 aggregate budget; no finding.
-- **#623** — finite storage capacity × M3 settlement cadence; corrected head `e8c844da5b1f41ee4f5158eae0993bc68b95a60d`; run `34174156771`; job `101900133852`; P=1 harvested 350 vs P=365 harvested 700; declared sensitivity, no Area-D finding; carry to Area I.
-- **#624** — latent M3 deterioration × newborn condition initialization; corrected head `2fe40a8d7541ede93a95f61ebffd76f708f5641a`; run `34174434312`; job `101900925979`; resource `400/350/50`, birth day365, remainders `[500,500,0]`; no finding.
+- #622 — head `276b134f52b9db0b546752072add14045f5a013a`; run `34173500474`; job `101898257594`; no finding.
+- #623 — corrected head `e8c844da5b1f41ee4f5158eae0993bc68b95a60d`; run `34174156771`; job `101900133852`; P=1 harvest350 vs P=365 harvest700; declared sensitivity, carry to I.
+- #624 — corrected head `2fe40a8d7541ede93a95f61ebffd76f708f5641a`; run `34174434312`; job `101900925979`; no finding.
 
 ### Area E
-
-- **#626 / AV5-003** — explicit spatial seed roles × active seasonality/M9; corrected head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`; run `34175807550`; job `101904842100`; P2 finding.
-- **#628 / AV5-004** — M9 equal-cost destination × horizontal reflection; head `8fe3e5ce9694b23450c57a666d64a95f946fee45`; run `34176415296`; job `101906603997`; `256/256` reflection mismatches; P1 finding.
+- #626 / AV5-003 — corrected head `48e28987453cc20fc0cb116d595b7d64cf4ee5f1`; run `34175807550`; job `101904842100`.
+- #628 / AV5-004 — head `8fe3e5ce9694b23450c57a666d64a95f946fee45`; run `34176415296`; job `101906603997`.
 
 ### Area F
+- #631 — head `ea5c2b61b493af21208ac0c2c8124f9f5714bb90`; run `34176902246`; job `101907992004`; unified `1/120/30/4`, split `4/120/120/4`; no finding.
+- #632 — head `9ebe76cc97adeea0685f6964f29e45afce0bf96c`; run `34178268167`; job `101911905647`; visitor person-days `120→166`, exactly 46 newborn post-birth days; no finding.
+- #633 — head `236dbf28ca0667b7a348b7defad0f0e4707f7f92`; run `34178544437`; job `101912698794`; total/home/visitor demand `1460/1340/120` both arms; no finding.
 
-- **#631** — same four visitors represented by one household vs four; head `ea5c2b61b493af21208ac0c2c8124f9f5714bb90`; run `34176902246`; job `101907992004`; unified `1 journey / 120 visitor-person-days / 30 visitor-household-days / peak 4`, split `4 / 120 / 120 / 4`; no finding.
-- **#632** — birth during active visit; head `9ebe76cc97adeea0685f6964f29e45afce0bf96c`; run `34178268167`; job `101911905647`; arrival 351, birth 365, return departure 411, visitor person-days `120→166`, exactly 46 newborn post-birth days, peak `2→3`; no finding.
-- **#633** — household partition × positive visitor resource demand; head `236dbf28ca0667b7a348b7defad0f0e4707f7f92`; run `34178544437`; job `101912698794`; both arms `total_need=1460`, `home_need=1340`, `visitor_need=120`; no finding.
-- Detailed Area-F assessment: `docs/research/audit-v5/area-f-2026-09-08.md`.
+### Area G
+- #635 — head `8d88425634048ca73fe88201b5a5e62494840f1e`; run `34179017837`; job `101914085007`; day730 has 3 fissioned households + 3 active journeys; resumed final state `315745b06d57359e` exactly matched uninterrupted; no finding.
+- #636 — head `6f641f41c451f18fff473e57e6cea915d98a5739`; run `34179236440`; job `101914732283`; declared-founder synthetic-only knobs `(1,120,0‰)` vs `(99,1,1000‰)` remained inert through 5 births; final state `ab87f9c225835bf6`; no finding.
+- #637 — head `6a83f9819235bb44fe6fa97eb68ef2ac63750302`; run `34179379004`; job `101915149933`; 2y terminal vs 3y checkpoint common prefix identical at day730; state `7bae68fb701c0cc5`, 109 people, 10 events, 2 metrics; no finding.
 
-## Area-F completion assessment
+## Area-G completion assessment
 
-Area F independently tested:
+Fresh Area-G evidence covers complex continuation after dynamic topology + active M9, initialization isolation from dormant synthetic-only parameters, and future-horizon common-prefix path independence. Frozen-source/history review covered continuation identity, founder reconstruction, initial-condition/path-dependence contracts and the explicit rule that elapsed time alone does not establish burn-in/equilibrium.
 
-1. person-level aggregation accounting under different household partition;
-2. living visitor headcount and half-open exposure when demography changes during a visit;
-3. aggregation-driven physical resource-demand attribution under different household claim topology.
+No new Area-G defect was demonstrated. However AV5-003/#627 remains directly cross-cutting because the explicit spatial population realization is not correctly supplied to M9 history reconstruction.
 
-Frozen-source/history review additionally covered temporary-presence lifecycle, duration ledgers, current v31 controlled-aggregation machine reference, resource feedback, and the explicit model boundary that M9 does not silently create travel purpose, social motive, encounter networks or mating/social-interaction rules.
-
-**Area F is complete and clean.** No new finding was demonstrated.
+**Area G is complete, non-clean only via AV5-003/#627.**
 
 ## Next action
 
-Begin **Area G — initialization, burn-in, path dependence and continuation state** from zero independent coverage against immutable `v0.3.5` / v33.
+Begin **Area H — stochasticity, RNG, ensembles and Monte Carlo inference** from zero independent coverage against immutable v0.3.5/v33.
 
-Before new evidence:
+Prioritize fresh attacks on:
 
-1. reconstruct live `main`, open PRs/findings and overlapping branches;
-2. review historical founder/init/burn-in/checkpoint findings and permanent controls;
-3. treat AV5-003/#627 as cross-cutting hypothesis material, not Area-G completion;
-4. prioritize fresh attacks on initialization transients, declared-vs-synthetic founder reconstruction, continuation/checkpoint state, household/M9 state across resume, and whether scientifically inert realization/config fields remain inert;
-5. do **not** repair #606, #617, #627 or #629 during discovery.
+1. independence/keying of scientific RNG decisions and hidden shared-stream coupling;
+2. ensemble seed semantics and reproducibility across ordering/parallelization surfaces;
+3. paired-seed interpretation and whether analyses overclaim common-random-number coupling;
+4. seed-set/sample-size/statistical summaries and Monte Carlo uncertainty;
+5. stochastic tie/choice exchangeability beyond the already-preserved AV5-001 and AV5-004 defects.
+
+Do not repair #606, #617, #627 or #629 during discovery.
