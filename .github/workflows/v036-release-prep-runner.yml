@@ -64,7 +64,14 @@ jobs:
               block.append(line[10:] if len(line) >= 10 else '')
           if not block:
               raise SystemExit('release-preparation run block is empty')
-          Path('/tmp/v036-release-prep.sh').write_text('\n'.join(block) + '\n', encoding='utf-8')
+
+          script = '\n'.join(block) + '\n'
+          validation = 'python3 scripts/test-current-model-semantics-docs.py\n'
+          if script.count(validation) != 1:
+              raise SystemExit('documentation validation anchor not unique')
+          explicit_identity = '''python3 -c 'from pathlib import Path; p=Path("docs/release-versioning.md"); t=p.read_text(encoding="utf-8"); old="The v0.3.6 release line packages that fully remediated v35 state"; assert t.count(old)==1; p.write_text(t.replace(old,"The v0.3.6 release line packages that fully remediated `anthrosim-model-semantics-v35` state",1),encoding="utf-8")'\n'''
+          script = script.replace(validation, explicit_identity + validation, 1)
+          Path('/tmp/v036-release-prep.sh').write_text(script, encoding='utf-8')
           PY
           bash /tmp/v036-release-prep.sh
 
