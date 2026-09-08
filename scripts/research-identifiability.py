@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import argparse
 import copy
+from fractions import Fraction
 import hashlib
 import importlib.util
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,7 @@ BINDING_SCHEMA_VERSION = 1
 BINDING_TYPE = "anthrosim-identifiability-executed-design"
 MANIFEST_SOURCE_KIND = "anthrosim_research_manifest_v1"
 SYNTHETIC_SOURCE_KIND = "synthetic_fixture"
+SAFE_BINARY64_INTEGER = 2**53
 
 
 def _load_module(path: Path, name: str):
@@ -46,6 +49,108 @@ MONTE_CARLO_DIAGNOSTIC_SCHEMA = legacy.MONTE_CARLO_DIAGNOSTIC_SCHEMA
 RESULT_TYPE = legacy.RESULT_TYPE
 MONTE_CARLO_CATEGORY = legacy.MONTE_CARLO_CATEGORY
 EPSILON = legacy.EPSILON
+
+
+def _numeric_parameter_diagnostic_exact(
+    parameter: str,
+    points: list[dict[str, Any]],
+    compatible: list[dict[str, Any]],
+    max_normalized_width: float,
+) -> dict[str, Any]:
+    """Preserve exact JSON integers in identification-width arithmetic.
+
+    JSON integers are scientific coordinates with exact identity. Pure-integer
+    parameter dimensions therefore keep Python integer arithmetic through range
+    subtraction and use ``Fraction`` for the normalized span before serializing the
+    bounded ratio as a float. Floating coordinates retain the historical binary64
+    interpretation. A mixed float/integer dimension containing an integer outside
+    binary64's consecutive-integer domain fails closed instead of silently rounding
+    that exact coordinate into the approximate floating domain.
+    """
+
+    raw_all = [point["parameters"][parameter] for point in points]
+    raw_compatible = [point["parameters"][parameter] for point in compatible]
+    if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in raw_all):
+        raise IdentifiabilityError(f"parameter {parameter} must contain only numeric coordinates")
+
+    all_integer = all(isinstance(value, int) and not isinstance(value, bool) for value in raw_all)
+    if all_integer:
+        all_values = list(raw_all)
+        compatible_values = list(raw_compatible)
+        representation = "exact_json_integer"
+    else:
+        unsafe_mixed_integer = any(
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and abs(value) > SAFE_BINARY64_INTEGER
+            for value in raw_all
+        )
+        if unsafe_mixed_integer:
+            raise IdentifiabilityError(
+                f"parameter {parameter} mixes floating coordinates with exact integers outside binary64 safe-integer range"
+            )
+        all_values = [legacy._number(value, f"parameter {parameter}") for value in raw_all]
+        compatible_values = [
+            legacy._number(value, f"parameter {parameter}") for value in raw_compatible
+        ]
+        representation = "binary64_approximate"
+
+    full_min, full_max = min(all_values), max(all_values)
+    explored_level_count = len(set(all_values))
+    base = {
+        "parameter": parameter,
+        "kind": "numeric",
+        "coordinateRepresentation": representation,
+        "fullRange": [full_min, full_max],
+        "exploredLevelCount": explored_level_count,
+    }
+    if not compatible_values:
+        return {
+            **base,
+            "identified": False,
+            "reason": "no_compatible_points",
+            "compatibleRange": None,
+            "normalizedCompatibleWidth": None,
+        }
+
+    compatible_min, compatible_max = min(compatible_values), max(compatible_values)
+    if explored_level_count < 2:
+        return {
+            **base,
+            "identified": False,
+            "reason": "insufficient_explored_variation",
+            "compatibleRange": [compatible_min, compatible_max],
+            "normalizedCompatibleWidth": None,
+        }
+
+    denominator = full_max - full_min
+    if all_integer:
+        width = float(Fraction(compatible_max - compatible_min, denominator))
+    else:
+        if not math.isfinite(denominator) or denominator <= 0:
+            raise IdentifiabilityError(
+                f"parameter {parameter} has an invalid approximate floating explored range"
+            )
+        width = (compatible_max - compatible_min) / denominator
+        if not math.isfinite(width):
+            raise IdentifiabilityError(
+                f"parameter {parameter} has a non-finite approximate floating compatible width"
+            )
+
+    identified = width <= max_normalized_width
+    return {
+        **base,
+        "identified": identified,
+        "reason": "compatible_region_within_threshold" if identified else "compatible_region_too_wide",
+        "compatibleRange": [compatible_min, compatible_max],
+        "normalizedCompatibleWidth": width,
+    }
+
+
+# The wrapper is the authoritative research-facing analyzer. Patch only the legacy
+# module's numeric-coordinate diagnostic seam; the remaining frozen statistical
+# implementation and its regression surface stay intact.
+legacy._numeric_parameter_diagnostic = _numeric_parameter_diagnostic_exact
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -293,6 +398,11 @@ def _binding_failure_result(
             "simulationUncertaintyResolved": False,
             "executedDesignBound": False,
         },
+        "parameterCoordinateSemantics": {
+            "integerCoordinates": "exact_json_integer",
+            "floatingCoordinates": "binary64_approximate",
+            "unsafeMixedIntegerFloatCoordinates": "fail_closed",
+        },
         "executedDesignBinding": _binding_summary(binding, valid=False, errors=errors),
         "uncertaintySeparation": {
             "simulationMonteCarlo": "not evaluated because the executed-design coordinate binding failed",
@@ -375,6 +485,11 @@ def analyse(
     legacy_data = copy.deepcopy(data)
     legacy_data.pop("executedDesignBinding", None)
     result = legacy.analyse(plan, legacy_data)
+    result["parameterCoordinateSemantics"] = {
+        "integerCoordinates": "exact_json_integer",
+        "floatingCoordinates": "binary64_approximate",
+        "unsafeMixedIntegerFloatCoordinates": "fail_closed",
+    }
     result["executedDesignBinding"] = _binding_summary(binding, valid=True, errors=[])
     result["researchGate"]["executedDesignBound"] = True
     return result
