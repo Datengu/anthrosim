@@ -1,0 +1,63 @@
+name: Audit v5 AV5-004 demographic reference rebind check
+
+on:
+  push:
+    branches: [audit/repair-629-av5-004]
+    paths:
+      - '.github/workflows/audit-v5-av5-004-demography-rebind-check.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-demography-rebind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-629-av5-004
+          persist-credentials: false
+
+      - name: Verify artifact provenance and scientific equality
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10077945143" > /tmp/meta.json
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10077945143/zip" > /tmp/a.zip
+          mkdir -p /tmp/a
+          unzip -q /tmp/a.zip -d /tmp/a
+          python3 - <<'PY'
+          import copy, json
+          from pathlib import Path
+          meta=json.loads(Path('/tmp/meta.json').read_text())
+          assert meta['id']==10077945143
+          assert meta['name']=='issue-304-demographic-baseline-confirmatory'
+          assert meta['digest']=='sha256:f2d4aabb8d9291419d5499624cff6dd92a634bd3a336864e1a120b5a7654e85f'
+          run=meta['workflow_run']
+          assert run['id']==34281494416
+          assert run['head_sha']=='7244308a3360013fb9722618fe0f2e137b078621'
+
+          actual=json.loads(Path('research/general-demography-baseline-v1/confirmatory-result.json').read_text())
+          expected=json.loads(Path('/tmp/a/expected-result.json').read_text())
+          guard={'normalApproximationValidity','confidenceSemantics'}
+          def comparable(v):
+              v=copy.deepcopy(v)
+              v.pop('researchId',None)
+              v.pop('modelSemanticsId',None)
+              for diagnostic in v.get('monteCarloPrecision',{}).values():
+                  precision=diagnostic.get('precision',{})
+                  for key in guard:
+                      precision.pop(key,None)
+              return v
+          if comparable(actual) != comparable(expected):
+              raise SystemExit('demographic scientific payload differs beyond permitted provenance/guard metadata')
+          assert actual['modelSemanticsId']=='anthrosim-model-semantics-v34'
+          assert expected['modelSemanticsId']=='anthrosim-model-semantics-v35'
+          assert actual['recommendation']==expected['recommendation']=='no_universal_demographic_baseline'
+          print('exact demographic scientific payload preserved; only current model-semantics provenance requires rebind')
+          PY
