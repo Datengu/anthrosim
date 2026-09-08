@@ -19,10 +19,10 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | Target model semantics | `anthrosim-model-semantics-v33` |
 | Coverage | **9/14 Areas complete — Area J in progress** |
 | P0 | none |
-| P1 | **3 — AV5-001/#606; AV5-004/#629; AV5-005/#640** |
+| P1 | **4 — AV5-001/#606; AV5-004/#629; AV5-005/#640; AV5-007/#651** |
 | P2 | **3 — AV5-002/#617; AV5-003/#627; AV5-006/#648** |
 | P3 | none |
-| Open Audit-v5 findings | **#606, #617, #627, #629, #640, #648** |
+| Open Audit-v5 findings | **#606, #617, #627, #629, #640, #648, #651** |
 | Convergence | **pending full A–N discovery; non-clean** |
 | Repair state | **discovery only; do not repair until A–N discovery completes** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
@@ -50,11 +50,11 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | G | Initialization, burn-in, path dependence, continuation state | **complete — non-clean only via AV5-003** | #635 dynamic topology + active-M9 resume exact; #636 declared-founder synthetic knobs inert; #637 future-horizon common prefix exact. Detailed report: `area-g-2026-09-08.md`. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — non-clean** | #639 demonstrated **AV5-005/#640 P1**: a sequential `mean` plan stopped at `n=2` with nominal 95% `[0,0]` although an exact bounded process makes the false-stop event probability 0.81, bounding coverage at 0.19. #642 matched Bernoulli/Wilson control retained half-width `0.6576` and correctly continued. Frozen RNG/paired-seed controls and AV5-001/004 stochastic keying evidence reviewed. Detailed report: `area-h-2026-09-08.md`. |
 | I | Sensitivity, uncertainty, convergence, robustness | **complete — non-clean via existing cross-cutting findings** | #644 bounded the #623 finite-capacity cadence effect with a conserving monotone refinement curve: harvest `350,526,613,672,694,700` for P=`1,2,4,12,52,365`; no finding. #645 confirmed long-run equilibrium-like gating fails closed when a stable terminal plateau conflicts with a drifting declared earlier endpoint; no finding. Frozen v0.3.5 research-dimension overlap rejection, executable structural projection and explicit raster-resolution dependence were independently inspected. AV5-001/#606, #612 and AV5-005/#640 remain robustness limitations. Detailed report: `area-i-2026-09-08.md`. |
-| J | Identifiability, equifinality, calibration, discrimination | **in progress — non-clean** | #647 demonstrated **AV5-006/#648 P2**: negative `corroborationDiscriminationTolerance` makes zero-gap overlapping held-out structural envelopes report `discriminating=true`. AV5-005 remains cross-cutting. Further independent J coverage still required before completion. |
+| J | Identifiability, equifinality, calibration, discrimination | **in progress — non-clean** | #647 demonstrated **AV5-006/#648 P2**: negative `corroborationDiscriminationTolerance` makes zero-gap overlapping held-out structural envelopes report `discriminating=true`. #650 demonstrated **AV5-007/#651 P1**: exact large-integer parameter coordinates collapse through binary64 so an exact normalized compatible width of `0.5` becomes `0.0` and the parameter-identification gate passes. AV5-005 remains cross-cutting. Further valid-control coverage still required before completion. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **incomplete** | AV5-003 replay seed-role defect; AV5-005 research-gate/provenance cross-cutting. |
-| L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 replay reconstruction defect; AV5-005 and AV5-006 cross-cutting statistical/analysis defects. |
+| L | Observability, analysis outputs, statistical summaries | **incomplete** | AV5-003 replay reconstruction defect; AV5-005, AV5-006 and AV5-007 cross-cutting analysis/statistical defects. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **incomplete** | AV5-002 documentation/scope obligation around close-kin/null mate eligibility; AV5-006 threshold-domain contract cross-cutting. |
-| N | Cross-system integration | **incomplete** | AV5-001 through AV5-006 are early cross-system evidence; explicit N pass still required. |
+| N | Cross-system integration | **incomplete** | AV5-001 through AV5-007 are early cross-system evidence; explicit N pass still required. |
 
 ## Finding register
 
@@ -66,6 +66,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 | `AV5-004 — M9 equal-cost destination choice is not spatial-reflection equivariant` | P1 | E; H/N | #629 | PR #628, head `8fe3e5ce9694b23450c57a666d64a95f946fee45`, run `34176415296`, job `101906603997`; `256/256` mismatches | **open; unrepaired** |
 | `AV5-005 — small-n normal-CLT mean gate can certify severely under-covered intervals` | P1 | H; J/K/L/N | #640 | PR #639, head `97fa8ee6636b89a7bdb3660583a2484216a9ef5f`, run `34179975096`, job `101916912997`; `n=2`, `[0,0]`, `sufficient_stop`, false-stop probability `0.81`, maximum overall coverage `0.19` vs nominal `0.95` | **open; unrepaired** |
 | `AV5-006 — negative held-out discrimination tolerance can label overlapping structural envelopes as discriminating` | P2 | J; L/M/N | #648 | PR #647, head `5e57dd95bf268c7bb13bf27d711bd2ad1a414e0f`, run `34183461176`, job `101927040185`; A=`[0,10]`, B=`[9,11]`, minimum gap `0`, tolerance `-1`, `discriminating=true` | **open; unrepaired** |
+| `AV5-007 — binary64 parameter-coordinate collapse can falsely certify a wide compatible region as identified` | P1 | J; I/L/N | #651 | PR #650, head `6147ae898f959aec9068f0ae2e3d654a2509afca`, run `34183710162`, job `101927759593`; exact levels `[2^53,2^53+1,2^53+2]`, exact compatible width `0.5`, reported width `0.0`, `identified=true`, gate passes | **open; unrepaired** |
 
 ## Fresh evidence register
 
@@ -112,6 +113,7 @@ This is the repository-authoritative compact ledger. Detailed completed-area rep
 
 ### Area J
 - **#647 / AV5-006** — head `5e57dd95bf268c7bb13bf27d711bd2ad1a414e0f`; run `34183461176`; job `101927040185`; overlapping deterministic envelopes A=`[0,10]`, B=`[9,11]` have minimum gap `0`; positive tolerance `+1` control is non-discriminating while negative tolerance `-1` is accepted and reported `discriminating=true`. **P2 finding.**
+- **#650 / AV5-007** — head `6147ae898f959aec9068f0ae2e3d654a2509afca`; run `34183710162`; job `101927759593`; matched small-integer design reports exact width `0.5` and non-identification, while exact large-integer levels `[2^53,2^53+1,2^53+2]` collapse the compatible first two coordinates through binary64, report width `0.0` and make the parameter gate pass. **P1 finding.**
 
 ## Area-I completion assessment
 
@@ -121,4 +123,4 @@ Fresh Area-I evidence covered a quantitative finite-capacity M3 temporal-refinem
 
 ## Next action
 
-Continue **Area J — identifiability, equifinality, calibration and discrimination** against immutable v0.3.5/v33. AV5-006/#648 is preserved and remains unrepaired. Add independent fresh coverage of numeric parameter identifiability/equifinality and a valid held-out discrimination control before declaring Area J complete. Carry AV5-005 as a warning that affected small-n mean precision cannot safely support calibration or identifiability decisions.
+Continue **Area J — identifiability, equifinality, calibration and discrimination** against immutable v0.3.5/v33. AV5-006/#648 and AV5-007/#651 are preserved and remain unrepaired. Add a fresh valid held-out discrimination/calibration-firewall control before declaring Area J complete. Carry AV5-005 as a warning that affected small-n mean precision cannot safely support calibration or identifiability decisions.
