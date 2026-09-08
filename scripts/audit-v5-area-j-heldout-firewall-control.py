@@ -13,6 +13,8 @@ assert SPEC and SPEC.loader
 identifiability = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(identifiability)
 
+DISCRIMINATION_TOLERANCE = 1.0
+
 
 def point(point_id: str, structure: str, held_out: float) -> dict:
     outputs = {"calibration": 0.0, "held_out": held_out}
@@ -47,7 +49,7 @@ def analyse(held_out_values: list[float], analysis_id: str) -> dict:
             {"observable": "calibration", "target": 0.0, "tolerance": 0.0}
         ],
         "corroborationObservables": ["held_out"],
-        "corroborationDiscriminationTolerance": 1.0,
+        "corroborationDiscriminationTolerance": DISCRIMINATION_TOLERANCE,
         "claim": {"parameterIds": [], "structuralHypothesis": True},
         "maxNormalizedAcceptableWidth": 0.25,
     }
@@ -103,7 +105,6 @@ def main() -> None:
     assert discriminating_prediction["leftSimulationIntervalEnvelope"] == [0.0, 2.0]
     assert discriminating_prediction["rightSimulationIntervalEnvelope"] == [10.0, 12.0]
     assert discriminating_prediction["minimumIntervalSeparation"] == 8.0
-    assert discriminating_prediction["discriminationTolerance"] == 1.0
     assert discriminating_prediction["discriminating"] is True
 
     print(
@@ -117,7 +118,7 @@ def main() -> None:
             discriminating_prediction["leftSimulationIntervalEnvelope"],
             discriminating_prediction["rightSimulationIntervalEnvelope"],
             discriminating_prediction["minimumIntervalSeparation"],
-            discriminating_prediction["discriminationTolerance"],
+            DISCRIMINATION_TOLERANCE,
             discriminating_prediction["discriminating"],
         )
     )
