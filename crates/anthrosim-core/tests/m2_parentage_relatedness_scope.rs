@@ -108,7 +108,11 @@ fn complete_genealogy_preserves_documented_relatedness_null_model() {
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(births.len(), 1, "the certain-fertility daughter should expose exactly one parentage decision");
+    assert_eq!(
+        births.len(),
+        1,
+        "the certain-fertility daughter should expose exactly one parentage decision"
+    );
     assert_eq!(births[0].0, 365);
     assert_eq!(births[0].2, PersonId::new(3));
     assert_eq!(
