@@ -45,6 +45,10 @@ def is_survival_population_observable(observable: dict) -> bool:
     return source in SURVIVAL_POPULATION_SOURCES
 
 
+def analysis_window_id(observable: dict) -> str:
+    return str(observable.get("analysisWindowId", "")).strip()
+
+
 def validate_protocol(protocol: dict) -> dict:
     observables = {item["id"]: item for item in protocol.get("observables", [])}
     failures: list[str] = []
@@ -65,17 +69,20 @@ def validate_protocol(protocol: dict) -> dict:
     for comparison in protocol.get("comparisons", []):
         ids = comparison.get("observableIds", [])
         compared_survivor_ids = [oid for oid in ids if oid in survivor_ids]
-        if not compared_survivor_ids:
-            continue
-        has_joint_survival = any(
-            oid in observables and is_survival_population_observable(observables[oid])
-            for oid in ids
-        )
-        if not has_joint_survival:
-            failures.append(
-                f"comparison {comparison.get('id')!r} uses survivor-conditioned condition "
-                "without a jointly declared survival/population observable"
+        for survivor_id in compared_survivor_ids:
+            survivor_window = analysis_window_id(observables[survivor_id])
+            has_joint_survival = bool(survivor_window) and any(
+                oid in observables
+                and is_survival_population_observable(observables[oid])
+                and analysis_window_id(observables[oid]) == survivor_window
+                for oid in ids
             )
+            if not has_joint_survival:
+                failures.append(
+                    f"comparison {comparison.get('id')!r} uses survivor-conditioned condition "
+                    f"observable {survivor_id!r} without a jointly declared survival/population "
+                    f"observable in the same analysis window {survivor_window!r}"
+                )
 
     return {
         "schemaVersion": 1,
