@@ -102,9 +102,9 @@ fn relocated_root_and_missing_mutable_state_preserve_scientific_identity_on_retr
     let definition_identity_before = plan_before["definitionIdentity"].clone();
     let run_id_before = runs_before["runs"][0]["runId"].clone();
     let state_digest_before = runs_before["runs"][0]["stateDigest64"].clone();
-    let relative_dir = runs_before["runs"][0]["relativeDirectory"]
+    let relative_dir = runs_before["runs"][0]["relativeDir"]
         .as_str()
-        .expect("analysis row relativeDirectory");
+        .expect("analysis row relativeDir");
 
     let child_before = original_research_root.join(relative_dir);
     let sentinel_name = "audit-v5-retention-sentinel.txt";
