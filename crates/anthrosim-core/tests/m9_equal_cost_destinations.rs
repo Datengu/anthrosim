@@ -181,14 +181,8 @@ fn non_tied_minimum_is_identical_for_all_tie_keys() {
 #[test]
 fn asymmetric_focal_region_is_part_of_the_spatial_equivalence_frame() {
     let world = flat_world(5, 1);
-    let canonical_region = region(
-        &world,
-        vec![CellId::new(1), CellId::new(2), CellId::new(4)],
-    );
-    let reflected_region = region(
-        &world,
-        vec![CellId::new(2), CellId::new(4), CellId::new(5)],
-    );
+    let canonical_region = region(&world, vec![CellId::new(1), CellId::new(2), CellId::new(4)]);
+    let reflected_region = region(&world, vec![CellId::new(2), CellId::new(4), CellId::new(5)]);
     let origin = CellId::new(3);
     let coupling_key = 77_u64;
     let mut seen_second = false;

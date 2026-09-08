@@ -102,8 +102,8 @@ const GRID_REFLECTIONS: [GridReflection; 4] = [
     GridReflection::Both,
 ];
 
-/// All grid-reflection frames that realize the exact lexicographically minimal declared
-/// model-facing spatial state. More than one frame means the declared state itself has an
+/// All grid-reflection frames that realize the exact lexicographically minimal focal-region
+/// membership mask and declared model-facing spatial state. More than one frame means the declared state itself has an
 /// automorphism; destinations related inside that automorphism remain one exchangeable class.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TemporaryDestinationCanonicalFrame {
@@ -112,6 +112,7 @@ pub(crate) struct TemporaryDestinationCanonicalFrame {
 
 pub(crate) fn destination_canonical_frame(
     world: &World,
+    region: &FocalRegion,
     context: TemporaryDestinationCouplingContext,
 ) -> Option<TemporaryDestinationCanonicalFrame> {
     if !context.is_valid() || world.width() == 0 || world.height() == 0 {
@@ -120,7 +121,7 @@ pub(crate) fn destination_canonical_frame(
     let mut best_signature: Option<Vec<u16>> = None;
     let mut reflections = Vec::new();
     for reflection in GRID_REFLECTIONS {
-        let signature = reflected_context_signature(world, context, reflection)?;
+        let signature = reflected_context_signature(world, region, context, reflection)?;
         match best_signature.as_ref() {
             None => {
                 best_signature = Some(signature);
@@ -178,10 +179,11 @@ pub(crate) fn destination_coupling_classes(
 
 fn reflected_context_signature(
     world: &World,
+    region: &FocalRegion,
     context: TemporaryDestinationCouplingContext,
     reflection: GridReflection,
 ) -> Option<Vec<u16>> {
-    let fields_per_cell = 1
+    let fields_per_cell = 2
         + if context.include_water_access { 1 } else { 0 }
         + if context.include_base_productivity {
             1
@@ -196,6 +198,7 @@ fn reflected_context_signature(
                 reflected_coordinates(reflection, x, y, world.width(), world.height());
             let source = world.cell_id(source_x, source_y)?;
             let cell = world.cell(source)?;
+            signature.push(if region.contains(source) { 1 } else { 0 });
             signature.push(cell.movement_cost);
             if context.include_water_access {
                 signature.push(cell.water_access);
@@ -389,8 +392,9 @@ impl TemporaryTravelModel {
                 return Err(TemporaryTravelModelError::RegionCellImpassable { cell });
             }
         }
-        let canonical_frame = destination_canonical_frame(world, destination_coupling_context)
-            .ok_or(TemporaryTravelModelError::InvalidDestinationCouplingContext)?;
+        let canonical_frame =
+            destination_canonical_frame(world, region, destination_coupling_context)
+                .ok_or(TemporaryTravelModelError::InvalidDestinationCouplingContext)?;
 
         let labels = minimum_cost_labels(self, region, world)?;
         let mut resolutions = Vec::with_capacity(world.cell_count());

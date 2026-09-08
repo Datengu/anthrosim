@@ -562,7 +562,7 @@ impl TemporaryTravelTable {
                 if !context.is_valid() {
                     return Err(TemporaryMobilityProgramError::InvalidDestinationCouplingContext);
                 }
-                let frame = destination_canonical_frame(world, context)
+                let frame = destination_canonical_frame(world, region, context)
                     .ok_or(TemporaryMobilityProgramError::InvalidDestinationCouplingContext)?;
                 if costs.len() != world.cell_count() {
                     return Err(
