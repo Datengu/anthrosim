@@ -69,8 +69,8 @@ jobs:
 
           travel = Path('crates/anthrosim-core/src/temporary_travel.rs')
           text = travel.read_text()
-          old = '            let mut best_pair = None;'
-          new = '            let mut best_pair: Option<(u64, u64, u32)> = None;'
+          old = 'let mut best_pair = None;'
+          new = 'let mut best_pair: Option<(u64, u64, u32)> = None;'
           if text.count(old) != 1:
               raise SystemExit(f'expected one untyped canonical pair, found {text.count(old)}')
           travel.write_text(text.replace(old, new, 1))
