@@ -6,7 +6,9 @@ use anthrosim_core::{
     SpatialFieldTransform, SpatialLandscapeSimulation, SpatialMechanismConfig,
     SpatialRealizationMode, SpatialRunRealization, SpatialTargetField, TemporaryMobilityConfig,
     TemporaryMobilitySchedule, TemporaryTravelModel, TemporaryTriggerTiming, TransformDirection,
-    WorldConfig, ids::{CellId, HouseholdId, PersonId}, validate_spatial_landscape_recorded_run,
+    WorldConfig,
+    ids::{CellId, HouseholdId, PersonId},
+    validate_spatial_landscape_recorded_run,
 };
 
 const DOMAIN: LandscapeValueDomain = LandscapeValueDomain { min: 0, max: 1_000 };
@@ -129,7 +131,11 @@ fn temporary_mobility(trigger_days: Vec<u64>) -> TemporaryMobilityConfig {
     .unwrap()
 }
 
-fn synthetic_experiment(process_seed: u64, duration_years: u64, trigger_days: Vec<u64>) -> ExperimentConfig {
+fn synthetic_experiment(
+    process_seed: u64,
+    duration_years: u64,
+    trigger_days: Vec<u64>,
+) -> ExperimentConfig {
     let mut resources = ResourceConfig::synthetic_validation_v1();
     resources.periods_per_year = 12;
     resources.seasonality_scale_permille = 1_000;
@@ -222,11 +228,19 @@ fn fixed_environment_and_population_replay_across_process_seeds_with_active_m9()
             SpatialRealizationMode::ExplicitSplit
         );
         assert_eq!(
-            simulation.spatial_binding().environment.realization.population_seed,
+            simulation
+                .spatial_binding()
+                .environment
+                .realization
+                .population_seed,
             80_001
         );
         assert_eq!(
-            simulation.spatial_binding().environment.realization.process_seed,
+            simulation
+                .spatial_binding()
+                .environment
+                .realization
+                .process_seed,
             process_seed
         );
         if let Some(expected) = founder_digest {
@@ -279,8 +293,18 @@ fn changing_synthetic_population_seed_changes_founders_and_each_history_remains_
     validate_spatial_landscape_recorded_run(&first, &source).unwrap();
     validate_spatial_landscape_recorded_run(&second, &source).unwrap();
     assert_ne!(
-        first.manifest.spatial.environment.realization.population_seed,
-        second.manifest.spatial.environment.realization.population_seed
+        first
+            .manifest
+            .spatial
+            .environment
+            .realization
+            .population_seed,
+        second
+            .manifest
+            .spatial
+            .environment
+            .realization
+            .population_seed
     );
     assert_eq!(first.core_manifest().experiment.seed, process_seed);
     assert_eq!(second.core_manifest().experiment.seed, process_seed);
@@ -309,10 +333,23 @@ fn declared_founders_remain_population_seed_inert_with_active_m9() {
 
     validate_spatial_landscape_recorded_run(&first, &source).unwrap();
     validate_spatial_landscape_recorded_run(&second, &source).unwrap();
-    assert_eq!(first.checkpoint.core_checkpoint, second.checkpoint.core_checkpoint);
+    assert_eq!(
+        first.checkpoint.core_checkpoint,
+        second.checkpoint.core_checkpoint
+    );
     assert_ne!(
-        first.manifest.spatial.environment.realization.population_seed,
-        second.manifest.spatial.environment.realization.population_seed
+        first
+            .manifest
+            .spatial
+            .environment
+            .realization
+            .population_seed,
+        second
+            .manifest
+            .spatial
+            .environment
+            .realization
+            .population_seed
     );
 }
 
@@ -322,14 +359,11 @@ fn explicit_split_m9_checkpoint_resume_matches_uninterrupted() {
     let config = synthetic_experiment(90_300, 2, vec![100, 500]);
     let mechanisms = mechanisms(70_300, 80_300);
 
-    let uninterrupted = SpatialLandscapeSimulation::new(
-        config.clone(),
-        source.clone(),
-        mechanisms.clone(),
-    )
-    .unwrap()
-    .run_recorded()
-    .unwrap();
+    let uninterrupted =
+        SpatialLandscapeSimulation::new(config.clone(), source.clone(), mechanisms.clone())
+            .unwrap()
+            .run_recorded()
+            .unwrap();
 
     let checkpoint = SpatialLandscapeSimulation::new(config, source.clone(), mechanisms)
         .unwrap()
@@ -344,8 +378,14 @@ fn explicit_split_m9_checkpoint_resume_matches_uninterrupted() {
     validate_spatial_landscape_recorded_run(&resumed, &source).unwrap();
 
     let mut resumed_without_lineage = resumed.clone();
-    resumed_without_lineage.manifest.core_manifest.resume_lineage = ResumeLineage::new();
-    resumed_without_lineage.checkpoint.core_checkpoint.resume_lineage = ResumeLineage::new();
+    resumed_without_lineage
+        .manifest
+        .core_manifest
+        .resume_lineage = ResumeLineage::new();
+    resumed_without_lineage
+        .checkpoint
+        .core_checkpoint
+        .resume_lineage = ResumeLineage::new();
     resumed_without_lineage.checkpoint.core_checkpoint = resumed_without_lineage
         .checkpoint
         .core_checkpoint
