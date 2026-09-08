@@ -27,13 +27,22 @@ jobs:
 
           mobility = Path('crates/anthrosim-core/src/temporary_mobility.rs')
           text = mobility.read_text()
-          canonical = "            equal_cost_destinations: None,\n            destination_tie_seed: None,\n        };\n"
-          staged_anchor = "            equal_cost_destinations: None,\n        destination_tie_seed: None,\n    };\n"
-          if text.count(canonical) != 1:
+
+          canonical_10 = "            equal_cost_destinations: None,\n            destination_tie_seed: None,\n        };\n"
+          staged_10 = "            equal_cost_destinations: None,\n        destination_tie_seed: None,\n    };\n"
+          if text.count(canonical_10) != 1:
               raise SystemExit(
-                  f'anchor-10 precondition expected one canonical initializer, found {text.count(canonical)}'
+                  f'anchor-10 precondition expected one canonical initializer, found {text.count(canonical_10)}'
               )
-          mobility.write_text(text.replace(canonical, staged_anchor, 1))
+          text = text.replace(canonical_10, staged_10, 1)
+
+          canonical_11 = "    pub(crate) fn new_m9_4(\n        resolutions: Vec<TemporaryTravelResolution>,\n        accumulated_cost_units: Vec<Option<u64>>,\n        equal_cost_destinations: Vec<Vec<TemporaryTravelDestinationCandidate>>,\n        destination_tie_seed: u64,\n        travel_model: TemporaryTravelModel,\n        region: &FocalRegion,\n        world: &World,\n    ) -> Result<Self, TemporaryMobilityProgramError> {\n        let table = Self {\n            schema_version: Self::CURRENT_SCHEMA_VERSION,\n            resolutions,\n            travel_model: Some(travel_model),\n            accumulated_cost_units: Some(accumulated_cost_units),\n            equal_cost_destinations: Some(equal_cost_destinations),\n            destination_tie_seed: Some(destination_tie_seed),\n        };\n"
+          staged_11 = "    pub(crate) fn new_m9_4(\n    resolutions: Vec<TemporaryTravelResolution>,\n    accumulated_cost_units: Vec<Option<u64>>,\n    equal_cost_destinations: Vec<Vec<TemporaryTravelDestinationCandidate>>,\n    destination_tie_seed: u64,\n    travel_model: TemporaryTravelModel,\n    region: &FocalRegion,\n    world: &World,\n) -> Result<Self, TemporaryMobilityProgramError> {\n    let table = Self {\n        schema_version: Self::CURRENT_SCHEMA_VERSION,\n        resolutions,\n        travel_model: Some(travel_model),\n        accumulated_cost_units: Some(accumulated_cost_units),\n        equal_cost_destinations: Some(equal_cost_destinations),\n        destination_tie_seed: Some(destination_tie_seed),\n    };\n"
+          if text.count(canonical_11) != 1:
+              raise SystemExit(
+                  f'anchor-11 precondition expected one constructor, found {text.count(canonical_11)}'
+              )
+          mobility.write_text(text.replace(canonical_11, staged_11, 1))
 
           workflow = Path('.github/workflows/apply-av5-004-repair.yml').read_text().splitlines()
           start = next(i for i, line in enumerate(workflow) if line == '          from pathlib import Path')
