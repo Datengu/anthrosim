@@ -11,10 +11,12 @@ on:
       - "scripts/test-research-identifiability-discrimination-tolerance.py"
       - "scripts/test-research-identifiability-equifinality-compensation.py"
       - "scripts/test-research-identifiability-executed-design-binding.py"
+      - "scripts/test-research-identifiability-coordinate-fidelity.py"
       - "research/identifiability-benchmark-v1/**"
       - "research/general-demography-baseline-v1/confirmatory-definition.json"
       - "docs/research/identifiability-equifinality-v1.md"
       - "docs/research/identifiability-discrimination-tolerance-v1.md"
+      - "docs/research/identifiability-coordinate-numeric-contract-v1.md"
       - "docs/research/audit-v2/area-j-identifiability-monte-carlo-audit.py"
       - "crates/anthrosim-cli/src/bin/anthrosim-research.rs"
       - "crates/anthrosim-core/src/research_experiment.rs"
@@ -45,8 +47,11 @@ jobs:
             scripts/research-identifiability-legacy.py \
             scripts/research-identifiability-bind-design.py \
             scripts/test-research-identifiability-executed-design-binding.py \
-            scripts/test-research-identifiability-discrimination-tolerance.py
+            scripts/test-research-identifiability-discrimination-tolerance.py \
+            scripts/test-research-identifiability-coordinate-fidelity.py
           python3 scripts/research-identifiability.py --self-test
+      - name: Verify AV5-007 exact parameter-coordinate fidelity
+        run: python3 scripts/test-research-identifiability-coordinate-fidelity.py
       - name: Verify AV4-011 executed-design binding against the real research runner
         run: |
           cargo build --locked --bin anthrosim-research
