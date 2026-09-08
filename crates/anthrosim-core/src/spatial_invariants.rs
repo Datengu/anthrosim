@@ -2,7 +2,8 @@ use thiserror::Error;
 
 use crate::{
     InvariantError, LandscapeBundle, SpatialLandscapeError, SpatialLandscapeRecordedRun, World,
-    rng::RngFactory, transform_landscape, validate_run_artifacts_with_world,
+    invariants::validate_run_artifacts_with_world_and_population_seed, rng::RngFactory,
+    transform_landscape,
 };
 
 #[derive(Debug, Error)]
@@ -20,14 +21,25 @@ pub enum SpatialInvariantError {
 /// transformed-world identity are coherent. The shared core validator then checks the same
 /// population, resource, migration, authoritative-event, M9-history, metric, manifest/statistics
 /// and terminal-state invariants used by ordinary synthetic runs, but against the reconstructed
-/// transformed authoritative world rather than a regenerated synthetic baseline.
+/// transformed authoritative world rather than a regenerated synthetic baseline. Synthetic-founder
+/// M9 replay receives the population-realization seed bound by the spatial host; the process seed
+/// retained in the core experiment remains unchanged.
 pub fn validate_spatial_landscape_recorded_run(
     run: &SpatialLandscapeRecordedRun,
     landscape: &LandscapeBundle,
 ) -> Result<(), SpatialInvariantError> {
     crate::spatial_simulation::validate_spatial_landscape_recorded_run(run, landscape)?;
     let world = reconstruct_authoritative_world(run, landscape)?;
-    validate_run_artifacts_with_world(run.core_manifest(), run.core_checkpoint(), &world)?;
+    validate_run_artifacts_with_world_and_population_seed(
+        run.core_manifest(),
+        run.core_checkpoint(),
+        &world,
+        run.checkpoint
+            .spatial
+            .environment
+            .realization
+            .population_seed,
+    )?;
     Ok(())
 }
 
