@@ -18,9 +18,12 @@ fn resources(initial_stock_units_per_productivity: u32) -> ResourceConfig {
     let mut config = ResourceConfig::synthetic_validation_v1();
     config.periods_per_year = 4;
     config.annual_need_units_per_person = 4;
-    config.annual_regeneration_units_per_productivity = 0;
+    // Capacity is derived from annual regeneration in v35, so regeneration cannot be zero
+    // without also collapsing initial stock to zero. Keep the minimum positive regeneration
+    // identically in both arms and make capacity large enough that neither initial stock is capped.
+    config.annual_regeneration_units_per_productivity = 1;
     config.initial_stock_units_per_productivity = initial_stock_units_per_productivity;
-    config.cell_stock_capacity_years = 100;
+    config.cell_stock_capacity_years = 1_000;
     config.seasonality_scale_permille = 0;
     config.max_scarcity_mortality_probability_per_million = 0;
     config
@@ -46,7 +49,10 @@ fn excess_nonbinding_initial_stock_does_not_change_condition_when_realized_suppl
         let low = run(seed, 100);
         let high = run(seed, 1_000);
         let low_summary = low.checkpoint.resources.summary(&low.checkpoint.population);
-        let high_summary = high.checkpoint.resources.summary(&high.checkpoint.population);
+        let high_summary = high
+            .checkpoint
+            .resources
+            .summary(&high.checkpoint.population);
 
         if low_summary.unmet_need != 0 || high_summary.unmet_need != 0 {
             continue;
@@ -56,8 +62,7 @@ fn excess_nonbinding_initial_stock_does_not_change_condition_when_realized_suppl
         assert_eq!(low_summary.consumed_food, high_summary.consumed_food);
         assert_eq!(low_summary.unmet_need, high_summary.unmet_need);
         assert_eq!(
-            low_summary.mean_living_condition_permille,
-            high_summary.mean_living_condition_permille,
+            low_summary.mean_living_condition_permille, high_summary.mean_living_condition_permille,
             "once both arms realize the same complete supply, extra nonbinding initial stock must not alter the condition response"
         );
     }
