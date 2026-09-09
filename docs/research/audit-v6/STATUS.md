@@ -18,11 +18,11 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
 | Discovery coverage | **6/14 Areas A–N complete** |
-| Discovery result | **non-clean: 7 findings so far — 3 P1, 4 P2; discovery continues through G–N** |
-| Authoritative Audit-v6 findings | **7 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1; AV6-007/#718 P2** |
-| Open Audit-v6 findings | **7** |
+| Discovery result | **non-clean: 8 findings so far — 3 P1, 5 P2; discovery continues through G–N** |
+| Authoritative Audit-v6 findings | **8 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1; AV6-007/#718 P2; AV6-008/#721 P2** |
+| Open Audit-v6 findings | **8** |
 | Open P0/P1 | **3 — AV6-001/#687; AV6-004/#707; AV6-006/#711** |
-| Phase | **Area G discovery next — initialization, burn-in, path dependence and continuation state** |
+| Phase | **Area G discovery in progress — initialization, burn-in, path dependence and continuation state** |
 | Active ownership | **G — initialization, burn-in, path dependence and continuation state** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
 | Convergence status | **P1-clean v6 result is impossible because new P1 findings have been demonstrated** |
@@ -85,20 +85,29 @@ Fresh evidence:
 
 Area F introduced no production semantics changes. AV6-007 remains open and deferred behind the A–N discovery barrier.
 
-## Area G ownership / next discovery session
+## Area G ownership / active discovery
 
-Area G starts from zero after the Area-F disposition is merged. Before substantive evidence, reconstruct live `main`, open PRs/issues and overlapping initialization/continuation audit work.
+Area G remains **in progress**. Fresh evidence has already demonstrated **AV6-008 / #721 P2**; this does not by itself complete the Area.
 
-Fresh Area-G attacks should challenge genuinely new seams such as:
+### Fresh pass 1 — unspecified founder genealogy × dependency-aware household lifecycle
 
-- alternative scientifically meaningful initial states and whether persistent differences are exposed rather than silently interpreted as burn-in or convergence;
-- path dependence under matched later environments/process settings, with explicit transient versus stationary interpretation;
-- checkpoint/resume at a continuation boundary that composes multiple causal subsystems in a way not already covered by permanent tests or Audit v5;
-- hidden future-defining state that could be lost, regenerated or reinterpreted at resume;
-- initialization assumptions whose downstream influence should remain visible in provenance and diagnostics rather than being mistaken for model equilibrium;
-- continuation under the repaired v35 M9 coupling/spatial-equivalence semantics without replaying the old v5 population-seed defect.
+Evidence-only PR: **#720**, closed unmerged.  
+Final controlled head: `550a8edbce9f9b6a96e86a8f32a27bf0d46d528c`.  
+Central CI: `34370338510`; `Quality and tests` job `102529686398`.
 
-Historical v5 Area-G evidence is control/duplicate-avoidance context only:
+The controlled construction held one six-person founder household, zero mortality/fertility/resource pressure and disabled M4 fixed while varying only founder-genealogy completeness and whether `deterministic_dependency_fission_v2(3,18)` was active.
+
+The negative control (`Unspecified`, lifecycle off) was admissible. The positive control (identical omitted links marked `CompleteLivingDirectParents`, lifecycle on) ran and produced two households. All **284 pre-existing core tests** passed. The fresh oracle then demonstrated that `Unspecified` genealogy with dependency-aware fission active is incorrectly accepted instead of failing closed.
+
+This is **AV6-008 / #721 P2**: `Unspecified` explicitly says missing founder parent links cannot be interpreted as absence of living direct kin, yet the relationship-sensitive fission rule consumes those missing links as structural state. Ordinary and spatial construction currently gate genealogy completeness only for active M4 kin weighting, not for dependency-aware household lifecycle.
+
+Mandatory duplicate review distinguished this from #324, AV3-004/#399, AV6-003/#699 and AV5-002/#617. No production repair is permitted during discovery.
+
+### Remaining Area-G work
+
+At least one further independent fresh attack is required before Area G can be considered complete. Good remaining targets include hidden/superseded future-defining state across checkpoint continuation and alternative-start/path-dependence behavior not already covered by historical v3/v4/v5 probes.
+
+Historical v5 Area-G evidence remains control/duplicate-avoidance context only:
 
 - #635 composed post-fission topology with three simultaneously active M9 journeys across checkpoint/resume and matched uninterrupted execution exactly;
 - #636 showed declared founders remain invariant to dormant synthetic-only initialization knobs through active downstream fertility;
@@ -110,6 +119,7 @@ Do not repeat those as fresh v6 credit.
 Known cross-cutting v6 context not to double-count:
 
 - AV6-002/#694 is cross-cutting to Area G because founder/dynamic chronology semantics can affect initialization interpretation;
+- AV6-008/#721 is now the primary Area-G finding and cross-cuts C/M/N;
 - other existing v6 findings remain separate unless a fresh Area-G experiment demonstrates a distinct initialization/path-dependence or continuation mechanism.
 
 ## Discovery phase rules
@@ -134,7 +144,7 @@ Known cross-cutting v6 context not to double-count:
 | D | Resources, condition, subsistence, depletion/recovery | **complete — AV6-004 P1 + AV6-005 P2** | `area-d-2026-09-09.md`; #705/#707; #706/#708. |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — AV6-006 P1** | `area-e-2026-09-09.md`; #710/#711 P1; #713 and #714 clean controls. |
 | F | Aggregation and interaction mechanisms | **complete — AV6-007 P2** | `area-f-2026-09-09.md`; #716 clean recurrence control; #717/#718 P2. |
-| G | Initialization, burn-in, path dependence, continuation state | **next/active** | Fresh alternative-start, path-dependence and continuation-state attacks on repaired v35 baseline. |
+| G | Initialization, burn-in, path dependence, continuation state | **in progress — AV6-008 P2** | #720/#721 P2; further independent fresh continuation/path-dependence evidence required. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **not started** | Seed/stream identity, draw ordering/coupling, rare events, stopping rules, replicate sufficiency, censoring, precision. |
 | I | Sensitivity, uncertainty, convergence, robustness | **not started** | Parameter/structure/horizon/resolution/initialization/replicate sensitivity and hidden fixed configuration. |
 | J | Identifiability, equifinality, calibration, discrimination | **not started** | Compatible regions, parameter compensation, structural equifinality, held-out discrimination, tolerances. |
@@ -154,6 +164,7 @@ Known cross-cutting v6 context not to double-count:
 | `AV6-005` | **P2** | D primary; C/E/F/N | #706 head `ae667fe...`; CI `34356930794` job `102483966686`; duration split flips under household-index relabelling | **#708** | open; remediation deferred |
 | `AV6-006` | **P1** | E primary; F/H/I/N | #710 head `cd1dd83...`; CI `34358664992` job `102489797483`; unreachable padding changes `CellId(1) -> CellId(3)` at seed0 | **#711** | open; remediation deferred |
 | `AV6-007` | **P2** | F primary; E/L/N | #717 head `416da690...`; CI `34366149670` job `102515335302`; touching visits `[102,112)` and `[112,122)` report peak 2 instead of physical maximum 1 | **#718** | open; remediation deferred |
+| `AV6-008` | **P2** | G primary; C/M/N | #720 head `550a8ed...`; CI `34370338510` job `102529686398`; dependency-aware fission accepts `Unspecified` founder genealogy as if missing parent links were structural absence | **#721** | open; remediation deferred |
 
 ## Discovery/remediation barrier and convergence
 
@@ -167,9 +178,9 @@ Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Areas **A–F are complete**. Area G is **next/active**. Seven findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2, AV6-006/#711 P1 and AV6-007/#718 P2.
+Audit-v6 Areas **A–F are complete**. Area G is **in progress**. Eight findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2, AV6-006/#711 P1, AV6-007/#718 P2 and AV6-008/#721 P2.
 
-Next action: begin **Area G — initialization, burn-in, path dependence and continuation state** from zero against immutable v0.3.6/v35. Reconstruct live state and overlap before substantive evidence; use v5 Area-G experiments, repaired AV5-003/#627 and permanent continuation regressions only for duplicate avoidance, controls and attack design.
+Next action: continue **Area G — initialization, burn-in, path dependence and continuation state** against immutable v0.3.6/v35 with another independent fresh adversary. Do not repair AV6-008 during discovery; use historical v3/v4/v5 Area-G experiments and permanent continuation regressions only for duplicate avoidance, controls and attack design.
 
 ## Cross-session start instruction
 
