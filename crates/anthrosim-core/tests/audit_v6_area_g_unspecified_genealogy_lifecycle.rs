@@ -101,10 +101,7 @@ fn founders(genealogy_status: FounderGenealogyStatus) -> FounderPopulationDefini
     )
 }
 
-fn config(
-    genealogy_status: FounderGenealogyStatus,
-    dependency_fission: bool,
-) -> ExperimentConfig {
+fn config(genealogy_status: FounderGenealogyStatus, dependency_fission: bool) -> ExperimentConfig {
     let mut config = ExperimentConfig::new(720_001, 1)
         .with_world(WorldConfig::new(1, 1))
         .with_population(PopulationConfig::new(6).with_max_person_records(20))
