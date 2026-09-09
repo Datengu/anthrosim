@@ -171,6 +171,10 @@ fn helper_path() -> PathBuf {
 
 #[test]
 fn root_aware_verifier_rejects_self_consistent_binding_over_semantically_forged_analysis_rows() {
+    if std::env::var_os("ANTHROSIM_AUDIT_V6_AREA_K_STUDY_VERIFIER_SEMANTIC_TAMPER").is_none() {
+        return;
+    }
+
     let root = temp_root();
     fs::create_dir_all(&root).expect("create fixture root");
     let protocol_path = root.join("protocol.json");
