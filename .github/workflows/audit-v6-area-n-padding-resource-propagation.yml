@@ -1,0 +1,29 @@
+name: Audit v6 Area N padding resource propagation
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-core/tests/audit_v6_area_n_padding_resource_propagation.rs"
+      - ".github/workflows/audit-v6-area-n-padding-resource-propagation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  padding-resource-propagation:
+    name: M9 padding propagation into aggregation/resources
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run Area N integration adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v6_area_n_padding_resource_propagation -- --nocapture
