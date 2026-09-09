@@ -17,13 +17,13 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target tag SHA | `7d5e47309556e458477cd7283230871363b2c89a` |
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
-| Discovery coverage | **4/14 Areas A–N complete** |
-| Discovery result | **non-clean: 6 findings so far — 3 P1, 3 P2; Area E remains in progress** |
+| Discovery coverage | **5/14 Areas A–N complete** |
+| Discovery result | **non-clean: 6 findings so far — 3 P1, 3 P2; discovery continues through F–N** |
 | Authoritative Audit-v6 findings | **6 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1** |
 | Open Audit-v6 findings | **6** |
 | Open P0/P1 | **3 — AV6-001/#687; AV6-004/#707; AV6-006/#711** |
-| Phase | **Area E discovery in progress — spatial landscape, movement, migration, temporary mobility, boundaries** |
-| Active ownership | **E — spatial landscape, movement, migration, temporary mobility, boundaries** |
+| Phase | **Area F discovery next — aggregation and interaction mechanisms** |
+| Active ownership | **F — aggregation and interaction mechanisms** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
 | Convergence status | **P1-clean v6 result is impossible because new P1 findings have been demonstrated** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
@@ -62,38 +62,46 @@ Fresh evidence:
 - #705/#707: resource equal-remainder allocation changed condition `(1000,0) -> (0,1000)` under pure cell reflection; final head `f8ee562027ae162afb9ce7a5f00a6ca3382b0f33`, CI `34356842006`, job `102483639065`; 284 pre-existing core tests passed; **AV6-004 P1**.
 - #706/#708: exact 50/50 M9 duration split changed `(home=1,visitor=0) -> (0,1)` under canonical household-index relabelling; final head `ae667febd0930f43b50eae0af459c5fc8201f13f`, CI `34356930794`, job `102483966686`; 284 pre-existing core tests passed; **AV6-005 P2**.
 
-## Area E — discovery in progress
+### Area E — spatial landscape, movement, migration, temporary mobility and boundaries
 
-Area E has one fresh demonstrated finding so far and remains open for at least one independent second attack before disposition.
+Status: **complete — AV6-006 / #711 P1 open**  
+Completion report: `docs/research/audit-v6/area-e-2026-09-09.md`
 
-### AV6-006 / #711 — P1
+Fresh evidence:
+- #710/#711: one unreachable impassable padding cell outside an unchanged local two-way M9 tie changed the authoritative destination `CellId(1) -> CellId(3)` at seed 0. Final head `cd1dd83abf1a83911c4c11e3d47fc662175d580a`; CI `34358664992`, job `102489797483`; format/Clippy and all **284 pre-existing core tests** passed before the fresh locality oracle failed. **AV6-006 P1**.
+- #713: M4 physical radius-2 candidate geometry remained exactly invariant across right, bottom and combined outer-domain padding after canonical CellIds were erased. Final head `6dff18c0a4488ba329ca5e52f6e02c195b71c63b`; CI `34359990493`, job `102494331225`; clean no finding.
+- #714: a boundary-adjacent unique-destination M9 corridor retained exact `2000` accumulated cost, two-edge route distance and two-day outbound/return duration after embedding behind impassable padding. Final head `3b628b01857a145a35edfa5dd9ab641bf85d5df9`; CI `34364050562`, job `102508144241`; all **284 pre-existing core tests** and the fresh oracle passed; clean no finding.
 
-Evidence-only PR #710 tested whether causally isolated spatial-domain padding can change a local M9 equal-cost tie.
+Area E introduced no production semantics changes. AV6-006 remains open and deferred behind the A–N discovery barrier.
 
-Controlled construction:
-- baseline 3×1 world, movement costs `[1000,1000,1000]`;
-- origin `CellId(2)`, focal destinations `{CellId(1), CellId(3)}`;
-- both destinations remain one edge away at accumulated cost `1000`;
-- padded arm preserves cells 1–3 and appends only `CellId(4)` with movement cost `6000` above the declared M9 traversability ceiling `5000`;
-- same tie seed, household coupling key and trigger;
-- positive controls prove identical local route cost, candidate count and route distances and prove the padding cell non-traversable.
+## Area F ownership / next discovery session
 
-Final controlled evidence head `cd1dd83abf1a83911c4c11e3d47fc662175d580a`; central CI run `34358664992`, `Quality and tests` job `102489797483`. Format and Clippy passed; all **284 pre-existing anthrosim-core unit tests** passed; only the fresh locality oracle failed:
+Area F starts from zero after the Area-E disposition is merged. Before substantive evidence, reconstruct live `main`, open PRs/issues and overlapping aggregation/interaction audit work.
 
-```text
-seed=0 local M9 padding control: baseline=CellId(1) padded=CellId(3)
-```
+Fresh Area-F attacks should challenge at least some of:
 
-Mandatory duplicate search found no prior record of this failure. It is distinct from #190 lower-CellId bias, AV4-007/#500 HouseholdId-label dependence, AV5-001/#606 remote-founder/global-rank dependence and AV5-004/#629 whole-problem reflection non-equivariance. The v35 whole-grid canonical frame leaks causally isolated spatial extent into a local M9 tie. Preserved as **AV6-006/#711 P1**; #710 closed unmerged.
+- temporal concentration versus temporally dispersed presence while holding total visitor person-days or other exposure quantities controlled;
+- whether aggregation observables distinguish peak intensity, duration and recurrence rather than collapsing materially different temporal structures;
+- crowding/resource consequences and post-aggregation recovery under otherwise matched exposure;
+- repeated or overlapping trigger spacing and lifecycle accounting;
+- interaction-opportunity/person-day accounting under births, deaths or household changes not already tested in v5;
+- order/tie dependence in aggregation summaries or downstream local pressure;
+- continuous residence versus temporary concentration without silently changing an unrelated causal quantity.
 
-Next Area-E work should attack an independent spatial mechanism rather than merely widen AV6-006. A preferred direction is a local M4 permanent-migration choice under causally isolated impassable padding, because v35 M4 uses bounded local candidate/equivalence semantics and should provide an independent clean control if its locality contract holds.
+Historical v5 Area-F evidence is control/duplicate-avoidance context only:
 
-Known cross-cutting context not to double-count:
-- AV6-001/#687 same-day M9/M4 scheduler inversion;
-- AV6-003/#699 external-kin fission context;
-- AV6-004/#707 resource-cell reflection;
-- AV6-005/#708 home/visitor resource attribution;
-- historical M4/M9 reflection, HouseholdId and stochastic-coupling findings are controls/hypothesis sources only.
+- household partition of the same four people preserved person-level exposure while changing household-day counts;
+- a birth during an active visit added the correct newborn visitor person-days;
+- exactly divisible visitor resource demand was invariant to one-versus-four household partition.
+
+Do not repeat those as fresh v6 credit.
+
+Known cross-cutting v6 context not to double-count:
+
+- AV6-001/#687 is a same-day M9/M4 scheduler-order P1 that can affect aggregation timing;
+- AV6-005/#708 affects tied home/visitor resource attribution;
+- AV6-006/#711 affects M9 destination choice under irrelevant domain padding;
+- those remain separate findings unless a fresh Area-F experiment demonstrates a distinct mechanism.
 
 ## Discovery phase rules
 
@@ -115,8 +123,8 @@ Known cross-cutting context not to double-count:
 | B | Demography, fertility, mortality, ageing, population structure | **complete — AV6-002 P2** | #690 known coupling scope; #692 no finding; #693/#694 P2. |
 | C | Households, kinship, social links, lifecycle structure | **complete — AV6-003 P2** | #698/#699 P2; #701 no finding. |
 | D | Resources, condition, subsistence, depletion/recovery | **complete — AV6-004 P1 + AV6-005 P2** | `area-d-2026-09-09.md`; #705/#707; #706/#708. |
-| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **in progress — AV6-006 P1 open** | #710/#711 impassable-padding M9 locality failure; next independent M4/locality or boundary attack. |
-| F | Aggregation and interaction mechanisms | **not started** | Trigger/timing, concentration vs relocation, interaction accounting, crowding/recovery, distinguishability. |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — AV6-006 P1** | `area-e-2026-09-09.md`; #710/#711 P1; #713 and #714 clean controls. |
+| F | Aggregation and interaction mechanisms | **next/active** | Fresh temporal concentration, recurrence, crowding/recovery and distinguishability attacks. |
 | G | Initialization, burn-in, path dependence, continuation state | **not started** | Alternative starts, transient/stationary interpretation, checkpoint continuation, path dependence. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **not started** | Seed/stream identity, draw ordering/coupling, rare events, stopping rules, replicate sufficiency, censoring, precision. |
 | I | Sensitivity, uncertainty, convergence, robustness | **not started** | Parameter/structure/horizon/resolution/initialization/replicate sensitivity and hidden fixed configuration. |
@@ -140,7 +148,7 @@ Known cross-cutting context not to double-count:
 ## Discovery/remediation barrier and convergence
 
 Audit v6 is a **non-clean pass**. Required path:
-1. finish fresh discovery through Areas E–N against immutable v0.3.6/v35;
+1. finish fresh discovery through Areas F–N against immutable v0.3.6/v35;
 2. disposition all additional findings;
 3. only after discovery, remediate by severity/dependency;
 4. independently reverify every P0/P1 repair;
@@ -149,9 +157,9 @@ Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Areas **A–D are complete**. Area E is **in progress**. Six findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2 and AV6-006/#711 P1.
+Audit-v6 Areas **A–E are complete**. Area F is **next/active**. Six findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2 and AV6-006/#711 P1.
 
-Next action: continue Area E with a genuinely independent attack against immutable v0.3.6/v35, preferably a local M4 permanent-migration padding/locality control. Reconstruct live state/overlap before new evidence and do not repair AV6-006 during discovery.
+Next action: begin **Area F — aggregation and interaction mechanisms** from zero against immutable v0.3.6/v35. Reconstruct live state and overlap before substantive evidence; use v5 Area-F experiments and existing M9 benchmark/reference material only for duplicate avoidance, controls and attack design.
 
 ## Cross-session start instruction
 
