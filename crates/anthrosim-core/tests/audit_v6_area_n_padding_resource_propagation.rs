@@ -49,7 +49,11 @@ fn landscape(padded: bool) -> LandscapeBundle {
         },
         vec![
             layer("terrain", LandscapeLayerRole::TerrainTraversal, terrain),
-            layer("resources", LandscapeLayerRole::ResourceOpportunity, resources),
+            layer(
+                "resources",
+                LandscapeLayerRole::ResourceOpportunity,
+                resources,
+            ),
         ],
     )
 }
@@ -216,12 +220,9 @@ fn run_arm(process_seed: u64, padded: bool) -> ArmResult {
         })
         .expect("controlled household must depart once");
 
-    let temporary = derive_temporary_mobility_observability(
-        &world,
-        &initial_population,
-        run.core_checkpoint(),
-    )
-    .expect("temporary observability");
+    let temporary =
+        derive_temporary_mobility_observability(&world, &initial_population, run.core_checkpoint())
+            .expect("temporary observability");
     assert_eq!(temporary.summary.journeys_started, 1);
     assert_eq!(temporary.summary.journeys_completed, 1);
     assert_eq!(temporary.summary.visitor_person_days, VISIT_DAYS);
@@ -267,8 +268,14 @@ fn impassable_padding_m9_locality_failure_propagates_into_aggregation_and_resour
 
     let baseline_destination_index = usize::try_from(baseline.destination.0 - 1).unwrap();
     let padded_destination_index = usize::try_from(padded.destination.0 - 1).unwrap();
-    assert_eq!(baseline.visitor_person_days[baseline_destination_index], VISIT_DAYS);
-    assert_eq!(padded.visitor_person_days[padded_destination_index], VISIT_DAYS);
+    assert_eq!(
+        baseline.visitor_person_days[baseline_destination_index],
+        VISIT_DAYS
+    );
+    assert_eq!(
+        padded.visitor_person_days[padded_destination_index],
+        VISIT_DAYS
+    );
     assert_eq!(baseline.visitor_person_days[padded_destination_index], 0);
     assert_eq!(padded.visitor_person_days[baseline_destination_index], 0);
     assert_eq!(baseline.visitor_person_days[1], 0);
