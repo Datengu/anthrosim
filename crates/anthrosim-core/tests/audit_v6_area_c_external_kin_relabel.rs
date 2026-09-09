@@ -159,7 +159,11 @@ fn fission_outcome(swapped_linked_adult_ids: bool) -> (bool, bool, Vec<PersonId>
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(fissions.len(), 1, "the source household must fission exactly once");
+    assert_eq!(
+        fissions.len(),
+        1,
+        "the source household must fission exactly once"
+    );
     let moved = fissions.into_iter().next().unwrap();
     assert_eq!(moved.len(), 2, "four adults with target two must split 2+2");
 
