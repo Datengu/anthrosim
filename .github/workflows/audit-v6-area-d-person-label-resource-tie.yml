@@ -22,15 +22,5 @@ jobs:
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
-      - name: Capture exact rustfmt patch
-        run: |
-          cargo fmt --all
-          git diff -- crates/anthrosim-core/tests/audit_v6_area_d_person_label_resource_tie.rs > rustfmt.patch
-      - name: Upload rustfmt patch
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: audit-v6-area-d-rustfmt-patch
-          path: rustfmt.patch
-          if-no-files-found: error
       - name: Run fresh Audit-v6 Area-D PersonId relabelling adversary
         run: cargo test --locked -p anthrosim-core --test audit_v6_area_d_person_label_resource_tie -- --nocapture
