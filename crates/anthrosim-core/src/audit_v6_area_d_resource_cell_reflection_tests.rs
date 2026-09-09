@@ -76,9 +76,10 @@ fn reflected_resource_outcome(residence: CellId) -> (u16, u16) {
 
     let mut resources_config = ResourceConfig::synthetic_validation_v1()
         .with_initial_stock_units_per_productivity(1)
-        .with_annual_regeneration_units_per_productivity(0)
+        .with_annual_regeneration_units_per_productivity(1)
         .with_annual_need_units_per_person(1)
         .with_seasonality_scale_permille(0);
+    resources_config.cell_stock_capacity_years = 1;
     resources_config.periods_per_year = 1;
     resources_config.condition_recovery_per_period = 0;
     resources_config.max_condition_loss_per_period = 1_000;
