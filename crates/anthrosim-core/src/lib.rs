@@ -50,6 +50,8 @@ pub mod time;
 pub mod world;
 
 #[cfg(test)]
+mod audit_v6_area_d_duration_household_relabel_tests;
+#[cfg(test)]
 mod competing_mortality_acceptance_tests;
 #[cfg(test)]
 mod condition_mortality_acceptance_tests;
@@ -135,8 +137,8 @@ pub use migration::{
     migration_pressure_permille, validate_migration_config,
 };
 pub use population::{
-    CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
-    PopulationValidationError, ReproductiveSex,
+    CellOccupancy, PersonSnapshot, PopulationError, PopulationSummary, PopulationValidationError,
+    ReproductiveSex,
 };
 pub use provenance::{
     MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, ResumeLineageError, SourceRevisionIdentity,
