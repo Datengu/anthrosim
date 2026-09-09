@@ -1,0 +1,26 @@
+name: Audit v6 Area D sufficient-stock initialization adversary
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v6_area_d_sufficient_stock_initialization.rs'
+      - '.github/workflows/audit-v6-area-d-sufficient-stock-initialization.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sufficient-stock-initialization:
+    name: Sufficient-stock initialization adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v6 Area-D initialization adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v6_area_d_sufficient_stock_initialization -- --nocapture
