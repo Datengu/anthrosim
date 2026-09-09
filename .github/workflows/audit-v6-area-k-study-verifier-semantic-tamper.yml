@@ -31,6 +31,8 @@ jobs:
           rustup default 1.97.1
 
       - name: Run producer/verifier semantic adversary
+        env:
+          ANTHROSIM_AUDIT_V6_AREA_K_STUDY_VERIFIER_SEMANTIC_TAMPER: "1"
         run: |
           cargo test --locked -p anthrosim-cli \
             --test audit_v6_area_k_study_verifier_semantic_tamper -- --nocapture
