@@ -37,12 +37,9 @@ fn resource_config(annual_need: u32) -> ResourceConfig {
 fn find_productive_cell_with_three_way_remainder() -> (u64, CellId, u64) {
     for seed in 78_101..78_501 {
         let world = World::generate(WorldConfig::new(2, 2), RngFactory::new(seed)).unwrap();
-        if let Some((index, cell)) = world
-            .cells()
-            .iter()
-            .enumerate()
-            .find(|(_, cell)| cell.food_stock > 0 && u64::from(cell.food_stock) % HOUSEHOLD_COUNT != 0)
-        {
+        if let Some((index, cell)) = world.cells().iter().enumerate().find(|(_, cell)| {
+            cell.food_stock > 0 && u64::from(cell.food_stock) % HOUSEHOLD_COUNT != 0
+        }) {
             return (
                 seed,
                 CellId::new(u64::try_from(index).unwrap() + 1),
@@ -72,7 +69,10 @@ fn physical_household_for_person_id(person_id: u64, relabel_person_ids: bool) ->
     }
 }
 
-fn person_id_for_physical_household(physical_household: u64, relabel_person_ids: bool) -> PersonId {
+fn person_id_for_physical_household(
+    physical_household: u64,
+    relabel_person_ids: bool,
+) -> PersonId {
     if relabel_person_ids {
         PersonId::new(physical_household % HOUSEHOLD_COUNT + 1)
     } else {
