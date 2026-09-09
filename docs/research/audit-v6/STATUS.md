@@ -6,7 +6,7 @@ Protocol: `docs/research/scientific-audit-protocol.md`
 Re-verification addendum: `docs/research/audit-reverification-version-drift.md`  
 Charter: `docs/research/audit-v6/README.md`
 
-This is the repository-authoritative compact ledger for Scientific Audit v6. Detailed completed-area reports and executable adversarial evidence should be added under `docs/research/audit-v6/` or preserved through clearly identified evidence branches/PRs while this ledger remains the authoritative handoff state.
+This is the repository-authoritative compact ledger for Scientific Audit v6. Detailed completed-area reports and executable adversarial evidence are preserved under `docs/research/audit-v6/` and through clearly identified evidence PRs/branches.
 
 ## Current state
 
@@ -17,49 +17,108 @@ This is the repository-authoritative compact ledger for Scientific Audit v6. Det
 | Target tag SHA | `7d5e47309556e458477cd7283230871363b2c89a` |
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
-| Discovery coverage | **0/14 Areas A–N complete** |
-| Discovery result | **not yet determined** |
-| Authoritative Audit-v6 findings | **0** |
-| Open Audit-v6 findings | **0** |
-| Open P0/P1 | **0** |
-| Phase | **Area A discovery in progress; no Area completed yet** |
+| Discovery coverage | **1/14 Areas A–N complete** |
+| Discovery result | **non-clean convergence pass already established by AV6-001 P1; discovery continues through B–N** |
+| Authoritative Audit-v6 findings | **1** |
+| Open Audit-v6 findings | **1** |
+| Open P0/P1 | **1** |
+| Phase | **Area A complete; Area B is next from zero coverage** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
-| Desired convergence result | **fresh P1-clean pass: no new P0/P1 findings** |
+| Convergence status | **P1-clean result is no longer possible for v6 because a new P1 was demonstrated** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-The immutable `v0.3.6` / v35 tag is the discovery baseline even if audit-documentation commits later advance protected `main`. No earlier audit Area or finding closure is inherited as v6 completion evidence.
+The immutable `v0.3.6` / v35 tag remains the discovery baseline even as audit-documentation commits advance protected `main`. No earlier audit Area or finding closure is inherited as v6 completion evidence.
 
 ## Initialization reconstruction — 2026-09-09
 
-Audit-v6 groundwork was initialized only after reconstructing the live repository state:
+Audit-v6 groundwork began only after reconstructing live repository state:
 
 - protected `main`: `7d5e47309556e458477cd7283230871363b2c89a`;
-- immutable `v0.3.6`: `7d5e47309556e458477cd7283230871363b2c89a`;
+- immutable `v0.3.6`: same SHA;
 - software version: `0.3.6`;
 - model semantics: `anthrosim-model-semantics-v35`;
-- open issues at initialization: **0**;
-- open PRs at initialization: **0**;
+- open issues: **0**;
+- open PRs: **0**;
 - pre-existing `audit/v6*` branches: **none**;
 - initialization branch: `audit/v6-groundwork`, created directly from immutable `v0.3.6`.
 
-No simulator semantics, scientific configuration, benchmark reference or release identity is changed by audit initialization.
+No simulator semantics, scientific configuration, benchmark reference or release identity changed during audit initialization.
 
-## Active discovery session — 2026-09-09 / Area A
+## Area A — completed 2026-09-09
 
-Area A began from zero after reconstructing live state again:
+Completion report: `docs/research/audit-v6/area-a-2026-09-09.md`
 
-- protected `main` at session start: `3824babf16eb04cb0797cd8bef3f336961fd6a69` (Audit-v6 initialization merge only beyond the frozen release);
-- immutable target: `v0.3.6` / `7d5e47309556e458477cd7283230871363b2c89a` / `anthrosim-model-semantics-v35`;
-- open issues at session start: **0**;
-- open PRs at session start: **0**;
-- pre-existing Audit-v6 branch: `audit/v6-groundwork`; no overlapping substantive Area-A owner was present;
-- active ownership: **Area A — authoritative semantics and scheduler behaviour**.
+Area A began from zero after a fresh live-state reconstruction. At substantive start:
 
-Fresh evidence-only PR **#684**, exact evidence head `d70cf3de2a8c0b851c72554f6da7aab054512543`, starts directly from immutable `v0.3.6`. It attacks duplicated core/spatial scheduler implementations by wrapping the exact generated core world in a mathematically identity movement transform, holding environment/population/process seed roles equal, and requiring complete core-checkpoint equality across four seeds and M3/M4 cadence pairs `(1,1)`, `(4,4)`, `(12,4)`, `(4,12)`, `(365,365)` over three years. This is fresh v6 evidence rather than a replay of Audit-v5 #608 or #610. The PR remains evidence-only and must not be merged merely because it passes.
+- protected `main`: `3824babf16eb04cb0797cd8bef3f336961fd6a69`;
+- immutable target: `v0.3.6` / `7d5e47309556e458477cd7283230871363b2c89a` / v35;
+- open issues: **0**;
+- open PRs: **0**;
+- no overlapping substantive Area-A owner was present.
 
-Frozen-source inspection has additionally confirmed the executable fixed-day order in both core and spatial hosts as M3 resource/background-mortality settlement → due M9 transition processing → M4 migration → annual M2 demography → optional annual household lifecycle, with the corresponding living research contracts documenting the same intended order. Target-arrival M9 reconsideration and post-M4 same-day boundary behaviour remain under active attack before Area A can be completed.
+### Fresh evidence #684 — no finding
 
-A v35 M9 design property was also inspected without being classified as a new finding: exact demographic-duplicate households deliberately share the `m9/household-local-demographic-equivalence-v1` ambiguity key. That coupling is explicitly documented in the v34 repair/equal-cost-choice contract, so its potential joint-correlation consequences are retained as a later H/F/L interpretation surface rather than being relabelled as an Area-A implementation defect without fresh contrary evidence.
+Evidence-only PR **#684**, exact head `d70cf3de2a8c0b851c72554f6da7aab054512543`, attacked duplicated core/spatial scheduler implementations with an exact identity spatial movement transform.
+
+- four process seeds;
+- M3/M4 cadence pairs `(1,1)`, `(4,4)`, `(12,4)`, `(4,12)`, `(365,365)`;
+- three-year horizon;
+- **20** complete authoritative core-checkpoint comparisons.
+
+All comparisons were exactly equal and exact-head CI passed. This is fresh v6 Area-A no-finding evidence. PR #684 was closed unmerged as designed.
+
+### Scheduler/source review
+
+Frozen-source and living-contract inspection established the intended fixed-boundary order as:
+
+1. M3 resource/background-mortality settlement where due;
+2. M9 temporary-mobility transitions due on that day;
+3. M4 permanent migration where due;
+4. annual M2 demography where applicable;
+5. optional household-lifecycle processing after M2.
+
+The existing ordinary annual same-day integration test agrees with this contract.
+
+### Fresh evidence #686 — AV6-001 demonstrated
+
+Evidence-only PR **#686**, scientific evidence head `bf94ed046df9d53889d1eacf43c57b52812bc1a7`, attacks an exact `TargetArrivalDay` × M4 boundary case.
+
+Controlled construction:
+
+- one declared household starts at an M9-unreachable Cell 1;
+- first M4 boundary is day **91**;
+- M4 is deterministically forced to relocate Cell 1 → Cell 2 on day 91;
+- Cell 2 → focal Cell 3 has exactly **9** outbound travel days;
+- target arrival is day **100**;
+- therefore post-M4 reconsideration makes the newly required M9 departure exactly day **91**.
+
+Central CI run `34301664858`, `Quality and tests` job `102309697902` reached the scientific oracle cleanly:
+
+- format passed;
+- Clippy passed;
+- all **284** pre-existing core unit tests passed;
+- dedicated adversary failed with authoritative event order:
+
+```text
+M4 HouseholdMigration       day 91, sequence 1
+M9 TemporaryJourneyDeparted day 91, sequence 2
+```
+
+The event-driven scheduler therefore re-enters M9 from the post-M4 residence on the same authoritative day after the declared M9 phase has already passed.
+
+Historical issue #197 / PR #295 was checked and is related but distinct: it repaired dynamic reconsideration when a residence change creates a valid **future** departure, not a departure newly equal to the already-entered M4 boundary day.
+
+This failure is preserved as **AV6-001 / #687 / P1**. No production repair is authorized during discovery.
+
+### Additional Area-A hypothesis disposition
+
+Exact demographic-duplicate households deliberately share the v35 M9 `m9/household-local-demographic-equivalence-v1` ambiguity key. Because this is explicitly documented in the v34/v35 equal-cost/local-coupling contract, it was not relabelled as an Area-A implementation defect without contrary evidence. Its joint-correlation/interpretation consequences remain a fresh later surface for H/F/L.
+
+An additional pre-scheduling tie hypothesis was also rejected: exact equal-cost M9 destinations share accumulated travel cost and therefore travel duration, so household-specific exact-cost tie selection does not itself make the precomputed target-arrival departure date inconsistent.
+
+### Area-A completion
+
+Area A is **complete — AV6-001 P1 open**. Neighbouring M3/M4/M9/M2, resource-ledger, aggregation, core/spatial parity and continuation implications were considered. Residual non-coverage is recorded in the completion report. Audit-documentation advances to `main` do not require repeating immutable-target evidence because no simulator-semantic commit intervened.
 
 ## Discovery phase rules
 
@@ -70,18 +129,17 @@ A v35 M9 design property was also inspected without being classified as a new fi
 - Preserve demonstrated findings before production repair.
 - Search open and closed issues/PRs before creating a finding.
 - Assign sequential identifiers `AV6-001`, `AV6-002`, ... only after a distinct scientific defect is demonstrated.
-- Continue A–N discovery after a finding is recorded; ordinary production remediation begins only after full discovery completes.
-- Record exact source SHA, model semantics, experiment configuration, seeds/replicates/horizon and quantitative result for numerical evidence.
-- Keep evidence from semantically different source heads explicitly separated.
+- Continue A–N discovery after findings are recorded; production remediation begins only after full discovery completes.
+- Keep numerical evidence from semantically different source heads explicitly separated.
 - Do not treat green CI, release gates, preserved benchmarks or prior re-verification as proof that an Area is clean.
 - Do not introduce case-specific evidence, calibration or desired outcomes into this framework audit.
 
 ## Discovery coverage matrix
 
-| ID | Area | Status | Fresh v6 emphasis / required direction |
+| ID | Area | Status | Fresh v6 evidence / required direction |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **in progress — evidence PR #684** | Fresh exact core-vs-identity-spatial host equivalence across coincident/non-coincident/maximal fixed clocks is running. Source/document scheduler-order review is complete; target-arrival M9 × M4 same-day reconsideration remains under attack before disposition. |
-| B | Demography, fertility, mortality, ageing, population structure | **not started** | Fresh limiting cases and structural controls for fertility/mortality competition, mate limitation, lifecycle timing, extinction/censoring and finite-population effects. |
+| A | Authoritative semantics and scheduler behaviour | **complete — AV6-001 P1 open** | `area-a-2026-09-09.md`; #684 exact core/spatial identity adversary passed; #686 demonstrated same-day target-arrival/M4 scheduler inversion; #687 open. |
+| B | Demography, fertility, mortality, ageing, population structure | **not started — next** | Fresh limiting cases and structural controls for fertility/mortality competition, mate limitation, lifecycle timing, extinction/censoring and finite-population effects. |
 | C | Households, kinship, social links, lifecycle structure | **not started** | Challenge formation/fission/parentage lifecycle invariants, relationship-order dependence, household equivalence/locality and downstream demographic/mobility coupling. |
 | D | Resources, condition, subsistence, depletion/recovery | **not started** | Probe depletion/replenishment cadence, allocation order/ties, realized-vs-nominal costs, initialization dependence and resource coupling under structural perturbation. |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **not started** | Fresh symmetry/reflection/rotation where supported, boundary, unreachable/equal-cost, transformed-input, representation-equivalence and local-coupling attacks beyond prior regressions. |
@@ -92,93 +150,52 @@ A v35 M9 design property was also inspected without being classified as a new fi
 | J | Identifiability, equifinality, calibration, discrimination | **not started** | Challenge exact/approximate coordinate handling, compatible regions, compensation, structural equifinality, held-out discrimination and tolerance/boundary behaviour. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **not started** | Attack default resolution, sweep generation, retry/resume/crash recovery, duplicate/partial handling, source/config identity, artifact integrity and replay equivalence. |
 | L | Observability, analysis outputs, statistical summaries | **not started** | Challenge denominators, weighting, censoring/missingness, survival conditioning, time windows, multimodality, incompatible-run mixing and mechanism observability. |
-| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **not started** | Compare executable v35 semantics and current artifacts with all living scientific claims, explicit null-model boundaries, release statements and benchmark interpretation. |
+| M | Documentation, TRACE/ODD/ODD+D, claim consistency | **not started** | Compare executable v35 semantics and current artifacts with living scientific claims, explicit null-model boundaries, release statements and benchmark interpretation. |
 | N | Cross-system integration | **not started** | Fresh coupled attacks across demography×households/resources, households×movement, movement/aggregation×resources, initialization×spatial/demography, inference×censoring, sensitivity×hidden config, calibration×identifiability, resume×RNG and observability×interpretation. |
 
-An Area is not complete merely because no issue is found. Its evidence, files/mechanisms inspected, adversarial construction, quantitative result where relevant, neighbouring-system considerations and residual uncertainty must be recorded.
+An Area is not complete merely because no issue is found. Evidence, mechanisms inspected, adversarial construction, quantitative result where relevant, neighbouring-system considerations and residual uncertainty must be recorded.
 
 ## Finding register
 
-No Audit-v6 finding has been demonstrated yet.
-
-When a finding is established, add one row per underlying scientific defect:
-
 | Finding | Severity | Primary / cross-cutting Areas | Immutable-target evidence | Issue | Discovery state | Later remediation / re-verification |
 |---|---:|---|---|---|---|---|
-| `AV6-###` | P0/P1/P2/P3 | — | exact SHA, test/experiment, quantitative result | `#…` | demonstrated | pending until discovery completion |
-
-Do not pre-allocate identifiers for hypotheses that have not been demonstrated.
-
-## Area completion record template
-
-For each completed Area, preserve enough information that a new agent can independently understand what was challenged and why the Area was closed:
-
-- Area and date;
-- immutable audit target and exact source SHA used;
-- model semantics ID;
-- live `main` observed at session start;
-- overlapping open issues/PRs/branches checked;
-- files and mechanisms inspected;
-- fresh adversarial hypothesis/construction;
-- tests/experiments executed and exact commands/workflows where relevant;
-- seed policy, replicate count, horizon and configuration for numerical work;
-- quantitative results/effect sizes/precision;
-- earlier adversaries rerun as controls, clearly separated from fresh evidence;
-- findings created or overlap with existing issues;
-- neighbouring/cross-system interactions considered;
-- unresolved uncertainties and explicit non-coverage;
-- whether evidence must be repeated because live `main` changed;
-- recommended next Area.
-
-Detailed reports should be linked from the coverage matrix or ledger once created.
-
-## Finding creation standard
-
-Before creating an Audit-v6 finding issue:
-
-1. demonstrate or otherwise establish the failure on immutable `v0.3.6` / v35, or document why a causally equivalent source is necessary;
-2. search open and closed issues/PRs for the same underlying defect;
-3. identify the smallest scientific failure rather than an implementation symptom;
-4. assign severity by scientific consequence under the reusable protocol;
-5. preserve exact reproduction/evidence before repair;
-6. create the issue and assign the next sequential `AV6-*` identifier;
-7. update this ledger before any production remediation.
-
-The issue must state scientific consequence, affected identity, reproduction/evidence, expected contract, scope/non-goals, acceptance criteria and required tests/experiments.
+| `AV6-001` | **P1** | A primary; E/F and D/N cross-cutting | `v0.3.6` / `7d5e473...`; evidence PR #686 head `bf94ed0...`; CI `34301664858` job `102309697902`; day-91 M4 sequence 1 then M9 sequence 2 | **#687** | **demonstrated; open** | **deferred until A–N discovery completes** |
 
 ## Discovery/remediation barrier
-
-Audit-v6 discovery and remediation are deliberately separated.
 
 Until Areas A–N are all complete:
 
 - do not merge production scientific-semantic repairs for Audit-v6 findings;
 - do not rewrite the immutable discovery baseline;
 - do not close a finding merely because an experimental branch contains a possible fix;
-- continue auditing the released target so that later findings are not hidden by mid-audit semantic changes.
+- continue auditing the released target so later findings are not hidden by mid-audit semantic changes.
 
 After discovery completes, create a remediation plan ordered by severity/dependency. Every P0/P1 repair then requires normal production review/gates plus independent post-merge adversarial re-verification before the finding is considered fully closed.
 
 ## Convergence decision
 
-At the end of A–N discovery:
+Audit v6 can no longer be a P1-clean pass because `AV6-001` is a new P1 finding. The required path is now:
 
-- **P1-clean pass:** no new P0/P1 findings were demonstrated. P2/P3 findings still require explicit disposition, but the framework-convergence gate may be considered satisfied only after the full audit completion criteria and any required documentation reconciliation are met.
-- **Non-clean pass:** one or more new P0/P1 findings were demonstrated. Complete discovery, remediate, independently reverify P0/P1 repairs, freeze the repaired line as a new immutable release, and require another fresh audit generation before the framework-convergence gate is satisfied.
+1. complete discovery through Areas B–N against immutable `v0.3.6` / v35;
+2. disposition every additional finding;
+3. after discovery, remediate findings in severity/dependency order;
+4. independently reverify every P0/P1 repair;
+5. freeze the repaired line as a new immutable release;
+6. require another fresh audit generation before the framework-convergence gate can be satisfied.
 
-Neither outcome constitutes empirical calibration or validation.
+Neither this non-clean result nor later remediation constitutes empirical calibration or validation.
 
 ## Current handoff
 
-Audit-v6 **Area A is actively in discovery** against immutable `v0.3.6` / v35; no Area is yet complete and no v6 finding has yet been demonstrated.
+Audit-v6 **Area A is complete** against immutable `v0.3.6` / v35 with **AV6-001 / #687 P1 open and deliberately unrepaired**.
 
 Next recommended action:
 
-1. disposition evidence-only PR #684 from its exact-head result without merging the evidence branch;
-2. complete the fresh target-arrival M9 × M4 same-day scheduler attack identified during source review;
-3. reconcile Area-A source/document review, fresh evidence and residual uncertainty;
-4. only then mark Area A complete or preserve any demonstrated finding;
-5. continue to the next independent Area from zero coverage.
+1. merge this Area-A documentation disposition after normal documentation/CI gates;
+2. close evidence-only PR #686 unmerged after the ledger is authoritative on `main`;
+3. reconstruct live state again;
+4. begin **Area B — demography, fertility, mortality, ageing and population structure** from zero coverage;
+5. continue to preserve any new findings before repair.
 
 ## Cross-session start instruction
 
