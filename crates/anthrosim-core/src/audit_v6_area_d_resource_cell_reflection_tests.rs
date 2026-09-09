@@ -1,7 +1,12 @@
 use crate::{
-    config::{DemographyConfig, ParameterProvenance, PopulationConfig, PopulationInitialization, ResourceConfig, WorldConfig},
+    config::{
+        DemographyConfig, ParameterProvenance, PopulationConfig, PopulationInitialization,
+        ResourceConfig, WorldConfig,
+    },
     events::EventLog,
-    founder_initialization::{FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition},
+    founder_initialization::{
+        FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+    },
     ids::{CellId, HouseholdId, PersonId},
     population::{Population, ReproductiveSex},
     resources::{ResourcePeriodContext, ResourceRngs, ResourceSystem},
