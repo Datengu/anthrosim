@@ -117,7 +117,8 @@ fn run(second_trigger_day: u64) -> ResultRow {
             EventKind::TemporaryJourneyDeparted { .. } => departures.push(record.day),
             EventKind::TemporaryJourneyCompleted { .. } => completions.push(record.day),
             EventKind::TemporaryJourneyNotStarted { reason, .. }
-                if reason == anthrosim_core::events::TemporaryJourneyIneligibility::ActiveJourney =>
+                if reason
+                    == anthrosim_core::events::TemporaryJourneyIneligibility::ActiveJourney =>
             {
                 active_skips.push(record.day)
             }
