@@ -69,10 +69,7 @@ fn physical_household_for_person_id(person_id: u64, relabel_person_ids: bool) ->
     }
 }
 
-fn person_id_for_physical_household(
-    physical_household: u64,
-    relabel_person_ids: bool,
-) -> PersonId {
+fn person_id_for_physical_household(physical_household: u64, relabel_person_ids: bool) -> PersonId {
     if relabel_person_ids {
         PersonId::new(physical_household % HOUSEHOLD_COUNT + 1)
     } else {
