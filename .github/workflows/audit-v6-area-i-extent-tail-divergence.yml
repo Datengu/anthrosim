@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
 
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.92.0 --profile minimal
+        run: rustup toolchain install 1.97.1 --profile minimal
 
       - name: Run tail-divergence adversary
-        run: cargo +1.92.0 test --locked -p anthrosim-core --test audit_v6_area_i_extent_tail_divergence -- --nocapture
+        run: cargo +1.97.1 test --locked -p anthrosim-core --test audit_v6_area_i_extent_tail_divergence -- --nocapture
