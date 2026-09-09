@@ -46,6 +46,29 @@ fn adult(id: u64, age_years: i64, household: HouseholdId) -> FounderPerson {
 fn founders(swapped_household_ids: bool) -> FounderPopulationDefinition {
     let west_household = if swapped_household_ids { H2 } else { H1 };
     let east_household = if swapped_household_ids { H1 } else { H2 };
+    let households = if swapped_household_ids {
+        vec![
+            FounderHousehold {
+                id: H1,
+                location: EAST,
+            },
+            FounderHousehold {
+                id: H2,
+                location: WEST,
+            },
+        ]
+    } else {
+        vec![
+            FounderHousehold {
+                id: H1,
+                location: WEST,
+            },
+            FounderHousehold {
+                id: H2,
+                location: EAST,
+            },
+        ]
+    };
 
     FounderPopulationDefinition::new(
         if swapped_household_ids {
@@ -55,16 +78,7 @@ fn founders(swapped_household_ids: bool) -> FounderPopulationDefinition {
         },
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::Unspecified,
-        vec![
-            FounderHousehold {
-                id: west_household,
-                location: WEST,
-            },
-            FounderHousehold {
-                id: east_household,
-                location: EAST,
-            },
-        ],
+        households,
         vec![
             adult(1, 60, west_household),
             adult(2, 50, west_household),
