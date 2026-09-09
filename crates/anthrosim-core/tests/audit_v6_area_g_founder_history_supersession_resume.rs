@@ -1,7 +1,8 @@
 use anthrosim_core::{
     AgeProbabilityBand, DemographyConfig, EventKind, ExperimentConfig, FounderGenealogyStatus,
     FounderHousehold, FounderPerson, FounderPopulationDefinition, MigrationConfig,
-    ParameterProvenance, PopulationConfig, ReproductiveSex, ResourceConfig, Simulation, WorldConfig,
+    ParameterProvenance, PopulationConfig, ReproductiveSex, ResourceConfig, Simulation,
+    WorldConfig,
     ids::{CellId, HouseholdId, PersonId},
 };
 
@@ -131,7 +132,12 @@ fn model_period_birth_supersedes_founder_history_exactly_across_checkpoint_resum
     let resumed_births = maternal_birth_days(&resumed.checkpoint);
     eprintln!(
         "uninterrupted_births={uninterrupted_births:?}; resumed_births={resumed_births:?}; final_last_birth={:?}",
-        resumed.checkpoint.population.person(MOTHER).unwrap().last_birth_day
+        resumed
+            .checkpoint
+            .population
+            .person(MOTHER)
+            .unwrap()
+            .last_birth_day
     );
 
     // Spacing is 500 days. The first certain model birth occurs at day 365, so day 730 must be
@@ -141,7 +147,12 @@ fn model_period_birth_supersedes_founder_history_exactly_across_checkpoint_resum
     assert_eq!(uninterrupted_births, vec![365, 1_095]);
     assert_eq!(resumed_births, uninterrupted_births);
     assert_eq!(
-        resumed.checkpoint.population.person(MOTHER).unwrap().last_birth_day,
+        resumed
+            .checkpoint
+            .population
+            .person(MOTHER)
+            .unwrap()
+            .last_birth_day,
         Some(1_095)
     );
 
@@ -151,9 +162,18 @@ fn model_period_birth_supersedes_founder_history_exactly_across_checkpoint_resum
         resumed.checkpoint.state_digest64,
         uninterrupted.checkpoint.state_digest64
     );
-    assert_eq!(resumed.checkpoint.population, uninterrupted.checkpoint.population);
-    assert_eq!(resumed.checkpoint.resources, uninterrupted.checkpoint.resources);
-    assert_eq!(resumed.checkpoint.migration, uninterrupted.checkpoint.migration);
+    assert_eq!(
+        resumed.checkpoint.population,
+        uninterrupted.checkpoint.population
+    );
+    assert_eq!(
+        resumed.checkpoint.resources,
+        uninterrupted.checkpoint.resources
+    );
+    assert_eq!(
+        resumed.checkpoint.migration,
+        uninterrupted.checkpoint.migration
+    );
     assert_eq!(
         resumed.checkpoint.temporary_mobility,
         uninterrupted.checkpoint.temporary_mobility
