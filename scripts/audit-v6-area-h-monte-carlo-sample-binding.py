@@ -329,7 +329,9 @@ def main() -> int:
             [sys.executable, str(PROVENANCE), "run", str(study_dir), str(definition_path)],
             "analysis provenance run",
         )
-        provenance_identity = provenance_run.stdout.strip()
+        provenance_lines = [line.strip() for line in provenance_run.stdout.splitlines() if line.strip()]
+        assert provenance_lines, "analysis provenance run produced no stdout"
+        provenance_identity = provenance_lines[-1]
         assert provenance_identity.startswith("analysis-provenance-v2-sha256-")
         run([sys.executable, str(PROVENANCE), "verify", str(study_dir)], "analysis provenance verify")
         run([sys.executable, str(PROVENANCE), "replay", str(study_dir)], "analysis provenance replay")
