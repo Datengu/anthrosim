@@ -17,15 +17,15 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target tag SHA | `7d5e47309556e458477cd7283230871363b2c89a` |
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
-| Discovery coverage | **3/14 Areas A–N complete** |
-| Discovery result | **non-clean: 3 findings so far — 1 P1, 2 P2; discovery continues through D–N** |
-| Authoritative Audit-v6 findings | **3 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2** |
-| Open Audit-v6 findings | **3** |
-| Open P0/P1 | **1 — AV6-001/#687 P1** |
-| Phase | **Area D discovery next — resources, condition, subsistence, depletion/recovery** |
-| Active ownership | **D — resources, condition, subsistence, depletion/recovery** |
+| Discovery coverage | **4/14 Areas A–N complete** |
+| Discovery result | **non-clean: 5 findings so far — 2 P1, 3 P2; discovery continues through E–N** |
+| Authoritative Audit-v6 findings | **5 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2** |
+| Open Audit-v6 findings | **5** |
+| Open P0/P1 | **2 — AV6-001/#687 P1; AV6-004/#707 P1** |
+| Phase | **Area E discovery next — spatial landscape, movement, migration, temporary mobility, boundaries** |
+| Active ownership | **E — spatial landscape, movement, migration, temporary mobility, boundaries** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
-| Convergence status | **P1-clean v6 result is impossible because a new P1 has been demonstrated** |
+| Convergence status | **P1-clean v6 result is impossible because new P1 findings have been demonstrated** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
 The immutable `v0.3.6` / v35 tag remains the discovery baseline even as audit-documentation commits advance protected `main`.
@@ -37,45 +37,66 @@ The immutable `v0.3.6` / v35 tag remains the discovery baseline even as audit-do
 Status: **complete — AV6-001 / #687 P1 open**  
 Completion report: `docs/research/audit-v6/area-a-2026-09-09.md`
 
-Fresh v6 evidence included:
+Fresh v6 evidence:
 
-- evidence-only PR #684: exact core-vs-identity-spatial scheduler equivalence across four seeds × five M3/M4 cadence pairs = **20 complete checkpoint comparisons**, all equal; closed unmerged as no-finding evidence;
-- evidence-only PR #686: controlled target-arrival/M4 same-day adversary demonstrated **M4 migration day 91 sequence 1 followed by newly due M9 departure day 91 sequence 2**, opposite to the declared M9-before-M4 fixed-boundary order; preserved as AV6-001 / #687 P1 and closed unmerged after ledger disposition.
-
-Area A documentation disposition merged via PR #688 at `94b8ecb5d9b262a96792c4bbb243ae280c0a248e`.
+- #684: 20 exact core-vs-identity-spatial checkpoint comparisons across cadence pairs, all equal; no finding;
+- #686/#687: same-day target-arrival/M4 adversary demonstrated M4 before newly due M9 on day 91, opposite the declared fixed-boundary order; **AV6-001 P1**.
 
 ### Area B — demography, fertility, mortality, ageing and population structure
 
 Status: **complete — AV6-002 / #694 P2 open**  
 Completion report: `docs/research/audit-v6/area-b-2026-09-09.md`
 
-Fresh v6 evidence included:
+Fresh v6 evidence:
 
-- evidence-only PR #690: adding a separate-cell deterministic one-male birth shifted the unchanged focal two-male paternity result in **500/1024** paired seeds. Final disposition: **no new finding / known stochastic-coupling scope** under #214 because the arms contain a different causal event sequence and v35 does not promise agent/event-level common random numbers after such divergence; closed unmerged;
-- evidence-only PR #692: integrated birthday-crossing × M3 background-mortality cadence × survival-conditioned fertility challenge. Across **4096 seeds per cadence**, focal birth counts were `2041`, `2091`, `2073`, `2025` for `1`, `4`, `12`, `365` M3 periods/year, respectively; max deviation from the exact 0.5 expectation was 43 and max pairwise difference 66, well inside predeclared 160/220 tolerances. Exact zero-risk boundary controls and all exact-head workflows passed. Final disposition: **clean no finding**; closed unmerged;
-- evidence-only PR #693: demonstrated that the same configured male-parent age window is evaluated at annual interval start by dynamic M2 but at child birth by declared-founder genealogy. Final controlled head `579cc00...`; dedicated run `34306372696` job `102323804239`; upper/lower controls were `dynamic Some(MALE) / founder rejected` and `dynamic None / founder accepted`. Central CI run `34306372699`, job `102323830454`, passed format, Clippy and all **284 pre-existing core tests** before the dedicated adversary failed. Preserved as **AV6-002/#694 P2** and closed unmerged.
-
-Area B introduced no production semantics changes. AV6-002 remains open and deferred behind the A–N discovery barrier.
+- #690: remote deterministic birth shifted paired focal paternity in 500/1024 seeds; dispositioned as known sequential-RNG/common-random-number scope under #214, no new finding;
+- #692: birthday-crossing × M3 mortality-cadence × fertility challenge passed quantitative exact-law tolerances across 4096 seeds/cadence; no finding;
+- #693/#694: dynamic M2 and declared-founder genealogy apply one male-parent age window at incompatible time references; **AV6-002 P2**.
 
 ### Area C — households, kinship, social links and lifecycle structure
 
 Status: **complete — AV6-003 / #699 P2 open**  
 Completion report: `docs/research/audit-v6/area-c-2026-09-09.md`
 
-Fresh v6 evidence included:
+Fresh v6 evidence:
 
-- evidence-only PR #698: cross-household external-kin relabelling adversary against `deterministic_dependency_fission_v2`. Final controlled head `3733700bc1353cce768f41e9f4932f96766fd45f`; central CI run `34307746048`, `Quality and tests` job `102327881921`. Formatting and Clippy passed, all **284 pre-existing core tests** passed, then the new oracle failed. The same canonical moved-ID vector `[PersonId(2), PersonId(4)]` was produced in both arms, but pure canonical relabelling flipped the abstract externally linked adult entering the daughter household from east to west: `(west_moved=false,east_moved=true) -> (true,false)`. Full duplicate search found no existing issue for this residual cross-household-context failure. Preserved as **AV6-003/#699 P2** and PR #698 closed unmerged;
-- evidence-only PR #701: heterogeneous simultaneous-fission source-HouseholdId relabelling challenge. The initial red head was rejected as a harness error because founder households were serialized non-canonically. Corrected head `40f92be8b591e0dc1bc046884962c3a89db6d70f`; central CI `34309228460`, `Quality and tests` job `102332243271`. Formatting, Clippy, all **284 pre-existing core tests**, the fresh relabelling oracle and applicable scientific/security gate passed. After erasing bookkeeping household IDs, one west daughter plus two east daughters had identical physical/member partitions in both arms. Final disposition: **clean no finding**; PR #701 closed unmerged.
+- #698/#699: pure linked-adult PersonId relabelling flips which external-kin orientation enters a daughter household because source-local fission relationship refinement collapses distinct living external-parent contexts; **AV6-003 P2**;
+- #701 corrected head: heterogeneous simultaneous source-HouseholdId relabelling preserved physical/member daughter partitions after bookkeeping IDs were erased; no finding.
 
-AV6-003 is distinct from historical #324 and AV3-004/#399. #399's v25 repair derives relationship classes over the living **source-household** parent/child graph; v35 still collapses any living parent outside that source household to one generic external-parent state before the final `PersonId` tie-break. External direct-parent location is causal downstream to M4 kin utility, so the collapsed adults are not scientifically interchangeable.
+### Area D — resources, condition, subsistence, depletion/recovery
 
-Area C introduced no production semantics changes. AV6-003 remains open and deferred behind the A–N discovery barrier.
+Status: **complete — AV6-004 / #707 P1 and AV6-005 / #708 P2 open**  
+Completion report: `docs/research/audit-v6/area-d-2026-09-09.md`
+
+Fresh v6 evidence:
+
+- #705/#707: exact 2×1 horizontal reflection of a one-unit scarce-resource tie flips abstract household condition from `(1000,0)` to `(0,1000)` because the equal-remainder award phase includes canonical `cell_index`. Final head `f8ee562027ae162afb9ce7a5f00a6ca3382b0f33`; CI `34356842006`, job `102483639065`; format/Clippy and all **284 pre-existing core tests** passed before the new oracle failed. **AV6-004 P1**;
+- #706/#708: exact 50/50 one-unit M9 duration-weighted home/visitor tie changes from `(home=1,visitor=0)` to `(0,1)` when only canonical household index changes. Final head `ae667febd0930f43b50eae0af459c5fc8201f13f`; CI `34356930794`, job `102483966686`; format/Clippy and all **284 pre-existing core tests** passed before the new oracle failed. **AV6-005 P2**.
+
+Area D introduced no production semantics changes. Both findings remain open and deferred behind the A–N discovery barrier.
+
+## Area E ownership / next discovery session
+
+Area E starts from zero after the Area-D disposition is merged. Before substantive evidence, reconstruct live `main`, open PRs/issues and overlapping spatial/movement audit work.
+
+Fresh Area-E attacks should challenge at least some of:
+
+- spatial reflection/rotation/isomorphism beyond already-known historical M4/M9 tie defects;
+- boundary and unreachable-state semantics;
+- M4 permanent migration candidate/utility/uncertainty behaviour;
+- M9 travel reachability, route/duration and temporary-state transitions;
+- transformed landscape equivalence and local/nonlocal coupling;
+- persistent residence versus temporary physical presence;
+- same-day or neighbouring mechanism interactions not already counted under AV6-001;
+- spatial keys/ordering that can survive prior label/coupling repairs.
 
 Known cross-cutting context to preserve without double-counting:
 
-- AV6-002/#694 affects authoritative parentage/genealogy near male age thresholds and may propagate into later kin-mediated household or movement behaviour;
-- AV6-001/#687 remains a scheduler/temporary-mobility P1 and must not be repaired during discovery;
-- prior audits contain household/fission/kinship repairs and parentage-scope decisions, but they are historical controls only.
+- AV6-001/#687 is a same-day M9/M4 scheduler-order P1 and must not be rediscovered as Area-E credit;
+- AV6-003/#699 affects external kin context during fission and may propagate into M4;
+- AV6-004/#707 is a resource-cell reflection P1 and is cross-cutting to E, but its primary defect is M3 allocation;
+- AV6-005/#708 affects physical home/visitor resource attribution but is primary Area D;
+- historical M4/M9 reflection, HouseholdId and coupling-key findings are controls/hypothesis sources only.
 
 ## Discovery phase rules
 
@@ -93,11 +114,11 @@ Known cross-cutting context to preserve without double-counting:
 
 | ID | Area | Status | Fresh v6 direction / evidence |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **complete — AV6-001 P1 open** | `area-a-2026-09-09.md`; #684 no-finding scheduler-equivalence evidence; #686/#687 demonstrated P1 same-day M9/M4 inversion. |
-| B | Demography, fertility, mortality, ageing, population structure | **complete — AV6-002 P2 open** | `area-b-2026-09-09.md`; #690 known coupling scope; #692 quantitative birthday/cadence no finding; #693/#694 demonstrated male-parent age time-reference ambiguity. |
-| C | Households, kinship, social links, lifecycle structure | **complete — AV6-003 P2 open** | `area-c-2026-09-09.md`; #698/#699 demonstrated cross-household external-kin context collapse before final PersonId fission tie-break; #701 source-HouseholdId/global-daughter-ID relabelling no finding. |
-| D | Resources, condition, subsistence, depletion/recovery | **not started — next** | Depletion/replenishment cadence, allocation order/ties, realized-vs-nominal effects and initialization dependence. |
-| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **not started** | Symmetry/isomorphism, boundaries, unreachable/equal-cost choices, transformed-input and local-coupling attacks. |
+| A | Authoritative semantics and scheduler behaviour | **complete — AV6-001 P1 open** | #684 no finding; #686/#687 demonstrated same-day M9/M4 inversion. |
+| B | Demography, fertility, mortality, ageing, population structure | **complete — AV6-002 P2 open** | #690 known coupling scope; #692 quantitative no finding; #693/#694 male-parent age time-reference ambiguity. |
+| C | Households, kinship, social links, lifecycle structure | **complete — AV6-003 P2 open** | #698/#699 external-kin fission relabelling defect; #701 HouseholdId simultaneous-fission no finding. |
+| D | Resources, condition, subsistence, depletion/recovery | **complete — AV6-004 P1 + AV6-005 P2 open** | `area-d-2026-09-09.md`; #705/#707 resource cell-reflection defect; #706/#708 duration-split household-identity defect. |
+| E | Spatial landscape, movement, migration, temporary mobility, boundaries | **next/active** | Fresh spatial isomorphism, boundaries, unreachable/equal-cost choices, transformed-input and local-coupling attacks. |
 | F | Aggregation and interaction mechanisms | **not started** | Trigger/timing, concentration vs relocation, interaction accounting, crowding/recovery and mechanism distinguishability. |
 | G | Initialization, burn-in, path dependence, continuation state | **not started** | Alternative starts, transient/stationary interpretation, checkpoint continuation and path-dependence attacks. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **not started** | Seed/stream identity, draw ordering/coupling, rare events, stopping rules, replicate sufficiency, censoring and precision; revisit #690 as coupling-contract evidence. |
@@ -112,15 +133,17 @@ Known cross-cutting context to preserve without double-counting:
 
 | Finding | Severity | Primary / cross-cutting Areas | Immutable-target evidence | Issue | Discovery state | Remediation / re-verification |
 |---|---:|---|---|---|---|---|
-| `AV6-001` | **P1** | A primary; E/F and D/N cross-cutting | `v0.3.6` / `7d5e473...`; #686 head `bf94ed0...`; CI `34301664858` job `102309697902`; M4 seq 1 then M9 seq 2 on day 91 | **#687** | **demonstrated; open** | **deferred until A–N discovery completes** |
-| `AV6-002` | **P2** | B primary; C/G/M/N cross-cutting | `v0.3.6` / `7d5e473...`; #693 head `579cc00...`; dedicated run `34306372696` job `102323804239`; upper dynamic accepted/founder rejected, lower dynamic excluded/founder accepted | **#694** | **demonstrated; open** | **deferred until A–N discovery completes** |
-| `AV6-003` | **P2** | C primary; E/N cross-cutting | `v0.3.6` / `7d5e473...`; #698 head `3733700...`; CI `34307746048` job `102327881921`; external-kin orientation `(false,true) -> (true,false)` under pure linked-adult PersonId relabelling | **#699** | **demonstrated; open** | **deferred until A–N discovery completes** |
+| `AV6-001` | **P1** | A primary; E/F and D/N cross-cutting | #686 head `bf94ed0...`; CI `34301664858` job `102309697902`; M4 seq 1 then M9 seq 2 on day 91 | **#687** | **demonstrated; open** | **deferred until A–N discovery completes** |
+| `AV6-002` | **P2** | B primary; C/G/M/N cross-cutting | #693 head `579cc00...`; CI `34306372696` job `102323804239`; dynamic/founder age-boundary inversion | **#694** | **demonstrated; open** | **deferred until A–N discovery completes** |
+| `AV6-003` | **P2** | C primary; E/N cross-cutting | #698 head `3733700...`; CI `34307746048` job `102327881921`; external-kin orientation flips under PersonId relabelling | **#699** | **demonstrated; open** | **deferred until A–N discovery completes** |
+| `AV6-004` | **P1** | D primary; E/H/N cross-cutting | #705 head `f8ee562...`; CI `34356842006` job `102483639065`; condition `(1000,0) -> (0,1000)` under cell reflection | **#707** | **demonstrated; open** | **deferred until A–N discovery completes** |
+| `AV6-005` | **P2** | D primary; C/E/F/N cross-cutting | #706 head `ae667fe...`; CI `34356930794` job `102483966686`; duration split `(1,0) -> (0,1)` under household-index relabelling | **#708** | **demonstrated; open** | **deferred until A–N discovery completes** |
 
 ## Discovery/remediation barrier and convergence
 
-Because AV6-001 is P1, Audit v6 is a **non-clean pass**. Required path:
+Audit v6 is a **non-clean pass**. Required path:
 
-1. finish fresh discovery through Areas D–N against immutable v0.3.6/v35;
+1. finish fresh discovery through Areas E–N against immutable v0.3.6/v35;
 2. disposition all additional findings;
 3. only after discovery, remediate by severity/dependency;
 4. independently reverify every P0/P1 repair;
@@ -129,9 +152,9 @@ Because AV6-001 is P1, Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Areas **A, B and C are complete**. Area D is **next**. Open findings are AV6-001/#687 P1, AV6-002/#694 P2 and AV6-003/#699 P2; all remain unrepaired by design.
+Audit-v6 Areas **A–D are complete**. Area E is **next/active**. Open findings are AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1 and AV6-005/#708 P2; all remain unrepaired by design.
 
-Next action: begin **Area D — resources, condition, subsistence, depletion/recovery** from zero with genuinely fresh evidence against immutable v0.3.6/v35. Reconstruct live state and overlapping work first, use historical resource findings only as hypothesis/duplicate-avoidance controls, and do not repair existing v6 findings during discovery.
+Next action: begin **Area E — spatial landscape, movement, migration, temporary mobility and boundaries** from zero against immutable v0.3.6/v35. Reconstruct live state and overlap before substantive evidence; use prior spatial findings only for duplicate avoidance and attack design.
 
 ## Cross-session start instruction
 
