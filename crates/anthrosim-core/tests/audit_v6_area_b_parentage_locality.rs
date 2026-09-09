@@ -121,12 +121,7 @@ fn with_remote_deterministic_birth() -> FounderPopulationDefinition {
                 ReproductiveSex::Female,
                 HouseholdId::new(2),
             ),
-            founder(
-                REMOTE_MALE,
-                50,
-                ReproductiveSex::Male,
-                HouseholdId::new(2),
-            ),
+            founder(REMOTE_MALE, 50, ReproductiveSex::Male, HouseholdId::new(2)),
         ],
     )
 }
