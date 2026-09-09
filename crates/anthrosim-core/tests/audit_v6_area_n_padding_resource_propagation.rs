@@ -156,7 +156,6 @@ fn experiment(process_seed: u64, width: u32) -> ExperimentConfig {
     resources.seasonality_scale_permille = 0;
     resources.condition_recovery_per_period = 0;
     resources.max_condition_loss_per_period = 0;
-    resources.max_condition_mortality_probability_per_million = 0;
     resources.max_scarcity_mortality_probability_per_million = 0;
 
     ExperimentConfig::new(process_seed, 1)
@@ -273,16 +272,8 @@ fn impassable_padding_m9_locality_failure_propagates_into_aggregation_and_resour
 
     let (process_seed, baseline, padded) =
         demonstrated.expect("AV6-006 locality failure must reproduce in the full integrated host");
-    assert!([
-        LEFT_DESTINATION,
-        RIGHT_DESTINATION,
-    ]
-    .contains(&baseline.destination));
-    assert!([
-        LEFT_DESTINATION,
-        RIGHT_DESTINATION,
-    ]
-    .contains(&padded.destination));
+    assert!([LEFT_DESTINATION, RIGHT_DESTINATION].contains(&baseline.destination));
+    assert!([LEFT_DESTINATION, RIGHT_DESTINATION].contains(&padded.destination));
 
     let baseline_destination_index = usize::try_from(baseline.destination.0 - 1).unwrap();
     let padded_destination_index = usize::try_from(padded.destination.0 - 1).unwrap();
