@@ -1,0 +1,27 @@
+name: Audit v6 Area I extent tail divergence
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-core/tests/audit_v6_area_i_extent_tail_divergence.rs"
+      - ".github/workflows/audit-v6-area-i-extent-tail-divergence.yml"
+      - "crates/anthrosim-core/src/spatial_boundary.rs"
+
+permissions:
+  contents: read
+
+jobs:
+  extent-tail-divergence-adversary:
+    name: Spatial extent tail-divergence adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.92.0 --profile minimal
+
+      - name: Run tail-divergence adversary
+        run: cargo +1.92.0 test --locked -p anthrosim-core --test audit_v6_area_i_extent_tail_divergence -- --nocapture
