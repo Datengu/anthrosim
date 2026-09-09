@@ -43,8 +43,8 @@ fn excess_nonbinding_initial_stock_does_not_change_condition_when_realized_suppl
     let mut exercised = 0_u32;
 
     for seed in 81_000..81_200 {
-        let low = run(seed, 1);
-        let high = run(seed, 10);
+        let low = run(seed, 100);
+        let high = run(seed, 1_000);
         let low_summary = low.checkpoint.resources.summary(&low.checkpoint.population);
         let high_summary = high.checkpoint.resources.summary(&high.checkpoint.population);
 
