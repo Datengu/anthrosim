@@ -10,6 +10,7 @@ const FEMALE: PersonId = PersonId::new(1);
 const MALE: PersonId = PersonId::new(2);
 const CHILD: PersonId = PersonId::new(3);
 const DAYS_PER_YEAR: i64 = 365;
+const SHIFTED_CHILD_BIRTH_DAY: i64 = -1;
 
 fn demography() -> DemographyConfig {
     let mut config = DemographyConfig::synthetic_validation_v1();
@@ -112,8 +113,9 @@ fn shifted_founder_relation_is_accepted(male_age_days_at_child_birth: i64) -> bo
         vec![
             FounderPerson {
                 id: FEMALE,
-                // The dynamic female is age 31 at the day-365 child birth.
-                birth_day: -(31 * DAYS_PER_YEAR),
+                // Keep the comparison entirely pre-epoch while preserving exactly the dynamic
+                // female's age 31 at the child birth. Day zero is reserved for model-time state.
+                birth_day: SHIFTED_CHILD_BIRTH_DAY - 31 * DAYS_PER_YEAR,
                 reproductive_sex: ReproductiveSex::Female,
                 household: HouseholdId::new(1),
                 female_parent: None,
@@ -123,7 +125,9 @@ fn shifted_founder_relation_is_accepted(male_age_days_at_child_birth: i64) -> bo
             },
             FounderPerson {
                 id: MALE,
-                birth_day: -male_age_days_at_child_birth,
+                // Translation by the same child-birth offset preserves the exact male age at the
+                // parentage event while avoiding an epoch-boundary founder fixture artifact.
+                birth_day: SHIFTED_CHILD_BIRTH_DAY - male_age_days_at_child_birth,
                 reproductive_sex: ReproductiveSex::Male,
                 household: HouseholdId::new(1),
                 female_parent: None,
@@ -133,7 +137,7 @@ fn shifted_founder_relation_is_accepted(male_age_days_at_child_birth: i64) -> bo
             },
             FounderPerson {
                 id: CHILD,
-                birth_day: 0,
+                birth_day: SHIFTED_CHILD_BIRTH_DAY,
                 reproductive_sex: ReproductiveSex::Female,
                 household: HouseholdId::new(1),
                 female_parent: Some(FEMALE),
