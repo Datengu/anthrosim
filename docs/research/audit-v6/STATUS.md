@@ -17,13 +17,13 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target tag SHA | `7d5e47309556e458477cd7283230871363b2c89a` |
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
-| Discovery coverage | **1/14 Areas A–N complete** |
-| Discovery result | **non-clean convergence pass already established by AV6-001 P1; discovery continues through B–N** |
-| Authoritative Audit-v6 findings | **1** |
-| Open Audit-v6 findings | **1** |
-| Open P0/P1 | **1** |
-| Phase | **Area B discovery in progress** |
-| Active ownership | **B — demography, fertility, mortality, ageing and population structure** |
+| Discovery coverage | **2/14 Areas A–N complete** |
+| Discovery result | **non-clean: 2 findings so far — 1 P1, 1 P2; discovery continues through C–N** |
+| Authoritative Audit-v6 findings | **2 — AV6-001/#687 P1; AV6-002/#694 P2** |
+| Open Audit-v6 findings | **2** |
+| Open P0/P1 | **1 — AV6-001/#687 P1** |
+| Phase | **Area C discovery next/active after Area-B disposition merge** |
+| Active ownership | **C — households, kinship, social links and lifecycle structure** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
 | Convergence status | **P1-clean v6 result is impossible because a new P1 has been demonstrated** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
@@ -44,31 +44,30 @@ Fresh v6 evidence included:
 
 Area A documentation disposition merged via PR #688 at `94b8ecb5d9b262a96792c4bbb243ae280c0a248e`.
 
-## Active discovery session — 2026-09-09 / Area B
+### Area B — demography, fertility, mortality, ageing and population structure
 
-Area B starts from zero after reconstructing live state again:
+Status: **complete — AV6-002 / #694 P2 open**  
+Completion report: `docs/research/audit-v6/area-b-2026-09-09.md`
 
-- protected `main` at this session's fresh reconstruction: `34959751515f128949c8c045e7fad14a28248895`;
-- immutable target: `v0.3.6` / `7d5e47309556e458477cd7283230871363b2c89a` / `anthrosim-model-semantics-v35`;
-- open Audit-v6 issue: AV6-001 / #687 P1 from Area A;
-- active Area-B evidence PR #690 was inspected at exact head `e387192ce7d2d5193e101d514e8c64d2806dce1c`, dispositioned, and closed unmerged;
-- active ownership remains **Area B — demography, fertility, mortality, ageing and population structure**;
-- #687 is cross-cutting to later movement/resource integration but does not overlap the independent Area-B demographic audit surface.
+Fresh v6 evidence included:
 
-### Fresh Area-B evidence disposition: parentage-stream insertion locality
+- evidence-only PR #690: adding a separate-cell deterministic one-male birth shifted the unchanged focal two-male paternity result in **500/1024** paired seeds. Final disposition: **no new finding / known stochastic-coupling scope** under #214 because the arms contain a different causal event sequence and v35 does not promise agent/event-level common random numbers after such divergence; closed unmerged;
+- evidence-only PR #692: integrated birthday-crossing × M3 background-mortality cadence × survival-conditioned fertility challenge. Across **4096 seeds per cadence**, focal birth counts were `2041`, `2091`, `2073`, `2025` for `1`, `4`, `12`, `365` M3 periods/year, respectively; max deviation from the exact 0.5 expectation was 43 and max pairwise difference 66, well inside predeclared 160/220 tolerances. Exact zero-risk boundary controls and all exact-head workflows passed. Final disposition: **clean no finding**; closed unmerged;
+- evidence-only PR #693: demonstrated that the same configured male-parent age window is evaluated at annual interval start by dynamic M2 but at child birth by declared-founder genealogy. Final controlled head `579cc00...`; dedicated run `34306372696` job `102323804239`; upper/lower controls were `dynamic Some(MALE) / founder rejected` and `dynamic None / founder accepted`. Central CI run `34306372699`, job `102323830454`, passed format, Clippy and all **284 pre-existing core tests** before the dedicated adversary failed. Preserved as **AV6-002/#694 P2** and closed unmerged.
 
-Evidence-only PR #690 constructed a deliberately isolated parentage-stream locality attack:
+Area B introduced no production semantics changes. AV6-002 remains open and deferred behind the A–N discovery barrier.
 
-- the focal Cell-2 household was unchanged between arms and contained one certain-birth female plus two scientifically distinct eligible males;
-- mortality was zero, fertility certain, spacing zero, resource need neutralized and migration disabled;
-- the augmented arm added a separate Cell-1 household whose older female was processed first and whose only eligible male made that remote paternity outcome deterministic;
-- the oracle required the unchanged focal two-male parentage choice to remain unchanged across identical seeds `0..1023` despite the separate-cell deterministic birth.
+## Area C ownership / next discovery session
 
-At exact evidence head `e387192ce7d2d5193e101d514e8c64d2806dce1c`, central CI run `34303025218` reached the controlled red scientific assertion in `Quality and tests` job `102313886432`; format, Clippy and the applicable scientific/security gates were green. Historical/current duplicate search showed that this is **not a distinct AV6 finding**: it is fresh v6 evidence for the already-declared sequential-stream/common-random-number limitation in closed #214, now demonstrated specifically in `demography/parentage`. The v6 evidence was recorded on #214 and PR #690 was closed unmerged.
+Area C starts from zero after the Area-B disposition is merged. Before substantive evidence, reconstruct live state again and confirm no overlapping household/kinship work.
 
-This disposition is distinct from AV4-005/#495, which covered arbitrary male-label/order assignment within one local choice set, and AV5-002/#617, which covered close-kin eligibility scope. No production repair is authorized during v6 discovery.
+Known cross-cutting context to preserve without counting as Area-C evidence:
 
-Area B remains incomplete. The next fresh attack must be scientifically distinct from the accepted #214 cross-arm draw-consumption limitation and should preferentially target a different required Area-B surface such as age-boundary timing, mortality/fertility limiting cases, extinction/censoring, newborn initialization, or finite-population replacement behaviour.
+- AV6-002/#694 affects authoritative parentage/genealogy near male age thresholds and may propagate into later kin-mediated household or movement behaviour;
+- AV6-001/#687 remains a scheduler/temporary-mobility P1 and must not be repaired during Area C;
+- prior audits contain household/fission/kinship repairs and parentage-scope decisions, but they are historical controls only.
+
+Fresh Area-C attacks should challenge formation/fission and lifecycle invariants, relationship-order dependence, reciprocal kin state, dependency/eligibility structure, and whether household/kin graph representation can alter downstream demographic or movement outcomes.
 
 ## Discovery phase rules
 
@@ -87,13 +86,13 @@ Area B remains incomplete. The next fresh attack must be scientifically distinct
 | ID | Area | Status | Fresh v6 direction / evidence |
 |---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | **complete — AV6-001 P1 open** | `area-a-2026-09-09.md`; #684 no-finding scheduler-equivalence evidence; #686/#687 demonstrated P1 same-day M9/M4 inversion. |
-| B | Demography, fertility, mortality, ageing, population structure | **in progress** | #690 fresh deterministic-remote parentage insertion-locality attack reproduced known #214 sequential-stream coupling and was closed unmerged with no new AV6 finding; continue with a scientifically distinct age/mortality/extinction/newborn/finite-population attack. |
-| C | Households, kinship, social links, lifecycle structure | **not started** | Formation/fission/parentage lifecycle invariants, relationship-order dependence and downstream demographic/mobility coupling. |
+| B | Demography, fertility, mortality, ageing, population structure | **complete — AV6-002 P2 open** | `area-b-2026-09-09.md`; #690 known coupling scope; #692 quantitative birthday/cadence no finding; #693/#694 demonstrated male-parent age time-reference ambiguity. |
+| C | Households, kinship, social links, lifecycle structure | **next/active** | Fresh formation/fission/parentage lifecycle invariants, relationship-order dependence, reciprocal kin state and downstream demographic/mobility coupling. |
 | D | Resources, condition, subsistence, depletion/recovery | **not started** | Depletion/replenishment cadence, allocation order/ties, realized-vs-nominal effects and initialization dependence. |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **not started** | Symmetry/isomorphism, boundaries, unreachable/equal-cost choices, transformed-input and local-coupling attacks. |
 | F | Aggregation and interaction mechanisms | **not started** | Trigger/timing, concentration vs relocation, interaction accounting, crowding/recovery and mechanism distinguishability. |
 | G | Initialization, burn-in, path dependence, continuation state | **not started** | Alternative starts, transient/stationary interpretation, checkpoint continuation and path-dependence attacks. |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **not started** | Seed/stream identity, draw ordering/coupling, rare events, stopping rules, replicate sufficiency, censoring and precision. |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **not started** | Seed/stream identity, draw ordering/coupling, rare events, stopping rules, replicate sufficiency, censoring and precision; revisit #690 as coupling-contract evidence. |
 | I | Sensitivity, uncertainty, convergence, robustness | **not started** | Parameter/structure/horizon/resolution/initialization/replicate sensitivity and hidden fixed configuration. |
 | J | Identifiability, equifinality, calibration, discrimination | **not started** | Compatible regions, parameter compensation, structural equifinality, held-out discrimination and tolerances. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **not started** | Defaults, sweeps, retry/resume/crash recovery, partial handling, identities, artifact integrity and replay. |
@@ -106,12 +105,13 @@ Area B remains incomplete. The next fresh attack must be scientifically distinct
 | Finding | Severity | Primary / cross-cutting Areas | Immutable-target evidence | Issue | Discovery state | Remediation / re-verification |
 |---|---:|---|---|---|---|---|
 | `AV6-001` | **P1** | A primary; E/F and D/N cross-cutting | `v0.3.6` / `7d5e473...`; #686 head `bf94ed0...`; CI `34301664858` job `102309697902`; M4 seq 1 then M9 seq 2 on day 91 | **#687** | **demonstrated; open** | **deferred until A–N discovery completes** |
+| `AV6-002` | **P2** | B primary; C/G/M/N cross-cutting | `v0.3.6` / `7d5e473...`; #693 head `579cc00...`; dedicated run `34306372696` job `102323804239`; upper dynamic accepted/founder rejected, lower dynamic excluded/founder accepted | **#694** | **demonstrated; open** | **deferred until A–N discovery completes** |
 
 ## Discovery/remediation barrier and convergence
 
 Because AV6-001 is P1, Audit v6 is a **non-clean pass**. Required path:
 
-1. finish fresh discovery through Areas B–N against immutable v0.3.6/v35;
+1. finish fresh discovery through Areas C–N against immutable v0.3.6/v35;
 2. disposition all additional findings;
 3. only after discovery, remediate by severity/dependency;
 4. independently reverify every P0/P1 repair;
@@ -120,9 +120,9 @@ Because AV6-001 is P1, Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Area A is complete; **Area B remains actively owned and in discovery**. AV6-001/#687 remains open and unrepaired by design. Fresh Area-B evidence PR #690 has been dispositioned as additional evidence for known #214 sequential-stream coupling and closed unmerged; it does not create AV6-002.
+Audit-v6 Areas **A and B are complete**. Open findings are AV6-001/#687 P1 and AV6-002/#694 P2; both remain unrepaired by design. Area C is the next/active ownership and must begin from zero after reconstructing live state and overlap.
 
-Next action: execute a genuinely fresh Area-B adversary that is not merely another manifestation of cross-arm sequential RNG draw consumption. Prefer age-boundary timing, mortality/fertility limiting cases, extinction/censoring, newborn initialization, or finite-population replacement behaviour; search historical/current issues before any finding disposition.
+Next action: enter **Area C — households, kinship, social links and lifecycle structure**, inspect immutable v0.3.6 implementation/documentation and prior finding history only to avoid duplicates, then execute genuinely fresh Area-C adversarial evidence.
 
 ## Cross-session start instruction
 
