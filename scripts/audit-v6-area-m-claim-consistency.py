@@ -14,7 +14,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LONG_RUN_DOC = ROOT / "docs" / "research" / "long-run-regime-diagnostics-v1.md"
 PROVENANCE_DOC = ROOT / "docs" / "research" / "analysis-provenance-v2.md"
+M9_ORDER_DOC = ROOT / "docs" / "research" / "m9-duration-aware-resource-semantics-v1.md"
 TRACE_DOC = ROOT / "docs" / "research" / "trace.md"
+AREA_A = ROOT / "docs" / "research" / "audit-v6" / "area-a-2026-09-09.md"
 AREA_K = ROOT / "docs" / "research" / "audit-v6" / "area-k-2026-09-09.md"
 AREA_L = ROOT / "docs" / "research" / "audit-v6" / "area-l-2026-09-09.md"
 LONG_RUN_SCRIPT = ROOT / "scripts" / "research-long-run-diagnostics.py"
@@ -64,11 +66,15 @@ def drifting_run(initialization: str, terminal_mean: int) -> dict:
 def main() -> int:
     long_run_doc = read(LONG_RUN_DOC)
     provenance_doc = read(PROVENANCE_DOC)
+    m9_order_doc = read(M9_ORDER_DOC)
     trace_doc = read(TRACE_DOC)
+    area_a = read(AREA_A)
     area_k = read(AREA_K)
     area_l = read(AREA_L)
     long_run = load_module(LONG_RUN_SCRIPT, "audit_v6_area_m_long_run")
 
+    # AV6-014 / Area L: the living long-run contract claims full normalized outcome-distribution
+    # comparison, but non-stable runs reach that layer only as broad status labels.
     full_distribution_claim = (
         "Initialization/environment dependence compares the **full normalized outcome distributions**, "
         "not just which regime labels appear."
@@ -93,6 +99,9 @@ def main() -> int:
     assert "drifting_initialization_dependence=false" in area_l
     assert "terminal_population_ratio=10.0" in area_l
 
+    # AV6-013 / Area K: the provenance-v2 text claims that a freshly reidentified binding over
+    # falsified authoritative artifacts remains unacceptable, but the preserved executable attack
+    # shows producer rejection and root-verifier acceptance for exactly that construction.
     provenance_claim = (
         "Recomputing a new internally consistent `resultIdentity` after falsifying those authoritative "
         "artifacts therefore does not make the binding acceptable."
@@ -101,8 +110,19 @@ def main() -> int:
     assert "producer_finalize_rejects=true" in area_k
     assert "root_verifier_accepted=true" in area_k
 
-    # Positive control: the top-level TRACE boundary must remain conservative even when internal
-    # normative subcontracts are overstated or stale.
+    # AV6-001 / Area A: the living M9 resource-order contract declares M9-before-M4 same-day order
+    # authoritative, while the preserved v35 attack produced M4 then a newly-due M9 departure on
+    # the same day.
+    scheduler_claim = "The M9.0 ordering remains authoritative:"
+    assert scheduler_claim in m9_order_doc
+    assert "complete/start temporary transitions due on that day" in m9_order_doc
+    assert "evaluate M4 migration for eligible households" in m9_order_doc
+    assert "M4 HouseholdMigration       day 91, sequence 1" in area_a
+    assert "M9 TemporaryJourneyDeparted day 91, sequence 2" in area_a
+    assert "same-day scheduler inversion" in area_a
+
+    # Positive control: the top-level TRACE boundary remains appropriately conservative even when
+    # specific normative subcontracts are overstated or stale.
     trace_empirical_boundary = "**Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**"
     assert trace_empirical_boundary in trace_doc
     assert "A green software build, deterministic replay, an ODD description, completed scientific audits or a completed benchmark are not sufficient evidence of empirical scientific validity." in trace_doc
@@ -114,8 +134,10 @@ def main() -> int:
     print(f"provenance_fresh_reidentity_rejection_claim_present={str(provenance_claim in provenance_doc).lower()}")
     print("producer_finalize_rejects=true")
     print("root_verifier_accepted=true")
+    print(f"m9_before_m4_authoritative_claim_present={str(scheduler_claim in m9_order_doc).lower()}")
+    print("observed_same_day_order=M4_sequence_1_then_M9_sequence_2")
     print("trace_empirical_boundary_conservative=true")
-    print("area_m_claim_consistency_result=non_clean_via_existing_AV6_013_AV6_014")
+    print("area_m_claim_consistency_result=non_clean_via_existing_AV6_001_AV6_013_AV6_014")
     return 0
 
 
