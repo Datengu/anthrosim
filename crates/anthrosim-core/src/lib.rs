@@ -137,8 +137,8 @@ pub use migration::{
     migration_pressure_permille, validate_migration_config,
 };
 pub use population::{
-    CellOccupancy, PersonSnapshot, PopulationError, PopulationSummary, PopulationValidationError,
-    ReproductiveSex,
+    CellOccupancy, PersonSnapshot, Population, PopulationError, PopulationSummary,
+    PopulationValidationError, ReproductiveSex,
 };
 pub use provenance::{
     MODEL_SEMANTICS_ID, ResumeBoundary, ResumeLineage, ResumeLineageError, SourceRevisionIdentity,
