@@ -17,13 +17,13 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target tag SHA | `7d5e47309556e458477cd7283230871363b2c89a` |
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
-| Discovery coverage | **7/14 Areas A–N complete** |
-| Discovery result | **non-clean: 9 findings so far — 4 P1, 5 P2; discovery continues through H–N** |
-| Authoritative Audit-v6 findings | **9 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1; AV6-007/#718 P2; AV6-008/#721 P2; AV6-009/#726 P1** |
-| Open Audit-v6 findings | **9** |
-| Open P0/P1 | **4 — AV6-001/#687; AV6-004/#707; AV6-006/#711; AV6-009/#726** |
-| Phase | **Area H discovery active — stochasticity, RNG, ensembles and Monte Carlo inference** |
-| Active ownership | **H — stochasticity, RNG, ensembles and Monte Carlo inference** |
+| Discovery coverage | **8/14 Areas A–N complete** |
+| Discovery result | **non-clean: 10 findings so far — 5 P1, 5 P2; discovery continues through I–N** |
+| Authoritative Audit-v6 findings | **10 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1; AV6-007/#718 P2; AV6-008/#721 P2; AV6-009/#726 P1; AV6-010/#729 P1** |
+| Open Audit-v6 findings | **10** |
+| Open P0/P1 | **5 — AV6-001/#687; AV6-004/#707; AV6-006/#711; AV6-009/#726; AV6-010/#729** |
+| Phase | **Area I discovery active — sensitivity, uncertainty, convergence and robustness** |
+| Active ownership | **I — sensitivity, uncertainty, convergence and robustness** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
 | Convergence status | **P1-clean v6 result is impossible because new P1 findings have been demonstrated** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
@@ -41,53 +41,50 @@ The immutable `v0.3.6` / v35 tag remains the discovery baseline even as audit-do
 | E — spatial landscape, movement, migration, temporary mobility and boundaries | **complete — AV6-006/#711 P1** | #710/#711 unreachable impassable padding changes M9 equal-cost destination; #713/#714 clean locality controls. Report: `area-e-2026-09-09.md`. |
 | F — aggregation and interaction mechanisms | **complete — AV6-007/#718 P2** | #716 clean lifecycle boundary control; #717/#718 touching half-open visits inflate `peakVisitors`. Report: `area-f-2026-09-09.md`. |
 | G — initialization, burn-in, path dependence and continuation state | **complete — AV6-008/#721 P2** | #720/#721 unspecified founder genealogy consumed as structural absence in fission; #723 clean checkpoint/reproductive-history supersession control. Report: `area-g-2026-09-09.md`. |
+| H — stochasticity, RNG, ensembles and Monte Carlo inference | **complete — AV6-009/#726 P1; AV6-010/#729 P1** | #725/#726 sequential Wilson stopped-procedure undercoverage; #728/#729 confirmatory sample values not semantically bound to authoritative study outputs. Report: `area-h-2026-09-09.md`. |
 
-## Area H — active discovery
+## Area H completion
 
-Primary scope: **stochasticity, RNG, ensembles and Monte Carlo inference**.
+Area H is complete after two causally distinct fresh attacks against immutable v0.3.6/v35.
 
-### Fresh v6 evidence recorded so far
+### AV6-009 / #726 — P1: sequential Wilson precision stopping
 
-#### AV6-009 / #726 — P1
+Evidence-only PR #725 demonstrated exact stopped-procedure coverage `0.918976766485` for a declared 95% sequential Bernoulli precision procedure even though the fixed n=30, n=100 and n=300 Wilson intervals each independently met nominal 95% coverage. The width-based repeated stopping rule therefore under-covers by about 3.10 percentage points. PR #725 was closed unmerged and remediation remains deferred.
 
-Evidence-only PR #725 tested the supported sequential Bernoulli `probability` precision gate against immutable v0.3.6/v35.
+### AV6-010 / #729 — P1: confirmatory sample-value semantic binding
 
-Exact controlled head: `0104b5d8fd830d827cd291b8eb5d3c293b117cd9`  
-Dedicated workflow: `34374791210`  
-Central CI: `34374791165`, `Quality and tests` job `102544806010`.
+Evidence-only PR #728 used a fixed 30-seed finalized study and the full official study/research/finalize/confirmatory/provenance path. Canonical `research/analysis/runs.json` contained 30/30 completed runs. The positive sample produced estimate `1.0` / `sufficient_stop`; a contradictory sample using the same exact seeds but values `0` for all 30 runs produced estimate `0.0` / `sufficient_stop`, while analysis-provenance verification and isolated replay both passed.
 
-Controlled design: true `p=0.305`, declared confidence `0.95`, `maxHalfWidth=0.1685`, predeclared cumulative boundaries `[30,100,300]`. Production Wilson interval/stopping logic was evaluated for every attainable success count and exact finite Bernoulli path probabilities were independently enumerated.
+Exact evidence:
 
-Fixed-boundary exact coverage controls all met nominal 95%:
+- PR #728 head: `44101264bcbfeb114099addfb8ba23914270c174`;
+- dedicated workflow: `34379137518`;
+- dedicated job: `102559348237`;
+- central CI: `34379137573`;
+- `Quality and tests`: `102559410153`;
+- analysis provenance identity: `analysis-provenance-v2-sha256-529bc993a39c736e4e9d04b45f02e4cea8936d49bab2820322e0ab85c5765f69`.
 
-- n=30: `0.953754214943`;
-- n=100: `0.950153992240`;
-- n=300: `0.955430640776`.
+The dedicated scientific oracle alone was intentionally red; protected exact-head CI and the other scientific/security/determinism/provenance workflows passed. The defect is distinct from AV6-009: byte provenance and seed identity do not prove that submitted per-seed estimand values were derived from authoritative frozen study outputs. PR #728 was closed unmerged after AV6-010/#729 was preserved; remediation remains deferred.
 
-But the interval reported at the gate's own width-based stopping time covered only `0.918976766485`, a **3.1023 percentage-point shortfall** from the declared 95% confidence level. Early-stop probability was `0.038654964824` at n=30, with remaining paths stopping at n=100 under the chosen threshold.
+Detailed Area-H completion evidence: `docs/research/audit-v6/area-h-2026-09-09.md`.
 
-All ordinary/protected exact-head workflows passed: format, Clippy, full workspace, all **284 pre-existing `anthrosim-core` tests**, release/benchmark/downstream CI, and scientific/security/determinism/provenance gates. Only the predeclared dedicated sequential-coverage oracle failed.
+## Area I — active discovery
 
-Finding: **AV6-009/#726 P1 — sequential Wilson precision stopping under-covers its declared confidence level.** The current procedure repeatedly reuses an ordinary fixed-sample Wilson interval at data-dependent stopping times without a confidence-sequence, alpha-spending or equivalent sequential-validity adjustment.
+Primary scope: **sensitivity, uncertainty, convergence and robustness**.
 
-Mandatory duplicate search distinguished this from AV5-005/#640 (small-n zero-variance normal-CLT mean stopping), AV2-009/#334 (quantile coverage), AV3-006/#410 (paired/independent mean contrasts), AV4-010/#528 (large-integer statistical fidelity), and #214 (conditional draw/common-random-number alignment). #725 is closed unmerged; remediation is deferred.
+Start Area I at zero fresh coverage. High-value falsification directions include:
 
-### Area-H next work
+- parameter-range and parameter-interaction sensitivity rather than one-factor examples;
+- structural alternatives and hidden fixed mechanism choices;
+- horizon and analysis-window sensitivity;
+- spatial/temporal resolution sensitivity where outputs or claims imply comparability;
+- initialization sensitivity and persistent alternative regimes;
+- ensemble-size/replicate robustness without merely duplicating AV6-009's optional-stopping defect;
+- threshold discontinuities, non-monotonic responses, multimodality and regime switching;
+- whether robustness summaries or gates silently collapse scientifically distinct plausible settings;
+- whether stated robustness survives plausible nuisance-parameter variation.
 
-Area H remains **incomplete**. Continue with at least one genuinely independent fresh stochastic attack before disposition. High-value directions include:
-
-- stochastic identity/coupling for model-born individuals after founder-generation label-invariance repairs;
-- remote or representation-only perturbations that should not reassign local stochastic outcomes;
-- rare-event and low-probability endpoint behavior;
-- sequential validity of the other supported estimator families, while avoiding merely duplicating AV6-009's underlying repeated-look defect;
-- seed-role and ensemble-replicate semantics not already covered by AV5-003/#627 or #214;
-- aggregation/precision behavior under missing, extinct or operationally censored replicates, only where current explicit censoring contracts do not already resolve the question.
-
-Known cross-cutting v6 controls not to double-count:
-
-- AV6-004/#707 is primarily an Area-D resource/fairness defect;
-- AV6-006/#711 is primarily an Area-E spatial-locality defect;
-- AV6-009/#726 now owns the repeated-look nominal-confidence failure; a new Area-H finding must demonstrate a distinct causal defect rather than another parameterization of the same optional-stopping problem.
+Existing findings must not be double-counted. In particular, AV6-009 owns the repeated-look confidence defect and AV6-010 owns missing semantic binding of confirmatory sample values.
 
 ## Discovery phase rules
 
@@ -112,8 +109,8 @@ Known cross-cutting v6 controls not to double-count:
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **complete — AV6-006 P1** | #710/#711 P1; #713/#714 clean. |
 | F | Aggregation and interaction mechanisms | **complete — AV6-007 P2** | #716 clean; #717/#718 P2. |
 | G | Initialization, burn-in, path dependence, continuation state | **complete — AV6-008 P2** | #720/#721 P2; #723 clean. |
-| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **active — AV6-009 P1 so far** | #725/#726 sequential Wilson stopped-procedure undercoverage; continue independent attack. |
-| I | Sensitivity, uncertainty, convergence, robustness | **not started** | Parameter/structure/horizon/resolution/initialization/replicate sensitivity and hidden fixed configuration. |
+| H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — AV6-009 P1 + AV6-010 P1** | #725/#726 stopped-procedure undercoverage; #728/#729 sample-value semantic-binding failure. |
+| I | Sensitivity, uncertainty, convergence, robustness | **active** | Fresh parameter/structure/horizon/resolution/initialization/replicate robustness attacks required. |
 | J | Identifiability, equifinality, calibration, discrimination | **not started** | Compatible regions, parameter compensation, structural equifinality, held-out discrimination, tolerances. |
 | K | Experiment orchestration, configuration, provenance, reproducibility | **not started** | Defaults, sweeps, retry/resume/crash recovery, identities, artifact integrity, replay. |
 | L | Observability, analysis outputs, statistical summaries | **not started** | Denominators, weighting, censoring/missingness, time windows, multimodality, incompatible-run mixing. |
@@ -124,20 +121,22 @@ Known cross-cutting v6 controls not to double-count:
 
 | Finding | Severity | Primary / cross-cutting Areas | Immutable-target evidence | Issue | State |
 |---|---:|---|---|---|---|
-| `AV6-001` | **P1** | A primary; E/F/D/N | #686 head `bf94ed0...`; CI `34301664858`; M4 seq1 then M9 seq2 day91 | **#687** | open; remediation deferred |
+| `AV6-001` | **P1** | A primary; E/F/D/N | #686 head `bf94ed0...`; M4 seq1 then M9 seq2 day91 | **#687** | open; remediation deferred |
 | `AV6-002` | **P2** | B primary; C/G/M/N | #693 head `579cc00...`; dynamic/founder male-age reference inversion | **#694** | open; remediation deferred |
 | `AV6-003` | **P2** | C primary; E/N | #698 head `3733700...`; external-kin orientation flips under PersonId relabelling | **#699** | open; remediation deferred |
-| `AV6-004` | **P1** | D primary; E/H/N | #705 head `f8ee562...`; CI `34356842006`; condition flips under cell reflection | **#707** | open; remediation deferred |
+| `AV6-004` | **P1** | D primary; E/H/N | #705 head `f8ee562...`; condition flips under cell reflection | **#707** | open; remediation deferred |
 | `AV6-005` | **P2** | D primary; C/E/F/N | #706 head `ae667fe...`; duration split flips under household-index relabelling | **#708** | open; remediation deferred |
-| `AV6-006` | **P1** | E primary; F/H/I/N | #710 head `cd1dd83...`; CI `34358664992`; unreachable padding changes M9 tied destination | **#711** | open; remediation deferred |
+| `AV6-006` | **P1** | E primary; F/H/I/N | #710 head `cd1dd83...`; unreachable padding changes M9 tied destination | **#711** | open; remediation deferred |
 | `AV6-007` | **P2** | F primary; E/L/N | #717 head `416da690...`; touching visits report peak 2 despite no positive-duration overlap | **#718** | open; remediation deferred |
 | `AV6-008` | **P2** | G primary; C/M/N | #720 head `550a8ed...`; unspecified founder genealogy treated as structural absence by fission | **#721** | open; remediation deferred |
-| `AV6-009` | **P1** | H primary; K/L/M/N | #725 head `0104b5d...`; dedicated run `34374791210`; exact stopped coverage `0.918976766485` vs declared `0.95` while all fixed-boundary controls pass | **#726** | open; remediation deferred |
+| `AV6-009` | **P1** | H primary; K/L/M/N | #725 head `0104b5d...`; exact stopped coverage `0.918976766485` vs declared `0.95` | **#726** | open; remediation deferred |
+| `AV6-010` | **P1** | H primary; K/L/M/N | #728 head `4410126...`; 30/30 authoritative completions accepted as contradictory 0/30 sample with provenance verify/replay pass | **#729** | open; remediation deferred |
 
 ## Discovery/remediation barrier and convergence
 
 Audit v6 is a **non-clean pass**. Required path:
-1. finish fresh discovery through Areas H–N against immutable v0.3.6/v35;
+
+1. finish fresh discovery through Areas I–N against immutable v0.3.6/v35;
 2. disposition all additional findings;
 3. only after discovery, remediate by severity/dependency;
 4. independently reverify every P0/P1 repair;
@@ -146,9 +145,9 @@ Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Areas **A–G are complete**. Area H is **active and incomplete**. Nine findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2, AV6-006/#711 P1, AV6-007/#718 P2, AV6-008/#721 P2 and AV6-009/#726 P1.
+Audit-v6 Areas **A–H are complete**. Area I is **active**. Ten findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2, AV6-006/#711 P1, AV6-007/#718 P2, AV6-008/#721 P2, AV6-009/#726 P1 and AV6-010/#729 P1.
 
-Next action: continue **Area H** with a genuinely independent stochastic attack against immutable v0.3.6/v35. Reconstruct live state/overlap before every new evidence branch; do not repair any v6 finding during discovery.
+Next action: continue **Area I — sensitivity, uncertainty, convergence and robustness** with a genuinely fresh adversarial attack against immutable v0.3.6/v35. Reconstruct live state/overlap before every new evidence branch; do not repair any v6 finding during discovery.
 
 ## Cross-session start instruction
 
