@@ -1,0 +1,36 @@
+name: Audit v6 Area K cross root binding transplant
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-cli/tests/audit_v6_area_k_cross_root_binding_transplant.rs"
+      - "scripts/audit-v6-area-k-verify-study-root.py"
+      - ".github/workflows/audit-v6-area-k-cross-root-binding-transplant.yml"
+      - "crates/anthrosim-cli/src/bin/anthrosim-study.rs"
+      - "crates/anthrosim-cli/src/bin/anthrosim-research.rs"
+      - "scripts/research-study-result-binding.py"
+      - "scripts/research-study-result-binding-legacy.py"
+
+permissions:
+  contents: read
+
+jobs:
+  cross-root-binding-transplant:
+    name: Cross-root finalized-study binding transplant control
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run cross-root binding control
+        run: |
+          cargo test --locked -p anthrosim-cli \
+            --test audit_v6_area_k_cross_root_binding_transplant -- --nocapture
