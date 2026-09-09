@@ -125,14 +125,24 @@ fn fission_signature(swapped_household_ids: bool) -> Vec<(CellId, Vec<PersonId>)
         )
     });
 
-    assert_eq!(fissions.len(), 3, "4+6 adults at target size 2 must create three daughter households");
     assert_eq!(
-        fissions.iter().filter(|(residence, _)| *residence == WEST).count(),
+        fissions.len(),
+        3,
+        "4+6 adults at target size 2 must create three daughter households"
+    );
+    assert_eq!(
+        fissions
+            .iter()
+            .filter(|(residence, _)| *residence == WEST)
+            .count(),
         1,
         "the four-person west source must create one daughter"
     );
     assert_eq!(
-        fissions.iter().filter(|(residence, _)| *residence == EAST).count(),
+        fissions
+            .iter()
+            .filter(|(residence, _)| *residence == EAST)
+            .count(),
         2,
         "the six-person east source must create two daughters"
     );
