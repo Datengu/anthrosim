@@ -119,7 +119,8 @@ fn protocol(study_id: &str) -> StudyProtocol {
         manipulation_checks: vec![StudyManipulationCheck {
             id: "root-identity".to_owned(),
             mechanism: "Study protocol/result binding".to_owned(),
-            criterion: "Each finalized result verifies only in its own frozen study root.".to_owned(),
+            criterion: "Each finalized result verifies only in its own frozen study root."
+                .to_owned(),
             failure_handling: "Reject transplanted result binding.".to_owned(),
         }],
         analysis_method: "Compare two byte-identical research executions under distinct protocols."
@@ -226,7 +227,10 @@ fn root_verifier_rejects_binding_transplant_between_distinct_protocols_with_iden
         research_binary,
     );
 
-    for relative in ["research/analysis/points.json", "research/analysis/runs.json"] {
+    for relative in [
+        "research/analysis/points.json",
+        "research/analysis/runs.json",
+    ] {
         assert_eq!(
             fs::read(study_a.join(relative)).expect("read A research artifact"),
             fs::read(study_b.join(relative)).expect("read B research artifact"),
@@ -247,8 +251,12 @@ fn root_verifier_rejects_binding_transplant_between_distinct_protocols_with_iden
 
     let binding_a = fs::read(study_a.join("study-result-binding.json")).expect("read binding A");
     let binding_b = fs::read(study_b.join("study-result-binding.json")).expect("read binding B");
-    assert_ne!(binding_a, binding_b, "distinct frozen protocols must produce distinct study bindings");
-    fs::write(study_a.join("study-result-binding.json"), &binding_b).expect("transplant binding B into A");
+    assert_ne!(
+        binding_a, binding_b,
+        "distinct frozen protocols must produce distinct study bindings"
+    );
+    fs::write(study_a.join("study-result-binding.json"), &binding_b)
+        .expect("transplant binding B into A");
 
     let transplanted = run(
         Command::new("python3").arg(&verifier).arg(&study_a),
@@ -258,10 +266,16 @@ fn root_verifier_rejects_binding_transplant_between_distinct_protocols_with_iden
     println!("research_artifacts_byte_identical=true");
     println!("untouched_a_verified=true");
     println!("untouched_b_verified=true");
-    println!("transplanted_binding_rejected={}", !transplanted.status.success());
+    println!(
+        "transplanted_binding_rejected={}",
+        !transplanted.status.success()
+    );
     print!("{}", String::from_utf8_lossy(&transplanted.stdout));
     if !transplanted.stderr.is_empty() {
-        println!("stderr={}", String::from_utf8_lossy(&transplanted.stderr).trim());
+        println!(
+            "stderr={}",
+            String::from_utf8_lossy(&transplanted.stderr).trim()
+        );
     }
 
     assert!(
