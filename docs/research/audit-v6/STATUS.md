@@ -17,13 +17,13 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target tag SHA | `7d5e47309556e458477cd7283230871363b2c89a` |
 | Target software version | `0.3.6` |
 | Target model semantics | `anthrosim-model-semantics-v35` |
-| Discovery coverage | **9/14 Areas A–N complete** |
-| Discovery result | **non-clean: 11 findings so far — 5 P1, 6 P2; discovery continues through J–N** |
-| Authoritative Audit-v6 findings | **11 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1; AV6-007/#718 P2; AV6-008/#721 P2; AV6-009/#726 P1; AV6-010/#729 P1; AV6-011/#733 P2** |
-| Open Audit-v6 findings | **11** |
-| Open P0/P1 | **5 — AV6-001/#687; AV6-004/#707; AV6-006/#711; AV6-009/#726; AV6-010/#729** |
-| Phase | **Area J discovery active — identifiability, equifinality, calibration and discrimination** |
-| Active ownership | **J — identifiability, equifinality, calibration and discrimination** |
+| Discovery coverage | **10/14 Areas A–N complete** |
+| Discovery result | **non-clean: 12 findings so far — 6 P1, 6 P2; discovery continues through K–N** |
+| Authoritative Audit-v6 findings | **12 — AV6-001/#687 P1; AV6-002/#694 P2; AV6-003/#699 P2; AV6-004/#707 P1; AV6-005/#708 P2; AV6-006/#711 P1; AV6-007/#718 P2; AV6-008/#721 P2; AV6-009/#726 P1; AV6-010/#729 P1; AV6-011/#733 P2; AV6-012/#737 P1** |
+| Open Audit-v6 findings | **12** |
+| Open P0/P1 | **6 — AV6-001/#687; AV6-004/#707; AV6-006/#711; AV6-009/#726; AV6-010/#729; AV6-012/#737** |
+| Phase | **Area K discovery active — experiment orchestration, configuration, provenance and reproducibility** |
+| Active ownership | **K — experiment orchestration, configuration, provenance and reproducibility** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
 | Convergence status | **P1-clean v6 result is impossible because new P1 findings have been demonstrated** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
@@ -43,74 +43,66 @@ The immutable `v0.3.6` / v35 tag remains the discovery baseline even as audit-do
 | G — initialization, burn-in, path dependence and continuation state | **complete — AV6-008/#721 P2** | #720/#721 unspecified founder genealogy consumed as structural absence in fission; #723 clean checkpoint/reproductive-history supersession control. Report: `area-g-2026-09-09.md`. |
 | H — stochasticity, RNG, ensembles and Monte Carlo inference | **complete — AV6-009/#726 P1; AV6-010/#729 P1** | #725/#726 sequential Wilson stopped-procedure undercoverage; #728/#729 confirmatory sample values not semantically bound to authoritative study outputs. Report: `area-h-2026-09-09.md`. |
 | I — sensitivity, uncertainty, convergence and robustness | **complete — AV6-011/#733 P2** | #731/#733 vacuous no-op long-run sensitivity coverage; #732 clean late spatial-extent divergence invalidation. Report: `area-i-2026-09-09.md`. |
+| J — identifiability, equifinality, calibration and discrimination | **complete — AV6-012/#737 P1** | #735/#737 real-study deterministic output-binding failure; #736 clean narrow-claim/equifinality control. Report: `area-j-2026-09-09.md`. |
 
-## Area I completion
+## Area J completion
 
-Area I is complete after one demonstrated defect, one causally independent clean convergence attack and direct frozen-target review of current sensitivity/design contracts.
+Area J is complete after one demonstrated P1 defect, one causally independent clean equifinality control and direct frozen-target review of current identifiability contracts.
 
-### AV6-011 / #733 — P2: vacuous long-run sensitivity coverage
+### AV6-012 / #737 — P1: deterministic outputs are not bound to authoritative executions
 
-Evidence-only PR #731 showed that the equilibrium-like long-run gate treats non-empty sensitivity arrays as mandatory coverage even when every entry exactly repeats the primary analysis. With primary start day 3285 and primary end day 8760, the no-op declarations:
+Evidence-only PR #735 used a real two-point `anthrosim-research` design with `duration_years = [1,2]` and two seeds per point. The production binder correctly reconstructed the immutable research identity, point coordinates, canonical structures and all four execution IDs.
 
-```text
-runLengthSensitivityEndDays = [8760]
-analysisStartSensitivityDays = [3285]
-analysisEndSensitivityDays = [8760]
-```
-
-produced:
+The truthful deterministic completion outputs `[1.0,1.0]` left both points compatible and the claimed duration parameter unidentifiable:
 
 ```text
-vacuous_coverage_complete=true
-vacuous_gate_status=passed
-vacuous_equilibrium_supported=true
+truthful_outputs=1.0,1.0 gate=false compatible=2 identified=false
 ```
 
-On the exact same trajectories and primary analysis, genuine alternative run-length/start/end choices were detected and the gate failed. Exact evidence head `51b13e0b4239382fb4b71b600ce78666e3034b76`; dedicated run `34381701126`; job `102567877647`; central CI `34381701039`; `Quality and tests` `102567934940` passed. PR #731 was closed unmerged after AV6-011/#733 was preserved; remediation remains deferred.
-
-### Clean independent control — late spatial-extent divergence
-
-Evidence-only PR #732 tested a separate spatial/domain convergence mechanism. The first disposable run failed before test execution because the audit workflow pinned Rust 1.92.0 instead of the repository-required 1.97.1. The harness pin alone was corrected.
-
-On corrected head `2e6b66c78716671fd947c95ba8d3c239c4d4b1cd`, dedicated run `34382359938` / job `102570080390` passed:
+Changing only the downstream deterministic output for the two-year point to `0.0`, while preserving the same real research root and exact executed-design binding, produced:
 
 ```text
-prefix_adequate=true
-prefix_trailing_stable=2
-late_adequate=false
-late_trailing_stable=0
-late_absolute_difference=50
-late_relative_difference_permille=334
-material_boundary_dependence=true
+contradictory_outputs=1.0,0.0 executed_design_bound=true gate=true compatible=1 identified=true
 ```
 
-Thus a later material domain divergence revokes an earlier adequate prefix rather than leaving a stale convergence classification. Exact-head `Quality and tests` job `102570152987` passed, as did the separate applicable scientific/security, provenance, landscape, determinism, observability, bundle and resume workflows. No new finding was demonstrated. PR #732 was closed unmerged.
+Exact evidence head `fa46d254f5e5c53dfce9fc5741f3a3047dba1c4b`; dedicated run `34383829078`; job `102574961144`; central CI `34383829226`; `Quality and tests` `102575010365` passed formatting, Clippy and the complete workspace suite. The separate scientific/security/provenance/determinism workflows were green. PR #735 was closed unmerged after AV6-012/#737 was preserved.
 
-### Frozen-target robustness/design inspection
+The mechanism is downstream of the repaired AV4-011 coordinate binding: point/parameter/structure/execution identities are proven, but `outputEvidence={"kind":"deterministic"}` does not prove that the supplied claim-driving value was derived from those executions. Remediation remains deferred.
 
-The v35 research definition preserves a complete authoritative base configuration and supports deterministic Cartesian expansion across multiple generic dimensions. Current validation rejects duplicate/overlapping dimension paths and structural alternatives whose executable projections are not genuinely distinct, preserving repaired structural-sensitivity semantics.
+### Clean independent control — narrow claim preserves broader equifinality
 
-The spatial-resolution contract is also explicit: `cell_space_resolution_dependent_v1` does not claim raster invariance, records `requiresResolutionSensitivity = true`, and requires resolution sensitivity/convergence or explicit conditional reporting before scale-independent physical interpretation.
+Evidence-only PR #736 uses a full factorial over claimed `theta`, nuisance parameter and two structures. Calibration legitimately identifies `theta=0` while leaving four compatible scientific states.
 
-AV6-006, AV6-008, AV6-009 and AV6-010 remain relevant cross-cutting constraints on robustness studies but are not double-counted as Area-I findings.
+Dedicated run `34384083382` / job `102575855189` passed:
 
-Detailed Area-I completion evidence: `docs/research/audit-v6/area-i-2026-09-09.md`.
+```text
+gate=true compatible=4 theta_identified=true nuisance_identified=false
+equifinality_present=true parameter_combination_equifinality=true structural_equifinality=true nuisance_compensation=['nuisance']
+```
 
-## Area J — active discovery
+Thus a successful narrow parameter claim does not erase nuisance compensation, parameter-combination equifinality or structural equifinality. No new finding was demonstrated. The completion-documentation PR must not merge until #736's ordinary exact-head suite is green and the evidence PR is closed unmerged.
 
-Primary scope: **identifiability, equifinality, calibration and discrimination**.
+### Frozen-target identifiability inspection
 
-Start Area J at zero fresh coverage. High-value falsification directions include:
+The v0.3.6 front end retains strong manifest-derived parameter/structure/execution binding, exact JSON-integer parameter arithmetic after AV5-007, non-negative held-out discrimination tolerance after AV5-006, disjoint calibration/held-out evidence roles and conservative compatible-region/equifinality reporting.
 
-- semantic binding between identifiability outputs and authoritative executed/finalized study results, not merely design-coordinate binding;
-- multiple parameter/model combinations fitting the same calibration outputs;
-- parameter compensation and nuisance dimensions;
-- structural equifinality and compatible-region reporting;
-- held-out discrimination and calibration/corroboration leakage;
-- profile/conditional sensitivity and interaction surfaces;
-- degenerate or vacuous claim declarations;
-- exact numeric fidelity after v0.3.6's large-integer identifiability repair;
-- whether upstream stochastic/provenance limitations are incorrectly treated as valid identifying evidence without duplicating AV6-009/AV6-010.
+AV6-010/#729 remains a separate stochastic value-binding defect and is not double-counted as Area-J evidence.
+
+Detailed Area-J completion evidence: `docs/research/audit-v6/area-j-2026-09-09.md`.
+
+## Area K — active discovery
+
+Primary scope: **experiment orchestration, configuration, provenance and reproducibility**.
+
+Start Area K at zero fresh coverage. Do not replay v5's successful relocation + missing `research-state.json` retry control. High-value fresh directions include:
+
+- consistency among immutable root plan/manifest, mutable orchestration state, validated child bundles and canonical derived indexes under partial recovery;
+- retry/reconciliation when individually valid artifacts are stale or cross-bound to another execution generation;
+- transactional publication/recovery when interrupted states leave scientifically ambiguous but structurally valid candidates;
+- source/revision and model-semantics identity across research, study finalization and downstream provenance;
+- canonical analysis/provenance replay when inputs are each valid but mutually inconsistent;
+- artifact-set completeness and provenance identity under stale, duplicate or substituted optional scientific artifacts;
+- whether AV6-010/#729 or AV6-012/#737 can be propagated as apparently authoritative downstream results without counting those same defects twice.
 
 ## Discovery phase rules
 
@@ -137,8 +129,8 @@ Start Area J at zero fresh coverage. High-value falsification directions include
 | G | Initialization, burn-in, path dependence, continuation state | **complete — AV6-008 P2** | #720/#721 P2; #723 clean. |
 | H | Stochasticity, RNG, ensembles, Monte Carlo inference | **complete — AV6-009 P1 + AV6-010 P1** | #725/#726 stopped-procedure undercoverage; #728/#729 sample-value semantic-binding failure. |
 | I | Sensitivity, uncertainty, convergence, robustness | **complete — AV6-011 P2** | #731/#733 no-op sensitivity-coverage failure; #732 clean late domain-divergence control. |
-| J | Identifiability, equifinality, calibration, discrimination | **active** | Fresh compatible-region, compensation, structural-equifinality, held-out-discrimination and output-binding attacks required. |
-| K | Experiment orchestration, configuration, provenance, reproducibility | **not started** | Defaults, sweeps, retry/resume/crash recovery, identities, artifact integrity, replay. |
+| J | Identifiability, equifinality, calibration, discrimination | **complete — AV6-012 P1** | #735/#737 deterministic output-binding failure; #736 clean equifinality control. |
+| K | Experiment orchestration, configuration, provenance, reproducibility | **active** | Fresh orchestration/provenance/recovery attack required. |
 | L | Observability, analysis outputs, statistical summaries | **not started** | Denominators, weighting, censoring/missingness, time windows, multimodality, incompatible-run mixing. |
 | M | Documentation, TRACE/ODD/ODD+D, claim consistency | **not started** | Executable v35 semantics versus living claims, null-model boundaries, releases, benchmark interpretation. |
 | N | Cross-system integration | **not started** | Fresh coupled attacks across neighbouring mechanisms and scientific-analysis surfaces. |
@@ -157,13 +149,14 @@ Start Area J at zero fresh coverage. High-value falsification directions include
 | `AV6-008` | **P2** | G primary; C/M/N | #720 head `550a8ed...`; unspecified founder genealogy treated as structural absence by fission | **#721** | open; remediation deferred |
 | `AV6-009` | **P1** | H primary; K/L/M/N | #725 head `0104b5d...`; exact stopped coverage `0.918976766485` vs declared `0.95` | **#726** | open; remediation deferred |
 | `AV6-010` | **P1** | H primary; K/L/M/N | #728 head `4410126...`; 30/30 authoritative completions accepted as contradictory 0/30 sample with provenance verify/replay pass | **#729** | open; remediation deferred |
-| `AV6-011` | **P2** | I primary; K/L/M/N | #731 head `51b13e0...`; exact no-op horizon/window arrays satisfy complete sensitivity coverage and pass equilibrium gate | **#733** | open; remediation deferred |
+| `AV6-011` | **P2** | I primary; K/L/M/N | #731 head `51b13e0...`; no-op horizon/window arrays satisfy complete sensitivity coverage | **#733** | open; remediation deferred |
+| `AV6-012` | **P1** | J primary; K/L/M/N | #735 head `fa46d25...`; same four bound executions flip from non-identifying to identified after one contradictory deterministic output | **#737** | open; remediation deferred |
 
 ## Discovery/remediation barrier and convergence
 
 Audit v6 is a **non-clean pass**. Required path:
 
-1. finish fresh discovery through Areas J–N against immutable v0.3.6/v35;
+1. finish fresh discovery through Areas K–N against immutable v0.3.6/v35;
 2. disposition all additional findings;
 3. only after discovery, remediate by severity/dependency;
 4. independently reverify every P0/P1 repair;
@@ -172,9 +165,9 @@ Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Areas **A–I are complete** once the Area-I completion documentation reaches protected `main`. Eleven findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2, AV6-006/#711 P1, AV6-007/#718 P2, AV6-008/#721 P2, AV6-009/#726 P1, AV6-010/#729 P1 and AV6-011/#733 P2.
+Audit-v6 Areas **A–J are complete** once the Area-J completion documentation reaches protected `main`. Twelve findings are open and deliberately unrepaired: AV6-001/#687 P1, AV6-002/#694 P2, AV6-003/#699 P2, AV6-004/#707 P1, AV6-005/#708 P2, AV6-006/#711 P1, AV6-007/#718 P2, AV6-008/#721 P2, AV6-009/#726 P1, AV6-010/#729 P1, AV6-011/#733 P2 and AV6-012/#737 P1.
 
-Next action: continue **Area J — identifiability, equifinality, calibration and discrimination** with a genuinely fresh adversarial attack against immutable v0.3.6/v35. Reconstruct live state/overlap before every new evidence branch; do not repair any v6 finding during discovery.
+Next action: continue **Area K — experiment orchestration, configuration, provenance and reproducibility** with a genuinely fresh adversarial attack against immutable v0.3.6/v35. Reconstruct live state/overlap before every new evidence branch; do not repair any v6 finding during discovery.
 
 ## Cross-session start instruction
 
