@@ -35,7 +35,9 @@ fn region(world: &World) -> FocalRegion {
 fn destination(resolution: TemporaryTravelResolution) -> CellId {
     match resolution {
         TemporaryTravelResolution::Reachable { destination, .. } => destination,
-        TemporaryTravelResolution::Unreachable => panic!("expected local M9 route to remain reachable"),
+        TemporaryTravelResolution::Unreachable => {
+            panic!("expected local M9 route to remain reachable")
+        }
     }
 }
 
@@ -69,8 +71,14 @@ fn unreachable_impassable_padding_cannot_change_local_equal_cost_m9_destination(
         assert_eq!(baseline_table.equal_cost_destination_count(origin), Some(2));
         assert_eq!(padded_table.equal_cost_destination_count(origin), Some(2));
         for destination in [CellId::new(1), CellId::new(3)] {
-            assert_eq!(baseline_table.route_distance_edges(origin, destination), Some(1));
-            assert_eq!(padded_table.route_distance_edges(origin, destination), Some(1));
+            assert_eq!(
+                baseline_table.route_distance_edges(origin, destination),
+                Some(1)
+            );
+            assert_eq!(
+                padded_table.route_distance_edges(origin, destination),
+                Some(1)
+            );
         }
         assert!(!model.is_traversable(&padded, CellId::new(4)));
 
