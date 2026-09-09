@@ -70,7 +70,7 @@ On the exact same trajectories and primary analysis, genuine alternative run-len
 
 ### Clean independent control — late spatial-extent divergence
 
-Evidence-only PR #732 tests a separate spatial/domain convergence mechanism. The first disposable run failed before test execution because the audit workflow pinned Rust 1.92.0 instead of the repository-required 1.97.1. The harness pin alone was corrected.
+Evidence-only PR #732 tested a separate spatial/domain convergence mechanism. The first disposable run failed before test execution because the audit workflow pinned Rust 1.92.0 instead of the repository-required 1.97.1. The harness pin alone was corrected.
 
 On corrected head `2e6b66c78716671fd947c95ba8d3c239c4d4b1cd`, dedicated run `34382359938` / job `102570080390` passed:
 
@@ -84,9 +84,7 @@ late_relative_difference_permille=334
 material_boundary_dependence=true
 ```
 
-Thus a later material domain divergence revokes an earlier adequate prefix rather than leaving a stale convergence classification. No new finding was demonstrated by this attack.
-
-The completion-documentation PR must not merge until #732's ordinary exact-head checks have completed without an unrelated failure; once classified, #732 is evidence-only and must close unmerged.
+Thus a later material domain divergence revokes an earlier adequate prefix rather than leaving a stale convergence classification. Exact-head `Quality and tests` job `102570152987` passed, as did the separate applicable scientific/security, provenance, landscape, determinism, observability, bundle and resume workflows. No new finding was demonstrated. PR #732 was closed unmerged.
 
 ### Frozen-target robustness/design inspection
 
