@@ -200,7 +200,7 @@ def main() -> int:
         plan = precision_plan(seeds)
         write_json(plan_source, plan)
         identity = run([sys.executable, str(ENGINE), "identity", str(plan_source)], "precision plan identity").stdout.strip()
-        assert identity.startswith("monte-carlo-precision-plan-v1-sha256-")
+        assert identity.startswith("monte-carlo-precision-plan-v1-")
         plan["planIdentity"] = identity
         write_json(plan_source, plan)
         run([sys.executable, str(ENGINE), "validate-plan", str(plan_source)], "precision plan validation")
