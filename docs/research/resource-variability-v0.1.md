@@ -15,7 +15,11 @@ The canonical definition is unchanged: 100 years, 5,000 founders, 64 × 64 synth
 
 These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.
 
-## Current v33 reference and provenance
+## Current v35 reference binding
+
+Audit-v5 AV5-001/#606 and AV5-004/#629 changed M9 equal-cost destination coupling but do not participate in this M7.6 M3/M4 resource-variability experiment. During the v35 repair line, protected CI reran all **144/144** canonical M7.6 simulations and reproduced the frozen numerical `pointResults` exactly. The machine reference was therefore rebound to `anthrosim-model-semantics-v35` as current provenance without changing the scientific table or interpretation below. The last causal M7.6 trajectory rebaseline remains the v33 M4 spatial-isomorphism repair recorded next.
+
+## Last causal v33 reference and provenance
 
 Audit-v4 AV4-009 / #518 changes causal same-seed M4 candidate-choice coupling: candidate uncertainty and weighted-choice intervals are no longer assigned through arbitrary canonical `CellId` / container ordering. The accepted repair evaluates deterministic utility first, partitions scientifically equivalent candidates by `(total utility, movement distance)`, assigns uncertainty at equivalence-class level, preserves class aggregate proportional weight and samples exact-class members exchangeably. The frozen M7.6 reference was therefore rerun and reviewed rather than forced to reproduce v32 values.
 
@@ -30,7 +34,7 @@ Reviewed v33 execution before reference synchronization:
 - model semantics: `anthrosim-model-semantics-v33`;
 - sweep ID: `anthrosim-sweep-v2-b56e7e725c1ea70e`.
 
-The `0.3.4` model-version value above is preserved execution provenance from the reviewed v33 rebaseline. The v0.3.5 release packages the same v33 scientific semantics; a package-version advance by itself does not rewrite that archived execution identity or require a new scientific reference result.
+The `0.3.4` model-version value above is preserved execution provenance from the reviewed v33 causal rebaseline. The v0.3.5 release packaged that v33 state. Later v35 release-line verification reproduced the same frozen M7.6 point results exactly; v0.3.6 packages the v35 framework state without rewriting the archived v33 execution identity.
 
 All **144/144** planned runs completed and were scientifically eligible, with no failed, incomplete, record-limit or otherwise operationally censored runs. The exact-head workflow failed only at its final equality assertion against the then-current frozen v32 point-results reference; the complete derived artifact was archived successfully and reviewed before the reference was changed.
 
@@ -38,7 +42,7 @@ The on/off control is exact and diagnostic for this M4-only repair: all **9/9 mi
 
 The reviewed v33 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls.
 
-## Current v33 point results
+## Preserved point results — last causal rebaseline v33, confirmed under v35
 
 The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
 
@@ -65,7 +69,7 @@ The table reports descriptive means over the eight scientifically eligible seeds
 
 Full unrounded point values are preserved in the machine-readable reference.
 
-## Current v33 interpretation
+## Current interpretation — confirmed under v35
 
 ### Productivity remains the strongest resource control
 

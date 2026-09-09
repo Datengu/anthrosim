@@ -4,8 +4,8 @@ title: "AnthroSim"
 type: software
 authors:
   - family-names: "Datengu"
-version: "0.3.5"
-date-released: 2026-09-07
+version: "0.3.6"
+date-released: 2026-09-09
 repository-code: "https://github.com/Datengu/anthrosim"
 url: "https://github.com/Datengu/anthrosim"
 license: "Apache-2.0"
@@ -24,12 +24,12 @@ abstract: >-
   AnthroSim is a reproducible agent-based simulation framework for deterministic
   demography, resource-constrained permanent household migration,
   evidence-grounded spatial experiments, and explicit temporary mobility and
-  aggregation under declared model assumptions. Version 0.3.5 preserves the
-  model-semantics-v33 state produced by the complete Scientific Audit v4
-  remediation programme. Audit v4 independently interrogated the immutable
-  v0.3.4/model-semantics-v25 baseline across Areas A-N, demonstrated 15 findings
-  (13 P1 and 2 P2), and all 15 were repaired and independently re-verified or
-  dispositioned before closure. The v0.3.5 baseline also incorporates the
-  subsequent repository-wide documentation-consistency reconciliation. This
-  release is framework-verification/convergence evidence; it does not establish
-  empirical archaeological validity or prove model correctness.
+  aggregation under declared model assumptions. Version 0.3.6 preserves the
+  model-semantics-v35 state produced by the completed Scientific Audit v5
+  remediation programme. Audit v5 independently interrogated the immutable
+  v0.3.5/model-semantics-v33 baseline across Areas A-N and demonstrated eight
+  findings (4 P1 and 4 P2). All eight were repaired or explicitly dispositioned,
+  and every P1 repair received independent post-merge adversarial re-verification.
+  Because Audit v5 discovered new P1 findings, it is a non-clean convergence pass;
+  v0.3.6 is the repaired baseline for further fresh independent auditing, not a
+  claim of empirical archaeological validity or model correctness.
