@@ -1,5 +1,5 @@
-use anthrosim_core::{World, WorldConfig, bounded_candidate_cells};
 use anthrosim_core::rng::RngFactory;
+use anthrosim_core::{World, WorldConfig, bounded_candidate_cells};
 
 fn world(width: u32, height: u32) -> World {
     World::generate(WorldConfig::new(width, height), RngFactory::new(712_001)).unwrap()
