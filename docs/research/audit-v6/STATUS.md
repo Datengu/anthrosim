@@ -48,15 +48,27 @@ Area A documentation disposition merged via PR #688 at `94b8ecb5d9b262a96792c4bb
 
 Area B starts from zero after reconstructing live state again:
 
-- protected `main`: `94b8ecb5d9b262a96792c4bbb243ae280c0a248e`;
+- protected `main` at this session's fresh reconstruction: `34959751515f128949c8c045e7fad14a28248895`;
 - immutable target: `v0.3.6` / `7d5e47309556e458477cd7283230871363b2c89a` / `anthrosim-model-semantics-v35`;
-- open issues: **1**, AV6-001 / #687 P1 from Area A;
-- open PRs: **0**;
-- Audit-v6 branches present are Area-A/groundwork evidence or documentation branches; none claims substantive Area B;
-- active ownership: **Area B — demography, fertility, mortality, ageing and population structure**;
+- open Audit-v6 issue: AV6-001 / #687 P1 from Area A;
+- active Area-B evidence PR #690 was inspected at exact head `e387192ce7d2d5193e101d514e8c64d2806dce1c`, dispositioned, and closed unmerged;
+- active ownership remains **Area B — demography, fertility, mortality, ageing and population structure**;
 - #687 is cross-cutting to later movement/resource integration but does not overlap the independent Area-B demographic audit surface.
 
-Area B must generate fresh v6 evidence beyond prior demographic regressions. Primary attack directions are limiting cases and structural controls for fertility/mortality competition, age-boundary timing, mate limitation, extinction/censoring, newborn state, finite-population behaviour and demographic dependence on scientifically irrelevant representation/order.
+### Fresh Area-B evidence disposition: parentage-stream insertion locality
+
+Evidence-only PR #690 constructed a deliberately isolated parentage-stream locality attack:
+
+- the focal Cell-2 household was unchanged between arms and contained one certain-birth female plus two scientifically distinct eligible males;
+- mortality was zero, fertility certain, spacing zero, resource need neutralized and migration disabled;
+- the augmented arm added a separate Cell-1 household whose older female was processed first and whose only eligible male made that remote paternity outcome deterministic;
+- the oracle required the unchanged focal two-male parentage choice to remain unchanged across identical seeds `0..1023` despite the separate-cell deterministic birth.
+
+At exact evidence head `e387192ce7d2d5193e101d514e8c64d2806dce1c`, central CI run `34303025218` reached the controlled red scientific assertion in `Quality and tests` job `102313886432`; format, Clippy and the applicable scientific/security gates were green. Historical/current duplicate search showed that this is **not a distinct AV6 finding**: it is fresh v6 evidence for the already-declared sequential-stream/common-random-number limitation in closed #214, now demonstrated specifically in `demography/parentage`. The v6 evidence was recorded on #214 and PR #690 was closed unmerged.
+
+This disposition is distinct from AV4-005/#495, which covered arbitrary male-label/order assignment within one local choice set, and AV5-002/#617, which covered close-kin eligibility scope. No production repair is authorized during v6 discovery.
+
+Area B remains incomplete. The next fresh attack must be scientifically distinct from the accepted #214 cross-arm draw-consumption limitation and should preferentially target a different required Area-B surface such as age-boundary timing, mortality/fertility limiting cases, extinction/censoring, newborn initialization, or finite-population replacement behaviour.
 
 ## Discovery phase rules
 
@@ -75,7 +87,7 @@ Area B must generate fresh v6 evidence beyond prior demographic regressions. Pri
 | ID | Area | Status | Fresh v6 direction / evidence |
 |---|---|---|---|
 | A | Authoritative semantics and scheduler behaviour | **complete — AV6-001 P1 open** | `area-a-2026-09-09.md`; #684 no-finding scheduler-equivalence evidence; #686/#687 demonstrated P1 same-day M9/M4 inversion. |
-| B | Demography, fertility, mortality, ageing, population structure | **in progress** | Fresh limiting cases/structural controls for fertility-mortality competition, mate limitation, age/lifecycle timing, extinction/censoring, newborn state and finite-population effects. |
+| B | Demography, fertility, mortality, ageing, population structure | **in progress** | #690 fresh deterministic-remote parentage insertion-locality attack reproduced known #214 sequential-stream coupling and was closed unmerged with no new AV6 finding; continue with a scientifically distinct age/mortality/extinction/newborn/finite-population attack. |
 | C | Households, kinship, social links, lifecycle structure | **not started** | Formation/fission/parentage lifecycle invariants, relationship-order dependence and downstream demographic/mobility coupling. |
 | D | Resources, condition, subsistence, depletion/recovery | **not started** | Depletion/replenishment cadence, allocation order/ties, realized-vs-nominal effects and initialization dependence. |
 | E | Spatial landscape, movement, migration, temporary mobility, boundaries | **not started** | Symmetry/isomorphism, boundaries, unreachable/equal-cost choices, transformed-input and local-coupling attacks. |
@@ -108,9 +120,9 @@ Because AV6-001 is P1, Audit v6 is a **non-clean pass**. Required path:
 
 ## Current handoff
 
-Audit-v6 Area A is complete; **Area B is actively owned and in discovery**. AV6-001/#687 remains open and unrepaired by design. No open PR or other branch owns substantive Area B at session start.
+Audit-v6 Area A is complete; **Area B remains actively owned and in discovery**. AV6-001/#687 remains open and unrepaired by design. Fresh Area-B evidence PR #690 has been dispositioned as additional evidence for known #214 sequential-stream coupling and closed unmerged; it does not create AV6-002.
 
-Next action: inspect immutable v0.3.6 demographic implementation/documentation and prior finding history only to avoid duplicates, then execute genuinely fresh Area-B adversarial evidence before any Area-B disposition.
+Next action: execute a genuinely fresh Area-B adversary that is not merely another manifestation of cross-arm sequential RNG draw consumption. Prefer age-boundary timing, mortality/fertility limiting cases, extinction/censoring, newborn initialization, or finite-population replacement behaviour; search historical/current issues before any finding disposition.
 
 ## Cross-session start instruction
 
