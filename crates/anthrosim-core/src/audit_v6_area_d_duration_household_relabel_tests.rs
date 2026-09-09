@@ -1,6 +1,5 @@
 use crate::{
-    ids::CellId,
-    resources::duration_weighted_needs,
+    ids::CellId, resources::duration_weighted_needs,
     temporary_resource::TemporaryResourcePresenceDays,
 };
 
