@@ -1,0 +1,26 @@
+name: Audit v6 Area D person-label resource tie adversary
+
+on:
+  pull_request:
+    paths:
+      - 'crates/anthrosim-core/tests/audit_v6_area_d_person_label_resource_tie.rs'
+      - '.github/workflows/audit-v6-area-d-person-label-resource-tie.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  person-label-resource-tie:
+    name: Person-label scarce-resource tie adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Run fresh Audit-v6 Area-D PersonId relabelling adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v6_area_d_person_label_resource_tie -- --nocapture
