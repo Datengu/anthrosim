@@ -271,10 +271,16 @@ fn root_aware_verifier_rejects_self_consistent_binding_over_semantically_forged_
     println!("immutable_plan_treatments={immutable_values:?}");
     print!("{}", String::from_utf8_lossy(&tampered.stdout));
     println!("producer_finalize_rejects=true");
-    println!("producer_error={}", String::from_utf8_lossy(&producer_recheck.stderr).trim());
+    println!(
+        "producer_error={}",
+        String::from_utf8_lossy(&producer_recheck.stderr).trim()
+    );
     print!("{}", String::from_utf8_lossy(&verifier.stdout));
     if !verifier.stderr.is_empty() {
-        println!("verifier_stderr={}", String::from_utf8_lossy(&verifier.stderr).trim());
+        println!(
+            "verifier_stderr={}",
+            String::from_utf8_lossy(&verifier.stderr).trim()
+        );
     }
 
     assert!(
