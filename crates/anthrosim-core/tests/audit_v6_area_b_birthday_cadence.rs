@@ -111,8 +111,7 @@ fn focal_outcome(seed: u64, periods_per_year: u16, start_band_mortality: u32) ->
     });
 
     assert_eq!(
-        female_gave_birth,
-        !female_died,
+        female_gave_birth, !female_died,
         "certain interval-start fertility with one immortal local male must produce a birth iff the focal female survives the model year"
     );
 
