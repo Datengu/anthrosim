@@ -33,8 +33,6 @@ fn landscape(padded: bool) -> LandscapeBundle {
     let mut terrain = vec![0, 0, 0];
     let mut resources = vec![1_000, 1_000, 1_000];
     if padded {
-        // The extra cell is outside the focal region and transforms to movement cost 6,000,
-        // above the M9 traversal ceiling of 5,000. It therefore cannot enter any local route.
         terrain.push(1_000);
         resources.push(0);
     }
@@ -51,11 +49,7 @@ fn landscape(padded: bool) -> LandscapeBundle {
         },
         vec![
             layer("terrain", LandscapeLayerRole::TerrainTraversal, terrain),
-            layer(
-                "resources",
-                LandscapeLayerRole::ResourceOpportunity,
-                resources,
-            ),
+            layer("resources", LandscapeLayerRole::ResourceOpportunity, resources),
         ],
     )
 }
@@ -152,7 +146,6 @@ fn experiment(process_seed: u64, width: u32) -> ExperimentConfig {
     let mut resources = ResourceConfig::synthetic_validation_v1();
     resources.periods_per_year = 1;
     resources.annual_need_units_per_person = 365;
-    resources.annual_regeneration_units_per_productivity = 0;
     resources.seasonality_scale_permille = 0;
     resources.condition_recovery_per_period = 0;
     resources.max_condition_loss_per_period = 0;
@@ -257,9 +250,6 @@ fn run_arm(process_seed: u64, padded: bool) -> ArmResult {
 
 #[test]
 fn impassable_padding_m9_locality_failure_propagates_into_aggregation_and_resources() {
-    // Area E / AV6-006 established that an unreachable impassable padding cell can relabel the
-    // local equal-cost M9 ambiguity. Area N composes that defect with actual M9 presence and M3
-    // duration-aware resource accounting rather than stopping at destination identity.
     let mut demonstrated = None;
     for process_seed in 0..128_u64 {
         let baseline = run_arm(process_seed, false);
@@ -284,8 +274,6 @@ fn impassable_padding_m9_locality_failure_propagates_into_aggregation_and_resour
     assert_eq!(baseline.visitor_person_days[1], 0);
     assert_eq!(padded.visitor_person_days[1], 0);
 
-    // The one-person fixture has one unit of need per model day. Five visiting days therefore
-    // remove exactly five units from whichever unchanged local destination was selected.
     assert_eq!(baseline.food_stock[1], padded.food_stock[1]);
     assert_eq!(
         padded.food_stock[baseline_destination_index]
