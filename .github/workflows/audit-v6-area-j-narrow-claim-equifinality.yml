@@ -1,0 +1,25 @@
+name: Audit v6 Area J narrow claim equifinality
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v6-area-j-narrow-claim-equifinality.py"
+      - ".github/workflows/audit-v6-area-j-narrow-claim-equifinality.yml"
+      - "scripts/research-identifiability.py"
+      - "scripts/research-identifiability-legacy.py"
+
+permissions:
+  contents: read
+
+jobs:
+  narrow-claim-equifinality:
+    name: Narrow claim preserves broader equifinality
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Run equifinality control
+        run: python3 scripts/audit-v6-area-j-narrow-claim-equifinality.py
