@@ -57,8 +57,14 @@ fn unique_m9_boundary_corridor_is_invariant_to_impassable_embedding_padding() {
     assert!(!model.is_traversable(&padded, left_padding));
     assert!(!model.is_traversable(&padded, right_padding));
 
-    assert_eq!(baseline_table.accumulated_cost_units(baseline_origin), Some(2_000));
-    assert_eq!(padded_table.accumulated_cost_units(padded_origin), Some(2_000));
+    assert_eq!(
+        baseline_table.accumulated_cost_units(baseline_origin),
+        Some(2_000)
+    );
+    assert_eq!(
+        padded_table.accumulated_cost_units(padded_origin),
+        Some(2_000)
+    );
     assert_eq!(
         baseline_table.equal_cost_destination_count(baseline_origin),
         Some(1)
@@ -76,8 +82,7 @@ fn unique_m9_boundary_corridor_is_invariant_to_impassable_embedding_padding() {
         Some(2)
     );
 
-    let baseline_resolution =
-        baseline_table.resolution_for_coupling_key(baseline_origin, 47, 0);
+    let baseline_resolution = baseline_table.resolution_for_coupling_key(baseline_origin, 47, 0);
     let padded_resolution = padded_table.resolution_for_coupling_key(padded_origin, 47, 0);
 
     eprintln!(
