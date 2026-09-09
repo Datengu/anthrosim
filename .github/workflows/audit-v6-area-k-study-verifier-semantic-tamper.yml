@@ -1,0 +1,36 @@
+name: Audit v6 Area K study verifier semantic tamper
+
+on:
+  pull_request:
+    paths:
+      - "crates/anthrosim-cli/tests/audit_v6_area_k_study_verifier_semantic_tamper.rs"
+      - "scripts/audit-v6-area-k-study-verifier-semantic-tamper.py"
+      - ".github/workflows/audit-v6-area-k-study-verifier-semantic-tamper.yml"
+      - "crates/anthrosim-cli/src/bin/anthrosim-study.rs"
+      - "crates/anthrosim-cli/src/bin/anthrosim-research.rs"
+      - "scripts/research-study-result-binding.py"
+      - "scripts/research-study-result-binding-legacy.py"
+
+permissions:
+  contents: read
+
+jobs:
+  study-verifier-semantic-tamper:
+    name: Finalized-study producer/verifier semantic adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Run producer/verifier semantic adversary
+        run: |
+          cargo test --locked -p anthrosim-cli \
+            --test audit_v6_area_k_study_verifier_semantic_tamper -- --nocapture
