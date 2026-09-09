@@ -22,7 +22,7 @@ This is the repository-authoritative compact ledger for Scientific Audit v6. Det
 | Authoritative Audit-v6 findings | **0** |
 | Open Audit-v6 findings | **0** |
 | Open P0/P1 | **0** |
-| Phase | **discovery initialized; no Area completed yet** |
+| Phase | **Area A discovery in progress; no Area completed yet** |
 | Production remediation | **prohibited until full A–N discovery completes, except documented repository-integrity emergency** |
 | Desired convergence result | **fresh P1-clean pass: no new P0/P1 findings** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
@@ -44,6 +44,23 @@ Audit-v6 groundwork was initialized only after reconstructing the live repositor
 
 No simulator semantics, scientific configuration, benchmark reference or release identity is changed by audit initialization.
 
+## Active discovery session — 2026-09-09 / Area A
+
+Area A began from zero after reconstructing live state again:
+
+- protected `main` at session start: `3824babf16eb04cb0797cd8bef3f336961fd6a69` (Audit-v6 initialization merge only beyond the frozen release);
+- immutable target: `v0.3.6` / `7d5e47309556e458477cd7283230871363b2c89a` / `anthrosim-model-semantics-v35`;
+- open issues at session start: **0**;
+- open PRs at session start: **0**;
+- pre-existing Audit-v6 branch: `audit/v6-groundwork`; no overlapping substantive Area-A owner was present;
+- active ownership: **Area A — authoritative semantics and scheduler behaviour**.
+
+Fresh evidence-only PR **#684**, exact evidence head `d70cf3de2a8c0b851c72554f6da7aab054512543`, starts directly from immutable `v0.3.6`. It attacks duplicated core/spatial scheduler implementations by wrapping the exact generated core world in a mathematically identity movement transform, holding environment/population/process seed roles equal, and requiring complete core-checkpoint equality across four seeds and M3/M4 cadence pairs `(1,1)`, `(4,4)`, `(12,4)`, `(4,12)`, `(365,365)` over three years. This is fresh v6 evidence rather than a replay of Audit-v5 #608 or #610. The PR remains evidence-only and must not be merged merely because it passes.
+
+Frozen-source inspection has additionally confirmed the executable fixed-day order in both core and spatial hosts as M3 resource/background-mortality settlement → due M9 transition processing → M4 migration → annual M2 demography → optional annual household lifecycle, with the corresponding living research contracts documenting the same intended order. Target-arrival M9 reconsideration and post-M4 same-day boundary behaviour remain under active attack before Area A can be completed.
+
+A v35 M9 design property was also inspected without being classified as a new finding: exact demographic-duplicate households deliberately share the `m9/household-local-demographic-equivalence-v1` ambiguity key. That coupling is explicitly documented in the v34 repair/equal-cost-choice contract, so its potential joint-correlation consequences are retained as a later H/F/L interpretation surface rather than being relabelled as an Area-A implementation defect without fresh contrary evidence.
+
 ## Discovery phase rules
 
 - Start every Area at zero coverage.
@@ -63,7 +80,7 @@ No simulator semantics, scientific configuration, benchmark reference or release
 
 | ID | Area | Status | Fresh v6 emphasis / required direction |
 |---|---|---|---|
-| A | Authoritative semantics and scheduler behaviour | **not started** | Attack event ordering, simultaneous-process assumptions, hidden iteration priority, boundary timing, scientific-key/canonicalization effects and composition of repaired coupling semantics. |
+| A | Authoritative semantics and scheduler behaviour | **in progress — evidence PR #684** | Fresh exact core-vs-identity-spatial host equivalence across coincident/non-coincident/maximal fixed clocks is running. Source/document scheduler-order review is complete; target-arrival M9 × M4 same-day reconsideration remains under attack before disposition. |
 | B | Demography, fertility, mortality, ageing, population structure | **not started** | Fresh limiting cases and structural controls for fertility/mortality competition, mate limitation, lifecycle timing, extinction/censoring and finite-population effects. |
 | C | Households, kinship, social links, lifecycle structure | **not started** | Challenge formation/fission/parentage lifecycle invariants, relationship-order dependence, household equivalence/locality and downstream demographic/mobility coupling. |
 | D | Resources, condition, subsistence, depletion/recovery | **not started** | Probe depletion/replenishment cadence, allocation order/ties, realized-vs-nominal costs, initialization dependence and resource coupling under structural perturbation. |
@@ -153,15 +170,15 @@ Neither outcome constitutes empirical calibration or validation.
 
 ## Current handoff
 
-Audit-v6 groundwork is initialized; **no substantive Area discovery has yet been credited**.
+Audit-v6 **Area A is actively in discovery** against immutable `v0.3.6` / v35; no Area is yet complete and no v6 finding has yet been demonstrated.
 
 Next recommended action:
 
-1. merge the initialization documentation after normal review/CI;
-2. reconstruct live repository state from the merged head and immutable `v0.3.6`;
-3. begin **Area A — authoritative semantics and scheduler behaviour** from zero coverage;
-4. create fresh evidence rather than simply replaying Audit-v5 Area-A tests;
-5. update this ledger before handoff.
+1. disposition evidence-only PR #684 from its exact-head result without merging the evidence branch;
+2. complete the fresh target-arrival M9 × M4 same-day scheduler attack identified during source review;
+3. reconcile Area-A source/document review, fresh evidence and residual uncertainty;
+4. only then mark Area A complete or preserve any demonstrated finding;
+5. continue to the next independent Area from zero coverage.
 
 ## Cross-session start instruction
 
