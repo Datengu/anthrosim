@@ -30,6 +30,11 @@ _original_fixtures = _legacy.fixtures
 _original_make_analysis = _legacy.make_analysis
 _context: dict[str, object] = {}
 
+_POINT_ID = "research-point-v1-observable-support"
+_RUN_ID = "run-1"
+_RELATIVE_DIR = "runs/point-0000/seed-0000-1"
+_RUN_CONFIG = {"experiment": {"durationYears": 1}}
+
 
 def fixtures():
     plan, _old_binding, _old_assessment = _original_fixtures()
@@ -66,8 +71,38 @@ def fixtures():
         protocol_identity, definition_identity, source
     )
     research_id = _binding.research_execution_identity(definition_identity, source)
-    points = {"schemaVersion": 1, "researchId": research_id, "points": []}
-    runs = {"schemaVersion": 1, "researchId": research_id, "runs": []}
+    coordinates: list[dict] = []
+    points = {
+        "schemaVersion": 1,
+        "researchId": research_id,
+        "points": [
+            {
+                "pointId": _POINT_ID,
+                "index": 0,
+                "coordinates": coordinates,
+                "resultingConfiguration": _RUN_CONFIG,
+                "runIds": [_RUN_ID],
+            }
+        ],
+    }
+    runs = {
+        "schemaVersion": 1,
+        "researchId": research_id,
+        "runs": [
+            {
+                "pointId": _POINT_ID,
+                "runId": _RUN_ID,
+                "seed": 1,
+                "coordinates": coordinates,
+                "resultingConfiguration": _RUN_CONFIG,
+                "relativeDir": _RELATIVE_DIR,
+                "attempt": 1,
+                "state": "completed",
+                "stateDigest64": 101,
+                "error": None,
+            }
+        ],
+    }
     points_bytes = _legacy.canonical_bytes(points)
     runs_bytes = _legacy.canonical_bytes(runs)
     binding = {
@@ -124,6 +159,7 @@ def fixtures():
             "definitionIdentity": definition_identity,
             "studyExecutionId": study_execution_id,
             "researchId": research_id,
+            "coordinates": coordinates,
             "points": points,
             "runs": runs,
             "binding": binding,
@@ -138,6 +174,7 @@ def _ensure_finalized_root(root: Path) -> None:
     protocol = _context["protocol"]
     definition = _context["definition"]
     source = _context["source"]
+    coordinates = _context["coordinates"]
     plan = {
         "schemaVersion": 1,
         "studyExecutionId": _context["studyExecutionId"],
@@ -160,6 +197,24 @@ def _ensure_finalized_root(root: Path) -> None:
         "definitionIdentity": _context["definitionIdentity"],
         "source": source,
         "definition": definition,
+        "points": [
+            {
+                "point": {
+                    "pointId": _POINT_ID,
+                    "index": 0,
+                    "coordinates": coordinates,
+                    "runConfig": _RUN_CONFIG,
+                },
+                "runs": [
+                    {
+                        "seed": 1,
+                        "runId": _RUN_ID,
+                        "relativeDir": _RELATIVE_DIR,
+                        "runConfig": _RUN_CONFIG,
+                    }
+                ],
+            }
+        ],
     }
     _legacy.write(root / "research/research-manifest.json", research_plan)
     _legacy.write(root / "research/research-plan.json", research_plan)
@@ -168,7 +223,18 @@ def _ensure_finalized_root(root: Path) -> None:
         {
             "schemaVersion": 1,
             "researchId": _context["researchId"],
-            "runs": {"run-1": {"state": "completed"}},
+            "runs": {
+                _RUN_ID: {
+                    "runId": _RUN_ID,
+                    "pointId": _POINT_ID,
+                    "seed": 1,
+                    "relativeDir": _RELATIVE_DIR,
+                    "attempt": 1,
+                    "state": "completed",
+                    "stateDigest64": 101,
+                    "error": None,
+                }
+            },
         },
     )
     _legacy.write(root / "research/analysis/points.json", _context["points"])

@@ -129,7 +129,7 @@ Finalization verifies:
 5. the executed `definitionIdentity`, exact definition and source revision equal the pre-execution study plan;
 6. the child `researchId` recomputes using the **same field-order identity algorithm as `anthrosim-research`**;
 7. `research-state.json` belongs to that exact research execution and contains no still-planned/running runs;
-8. the standard `analysis/points.json` and `analysis/runs.json` identify that same research execution.
+8. the standard `analysis/points.json` and `analysis/runs.json` exactly equal the producer-defined canonical projection of the immutable research plan plus reconciled research state, including point/run identity, coordinates, resulting configuration, seed, relative directory, attempt, terminal state, state digest and error fields.
 
 It then writes immutable `study-result-binding.json`, containing:
 
@@ -144,6 +144,8 @@ It then writes immutable `study-result-binding.json`, containing:
 - each bound result-artifact path **and a digest of its exact bytes**.
 
 The result-artifact digests mean a later change to an analysis artifact can no longer silently retain the old result binding. Running `finalize` again is idempotent when nothing changed. If the frozen protocol, research identity or bound result bytes differ, finalization fails rather than rewriting provenance.
+
+Root-aware verification of an existing finalized study applies the same scientific authority as the producer rather than treating a freshly self-consistent binding as sufficient. Verification recomputes binding identity and digests, checks frozen study/protocol/research lineage, validates the exact research-state run set against the immutable plan, deterministically rederives both canonical analysis tables, and rejects any mismatch before returning a verified result. Recomputing artifact digests and `resultIdentity` after editing canonical treatment/configuration rows therefore cannot make those rows authoritative.
 
 For studies that claim held-out/independent corroboration, #206/#423 then derives `analysis/evidence-role-assessment.json` from this exact finalized binding. Derivation re-resolves every confirmatory evidence ID through the EvidenceCatalog inside the frozen definition, preserves each resolved source identity and source object, and refuses same-source/same-target aliasing. Later `verify` re-derives those bindings; mutation of either the assessment or the frozen source provenance invalidates verification.
 
@@ -180,4 +182,3 @@ After this contract is used, a confirmatory result can identify one immutable pr
 ## Observable-support downstream requirement (Audit-v3 AV3-007)
 
 A protocol observable that carries an `observable-support-plan-v1:<plan identity>` interpretation binding causes finalization to publish an `analysisRequirements` entry of kind `observable_support_sensitivity` for that exact plan. This does not assert that the downstream primary/alternative analyses have already run; it makes their execution an explicit provenance obligation of the finalized result. The post-result support assessment and sensitivity report must resolve that obligation through analysis provenance v2. Protocols without such a binding retain the pre-existing result-binding identity contract.
-
