@@ -9,6 +9,7 @@ real ``anthrosim-research`` roots without changing the historical synthetic-fixt
 from __future__ import annotations
 
 import argparse
+import copy
 import importlib.util
 import json
 from pathlib import Path
@@ -74,6 +75,35 @@ def _output_binding_failure_result(
     return result
 
 
+def _legacy_data_after_authoritative_binding(data: dict[str, Any]) -> dict[str, Any]:
+    """Remove only metadata already validated by the AV6-012 authority layer.
+
+    The frozen statistical implementation intentionally accepts deterministic declarations only as
+    ``{\"kind\":\"deterministic\"}``. Real-study derivation metadata is therefore stripped from a
+    private copy *after* the authoritative resolver has validated it. The original downstream table
+    and complete derivation remain untouched and are preserved in ``authoritativeOutputBinding``.
+    """
+
+    legacy_data = copy.deepcopy(data)
+    points = legacy_data.get("points")
+    if not isinstance(points, list):
+        return legacy_data
+    for point in points:
+        if not isinstance(point, dict):
+            continue
+        evidence = point.get("outputEvidence")
+        if not isinstance(evidence, dict):
+            continue
+        for observable, declaration in list(evidence.items()):
+            if (
+                isinstance(declaration, dict)
+                and declaration.get("kind") == "deterministic"
+                and "derivation" in declaration
+            ):
+                evidence[observable] = {"kind": "deterministic"}
+    return legacy_data
+
+
 def analyse(
     plan: dict[str, Any],
     data: dict[str, Any],
@@ -98,7 +128,12 @@ def analyse(
                 authoritative_output_errors,
             )
 
-    result = core.analyse(plan, data, design_binding)
+    core_data = (
+        _legacy_data_after_authoritative_binding(data)
+        if authoritative_output_binding is not None
+        else data
+    )
+    result = core.analyse(plan, core_data, design_binding)
     if authoritative_output_binding is not None:
         result["authoritativeOutputBinding"] = authoritative_output_binding
         result["researchGate"]["authoritativeOutputsBound"] = True
