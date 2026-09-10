@@ -1,0 +1,311 @@
+from pathlib import Path
+
+
+def replace_once(path: str, old: str, new: str) -> None:
+    p = Path(path)
+    text = p.read_text()
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected exactly one match, found {count}")
+    p.write_text(text.replace(old, new, 1))
+
+
+replace_once(
+    "crates/anthrosim-core/src/resources.rs",
+    """                let cell_phase =
+                    u64::try_from(cell_index).map_err(|_| ResourceError::AccountingOverflow)?;
+                let rotation = usize::try_from(
+                    period_sequence
+                        .checked_add(cell_phase)
+                        .ok_or(ResourceError::AccountingOverflow)?
+                        % group_len_u64,
+                )
+                .map_err(|_| ResourceError::AccountingOverflow)?;
+""",
+    """                // Exact-remainder fairness rotates through the scientific household-coupling
+                // order over resource periods only. Canonical cell identity is bookkeeping and
+                // must not alter corresponding allocation under a spatial isomorphism.
+                let rotation = usize::try_from(period_sequence % group_len_u64)
+                    .map_err(|_| ResourceError::AccountingOverflow)?;
+""",
+)
+
+marker = """    #[test]
+    fn relabeling_equal_claims_does_not_create_long_run_resource_advantage() {
+"""
+inserted = """    #[test]
+    fn equal_scarcity_remainder_rotation_is_independent_of_cell_index() {
+        let canonical = [
+            ResourceDemandClaim {
+                household_index: 0,
+                household_coupling_key: 10,
+                cell_index: 0,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                household_coupling_key: 20,
+                cell_index: 0,
+                need: 1,
+            },
+        ];
+        let reflected = [
+            ResourceDemandClaim {
+                household_index: 0,
+                household_coupling_key: 10,
+                cell_index: 1,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                household_coupling_key: 20,
+                cell_index: 1,
+                need: 1,
+            },
+        ];
+
+        for period_sequence in 0..8 {
+            let (canonical_harvest, canonical_cells) =
+                apportion_resource_claims(&canonical, &[2, 0], &[1, 0], period_sequence).unwrap();
+            let (reflected_harvest, reflected_cells) =
+                apportion_resource_claims(&reflected, &[0, 2], &[0, 1], period_sequence).unwrap();
+
+            assert_eq!(canonical_harvest, reflected_harvest);
+            assert_eq!(canonical_cells, vec![1, 0]);
+            assert_eq!(reflected_cells, vec![0, 1]);
+        }
+    }
+
+""" + marker
+replace_once("crates/anthrosim-core/src/resources.rs", marker, inserted)
+
+replace_once(
+    "crates/anthrosim-core/src/provenance.rs",
+    """/// eligible and a fresh simulation may still depart on day zero. A v35 checkpoint must not resume
+/// under v36 while silently changing the order or outcome of future M9/M4 boundary interactions.
+pub const MODEL_SEMANTICS_ID: &str = \"anthrosim-model-semantics-v36\";
+""",
+    """/// eligible and a fresh simulation may still depart on day zero. A v35 checkpoint must not resume
+/// under v36 while silently changing the order or outcome of future M9/M4 boundary interactions.
+///
+/// v37 removes canonical resource-cell index from the exact equal-remainder award phase in M3
+/// scarce-resource apportionment. Equal fractional remainders remain ordered by persistent
+/// household scientific coupling identity and retain deterministic long-run fairness by rotating
+/// over resource-period sequence only. Pure spatial reflections can therefore no longer change
+/// which scientifically corresponding household receives an indivisible unit merely because its
+/// occupied cell has a different row-major index. A v36 checkpoint must not resume under v37 while
+/// silently changing future scarce-resource allocation and downstream condition trajectories.
+pub const MODEL_SEMANTICS_ID: &str = \"anthrosim-model-semantics-v37\";
+""",
+)
+
+replace_once(
+    "crates/anthrosim-core/src/lib.rs",
+    """pub mod world;
+
+#[cfg(test)]
+mod competing_mortality_acceptance_tests;
+""",
+    """pub mod world;
+
+#[cfg(test)]
+mod av6_004_resource_cell_reflection_tests;
+#[cfg(test)]
+mod competing_mortality_acceptance_tests;
+""",
+)
+
+current_docs = [
+    "README.md",
+    "docs/architecture.md",
+    "docs/roadmap.md",
+    "docs/scientific-model.md",
+    "docs/research/README.md",
+    "docs/research/trace.md",
+    "docs/research/odd.md",
+    "docs/research/odd-d.md",
+]
+for path in current_docs:
+    p = Path(path)
+    text = p.read_text()
+    if "current model semantics v36" not in text:
+        raise SystemExit(f"{path}: missing expected living v36 identity")
+    p.write_text(text.replace("current model semantics v36", "current model semantics v37"))
+
+replace_once(
+    "README.md",
+    "living v36 contains post-discovery Audit-v6 remediation.",
+    "living v37 contains post-discovery Audit-v6 remediation through the AV6-004 scarce-resource symmetry repair.",
+)
+replace_once(
+    "docs/roadmap.md",
+    "Living v36 repairs the Audit-v6 same-day M9/M4 scheduler seam without rewriting any immutable release or audit target.",
+    "Living v37 retains the v36 same-day M9/M4 scheduler repair and removes canonical resource-cell identity from exact scarce-resource remainder ties without rewriting any immutable release or audit target.",
+)
+replace_once(
+    "docs/architecture.md",
+    "under current v36 semantics (rule introduced at v33)",
+    "under current v37 semantics (rule introduced at v33)",
+)
+replace_once(
+    "docs/architecture.md",
+    "- fixed-day M9/M4 scheduler ordering cannot be re-entered retroactively after a completed positive boundary; future target-arrival reconsideration remains available and day zero remains eligible on fresh execution (v36).\n",
+    "- fixed-day M9/M4 scheduler ordering cannot be re-entered retroactively after a completed positive boundary; future target-arrival reconsideration remains available and day zero remains eligible on fresh execution (v36).\n- scarce-resource exact-remainder awards retain household scientific coupling and temporal fairness rotation while removing canonical cell index from the tie phase, so spatially corresponding scarcity problems allocate equivariantly (v37).\n",
+)
+replace_once(
+    "docs/architecture.md",
+    "Under scarcity, indivisible remainder units are allocated using the current v32 scientific household coupling/fairness rule rather than arbitrary household or claim-vector order.",
+    "Under scarcity, indivisible remainder units are allocated using the current v37 scientific household-coupling rule with period-only fairness rotation rather than arbitrary household, claim-vector or canonical cell order.",
+)
+replace_once(
+    "docs/release-versioning.md",
+    "Scientific Audit v6 then challenged immutable `v0.3.6` / `anthrosim-model-semantics-v35` and completed fresh A–N discovery with 14 findings (7 P1 and 7 P2). Controlled remediation is now active on the living source line. AV6-001 changes authoritative fixed-day M9/M4 scheduling semantics, so the current executable identity advances to **`anthrosim-model-semantics-v36`** while the package version remains `0.3.6`; this living identity does not rewrite the immutable v0.3.6/v35 release or its Audit-v6 discovery evidence.",
+    "Scientific Audit v6 then challenged immutable `v0.3.6` / `anthrosim-model-semantics-v35` and completed fresh A–N discovery with 14 findings (7 P1 and 7 P2). Controlled remediation is now active on the living source line. AV6-001 advanced authoritative fixed-day M9/M4 scheduling semantics to `anthrosim-model-semantics-v36`. AV6-004 then removes canonical resource-cell identity from exact scarce-resource remainder ties, so the current executable identity advances to **`anthrosim-model-semantics-v37`** while the package version remains `0.3.6`; these living identities do not rewrite the immutable v0.3.6/v35 release or its Audit-v6 discovery evidence.",
+)
+replace_once(
+    "docs/release-versioning.md",
+    "as AV6-001 does at v36.",
+    "as AV6-001 does at v36 and AV6-004 does at v37.",
+)
+replace_once(
+    "docs/research/audit-v6/STATUS.md",
+    "Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though post-discovery remediation advances `main` and living model semantics are now `anthrosim-model-semantics-v36`.",
+    "Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though post-discovery remediation advances `main`; the AV6-004 production repair advances the living source branch to `anthrosim-model-semantics-v37` without changing that immutable discovery attribution.",
+)
+
+Path("crates/anthrosim-core/src/av6_004_resource_cell_reflection_tests.rs").write_text(r'''use crate::{
+    config::{
+        DemographyConfig, ParameterProvenance, PopulationConfig, PopulationInitialization,
+        ResourceConfig, WorldConfig,
+    },
+    events::EventLog,
+    founder_initialization::{
+        FounderGenealogyStatus, FounderHousehold, FounderPerson, FounderPopulationDefinition,
+    },
+    ids::{CellId, HouseholdId, PersonId},
+    population::{Population, ReproductiveSex},
+    resources::{ResourcePeriodContext, ResourceRngs, ResourceSystem},
+    rng::RngFactory,
+    world::World,
+};
+
+const PERSON_A: PersonId = PersonId::new(1);
+const PERSON_B: PersonId = PersonId::new(2);
+const HOUSEHOLD_A: HouseholdId = HouseholdId::new(1);
+const HOUSEHOLD_B: HouseholdId = HouseholdId::new(2);
+
+fn reflected_resource_outcome(width: u32, height: u32, residence: CellId) -> (u16, u16) {
+    let world = World::generate(WorldConfig::new(width, height), RngFactory::new(73_001))
+        .unwrap()
+        .with_model_field_overlay(None, None, Some(&[1, 1]))
+        .unwrap();
+
+    let founders = FounderPopulationDefinition::new(
+        "audit-v6-area-d-resource-cell-reflection",
+        ParameterProvenance::SyntheticValidation,
+        FounderGenealogyStatus::Unspecified,
+        vec![
+            FounderHousehold {
+                id: HOUSEHOLD_A,
+                location: residence,
+            },
+            FounderHousehold {
+                id: HOUSEHOLD_B,
+                location: residence,
+            },
+        ],
+        vec![
+            FounderPerson {
+                id: PERSON_A,
+                birth_day: -(30 * 365),
+                reproductive_sex: ReproductiveSex::Male,
+                household: HOUSEHOLD_A,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+            FounderPerson {
+                id: PERSON_B,
+                birth_day: -(30 * 365),
+                reproductive_sex: ReproductiveSex::Male,
+                household: HOUSEHOLD_B,
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            },
+        ],
+    );
+
+    let population_config = PopulationConfig::new(2)
+        .with_initialization(PopulationInitialization::DeclaredFounderStateV1)
+        .with_max_person_records(4);
+    let mut population = Population::initialize_declared_founder_state_v1(
+        population_config,
+        &founders,
+        &world,
+        &DemographyConfig::synthetic_validation_v1(),
+    )
+    .unwrap();
+
+    let mut resources_config = ResourceConfig::synthetic_validation_v1()
+        .with_initial_stock_units_per_productivity(1)
+        .with_annual_regeneration_units_per_productivity(1)
+        .with_annual_need_units_per_person(1)
+        .with_seasonality_scale_permille(0);
+    resources_config.cell_stock_capacity_years = 1;
+    resources_config.periods_per_year = 1;
+    resources_config.condition_recovery_per_period = 0;
+    resources_config.max_condition_loss_per_period = 1_000;
+    resources_config.max_scarcity_mortality_probability_per_million = 0;
+
+    let mut resources = ResourceSystem::initialize(&world, &resources_config).unwrap();
+    let mut rngs = ResourceRngs::new(RngFactory::new(73_002));
+    let mut events = EventLog::new();
+    resources
+        .process_period_recorded(
+            &mut population,
+            &ResourcePeriodContext {
+                world: &world,
+                config: &resources_config,
+                period_index_in_year: 0,
+                day: 365,
+            },
+            &mut rngs.scarcity_mortality,
+            &mut events,
+        )
+        .unwrap();
+
+    let observation = resources.period_observations().last().unwrap();
+    assert_eq!(observation.total_need, 2);
+    assert_eq!(observation.supplied, 1);
+    assert_eq!(observation.unmet, 1);
+    assert_eq!(observation.households_with_unmet_need, 1);
+
+    (
+        population.person(PERSON_A).unwrap().condition_permille,
+        population.person(PERSON_B).unwrap().condition_permille,
+    )
+}
+
+#[test]
+fn exact_705_horizontal_reflection_adversary_is_repaired() {
+    let canonical = reflected_resource_outcome(2, 1, CellId::new(1));
+    let reflected = reflected_resource_outcome(2, 1, CellId::new(2));
+    assert_eq!(
+        canonical, reflected,
+        "the preserved #705 scarcity fixture must allocate to the same abstract household under horizontal reflection"
+    );
+}
+
+#[test]
+fn scarce_resource_remainder_is_equivariant_under_vertical_cell_reflection() {
+    let canonical = reflected_resource_outcome(1, 2, CellId::new(1));
+    let reflected = reflected_resource_outcome(1, 2, CellId::new(2));
+    assert_eq!(
+        canonical, reflected,
+        "the same scarcity fixture must remain equivariant under vertical reflection"
+    );
+}
+''')
