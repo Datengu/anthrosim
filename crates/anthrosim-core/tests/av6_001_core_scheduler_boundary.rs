@@ -128,8 +128,8 @@ fn core_host_matches_spatial_host_same_day_reconsideration_contract() {
         1,
     )
     .expect("target-arrival schedule");
-    let temporary = TemporaryMobilityConfig::new(region, schedule, travel_model)
-        .expect("temporary mobility");
+    let temporary =
+        TemporaryMobilityConfig::new(region, schedule, travel_model).expect("temporary mobility");
 
     let mut resources = ResourceConfig::synthetic_validation_v1();
     // The first M3 settlement is day 91, coincident with the controlled M9/M4 boundary.

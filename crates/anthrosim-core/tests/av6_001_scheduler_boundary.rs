@@ -136,7 +136,7 @@ fn migration(enabled: bool) -> MigrationConfig {
     config
 }
 
-fn temporary_mobility(target_day: u64, capacity_per_day: u64) -> TemporaryMobilityConfig {
+fn temporary_mobility(target_day: u64, capacity_per_day: u32) -> TemporaryMobilityConfig {
     let region = FocalRegion::new(
         "av6-001-target",
         FocalRegionSource::Synthetic,
@@ -166,7 +166,7 @@ fn temporary_mobility(target_day: u64, capacity_per_day: u64) -> TemporaryMobili
 
 fn experiment(
     target_day: u64,
-    capacity_per_day: u64,
+    capacity_per_day: u32,
     founder_origin: CellId,
     migration_enabled: bool,
     duration_years: u64,
@@ -190,7 +190,7 @@ fn experiment(
         .with_temporary_mobility(temporary_mobility(target_day, capacity_per_day))
 }
 
-fn run_after_m4(capacity_per_day: u64) -> anthrosim_core::SpatialLandscapeRecordedRun {
+fn run_after_m4(capacity_per_day: u32) -> anthrosim_core::SpatialLandscapeRecordedRun {
     SpatialLandscapeSimulation::new(
         experiment(TARGET_ARRIVAL_DAY, capacity_per_day, ORIGIN, true, 1),
         landscape(),
@@ -224,7 +224,7 @@ fn migration_event(
         .expect("M4 must relocate the controlled household on day 91")
 }
 
-fn assert_missed_after_m4(capacity_per_day: u64, expected_required_departure: u64) {
+fn assert_missed_after_m4(capacity_per_day: u32, expected_required_departure: u64) {
     let run = run_after_m4(capacity_per_day);
     let migration = migration_event(&run);
     assert!(run.events().events.iter().all(|record| {
