@@ -1,0 +1,54 @@
+name: Audit v6 AV6-001 post-merge re-verification
+
+on:
+  push:
+    branches:
+      - audit/reverify-687-av6-001
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reverify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current-state derivative
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Verify frozen and living identities
+        run: |
+          set -euo pipefail
+          production_merge=5c9cc73a26b4e400fbbc90e89ef9c0b4194371ca
+          frozen_v036=7d5e47309556e458477cd7283230871363b2c89a
+          historical_evidence=bf94ed046df9d53889d1eacf43c57b52812bc1a7
+
+          git merge-base --is-ancestor "$production_merge" HEAD
+          test "$(git rev-list -n 1 v0.3.6)" = "$frozen_v036"
+          grep -F 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v36";' crates/anthrosim-core/src/provenance.rs
+          git show v0.3.6:crates/anthrosim-core/src/provenance.rs | grep -F 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v35";'
+
+          git fetch --no-tags origin "$historical_evidence" --depth=1
+          git show "$historical_evidence":crates/anthrosim-core/tests/audit_v6_area_a_target_arrival_same_day_m4.rs >/tmp/original-686.rs
+          grep -F 'departure.sequence < migration.sequence' /tmp/original-686.rs
+          grep -F 'same-day scheduler inversion' /tmp/original-686.rs
+
+          echo "production_merge_sha=$production_merge"
+          echo "frozen_v0_3_6_sha=$frozen_v036"
+          echo "frozen_model_semantics=anthrosim-model-semantics-v35"
+          echo "current_model_semantics=anthrosim-model-semantics-v36"
+          echo "historical_686_evidence_sha=$historical_evidence"
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+
+      - name: Run independent preserved-fixture adversary
+        run: cargo test --locked -p anthrosim-core --test audit_v6_av6_001_postmerge_reverify -- --nocapture
+
+      - name: Run neighbouring permanent repair regressions
+        run: cargo test --locked -p anthrosim-core --test av6_001_scheduler_boundary --test av6_001_core_scheduler_boundary
