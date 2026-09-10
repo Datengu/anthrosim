@@ -2,12 +2,12 @@
 
 AnthroSim's research documentation is organized around explicit model description, human-decision assumptions, model evaluation, evidence provenance and reproducible experiment records.
 
-**Living framework state:** software version `v0.3.6` / current model semantics v35. Immutable `v0.3.6` is now the Scientific Audit-v6 discovery target at model semantics v35; immutable `v0.3.5` remains the historical Audit-v5 target at model semantics v33; immutable `v0.3.4` remains the historical Audit-v4 target at model semantics v25. Current documentation must not rewrite any historical audit identity.
+**Living framework state:** software version `v0.3.6` / current model semantics v36. Immutable `v0.3.6` is now the Scientific Audit-v6 discovery target at model semantics v35; immutable `v0.3.5` remains the historical Audit-v5 target at model semantics v33; immutable `v0.3.4` remains the historical Audit-v4 target at model semantics v25. Current documentation must not rewrite any historical audit identity.
 
 ## Start here
 
 - [`research-standards.md`](research-standards.md) — formal adoption and maintenance rules for **ODD 2020, ODD+D and TRACE**.
-- [`odd.md`](odd.md) — formal ODD 2020 model description for the living current model semantics v35 line.
+- [`odd.md`](odd.md) — formal ODD 2020 model description for the living current model semantics v36 line.
 - [`odd-d.md`](odd-d.md) — ODD+D human decision-making supplement for the living line.
 - [`trace.md`](trace.md) — living TRACE evaluation / research-readiness dossier.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
@@ -15,7 +15,7 @@ AnthroSim's research documentation is organized around explicit model descriptio
 - [`scientific-audit-protocol.md`](scientific-audit-protocol.md) — reusable adversarial scientific-audit protocol and convergence criteria.
 - [`audit-reverification-version-drift.md`](audit-reverification-version-drift.md) — rule for preserving frozen adversaries while permitting narrowly adapted current-state re-verification when a historical harness assumption becomes intrinsically obsolete.
 - [`audit-v6/README.md`](audit-v6/README.md) — active sixth independent scientific-audit charter for immutable `v0.3.6` / model semantics v35.
-- [`audit-v6/STATUS.md`](audit-v6/STATUS.md) — repository-authoritative Audit-v6 ledger; discovery begins at 0/14 Areas A–N and seeks a fresh P1-clean convergence pass.
+- [`audit-v6/STATUS.md`](audit-v6/STATUS.md) — repository-authoritative Audit-v6 ledger; A–N discovery is complete with 14 findings (7 P1, 7 P2), and controlled remediation/re-verification is active.
 - [`audit-v5/README.md`](audit-v5/README.md) — completed/historical fifth independent scientific-audit charter for immutable `v0.3.5` / model semantics v33; do not use it to restart Audit v5.
 - [`audit-v5/STATUS.md`](audit-v5/STATUS.md) — final Audit-v5 ledger: 8 findings demonstrated (4 P1, 4 P2), 8/8 repaired/dispositioned and closed, with required P1 re-verification complete.
 - [`audit-v4/README.md`](audit-v4/README.md) — completed/historical fourth independent scientific-audit charter for immutable `v0.3.4` / model semantics v25; do not use it to restart Audit v4.
@@ -28,12 +28,12 @@ AnthroSim's research documentation is organized around explicit model descriptio
 
 ## Audit generations
 
-- [`audit-v6/README.md`](audit-v6/README.md) and [`audit-v6/STATUS.md`](audit-v6/STATUS.md) define the active sixth independent audit against immutable `v0.3.6` / v35. Coverage starts from zero; earlier audit evidence can guide attacks but cannot complete v6 Areas.
+- [`audit-v6/README.md`](audit-v6/README.md) and [`audit-v6/STATUS.md`](audit-v6/STATUS.md) define the sixth independent audit against immutable `v0.3.6` / v35. Fresh A–N discovery completed from zero and demonstrated 14 findings (7 P1, 7 P2); controlled remediation and required P1 re-verification are now active.
 - [`audit-v5/README.md`](audit-v5/README.md) and [`audit-v5/STATUS.md`](audit-v5/STATUS.md) preserve the completed fifth independent audit against immutable `v0.3.5` / v33. It found 4 P1 and 4 P2 defects; all were repaired/dispositioned, producing v35, but the pass remains non-clean for convergence purposes.
 - [`audit-v4/README.md`](audit-v4/README.md) and [`audit-v4/STATUS.md`](audit-v4/STATUS.md) preserve the completed fourth independent audit against immutable `v0.3.4` / v25. Its 15 findings were later repaired and independently re-verified/dispositioned to produce the v33 line frozen as v0.3.5.
 - [`audit-v3/README.md`](audit-v3/README.md) and [`audit-v3/STATUS.md`](audit-v3/STATUS.md) preserve the completed third independent audit against immutable `v0.3.3` / v21. Its 17 findings were later repaired to produce the v25 line frozen as v0.3.4.
 - [`audit-v2/STATUS.md`](audit-v2/STATUS.md) preserves the second independent audit against its own frozen baseline.
-- dated `trace-audit-*` documents and other audit-area records remain historical evidence and must not be mechanically rewritten to current v35 language.
+- dated `trace-audit-*` documents and other audit-area records remain historical evidence and must not be mechanically rewritten to current living-semantics language.
 
 Historical audit records describe the exact baseline they challenged. The active Audit-v6 state is represented by [`audit-v6/STATUS.md`](audit-v6/STATUS.md); completed audit ledgers remain historical evidence rather than being rewritten to mimic the current repository.
 
@@ -51,7 +51,7 @@ Historical audit records describe the exact baseline they challenged. The active
 - [`m9-temporary-travel-semantics-v1.md`](m9-temporary-travel-semantics-v1.md) — M9 travel cost/duration/routing contract.
 - [`m9-duration-aware-resource-semantics-v1.md`](m9-duration-aware-resource-semantics-v1.md) — temporary-presence resource accounting.
 - [`temporary-mobility-observability-v1.md`](temporary-mobility-observability-v1.md) — M9 physical-presence observability contract.
-- [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md) — current demographic-baseline/model-analysis record; its checked result is bound to v35 after a 780-run confirmation reproduced the scientific payload, while earlier v33 evidence remains historical.
+- [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md) — current demographic-baseline/model-analysis record; its checked result is rebound to v36 after a fresh 780-run confirmation reproduced the scientific payload exactly apart from source/semantics provenance, while earlier v35/v33 evidence remains historical.
 - [`identifiability-equifinality-v1.md`](identifiability-equifinality-v1.md) — compatible-region and discriminating-prediction analysis contract.
 
 Dated TRACE repair records preserve the rationale/evidence for individual historical repairs. Their version language is intentionally scoped to the repair they document.
@@ -60,9 +60,9 @@ Dated TRACE repair records preserve the rationale/evidence for individual histor
 
 Scientific Audit v6 restarts all Areas A–N from zero against immutable `v0.3.6` / `anthrosim-model-semantics-v35`. The target is the fully remediated Audit-v5 line, now frozen as a named release so discovery evidence cannot drift with living development.
 
-The desired result is a **P1-clean convergence pass**: no new P0/P1 scientific defects discovered by a genuinely fresh full audit. Prior audits, green CI, release gates, preserved references and regression tests are attack-hypothesis sources rather than completion evidence. Production repair of any v6 finding remains separated from discovery until the full A–N pass is complete.
+Fresh A–N discovery demonstrated **14 findings: 7 P1 and 7 P2**, so Audit v6 is a **non-clean convergence pass**. Prior audits, green CI, release gates, preserved references and regression tests remain attack-hypothesis sources rather than substitutes for v6 evidence. Because discovery is complete, controlled production remediation is now permitted; every P1 remains open until independent post-merge adversarial re-verification succeeds.
 
-No empirical/site-specific study should begin merely because v6 has been initialized. The project convergence gate is satisfied only if the completed audit meets the reusable protocol's full completion criteria and is P1-clean; any later empirical work still requires independent question-specific evidence, calibration/parameterization, uncertainty, sensitivity, identifiability/equifinality and domain review.
+No empirical/site-specific study should begin while v6 findings remain unresolved. After all findings are dispositioned and required P1 re-verifications pass, the repaired line must be frozen as a new immutable baseline and challenged by another genuinely fresh A–N audit. Only a P1-clean convergence pass satisfies the framework gate; any later empirical work still requires independent question-specific evidence, calibration/parameterization, uncertainty, sensitivity, identifiability/equifinality and domain review.
 
 ## Completed Audit-v5 outcome
 

@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** v0.3.6 release line / current model semantics v35 (immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** living v0.3.6-source development / current model semantics v36 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
@@ -21,10 +21,10 @@ A green software build, deterministic replay, an ODD description, completed scie
 | TRACE element | Current status | Main reason |
 |---|---|---|
 | 1. Problem formulation | Partial / study-specific | Framework purposes are explicit, but real research questions require their own frozen hypotheses, observables and applicability domain. |
-| 2. Model description | Established for the living v35 framework line | ODD 2020, ODD+D and the detailed scientific specification describe current model semantics while preserving immutable v0.3.5/v33, v0.3.4/v25 and v0.3.3/v21 history. |
+| 2. Model description | Established for the living v36 framework line | ODD 2020, ODD+D and the detailed scientific specification describe current model semantics while preserving immutable v0.3.5/v33, v0.3.4/v25 and v0.3.3/v21 history. |
 | 3. Data evaluation | Partial | Evidence/provenance machinery exists; question-specific evidence quality, uncertainty, representativeness and evidence-role separation remain study-specific. |
-| 4. Conceptual model evaluation | Strong framework audit evidence; study-specific evaluation remains required | Scientific Audit v5 completed the fifth independent A–N audit generation against immutable v0.3.5/v33, demonstrated 8 findings (4 P1, 4 P2), and all 8 were repaired/dispositioned with independent post-merge re-verification for every P1. Because new P1 defects were found, the pass is non-clean and another fresh full audit is required before the first empirical/site-specific study. |
-| 5. Implementation verification | Strong framework-level verification; convergence gate not yet satisfied | Five comprehensive audit generations have completed discovery. Audit v5 closed 8/8 demonstrated findings after protected production repair and required P1 post-merge adversarial re-verification, producing the v35 line; because the pass discovered four P1 defects, a fresh full audit of v0.3.6/v35 is still required before the first empirical/site-specific study. |
+| 4. Conceptual model evaluation | Strong framework audit evidence; study-specific evaluation remains required | Scientific Audit v6 completed fresh A–N discovery against immutable v0.3.6/v35 and demonstrated 14 findings (7 P1, 7 P2). The pass is non-clean and controlled remediation is active; unresolved P1 findings block convergence. |
+| 5. Implementation verification | Strong framework-level verification; convergence gate not yet satisfied | Six comprehensive audit generations have completed discovery. Audit v6 found 14 defects on immutable v0.3.6/v35 and remediation is active on living source; every P1 repair must pass independent post-merge adversarial re-verification before closure, and a later fresh P1-clean audit is still required for convergence. |
 | 6. Model output verification | Not established empirically | Existing M7/M8/M9 and demographic-baseline exercises are capability/synthetic/model-analysis evidence, not validation against an empirical target population or archaeological pattern set. |
 | 7. Model analysis | Substantially strengthened / study-specific | Scientific configuration exposure, stochastic precision gates, long-run diagnostics, structural/initialization sensitivity, provenance integrity and identifiability/equifinality support exist; adequacy for a particular claim remains study-specific. |
 | 8. Model output corroboration | Not established | No held-out independent archaeological/anthropological corroboration has yet been completed for a real inferential study. |
@@ -85,7 +85,7 @@ Provide a detailed, understandable description of what the model is, how it work
 
 ## Current assessment
 
-**Established for description of the living current model semantics v35 line**, subject to normal documentation/code consistency review. The immutable `v0.3.5` release baseline remains v33, immutable `v0.3.4` remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.
+**Established for description of the living current model semantics v36 line**, subject to normal documentation/code consistency review. The immutable `v0.3.6` release baseline and Audit-v6 discovery target remains v35, immutable `v0.3.5` remains v33, immutable `v0.3.4` remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.
 
 Audit-v4 AV4-015 specifically demonstrated why this distinction matters: stale ODD/ODD+D mortality wording on frozen v0.3.4/v25 was repaired, and a permanent current-document consistency guard now checks the living mortality description. The post-v0.3.4 documentation-consistency audit additionally broadens current-state checks beyond ODD/ODD+D/scientific-model.
 
@@ -143,9 +143,9 @@ Critically evaluate simplifying assumptions, model structure and alternative con
 
 The detailed scientific model and ODD/ODD+D documents identify many null assumptions and missing mechanisms, including bounded local knowledge, minimal household structure, no general learning, limited kin semantics, synthetic resource physiology, atomic permanent relocation and generic temporary-mobility motives.
 
-The repository's adversarial scientific audits provide issue-level evidence that conceptual/causal semantics are actively challenged rather than accepted because code runs reproducibly. Scientific Audit v5 is the latest completed comprehensive framework audit: it restarted A–N coverage from zero against immutable v0.3.5/v33, demonstrated 4 P1 and 4 P2 findings, and the subsequent remediation programme repaired/dispositioned all 8 with independent post-merge adversarial re-verification for every P1. Authoritative M9 coupling repairs advanced the living identity through v34 to v35 where required.
+The repository's adversarial scientific audits provide issue-level evidence that conceptual/causal semantics are actively challenged rather than accepted because code runs reproducibly. Scientific Audit v6 is the latest completed discovery generation: it restarted A–N coverage from zero against immutable v0.3.6/v35 and demonstrated 7 P1 and 7 P2 findings. Controlled post-discovery remediation is active on living source; causal repairs advance model-semantics identity only when authoritative meaning changes, and each P1 remains open until independent post-merge adversarial re-verification succeeds.
 
-Audit-v5 findings covered M9 household-local and spatially equivariant stochastic coupling, parentage-relatedness scope, spatial history replay seed identity, small-n statistical validity, held-out discrimination tolerance, exact numeric-coordinate fidelity and survivor-window alignment. The final Audit-v5 closure record is [`audit-v5/STATUS.md`](audit-v5/STATUS.md); Audit-v4 remains preserved historical convergence evidence in [`audit-v4/STATUS.md`](audit-v4/STATUS.md).
+Audit-v6 findings span scheduler ordering, demographic/genealogical semantics, resource and spatial invariance, temporary-mobility observability/coupling, statistical precision, sensitivity adequacy, identifiability/provenance integrity and long-run analysis. The authoritative live record is [`audit-v6/STATUS.md`](audit-v6/STATUS.md); Audit-v5 and Audit-v4 remain preserved historical convergence evidence in their own ledgers.
 
 These results are strong convergence evidence, not a claim that the conceptual model is universally valid or empirically validated.
 
@@ -163,7 +163,7 @@ For each scientifically consequential submodel, record:
 
 **Gate:** unresolved conceptual P1 defects block claims that depend on the affected mechanism.
 
-**Current assessment:** Framework-level conceptual audit evidence is strong for the repaired v35 line and there are no open Audit-v5 findings. Audit v5 was nevertheless a non-clean convergence pass because it discovered four P1 defects, so another fresh full audit of frozen v0.3.6/v35 is required before the first empirical/site-specific study. Question-specific evidence, calibration/validation, uncertainty, applicability and corroboration remain separate requirements even after that convergence gate is satisfied.
+**Current assessment:** Framework-level conceptual audit evidence is strong, but Audit-v6 convergence is not yet satisfied: discovery on immutable v0.3.6/v35 was non-clean and remediation remains active on the living line. No empirical/site-specific inference should begin until all v6 findings are dispositioned, required P1 re-verifications pass, the repaired line is frozen and a subsequent genuinely fresh audit is P1-clean. Question-specific evidence, calibration/validation, uncertainty, applicability and corroboration remain separate requirements even after that convergence gate is satisfied.
 
 ---
 
@@ -209,9 +209,9 @@ Implementation verification should continue to include where applicable:
 
 ## Audit convergence
 
-Four comprehensive independent/adversarial audit generations have now been completed. Audit v4 demonstrated that an additional fresh audit could still find important defects after earlier convergence work, so audit count must not be treated as proof that no defect remains. What Audit-v4 closure establishes is narrower: every demonstrated Audit-v4 finding has a recorded production repair and required independent re-verification/disposition, and no Audit-v4 issue remains open.
+Six comprehensive independent/adversarial audit generations have now completed discovery. Repeated non-clean passes demonstrate why audit count must not be treated as proof that no defect remains. Audit v6 is the current generation: its 14 demonstrated findings are being dispositioned under the protected remediation and re-verification protocol.
 
-**Current assessment:** Strong framework-level implementation convergence on the repaired current model semantics v35 line; never proof of correctness. Empirical inference remains gated by study-specific validation and corroboration.
+**Current assessment:** Strong framework-level verification evidence, but Audit-v6 convergence is not yet satisfied on the living v36 remediation line; never proof of correctness. Empirical inference remains gated by completion of v6 remediation/re-verification, a subsequent P1-clean convergence pass, and study-specific validation and corroboration.
 
 ---
 

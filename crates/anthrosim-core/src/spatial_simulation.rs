@@ -691,13 +691,22 @@ impl SpatialLandscapeSimulation {
         let Some(end_day) = fixed_day.checked_sub(1) else {
             return Ok(());
         };
+        let current_day = self.time.days();
+        let mut search_day = if current_day == 0 {
+            0
+        } else {
+            let Some(next_day) = current_day.checked_add(1) else {
+                return Ok(());
+            };
+            next_day
+        };
         loop {
-            let current_day = self.time.days();
-            let Some(day) = self.temporary_mobility.next_boundary_day(
-                current_day,
-                end_day,
-                &self.population,
-            )?
+            if search_day > end_day {
+                break;
+            }
+            let Some(day) =
+                self.temporary_mobility
+                    .next_boundary_day(search_day, end_day, &self.population)?
             else {
                 break;
             };
@@ -708,6 +717,10 @@ impl SpatialLandscapeSimulation {
                 &self.world,
                 &mut self.events,
             )?;
+            let Some(next_day) = day.checked_add(1) else {
+                break;
+            };
+            search_day = next_day;
         }
         Ok(())
     }

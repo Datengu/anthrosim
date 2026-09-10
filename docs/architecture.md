@@ -1,6 +1,6 @@
 # Architecture
 
-**Current framework identity:** software version v0.3.6 / current model semantics v35. The immutable v0.3.5/v33 release remains the frozen Audit-v5 discovery target; immutable v0.3.4/v25 remains the historical Audit-v4 target; other historical release/audit baselines retain their own identities.
+**Current framework identity:** software version v0.3.6 / current model semantics v36. The immutable v0.3.6 release remains the frozen v35 Audit-v6 discovery target; immutable v0.3.5/v33 remains the historical Audit-v5 target; immutable v0.3.4/v25 remains the historical Audit-v4 target; other historical release/audit baselines retain their own identities.
 
 ## Architectural objective
 
@@ -53,7 +53,7 @@ Current timing is intentionally split by causal process:
 - year-end M2 performs fertility/parentage for survivors and does **not** redraw background mortality;
 - ageing/annual lifecycle state advances at its declared annual boundary.
 
-With M9 enabled, same-day ordering remains explicit: settle any elapsed duration-aware resource/mortality interval, apply due temporary-mobility completions/starts, evaluate M4 permanent migration for eligible households physically at residence, then perform year-end M2 fertility/parentage when applicable. See [`research/m2-demographic-time-contract-v1.md`](research/m2-demographic-time-contract-v1.md) and [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md).
+With M9 enabled, same-day ordering remains explicit: settle any elapsed duration-aware resource/mortality interval, apply due temporary-mobility completions/starts, evaluate M4 permanent migration for eligible households physically at residence, then perform year-end M2 fertility/parentage when applicable. Under v36, an event-driven M9 scan never re-enters a positive day after that day's fixed-boundary M9 phase has completed; a later M4 residence change therefore cannot create a retroactive same-day M9 departure. A fresh simulation still admits legitimate day-zero M9 work. See [`research/m2-demographic-time-contract-v1.md`](research/m2-demographic-time-contract-v1.md) and [`research/temporary-mobility-v1.md`](research/temporary-mobility-v1.md).
 
 ## Data-oriented authoritative state
 
@@ -79,6 +79,7 @@ Audit-v4 repairs introduced persistent **scientific stochastic-coupling ranks** 
 - M4 candidate uncertainty and proportional-choice assignment are invariant to canonical candidate ordering by coupling exact deterministic utility/distance equivalence classes and sampling exchangeable members symmetrically (v33).
 - M9 equal-cost destination coupling uses a household-local identity rather than a globally ordinal population rank (v34).
 - M9 equal-cost destination realization is equivariant under the supported grid-reflection group while preserving marginal exchangeability within scientifically indistinguishable alternatives (v35).
+- fixed-day M9/M4 scheduler ordering cannot be re-entered retroactively after a completed positive boundary; future target-arrival reconsideration remains available and day zero remains eligible on fresh execution (v36).
 
 This progression is summarized in `crates/anthrosim-core/src/provenance.rs`, whose `MODEL_SEMANTICS_ID` is the authoritative current compatibility identity.
 
@@ -88,7 +89,7 @@ Randomness is explicit. The master seed derives named deterministic streams; add
 
 M2/M3 use separate streams for background mortality, condition-mediated mortality, fertility, parentage and newborn reproductive sex. M4 uses independent migration choice and uncertainty streams. M9 uses its declared deterministic/tie semantics. Stream separation is necessary but not sufficient: draw **assignment** also follows the scientific coupling rules above so arbitrary storage labels/order do not become hidden causes.
 
-M4 candidate discovery may use deterministic enumeration internally, but under current v35 semantics (rule introduced at v33) candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
+M4 candidate discovery may use deterministic enumeration internally, but under current v36 semantics (rule introduced at v33) candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
 
 Parallelism is introduced only with a declared deterministic strategy. Faster nondeterministic execution may be offered later only as an explicitly separate mode, never silently substituted for research runs.
 
@@ -120,7 +121,7 @@ M9 is a distinct mechanism. A household may retain residence while progressing t
 at residence → outbound transit → visiting → return transit → at residence
 ```
 
-Transit has journey timing/resource semantics but no authoritative per-day world cell. A visitor concentration is therefore not a settlement relocation. Permanent migration cannot move an away household; later M4 boundaries may act normally once it returns.
+Transit has journey timing/resource semantics but no authoritative per-day world cell. A visitor concentration is therefore not a settlement relocation. Permanent migration cannot move an away household; later M4 boundaries may act normally once it returns. If an M4 move makes a target-arrival journey imply a departure on or before the M4 boundary whose M9 phase already completed, v36 records that window as missed when the trigger is next authoritatively evaluated rather than executing the journey retroactively on the completed day; a newly implied future departure remains eligible.
 
 ## Persistence, provenance and observability
 
