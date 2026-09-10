@@ -223,17 +223,20 @@ fn preserved_686_boundary_contract_no_longer_allows_m4_then_same_day_m9() {
     let run = run(112);
     let migration = migration_event(&run);
 
-    assert!(run.events().events.iter().all(|record| {
-        !(record.day == FIRST_M4_BOUNDARY
-            && matches!(
-                record.event,
-                EventKind::TemporaryJourneyDeparted {
-                    household,
-                    trigger_day,
-                    ..
-                } if household == HouseholdId::new(1) && trigger_day == TARGET_ARRIVAL_DAY
-            ))
-    }), "AV6-001 substantive oracle failed: the preserved #686 fixture still executed a target-arrival M9 departure on day 91 after the fixed M9 phase had already completed");
+    assert!(
+        run.events().events.iter().all(|record| {
+            !(record.day == FIRST_M4_BOUNDARY
+                && matches!(
+                    record.event,
+                    EventKind::TemporaryJourneyDeparted {
+                        household,
+                        trigger_day,
+                        ..
+                    } if household == HouseholdId::new(1) && trigger_day == TARGET_ARRIVAL_DAY
+                ))
+        }),
+        "AV6-001 substantive oracle failed: the preserved #686 fixture still executed a target-arrival M9 departure on day 91 after the fixed M9 phase had already completed"
+    );
 
     let missed = run
         .events()
