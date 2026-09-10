@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/audit-v6-area-h-sequential-wilson-coverage.py"
+      - "scripts/reverify-v6-area-h-sequential-wilson-coverage.py"
       - ".github/workflows/audit-v6-area-h-sequential-wilson.yml"
 
 permissions:
@@ -19,5 +20,5 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run controlled exact Bernoulli coverage adversary
-        run: python3 scripts/audit-v6-area-h-sequential-wilson-coverage.py
+      - name: Run repaired current-state Bernoulli coverage re-verification
+        run: python3 scripts/reverify-v6-area-h-sequential-wilson-coverage.py
