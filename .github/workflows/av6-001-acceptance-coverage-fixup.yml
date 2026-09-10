@@ -1,0 +1,201 @@
+name: AV6-001 acceptance coverage fixup
+
+on:
+  push:
+    branches:
+      - audit/repair-687-av6-001
+
+permissions:
+  contents: write
+
+jobs:
+  fixup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-687-av6-001
+          fetch-depth: 0
+
+      - name: Add core parity and coincident-boundary coverage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Make the M3/M9/M4 coincidence explicit in the integration fixture and assert one
+          # resource settlement per declared boundary across the one-year run.
+          p = Path('crates/anthrosim-core/tests/av6_001_scheduler_boundary.rs')
+          text = p.read_text(encoding='utf-8')
+          old = '''    let mut resources = ResourceConfig::synthetic_validation_v1();
+    resources.annual_need_units_per_person = 0;
+    resources.seasonality_scale_permille = 0;
+    resources.max_scarcity_mortality_probability_per_million = 0;
+'''
+          new = '''    let mut resources = ResourceConfig::synthetic_validation_v1();
+    // Four periods place the first M3 boundary on day 91, exactly coincident with the
+    // controlled M4 boundary used by the AV6-001 adversary.
+    resources.periods_per_year = 4;
+    resources.annual_need_units_per_person = 0;
+    resources.seasonality_scale_permille = 0;
+    resources.max_scarcity_mortality_probability_per_million = 0;
+'''
+          if old not in text:
+              raise SystemExit('integration resource fixture marker missing')
+          text = text.replace(old, new, 1)
+          old = '''    let migration = migration_event(&run);
+    assert!(run.events().events.iter().all(|record| {
+'''
+          new = '''    let migration = migration_event(&run);
+    // M3 is coincident with M9/M4 on day 91 in this fixture. The scheduler repair must not
+    // duplicate or skip resource settlement while excluding retroactive M9 re-entry.
+    assert_eq!(run.core_manifest().resources.periods_processed, 4);
+    assert_eq!(run.core_manifest().statistics.resource_periods_processed, 4);
+    assert!(run.events().events.iter().all(|record| {
+'''
+          if old not in text:
+              raise SystemExit('integration assertion marker missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+
+          # Add a unit-level core-host regression inside simulation.rs's private test module. This
+          # exercises the same event-scan cursor independently of SpatialLandscapeSimulation.
+          p = Path('crates/anthrosim-core/src/simulation.rs')
+          text = p.read_text(encoding='utf-8')
+          marker = '''    #[test]
+    fn rejects_unsupported_experiment_schema() {
+'''
+          test = r'''    #[test]
+    fn core_host_does_not_reenter_completed_positive_day_for_target_arrival_reconsideration() {
+        use crate::{
+            events::{EventKind, TemporaryJourneyIneligibility},
+            focal_region::{FocalRegion, FocalRegionSource},
+            temporary_mobility::{
+                TemporaryMobilityProgram, TemporaryMobilitySchedule, TemporaryTravelResolution,
+                TemporaryTravelTable, TemporaryTriggerTiming,
+            },
+        };
+
+        const TARGET_DAY: u64 = 100;
+        const COMPLETED_M4_DAY: u64 = 91;
+        let definition = FounderPopulationDefinition::new(
+            "av6-001-core-host-parity",
+            ParameterProvenance::SyntheticValidation,
+            FounderGenealogyStatus::Unspecified,
+            vec![FounderHousehold {
+                id: HouseholdId::new(1),
+                location: CellId::new(1),
+            }],
+            vec![FounderPerson {
+                id: PersonId::new(1),
+                birth_day: -(30 * DAYS_PER_YEAR as i64),
+                reproductive_sex: ReproductiveSex::Female,
+                household: HouseholdId::new(1),
+                female_parent: None,
+                male_parent: None,
+                last_birth_day: None,
+                condition_permille: 1_000,
+            }],
+        );
+        let config = ExperimentConfig::new(687_001, 1)
+            .with_world(WorldConfig::new(3, 1))
+            .with_population(
+                PopulationConfig::new(1)
+                    .with_initialization(PopulationInitialization::DeclaredFounderStateV1),
+            )
+            .with_founder_population(definition)
+            .with_demography(no_event_demography())
+            .with_resources(no_pressure_resources())
+            .with_migration(disabled_migration());
+
+        // Build an explicit M9 program over the exact deterministic core world: Cell 1 is
+        // initially unreachable; after the controlled residence change to Cell 2, target day 100
+        // implies departure day 91 exactly.
+        let world = World::generate(config.world, RngFactory::new(config.seed)).unwrap();
+        let region = FocalRegion::new(
+            "av6-001-core-target",
+            FocalRegionSource::Synthetic,
+            vec![CellId::new(3)],
+        )
+        .unwrap();
+        let schedule = TemporaryMobilitySchedule::new(
+            "av6-001-core-target-arrival",
+            TemporaryTriggerTiming::TargetArrivalDay,
+            vec![TARGET_DAY],
+            1,
+        )
+        .unwrap();
+        let travel = TemporaryTravelTable::new(
+            vec![
+                TemporaryTravelResolution::Unreachable,
+                TemporaryTravelResolution::Reachable {
+                    destination: CellId::new(3),
+                    outbound_travel_days: 9,
+                    return_travel_days: 9,
+                },
+                TemporaryTravelResolution::Unreachable,
+            ],
+            &region,
+            &world,
+        )
+        .unwrap();
+        let program = TemporaryMobilityProgram::new(region, schedule, travel, &world).unwrap();
+        let mut simulation = Simulation::new_with_temporary_mobility(config, program).unwrap();
+
+        assert_eq!(
+            simulation
+                .temporary_mobility
+                .next_boundary_day(0, COMPLETED_M4_DAY - 1, &simulation.population)
+                .unwrap(),
+            None
+        );
+
+        let mut destinations = vec![CellId::INVALID; simulation.population.household_count()];
+        destinations[0] = CellId::new(2);
+        let condition_costs = vec![0; simulation.population.household_count()];
+        simulation
+            .population
+            .apply_household_relocations(&destinations, &condition_costs, &simulation.world)
+            .unwrap();
+        simulation.time = SimTime::from_days(COMPLETED_M4_DAY);
+
+        // This call represents the between-fixed-boundary scan after day-91 M9 then M4 have
+        // already completed. Core host must start at day 92, not rediscover departure day 91.
+        simulation.process_temporary_boundaries_before(182).unwrap();
+
+        assert!(simulation.events.events.iter().all(|record| {
+            !(record.day == COMPLETED_M4_DAY
+                && matches!(record.event, EventKind::TemporaryJourneyDeparted { .. }))
+        }));
+        assert!(simulation.events.events.iter().any(|record| {
+            record.day == TARGET_DAY
+                && matches!(
+                    record.event,
+                    EventKind::TemporaryJourneyNotStarted {
+                        household,
+                        trigger_day,
+                        reason: TemporaryJourneyIneligibility::DepartureWindowMissed,
+                        ..
+                    } if household == HouseholdId::new(1) && trigger_day == TARGET_DAY
+                )
+        }));
+    }
+
+'''
+          if marker not in text:
+              raise SystemExit('simulation test insertion marker missing')
+          text = text.replace(marker, test + marker, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+
+          rustup set profile minimal
+          rustup toolchain install 1.97.1 --component rustfmt
+          rustup default 1.97.1
+          cargo fmt --all
+
+          git rm .github/workflows/av6-001-acceptance-coverage-fixup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "test(audit-v6): complete AV6-001 host-parity coverage"
+          git push origin HEAD:audit/repair-687-av6-001
