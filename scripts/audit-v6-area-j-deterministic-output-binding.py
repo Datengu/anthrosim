@@ -97,6 +97,8 @@ def main() -> None:
         research_root = temp_root / "research-run"
         write(definition_path, tiny_definition())
 
+        # A zero exit status is part of the control: both declared parameter points
+        # and all predeclared seeds completed through the authoritative runner.
         subprocess.run(
             [
                 str(binary),
@@ -132,6 +134,8 @@ def main() -> None:
             "maxNormalizedAcceptableWidth": 0.0,
         }
 
+        # Positive/control representation of the successful runner outcome: both
+        # parameter points completed, so both receive the same deterministic value.
         truthful_data = data_from_binding(binding, [1.0, 1.0])
         truthful = analyzer.analyse_with_research_root(plan, truthful_data, research_root)
         assert truthful["researchGate"]["executedDesignBound"] is True
@@ -144,6 +148,9 @@ def main() -> None:
         )
         assert truthful_duration["identified"] is False
 
+        # Falsification arm: preserve the exact same immutable research root, point
+        # identities, parameter coordinates, structures and execution IDs, changing
+        # only the analyst-supplied deterministic output for the duration=2 point.
         contradictory_data = data_from_binding(binding, [1.0, 0.0])
         contradictory = analyzer.analyse_with_research_root(
             plan, contradictory_data, research_root
@@ -178,6 +185,9 @@ def main() -> None:
             f"identified={str(contradictory_duration['identified']).lower()}"
         )
 
+        # Predeclared scientific oracle. A real-study parameter-identification gate
+        # must not become positive solely because an analyst changed a deterministic
+        # output value that was never resolved against the immutable executions.
         assert contradictory["researchGate"]["passes"] is False, (
             "predeclared Area-J oracle failed: the production real-study identifiability "
             "gate remained executed-design-bound but accepted a contradictory analyst-"
