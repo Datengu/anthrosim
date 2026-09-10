@@ -18,21 +18,21 @@ This is the repository-authoritative compact handoff state. Detailed discovery e
 | Target model semantics | `anthrosim-model-semantics-v35` |
 | Discovery coverage | **14/14 Areas A–N complete** |
 | Discovery result | **non-clean convergence pass: 14 findings — 7 P1, 7 P2** |
-| Open Audit-v6 findings | **10** |
-| Open P0/P1 | **3 — AV6-001/#687; AV6-004/#707; AV6-006/#711** |
+| Open Audit-v6 findings | **9** |
+| Open P0/P1 | **2 — AV6-004/#707; AV6-006/#711** |
 | Phase | **discovery complete — controlled remediation in progress** |
-| Verified P1 remediations | **4/7 — AV6-013/#741; AV6-012/#737; AV6-010/#729; AV6-009/#726** |
-| Active ownership | **AV6-001/#687 is the next dependency-appropriate P1 remediation target unless live overlap/dependency state changes** |
-| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; three P1 findings remain open after four verified repairs** |
+| Verified P1 remediations | **5/7 — AV6-013/#741; AV6-012/#737; AV6-010/#729; AV6-009/#726; AV6-001/#687** |
+| Active ownership | **AV6-004/#707 is the next dependency-appropriate P1 remediation target unless live overlap/dependency state changes** |
+| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; two P1 findings remain open after five verified repairs** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-Protected `main` after the verified AV6-009 production repair is `9e1ff460b25a59bf63220899f10a7f661a5d8b2a`. Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though post-discovery remediation advances `main`.
+Protected `main` after the verified AV6-001 production repair is `5c9cc73a26b4e400fbbc90e89ef9c0b4194371ca`. Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though post-discovery remediation advances `main` and living model semantics are now `anthrosim-model-semantics-v36`.
 
 ## Completed Areas
 
 | Area | Discovery status | Fresh v6 evidence |
 |---|---|---|
-| A — authoritative semantics and scheduler behaviour | **complete — AV6-001/#687 P1** | #684 clean scheduler-equivalence control; #686/#687 same-day M4-before-newly-due-M9 inversion. `area-a-2026-09-09.md` |
+| A — authoritative semantics and scheduler behaviour | **complete — AV6-001/#687 P1; repaired/reverified** | #684 clean scheduler-equivalence control; #686/#687 same-day M4-before-newly-due-M9 inversion. `area-a-2026-09-09.md` |
 | B — demography, fertility, mortality, ageing and population structure | **complete — AV6-002/#694 P2** | #692 clean chronology/cadence; #693/#694 inconsistent male-parent age-window references. `area-b-2026-09-09.md` |
 | C — households, kinship, social links and lifecycle structure | **complete — AV6-003/#699 P2** | #698/#699 external-kin context collapse; #701 clean relabelling control. `area-c-2026-09-09.md` |
 | D — resources, condition, subsistence, depletion/recovery | **complete — AV6-004/#707 P1; AV6-005/#708 P2** | scarce-resource reflection and duration-split household-index defects. `area-d-2026-09-09.md` |
@@ -48,6 +48,14 @@ Protected `main` after the verified AV6-009 production repair is `9e1ff460b25a59
 | N — cross-system integration | **complete — non-clean via existing v6 findings; no new root finding** | #749 quantifies AV6-006 propagation from M9 destination into visitor-person-days and resource units. `area-n-2026-09-09.md` |
 
 ## Verified P1 remediation progress
+
+### AV6-001 / #687 — repaired and independently reverified
+
+Production repair PR **#762**, final repair head `2f07a8b4e88f26857823bd0522a082563f8affbc`, merged to protected `main` as `5c9cc73a26b4e400fbbc90e89ef9c0b4194371ca` after the complete exact-head protected/scientific matrix passed. The accepted v36 scheduler contract prevents between-boundary M9 scans from re-entering an already completed positive fixed day after M4, while preserving valid future target-arrival reconsideration and day-zero behaviour.
+
+Mandatory post-merge evidence used evidence-only PR **#763**, final evidence head `59661e7c10cf73f37ce4744de3fd615019cc2330`, based directly on the merged repair. The derivative preserved the #686 controlled landscape, founder state, day-91 M4 relocation and target-arrival geometry, adapting only the obsolete defect-presence oracle under the version-drift protocol. Dedicated run **34526823928** passed, and every ordinary exact-head workflow on the same evidence head passed, including central CI **34526830471** and applicable scientific/security gates **34526831137**.
+
+The preserved boundary arm now records the day-91 M4 migration without any retroactive same-day M9 departure and reports the target as `DepartureWindowMissed` on day 100. A neighbouring positive control changing only travel capacity preserves a legitimate future M9 departure on day 92 with arrival on day 100. The dedicated derivative tests passed 2/2 and the permanent repair regressions passed 6/6. #763 was closed unmerged and #687 was closed completed only after that independent P1 evidence was green.
 
 ### AV6-013 / #741 — repaired and independently reverified
 
@@ -86,10 +94,10 @@ av6_009_reverification=pass
 
 | Finding | Severity | Primary / cross-cutting Areas | Issue | State |
 |---|---:|---|---|---|
-| AV6-001 | **P1** | A primary; D/E/F/M/N | #687 | **open — next P1 remediation target** |
+| AV6-001 | **P1** | A primary; D/E/F/M/N | #687 | **closed — repaired by #762; independently reverified by #763** |
 | AV6-002 | **P2** | B primary; C/G/M/N | #694 | open; remediation pending |
 | AV6-003 | **P2** | C primary; E/N | #699 | open; remediation pending |
-| AV6-004 | **P1** | D primary; E/H/N | #707 | open; remediation pending |
+| AV6-004 | **P1** | D primary; E/H/N | #707 | **open — next P1 remediation target** |
 | AV6-005 | **P2** | D primary; C/E/F/N | #708 | open; remediation pending |
 | AV6-006 | **P1** | E primary; F/H/I/N | #711 | open; remediation pending |
 | AV6-007 | **P2** | F primary; E/L/N | #718 | open; remediation pending |
@@ -108,7 +116,7 @@ Scientific Audit v6 discovery is complete across A–N and remains a **non-clean
 Required path:
 
 1. preserve completed discovery and all evidence-only findings/PRs;
-2. remediate the remaining three P1 findings in dependency/severity order;
+2. remediate the remaining two P1 findings in dependency/severity order;
 3. require exact-head protected/scientific CI for each production repair;
 4. independently re-run/re-verify every P1 adversarial contract after merge, using the version-drift addendum only where necessary;
 5. disposition and retest all seven P2 findings explicitly;
@@ -119,14 +127,14 @@ A completed framework audit does **not** establish empirical or archaeological v
 
 ## Current handoff
 
-Audit-v6 discovery Areas **A–N are complete**. Four of seven P1 findings are now repaired, independently reverified and closed: AV6-013/#741, AV6-012/#737, AV6-010/#729 and AV6-009/#726. **10 findings remain open: 3 P1 and 7 P2.** There are no live open PRs at this handoff.
+Audit-v6 discovery Areas **A–N are complete**. Five of seven P1 findings are now repaired, independently reverified and closed: AV6-013/#741, AV6-012/#737, AV6-010/#729, AV6-009/#726 and AV6-001/#687. **9 findings remain open: 2 P1 and 7 P2.** There are no live open PRs at this handoff before this status-only reconciliation PR.
 
-The next dependency-appropriate P1 is **AV6-001/#687** because it concerns the authoritative same-day scheduler order itself (`M3 -> M9 -> M4 -> annual M2` where applicable). Repair it before relying on downstream M9/resource interaction semantics in AV6-004/#707 and AV6-006/#711.
+The next dependency-appropriate P1 is **AV6-004/#707**. It is an M3 scarce-resource allocation semantics defect that directly changes person condition under a pure spatial reflection before downstream condition-mediated mortality or permanent-migration effects. Repairing this resource-allocation primitive first provides the cleaner base for the final P1, AV6-006/#711, whose M9 destination coupling propagates into temporary presence, aggregation and resource demand.
 
-Preserve #686 as the acceptance adversary. The repair must eliminate the same-day M4-then-newly-due-M9 inversion without undoing #197's valid future target-arrival reconsideration behavior. Cover `new departure <`, `==`, and `>` the M4 day, coincident M3/M9/M4 boundaries, core/spatial parity, checkpoint/resume and duration/resource-ledger consistency. Because AV6-001 is P1, keep #687 open through production merge and close it only after independent post-merge re-verification.
+Preserve #705 as the AV6-004 acceptance adversary. The repair must make exact equal-remainder allocation spatial-reflection equivariant without reintroducing HouseholdId relabelling dependence, persistent first-household bias, CellId/container-order dependence, or breaking exact accounting, deterministic replay/checkpoint-resume and downstream transformed-state equivalence. Because AV6-004 is P1, keep #707 open through production merge and close it only after independent post-merge re-verification.
 
-Before creating the AV6-001 production branch, reconstruct current protected `main`, open PRs/issues and overlapping work and treat this ledger plus live GitHub state as authoritative.
+Before creating the AV6-004 production branch, reconstruct current protected `main`, open PRs/issues and overlapping work and treat this ledger plus live GitHub state as authoritative.
 
 ## Cross-session start instruction
 
-> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v6/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v6/STATUS.md`. Verify live protected `main`, all open Audit-v6 finding issues/PRs and overlapping work. Audit-v6 A–N discovery is complete against immutable `v0.3.6`/v35; do not redo discovery. AV6-013/#741, AV6-012/#737, AV6-010/#729 and AV6-009/#726 are repaired, independently reverified and closed. Ten findings remain open: three P1 and seven P2. Continue controlled remediation with AV6-001/#687 unless live dependency/overlap state requires a different ordering; preserve original discovery evidence and independently reverify every P1 repair before closure.
+> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v6/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v6/STATUS.md`. Verify live protected `main`, all open Audit-v6 finding issues/PRs and overlapping work. Audit-v6 A–N discovery is complete against immutable `v0.3.6`/v35; do not redo discovery. AV6-013/#741, AV6-012/#737, AV6-010/#729, AV6-009/#726 and AV6-001/#687 are repaired, independently reverified and closed. Nine findings remain open: two P1 and seven P2. Continue controlled remediation with AV6-004/#707 unless live dependency/overlap state requires a different ordering; preserve original discovery evidence and independently reverify every P1 repair before closure.
