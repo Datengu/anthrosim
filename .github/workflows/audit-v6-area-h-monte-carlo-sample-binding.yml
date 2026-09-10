@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/audit-v6-area-h-monte-carlo-sample-binding.py"
+      - "scripts/audit-v6-area-h-monte-carlo-sample-binding-reverify.py"
       - ".github/workflows/audit-v6-area-h-monte-carlo-sample-binding.yml"
 
 permissions:
@@ -28,8 +29,8 @@ jobs:
       - name: Build real study and research runners
         run: cargo build --locked -p anthrosim-cli --bin anthrosim-study --bin anthrosim-research
 
-      - name: Run canonical sample-binding adversary
+      - name: Run current-state sample-binding re-verification
         run: |
-          python3 scripts/audit-v6-area-h-monte-carlo-sample-binding.py \
+          python3 scripts/audit-v6-area-h-monte-carlo-sample-binding-reverify.py \
             --study-binary target/debug/anthrosim-study \
             --research-binary target/debug/anthrosim-research
