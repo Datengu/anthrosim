@@ -1,0 +1,95 @@
+name: AV6-001 M7.6 v36 reference rebind
+
+on:
+  push:
+    branches:
+      - audit/repair-687-av6-001
+    paths:
+      - .github/workflows/av6-001-m7-6-v36-rebind.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  verify-and-rebind:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-687-av6-001
+          fetch-depth: 0
+
+      - name: Download exact-head M7.6 evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf /tmp/av6-001-m76
+          mkdir -p /tmp/av6-001-m76
+          gh run download 34514288449 \
+            --repo Datengu/anthrosim \
+            --name m7-6-resource-variability-derived \
+            --dir /tmp/av6-001-m76
+
+      - name: Verify numerical identity, rebind provenance, and remove helper
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          ref_path = Path('experiments/v0.1-resource-variability-reference.json')
+          reference = json.loads(ref_path.read_text())
+          evidence = Path('/tmp/av6-001-m76')
+          runs = json.loads((evidence / 'analysis/runs.json').read_text())
+          points = json.loads((evidence / 'analysis/points.json').read_text())
+
+          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v35'
+          assert len(reference['pointResults']) == 18
+          assert len(runs) == 144
+          assert len(points) == 18
+          assert all(row['state'] == 'completed' for row in runs)
+          assert all(row['scientificAggregationStatus'] == 'eligibleScientificOutcome' for row in runs)
+
+          observed = []
+          for row in points:
+              observed.append({
+                  'pointId': row['pointId'],
+                  'resourceProductivityScalePermille': row['resourceProductivityScalePermille'],
+                  'resourceSeasonalityScalePermille': row['resourceSeasonalityScalePermille'],
+                  'migrationEnabled': not row['disableMigration'],
+                  'durationReachedRuns': row['durationReachedRuns'],
+                  'populationExtinctRuns': row['populationExtinctRuns'],
+                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationScientificallyEligibleOnly'],
+                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountScientificallyEligibleOnly'],
+                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleScientificallyEligibleOnly'],
+                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsScientificallyEligibleOnly'],
+                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedScientificallyEligibleOnly'],
+                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesScientificallyEligibleOnly'],
+                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsScientificallyEligibleOnly'],
+                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveScientificallyEligibleOnly'],
+              })
+          assert observed == reference['pointResults']
+
+          reference['modelSemanticsId'] = 'anthrosim-model-semantics-v36'
+          addition = (
+              ' Audit-v6 AV6-001/#687 changes fixed-day M9/M4 scheduler phase re-entry, while this '
+              'M7.6 resource/migration factorial contains no temporary-mobility mechanism. Exact-head '
+              'CI run 34514288449 reran all 18 parameter points and 144/144 declared runs under living '
+              'v36; every run completed, remained scientifically eligible, and all 18 numerical '
+              'pointResults reproduced the checked v35 reference exactly. Accordingly this is a '
+              'provenance-only v36 rebind: the source definition, definition digest, factorial design, '
+              'paired seeds, completion/censoring rules, migration/resource settings, declared endpoints '
+              'and numerical pointResults remain unchanged.'
+          )
+          assert 'Exact-head CI run 34514288449' not in reference['note']
+          reference['note'] += addition
+          ref_path.write_text(json.dumps(reference, separators=(',', ':')) + '\n')
+          PY
+
+          git rm .github/workflows/av6-001-m7-6-v36-rebind.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experiments/v0.1-resource-variability-reference.json
+          git commit -m "docs(audit-v6): rebind M7.6 reference to v36"
+          git push origin HEAD:audit/repair-687-av6-001
