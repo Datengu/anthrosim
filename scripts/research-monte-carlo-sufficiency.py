@@ -97,6 +97,13 @@ def _normal_clt_validity(groups, kind: str) -> dict:
     }
 
 
+def _declared_terminal_replicates(plan) -> int:
+    design = plan["design"]
+    if "seedBatches" in design:
+        return sum(len(batch) for batch in design["seedBatches"])
+    return sum(len(batch) for batch in design["groupSeedBatches"][0])
+
+
 def diagnostic(groups, plan):
     precision = _original_diagnostic(groups, plan)
     kind = plan["estimand"]["kind"]
@@ -108,6 +115,37 @@ def diagnostic(groups, plan):
         )
         if not validity["validForStopping"]:
             precision["sufficient"] = False
+
+    # Audit-v6 AV6-009 demonstrated that ordinary fixed-sample intervals do not retain their
+    # declared coverage when the observed interval width is repeatedly inspected and used to stop
+    # early. This applies in principle to every supported fixed-sample estimator family, not only
+    # the Wilson reproduction that exposed the defect. Until an always-valid confidence sequence
+    # or an explicitly reviewed repeated-look procedure exists, sequential batches are monitoring
+    # boundaries only. Inferential sufficiency may be decided at the predeclared terminal boundary,
+    # which every path reaches because earlier width-based stopping is disabled.
+    if plan["design"]["mode"] == "sequential":
+        observed = len(groups[0]["values"])
+        terminal = _declared_terminal_replicates(plan)
+        is_terminal = observed == terminal
+        precision["sequentialStoppingValidity"] = {
+            "validForInferentialStopping": is_terminal,
+            "observedReplicatesPerPrimaryGroup": observed,
+            "predeclaredTerminalReplicatesPerPrimaryGroup": terminal,
+            "contract": "fixed_sample_intervals_are_descriptive_at_intermediate_sequential_boundaries; inferential_precision_decision_only_at_predeclared_terminal_boundary",
+            "reason": None if is_terminal else "ordinary_fixed_sample_interval_not_always_valid_under_repeated_width_based_stopping",
+        }
+        if not is_terminal:
+            precision["sufficient"] = False
+            sequential_semantics = (
+                "descriptive_fixed_sample_interval_at_intermediate_predeclared_boundary; "
+                "not valid for inferential early stopping"
+            )
+            existing_semantics = precision.get("confidenceSemantics")
+            precision["confidenceSemantics"] = (
+                f"{existing_semantics}; {sequential_semantics}"
+                if existing_semantics
+                else sequential_semantics
+            )
     return precision
 
 
