@@ -568,11 +568,9 @@ impl Simulation {
             if search_day > end_day {
                 break;
             }
-            let Some(day) = self.temporary_mobility.next_boundary_day(
-                search_day,
-                end_day,
-                &self.population,
-            )?
+            let Some(day) =
+                self.temporary_mobility
+                    .next_boundary_day(search_day, end_day, &self.population)?
             else {
                 break;
             };
@@ -905,7 +903,7 @@ pub enum SimulationError {
     #[error("checkpoint model version {found} does not match current model version {expected}")]
     CheckpointModelVersionMismatch { found: String, expected: String },
     #[error(
-        "checkpoint model semantics identity {found} does not match current model version {expected}"
+        "checkpoint model semantics identity {found} does not match current model semantics identity {expected}"
     )]
     CheckpointModelSemanticsMismatch { found: String, expected: String },
     #[error("checkpoint continuation digest mismatch: stored {expected}, reconstructed {actual}")]

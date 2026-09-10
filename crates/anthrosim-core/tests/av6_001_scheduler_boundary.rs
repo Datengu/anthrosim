@@ -4,9 +4,9 @@ use anthrosim_core::{
     GridGeometry, LandscapeBundle, LandscapeLayer, LandscapeLayerRole, LandscapeValueDomain,
     MigrationConfig, NoDataPolicy, ParameterProvenance, PopulationConfig, PopulationInitialization,
     ReproductiveSex, ResourceConfig, SpatialFieldTransform, SpatialLandscapeSimulation,
-    SpatialMechanismConfig, SpatialRunRealization, SpatialTargetField, TemporaryJourneyIneligibility,
-    TemporaryMobilityConfig, TemporaryMobilitySchedule, TemporaryTravelModel,
-    TemporaryTriggerTiming, TransformDirection, WorldConfig,
+    SpatialMechanismConfig, SpatialRunRealization, SpatialTargetField,
+    TemporaryJourneyIneligibility, TemporaryMobilityConfig, TemporaryMobilitySchedule,
+    TemporaryTravelModel, TemporaryTriggerTiming, TransformDirection, WorldConfig,
     ids::{CellId, HouseholdId, PersonId},
 };
 
@@ -192,13 +192,7 @@ fn experiment(
 
 fn run_after_m4(capacity_per_day: u64) -> anthrosim_core::SpatialLandscapeRecordedRun {
     SpatialLandscapeSimulation::new(
-        experiment(
-            TARGET_ARRIVAL_DAY,
-            capacity_per_day,
-            ORIGIN,
-            true,
-            1,
-        ),
+        experiment(TARGET_ARRIVAL_DAY, capacity_per_day, ORIGIN, true, 1),
         landscape(),
         mechanisms(),
     )
@@ -207,7 +201,9 @@ fn run_after_m4(capacity_per_day: u64) -> anthrosim_core::SpatialLandscapeRecord
     .expect("controlled run")
 }
 
-fn migration_event(run: &anthrosim_core::SpatialLandscapeRecordedRun) -> &anthrosim_core::EventRecord {
+fn migration_event(
+    run: &anthrosim_core::SpatialLandscapeRecordedRun,
+) -> &anthrosim_core::EventRecord {
     run.events()
         .events
         .iter()
@@ -354,14 +350,10 @@ fn annual_checkpoint_resume_preserves_next_day_target_arrival_departure() {
     // checkpoint is day 365, whose M9 fixed-day phase is already complete; resume must begin its
     // between-boundary scan at day 366 without re-entering day 365 or skipping the future journey.
     let config = experiment(375, 112, MIGRATION_DESTINATION, false, 2);
-    let uninterrupted = SpatialLandscapeSimulation::new(
-        config.clone(),
-        landscape(),
-        mechanisms(),
-    )
-    .expect("uninterrupted spatial simulation")
-    .run_recorded()
-    .expect("uninterrupted run");
+    let uninterrupted = SpatialLandscapeSimulation::new(config.clone(), landscape(), mechanisms())
+        .expect("uninterrupted spatial simulation")
+        .run_recorded()
+        .expect("uninterrupted run");
 
     let checkpoint = SpatialLandscapeSimulation::new(config, landscape(), mechanisms())
         .expect("checkpoint spatial simulation")

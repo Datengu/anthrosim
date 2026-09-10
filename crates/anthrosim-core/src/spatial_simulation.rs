@@ -704,11 +704,9 @@ impl SpatialLandscapeSimulation {
             if search_day > end_day {
                 break;
             }
-            let Some(day) = self.temporary_mobility.next_boundary_day(
-                search_day,
-                end_day,
-                &self.population,
-            )?
+            let Some(day) =
+                self.temporary_mobility
+                    .next_boundary_day(search_day, end_day, &self.population)?
             else {
                 break;
             };
