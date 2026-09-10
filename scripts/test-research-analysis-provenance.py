@@ -35,6 +35,41 @@ _SOURCE = {
     "modelSemanticsId": "anthrosim-model-semantics-v14",
     "gitCommit": "synthetic-fixture",
 }
+_RUN_CONFIG = {"experiment": {"durationYears": 1}}
+_POINT_ID = "research-point-v1-synthetic"
+_RUN_A = "run-a"
+_RUN_B = "run-b"
+_REL_A = "runs/point-0000/seed-0000-2"
+_REL_B = "runs/point-0000/seed-0001-3"
+
+# The preserved provenance tests only need a deterministic numeric input. Use the
+# producer-defined canonical run-table seed field rather than a synthetic non-schema `value`.
+_ANALYSIS_PROGRAM = r'''import argparse, json
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--input", required=True)
+parser.add_argument("--output", required=True)
+scale_source = parser.add_mutually_exclusive_group(required=True)
+scale_source.add_argument("--scale", type=int)
+scale_source.add_argument("--config")
+parser.add_argument("--mutate-input", action="store_true")
+args = parser.parse_args()
+
+source = Path(args.input)
+rows = json.loads(source.read_text(encoding="utf-8"))["runs"]
+scale = args.scale
+if args.config is not None:
+    scale = int(json.loads(Path(args.config).read_text(encoding="utf-8"))["scale"])
+value = sum(row["seed"] for row in rows) * scale
+Path(args.output).write_text(
+    json.dumps({"schemaVersion": 1, "scaledTotal": value}, sort_keys=True) + "\n",
+    encoding="utf-8",
+)
+if args.mutate_input:
+    source.write_text(source.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+'''
+_legacy.ANALYSIS_PROGRAM = _ANALYSIS_PROGRAM
 
 
 def _protocol(status: str) -> dict:
@@ -50,7 +85,7 @@ def _protocol(status: str) -> dict:
 def _definition() -> dict:
     return {
         "schemaVersion": 1,
-        "seeds": [1, 2],
+        "seeds": [2, 3],
         "base": {},
         "dimensions": [],
     }
@@ -109,16 +144,6 @@ def make_study(
         _identity_context(status, eligible)
     )
 
-    runs_path = root / "research/analysis/runs.json"
-    runs = json.loads(runs_path.read_text(encoding="utf-8"))
-    runs["researchId"] = research_id
-    _write(runs_path, runs)
-    points_path = root / "research/analysis/points.json"
-    _write(
-        points_path,
-        {"schemaVersion": 1, "researchId": research_id, "points": []},
-    )
-
     plan = {
         "schemaVersion": 1,
         "studyExecutionId": study_execution_id,
@@ -136,24 +161,117 @@ def make_study(
     _write(root / "study-protocol.json", protocol)
     _write(root / "research-definition.json", definition)
 
+    coordinates: list[dict] = []
     research_manifest = {
         "schemaVersion": 1,
         "researchId": research_id,
         "definitionIdentity": definition_id,
         "source": dict(_SOURCE),
         "definition": definition,
+        "points": [
+            {
+                "point": {
+                    "pointId": _POINT_ID,
+                    "index": 0,
+                    "coordinates": coordinates,
+                    "runConfig": _RUN_CONFIG,
+                },
+                "runs": [
+                    {
+                        "seed": 2,
+                        "runId": _RUN_A,
+                        "relativeDir": _REL_A,
+                        "runConfig": _RUN_CONFIG,
+                    },
+                    {
+                        "seed": 3,
+                        "runId": _RUN_B,
+                        "relativeDir": _REL_B,
+                        "runConfig": _RUN_CONFIG,
+                    },
+                ],
+            }
+        ],
     }
     _write(root / "research/research-manifest.json", research_manifest)
     _write(root / "research/research-plan.json", research_manifest)
+
+    state_runs = {
+        _RUN_A: {
+            "runId": _RUN_A,
+            "pointId": _POINT_ID,
+            "seed": 2,
+            "relativeDir": _REL_A,
+            "attempt": 1,
+            "state": "completed",
+            "stateDigest64": 101,
+            "error": None,
+        },
+        _RUN_B: {
+            "runId": _RUN_B,
+            "pointId": _POINT_ID,
+            "seed": 3,
+            "relativeDir": _REL_B,
+            "attempt": 1,
+            "state": "completed",
+            "stateDigest64": 102,
+            "error": None,
+        },
+    }
     _write(
         root / "research/research-state.json",
+        {"schemaVersion": 1, "researchId": research_id, "runs": state_runs},
+    )
+
+    points_path = root / "research/analysis/points.json"
+    runs_path = root / "research/analysis/runs.json"
+    _write(
+        points_path,
         {
             "schemaVersion": 1,
             "researchId": research_id,
-            "runs": {
-                "run-a": {"state": "completed"},
-                "run-b": {"state": "completed"},
-            },
+            "points": [
+                {
+                    "pointId": _POINT_ID,
+                    "index": 0,
+                    "coordinates": coordinates,
+                    "resultingConfiguration": _RUN_CONFIG,
+                    "runIds": [_RUN_A, _RUN_B],
+                }
+            ],
+        },
+    )
+    _write(
+        runs_path,
+        {
+            "schemaVersion": 1,
+            "researchId": research_id,
+            "runs": [
+                {
+                    "pointId": _POINT_ID,
+                    "runId": _RUN_A,
+                    "seed": 2,
+                    "coordinates": coordinates,
+                    "resultingConfiguration": _RUN_CONFIG,
+                    "relativeDir": _REL_A,
+                    "attempt": 1,
+                    "state": "completed",
+                    "stateDigest64": 101,
+                    "error": None,
+                },
+                {
+                    "pointId": _POINT_ID,
+                    "runId": _RUN_B,
+                    "seed": 3,
+                    "coordinates": coordinates,
+                    "resultingConfiguration": _RUN_CONFIG,
+                    "relativeDir": _REL_B,
+                    "attempt": 1,
+                    "state": "completed",
+                    "stateDigest64": 102,
+                    "error": None,
+                },
+            ],
         },
     )
 
@@ -197,8 +315,6 @@ def test_source_mutation_during_execution_fails_closed() -> None:
             json.dumps(mutated, indent=2) + "\n", encoding="utf-8"
         )
         failed = _legacy.run("run", root, definition_path, expect_success=False)
-        # Full study-root validation may now catch the mutated canonical research
-        # artifact before the older generic before/after snapshot diagnostic.
         assert (
             "changed during analysis execution" in failed.stderr
             or "result artifact digest64 does not match current bytes" in failed.stderr
