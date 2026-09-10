@@ -1,6 +1,6 @@
 # Identifiability and equifinality analysis v2
 
-AnthroSim treats calibration fit, simulation Monte Carlo precision, executed-design identity, and scientific identification as different claims. A parameter set can reproduce a target while the evidence still fails to identify the underlying parameter, parameter combination, or structural mechanism. Likewise, a finite stochastic ensemble can have a point estimate near a target while remaining too imprecise to support a calibration decision.
+AnthroSim treats calibration fit, simulation Monte Carlo precision, executed-design identity, authoritative result-value identity, and scientific identification as different claims. A parameter set can reproduce a target while the evidence still fails to identify the underlying parameter, parameter combination, or structural mechanism. Likewise, a finite stochastic ensemble can have a point estimate near a target while remaining too imprecise to support a calibration decision.
 
 ## Research gate
 
@@ -11,6 +11,8 @@ The gate is required for quantitative calibration, parameter inference and compe
 A failed gate is a scientific result, not an optimisation failure. The study must report the compatible parameter region or ensemble and must not collapse that region to a unique best-fit value unless the declared evidence identifies it.
 
 Since AV4-011/#535, **a statistically identifying table is not enough**. Before parameter ranges, profiles, pairwise surfaces or structural diagnostics can authorize a positive claim, every analysis row must be bound to the immutable design actually emitted by `anthrosim-research`. Free-form downstream `parameters`, `structure` or point IDs are never accepted as scientific coordinate authority by themselves.
+
+Since AV6-012/#737, **an executed-design binding is also not enough**. `executedDesignBound=true` proves which treatments and execution IDs were run; it does not by itself prove that a downstream `outputs` number came from those executions. For real `--research-root` analyses, every claim-driving deterministic AnthroSim-derived output must also pass the authoritative-output binding described below before compatibility or identification is calculated.
 
 ## Executed-design binding
 
@@ -46,6 +48,43 @@ The analysis data row must use exactly those parameter values, structure identit
 
 The successful result records `executedDesignBinding.bindingIdentity`, source kind, source identity, `researchId`, `definitionIdentity`, point/execution counts and validation state. That object is part of the identifiability result consumed by normal analysis provenance, so the exact coordinate authority used for the inference is itself provenance-bound.
 
+## Authoritative deterministic-output binding
+
+For real research roots, `scripts/research-identifiability-output-binding.py` resolves deterministic AnthroSim-derived outputs only after the executed-design coordinates have passed. It validates every execution ID against the immutable manifest and then requires the corresponding `research-state.json` row to be `completed` with the same point ID, seed, relative directory and final state digest. The child `manifest.json` and `checkpoint.json` must be regular non-symlink files and must agree with the immutable run configuration, model/source identity and final state digest. Spatial runs additionally require the preserved landscape, spatial-mechanism configuration and wrapper manifest/checkpoint to agree with the immutable spatial run configuration and validated core artifacts.
+
+The output-binding result has `bindingType="anthrosim-identifiability-authoritative-output-binding"` and records the exact `researchId`, `definitionIdentity`, executed-design binding identity, research-state SHA-256 identity, deterministic derivation records, and SHA-256 identities of the authoritative child artifacts actually consulted. These records are written into the final identifiability result, so normal analysis provenance binds both the downstream data table and the authoritative source/derivation used to validate it.
+
+A mismatch does not fall through to the statistical analyzer. The result is non-passing with `researchGate.reason="authoritative_output_binding_invalid"`, `executedDesignBound=true`, and `authoritativeOutputsBound=false`; parameter profiles, pairwise interaction surfaces and positive identification diagnostics are not calculated from the contradictory values.
+
+### Supported real-study deterministic derivations
+
+The canonical `all_executions_completed` observable is retained for runner/integrity analyses. A bare declaration
+
+```json
+{"kind":"deterministic"}
+```
+
+is accepted for that observable only, and its authoritative value is `1.0` only after every execution bound to that point has passed the completed-state and child-artifact validation above. A submitted `0.0`, missing run, failed run, rebound run or invalid child artifact therefore cannot manufacture an identification contrast.
+
+Other real-study deterministic observables must declare an explicit v1 derivation:
+
+```json
+{
+  "kind": "deterministic",
+  "derivation": {
+    "kind": "run_manifest_scalar_v1",
+    "jsonPointer": "/population/initialPopulation",
+    "reducer": "require_equal_v1"
+  }
+}
+```
+
+`run_manifest_scalar_v1` reads the declared finite numeric field from every exact bound child `manifest.json`. `require_equal_v1` requires all of those authoritative per-execution values to be exactly numerically equal before exposing the shared value as a deterministic point output. The submitted downstream `outputs` value must then equal that authoritative value exactly. This is deliberately a conservative first contract: arbitrary reducers are not accepted as deterministic evidence because silently averaging stochastic runs would collapse process uncertainty into a free-form point estimate.
+
+`require_equal_v1` establishes artifact-value binding; it is not, by itself, a general proof that an arbitrary stochastic model quantity has zero process uncertainty. A study may use this deterministic route only for observables whose scientific semantics are genuinely deterministic for the declared analysis. Stochastic model outcomes must continue to use the Monte Carlo evidence contract rather than being relabelled deterministic because a finite set of seeds happened to agree.
+
+Bare deterministic declarations for other real-study observables fail closed with an authoritative-output-binding error. Synthetic fixtures retain their historical bare deterministic declaration because their purpose is to test the analyzer, not to represent an `anthrosim-research` execution.
+
 ### Derived covariates are not model parameters
 
 Analysis-only derived quantities may be stored in a separate row-level `covariates` object. They are deliberately excluded from executed parameter coordinates. A covariate name cannot be promoted into `claim.parameterIds`; unless that identifier exists as a genuinely executed numeric research dimension, the claim fails closed. This preserves useful downstream descriptors without silently turning them into causal treatment coordinates.
@@ -54,7 +93,7 @@ Analysis-only derived quantities may be stored in a separate row-level `covariat
 
 Repository unit tests and the checked-in deterministic benchmark do not represent an `anthrosim-research` execution. They therefore carry an explicit `sourceKind="synthetic_fixture"` binding whose SHA-256 `pointDigest` fixes the complete synthetic `(point id, parameters, structure)` projection.
 
-That mechanism exists only to test the analyzer. It is visibly distinct from `anthrosim_research_manifest_v1` and cannot be supplied as a real external research-root binding. Mutating a synthetic fixture's point ID, parameter value/key or structure without updating its preserved binding returns the same fail-closed non-identifying result.
+That mechanism exists only to test the analyzer. It is visibly distinct from `anthrosim_research_manifest_v1` and cannot be supplied as a real external research-root binding. Mutating a synthetic fixture's point ID, parameter value/key or structure without updating its preserved binding returns the same fail-closed non-identifying result. Synthetic fixture outputs are not evidence that the real-study authoritative-output contract has passed.
 
 ## Schema-v2 analysis inputs
 
@@ -62,18 +101,19 @@ The procedure takes two versioned JSON documents plus, for real-study use, the i
 
 1. A **plan** declaring calibration targets, tolerances, held-out corroboration observables, claimed parameter IDs, whether a structural hypothesis is being claimed, and the maximum compatible normalized parameter-range width.
 2. A **data table** containing every evaluated design point, its bound parameter coordinates, canonical structure identity where applicable, bound execution IDs for real studies, output summaries, and explicit `outputEvidence` for every calibration/corroboration output.
-3. For real research, `--research-root` identifies the immutable `anthrosim-research` execution from which point/configuration identities are re-derived. A manifest-shaped binding embedded only in the downstream data table is rejected rather than trusted.
+3. For real research, `--research-root` identifies the immutable `anthrosim-research` execution from which point/configuration identities and authoritative deterministic result values are resolved. A manifest-shaped binding embedded only in the downstream data table is rejected rather than trusted.
 
 A `structure` identifier, when present, must be a non-empty JSON string. For real executions it must exactly equal the structure identity derived from the research point's structural coordinates. If `claim.structuralHypothesis=true`, every design point must carry the bound identifier. When no structural hypothesis is claimed, a point with no structural dimension uses the literal default identifier `"default"`. Non-string, empty, whitespace-only or altered structure values are invalid.
 
-`outputEvidence` must distinguish the two supported cases:
+`outputEvidence` distinguishes these cases:
 
-- `{"kind":"deterministic"}` means the output is genuinely deterministic for the declared analysis and therefore has no process-stochastic Monte Carlo sampling uncertainty.
-- `{"kind":"monte_carlo","diagnosticId":"sha256:..."}` binds the output to an immutable embedded Monte Carlo diagnostic from `scripts/research-monte-carlo-sufficiency.py`. The identifier is the SHA-256 digest of the complete canonical diagnostic object and the analyzer verifies it before use.
+- For **synthetic fixtures only**, `{"kind":"deterministic"}` retains the historical test-only deterministic surface.
+- For **real research**, bare `{"kind":"deterministic"}` is recognized only for the canonical `all_executions_completed` derivation. Other deterministic AnthroSim-derived observables require the explicit `run_manifest_scalar_v1` / `require_equal_v1` derivation above.
+- `{"kind":"monte_carlo","diagnosticId":"sha256:..."}` binds a stochastic output to an immutable embedded Monte Carlo diagnostic from `scripts/research-monte-carlo-sufficiency.py`. The identifier is the SHA-256 digest of the complete canonical diagnostic object and the analyzer verifies it before use.
 
-For Monte Carlo evidence the analyzer also binds and verifies the replicate count, exact seed identities, diagnostic schema, uncertainty category, estimand point estimate, confidence interval, declared precision threshold, precision decision, and—in the quantile case—the finite-sample coverage result introduced by issue #334. Changing any bound diagnostic field without changing its content identity fails closed.
+For Monte Carlo evidence the analyzer also binds and verifies the replicate count, exact seed identities, diagnostic schema, uncertainty category, estimand point estimate, confidence interval, declared precision threshold, precision decision, and—in the quantile case—the finite-sample coverage result introduced by issue #334. Changing any bound diagnostic field without changing its content identity fails closed. AV6-010/#729 separately tracks binding the Monte Carlo diagnostic's per-seed values to authoritative study outputs; the deterministic AV6-012 repair does not claim to close that stochastic contract.
 
-The point table is analysis data attached to the immutable research design; it is no longer the authority for declaring what parameter coordinate was executed. The analyzer does not edit or rerun model configurations and therefore cannot hide a changed model behind an optimisation step.
+The point table is analysis data attached to the immutable research design and authoritative outputs; it is neither the authority for declaring what parameter coordinate was executed nor, for real deterministic evidence, the authority for declaring what result value was produced. The analyzer does not edit or rerun model configurations and therefore cannot hide a changed model behind an optimisation step.
 
 ## Simulation uncertainty is not empirical uncertainty
 
@@ -93,14 +133,17 @@ For each target with calibration band `[target - tolerance, target + tolerance]`
 
 A point is compatible if it is acceptable or unresolved. Parameter-width, profile, interaction-surface and structural diagnostics use this **compatible region**, not merely point estimates or only the definitely acceptable subset. Consequently simulation uncertainty can widen the region or leave it unresolved; it cannot spuriously narrow a parameter range by treating noisy estimates as exact.
 
-The final research gate requires all four conditions:
+For real-study deterministic evidence, the exact point value enters this compatibility calculation only after its authoritative-output binding passes. A contradictory downstream number never reaches this stage.
+
+The final research gate requires all five conditions:
 
 1. the executed-design binding is valid;
-2. no unresolved calibration points remain for the declared evidence;
-3. the compatible parameter region identifies every claimed parameter to the predeclared resolution;
-4. if a structural mechanism is claimed, only one compatible canonical structure identifier remains.
+2. every claim-driving real-study deterministic AnthroSim-derived output has a valid authoritative-output binding;
+3. no unresolved calibration points remain for the declared evidence;
+4. the compatible parameter region identifies every claimed parameter to the predeclared resolution;
+5. if a structural mechanism is claimed, only one compatible canonical structure identifier remains.
 
-This gives the required precision trajectory: the same point estimates can remain non-identifying at low Monte Carlo precision and become identifying after a predeclared increase in independent replication makes their simulation intervals sufficiently narrow, but only within the genuinely executed design.
+This gives the required precision trajectory: the same point estimates can remain non-identifying at low Monte Carlo precision and become identifying after a predeclared increase in independent replication makes their simulation intervals sufficiently narrow, but only within the genuinely executed design and only from result values whose declared authority has passed.
 
 ## Evidence-role firewall
 
@@ -116,7 +159,7 @@ For each **executed numeric research dimension**, the analyzer reports the range
 
 Once genuine explored variation exists, numeric parameters are considered practically identified only when the compatible range is no wider than the plan's predeclared fraction of the explored range. Synthetic test fixtures retain categorical-parameter coverage for the historical analyzer regressions; real `anthrosim-research` structural alternatives are represented through structural dimensions and the canonical bound structure identity rather than being smuggled into a free-form parameter coordinate.
 
-Profiles and pairwise surfaces report only validated parameter levels and compatibility counts. A StudyProtocol or downstream finalization step must consume the fail-closed research gate rather than reinterpret an unbound or fixed-by-design parameter as quantitatively constrained.
+Profiles and pairwise surfaces report only validated parameter levels and compatibility counts. A StudyProtocol or downstream finalization step must consume the fail-closed research gate rather than reinterpret an unbound output, unbound coordinate or fixed-by-design parameter as quantitatively constrained.
 
 This is deliberately a transparent finite-design diagnostic, not a claim that a grid has reconstructed a continuous posterior. A real study remains responsible for choosing a scientifically adequate design density, parameter ranges, empirical uncertainty treatment and stochastic precision.
 
@@ -128,6 +171,7 @@ The result preserves:
 - the exact per-target uncertainty-aware classification for every point;
 - the immutable Monte Carlo diagnostic identities actually used by the calibration decision;
 - the immutable executed-design binding identity used to interpret parameter/structure coordinates;
+- for real deterministic evidence, the authoritative-output binding identity, derivation and exact child artifact identities used to validate each point value;
 - per-parameter profile/conditional compatibility counts;
 - pairwise parameter compatibility surfaces;
 - the set of compatible canonical structural-model identifiers;
@@ -150,7 +194,7 @@ The analyzer self-test retains the stochastic adversarial acceptance case from i
 
 The self-test also preserves the AV3-009 boundary: numeric JSON `1` and string JSON `"1"` are not two spellings of one structure. The numeric identifier is rejected as noncanonical, a structural claim with no explicit identifier is rejected, and two distinct valid string identifiers remain two compatible structures and force the structural gate to fail.
 
-The AV4-011 regression additionally executes a tiny real `anthrosim-research` experiment, derives its binding, proves the normal bound parameter claim works, and attacks parameter values, structural identity, execution IDs, derived covariate promotion, and coordinated mutation of both redundant immutable metadata files.
+The real-runner regression preserves the AV4-011 coordinate, structure, execution-ID, derived-covariate and redundant-metadata attacks. It additionally covers AV6-012 by running a real two-point/four-execution study, validating the truthful canonical completion observable, rejecting an otherwise identical contradictory completion value before inference, binding a generic run-manifest scalar with exact per-child artifact identities, rejecting a changed scalar, and rejecting a bare deterministic declaration for a non-canonical real-study observable.
 
 ## Structural hypotheses
 
@@ -160,6 +204,6 @@ If held-out corroboration observables differ between those structures by more th
 
 ## Interpretation limits
 
-Passing this gate means only that the **declared evidence over the declared and executed uncertainty space**, with the declared simulation Monte Carlo precision, identifies the declared quantity to the predeclared resolution. It does not prove that the explored range is empirically complete, that the model is structurally correct, that observations are error-free, or that the archaeological interpretation is unique outside the tested hypothesis set.
+Passing this gate means only that the **declared evidence over the declared and executed uncertainty space**, with valid coordinate/result authority and the declared simulation Monte Carlo precision, identifies the declared quantity to the predeclared resolution. It does not prove that the explored range is empirically complete, that the model is structurally correct, that observations are error-free, or that the archaeological interpretation is unique outside the tested hypothesis set.
 
-Conversely, failing the gate is not necessarily a defect in AnthroSim. It can mean the evidence and precision available do not support the requested inference, or that the supplied analysis table cannot be proven to describe the immutable executed coordinates. That distinction is central to using equifinality and stochastic uncertainty as information rather than hiding them behind a single optimum.
+Conversely, failing the gate is not necessarily a defect in AnthroSim. It can mean the evidence and precision available do not support the requested inference, that the supplied analysis table cannot be proven to describe the immutable executed coordinates, or that a claim-driving result value cannot be reproduced from its declared authoritative executions. That distinction is central to using equifinality and stochastic uncertainty as information rather than hiding them behind a single optimum.

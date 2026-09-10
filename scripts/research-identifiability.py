@@ -1,34 +1,23 @@
 #!/usr/bin/env python3
-"""Fail-closed identifiability/equifinality diagnostics for AnthroSim studies.
+"""Fail-closed research-facing identifiability facade.
 
-The statistical implementation is preserved in ``research-identifiability-legacy.py``.
-This front-end adds the AV4-011 scientific contract: parameter and structural
-coordinates may authorize an identification claim only after they are bound to an
-immutable executed research design.  Real-study CLI use derives that binding from
-``anthrosim-research``'s redundant immutable manifest/plan pair.  Repository
-synthetic fixtures use an explicit digest-bound test-only binding.
+The frozen statistical and executed-coordinate implementation lives in
+``research-identifiability-core.py``. This facade adds AV6-012 authoritative output binding for
+real ``anthrosim-research`` roots without changing the historical synthetic-fixture surface.
 """
 
 from __future__ import annotations
 
 import argparse
 import copy
-from fractions import Fraction
-import hashlib
 import importlib.util
 import json
-import math
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
-LEGACY_PATH = ROOT / "research-identifiability-legacy.py"
-BINDER_PATH = ROOT / "research-identifiability-bind-design.py"
-BINDING_SCHEMA_VERSION = 1
-BINDING_TYPE = "anthrosim-identifiability-executed-design"
-MANIFEST_SOURCE_KIND = "anthrosim_research_manifest_v1"
-SYNTHETIC_SOURCE_KIND = "synthetic_fixture"
-SAFE_BINARY64_INTEGER = 2**53
+CORE_PATH = ROOT / "research-identifiability-core.py"
+OUTPUT_BINDER_PATH = ROOT / "research-identifiability-output-binding.py"
 
 
 def _load_module(path: Path, name: str):
@@ -40,458 +29,114 @@ def _load_module(path: Path, name: str):
     return module
 
 
-legacy = _load_module(LEGACY_PATH, "anthrosim_research_identifiability_legacy")
-binder = _load_module(BINDER_PATH, "anthrosim_research_identifiability_binding")
+core = _load_module(CORE_PATH, "anthrosim_research_identifiability_core")
+output_binder = _load_module(
+    OUTPUT_BINDER_PATH, "anthrosim_research_identifiability_output_binding"
+)
 
-IdentifiabilityError = legacy.IdentifiabilityError
-SCHEMA_VERSION = legacy.SCHEMA_VERSION
-MONTE_CARLO_DIAGNOSTIC_SCHEMA = legacy.MONTE_CARLO_DIAGNOSTIC_SCHEMA
-RESULT_TYPE = legacy.RESULT_TYPE
-MONTE_CARLO_CATEGORY = legacy.MONTE_CARLO_CATEGORY
-EPSILON = legacy.EPSILON
+# Preserve the complete historical public Python surface for tests and downstream tooling. The
+# definitions below deliberately override only the real-study analysis entry points.
+for _name, _value in vars(core).items():
+    if not _name.startswith("__"):
+        globals().setdefault(_name, _value)
+
+IdentifiabilityError = core.IdentifiabilityError
 
 
-def _numeric_parameter_diagnostic_exact(
-    parameter: str,
-    points: list[dict[str, Any]],
-    compatible: list[dict[str, Any]],
-    max_normalized_width: float,
+def _output_binding_failure_result(
+    plan: dict[str, Any],
+    data: dict[str, Any],
+    binding: dict[str, Any],
+    summary: dict[str, Any],
+    errors: list[str],
 ) -> dict[str, Any]:
-    """Preserve exact JSON integers in identification-width arithmetic.
+    """Return a non-identifying result without calculating from unbound outputs."""
 
-    JSON integers are scientific coordinates with exact identity. Pure-integer
-    parameter dimensions therefore keep Python integer arithmetic through range
-    subtraction and use ``Fraction`` for the normalized span before serializing the
-    bounded ratio as a float. Floating coordinates retain the historical binary64
-    interpretation. A mixed float/integer dimension containing an integer outside
-    binary64's consecutive-integer domain fails closed instead of silently rounding
-    that exact coordinate into the approximate floating domain.
-    """
-
-    raw_all = [point["parameters"][parameter] for point in points]
-    raw_compatible = [point["parameters"][parameter] for point in compatible]
-    if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in raw_all):
-        raise IdentifiabilityError(f"parameter {parameter} must contain only numeric coordinates")
-
-    all_integer = all(isinstance(value, int) and not isinstance(value, bool) for value in raw_all)
-    if all_integer:
-        all_values = list(raw_all)
-        compatible_values = list(raw_compatible)
-        representation = "exact_json_integer"
-    else:
-        unsafe_mixed_integer = any(
-            isinstance(value, int)
-            and not isinstance(value, bool)
-            and abs(value) > SAFE_BINARY64_INTEGER
-            for value in raw_all
-        )
-        if unsafe_mixed_integer:
-            raise IdentifiabilityError(
-                f"parameter {parameter} mixes floating coordinates with exact integers outside binary64 safe-integer range"
-            )
-        all_values = [legacy._number(value, f"parameter {parameter}") for value in raw_all]
-        compatible_values = [
-            legacy._number(value, f"parameter {parameter}") for value in raw_compatible
-        ]
-        representation = "binary64_approximate"
-
-    full_min, full_max = min(all_values), max(all_values)
-    explored_level_count = len(set(all_values))
-    base = {
-        "parameter": parameter,
-        "kind": "numeric",
-        "coordinateRepresentation": representation,
-        "fullRange": [full_min, full_max],
-        "exploredLevelCount": explored_level_count,
-    }
-    if not compatible_values:
-        return {
-            **base,
-            "identified": False,
-            "reason": "no_compatible_points",
-            "compatibleRange": None,
-            "normalizedCompatibleWidth": None,
-        }
-
-    compatible_min, compatible_max = min(compatible_values), max(compatible_values)
-    if explored_level_count < 2:
-        return {
-            **base,
-            "identified": False,
-            "reason": "insufficient_explored_variation",
-            "compatibleRange": [compatible_min, compatible_max],
-            "normalizedCompatibleWidth": None,
-        }
-
-    denominator = full_max - full_min
-    if all_integer:
-        width = float(Fraction(compatible_max - compatible_min, denominator))
-    else:
-        if not math.isfinite(denominator) or denominator <= 0:
-            raise IdentifiabilityError(
-                f"parameter {parameter} has an invalid approximate floating explored range"
-            )
-        width = (compatible_max - compatible_min) / denominator
-        if not math.isfinite(width):
-            raise IdentifiabilityError(
-                f"parameter {parameter} has a non-finite approximate floating compatible width"
-            )
-
-    identified = width <= max_normalized_width
-    return {
-        **base,
-        "identified": identified,
-        "reason": "compatible_region_within_threshold" if identified else "compatible_region_too_wide",
-        "compatibleRange": [compatible_min, compatible_max],
-        "normalizedCompatibleWidth": width,
-    }
-
-
-# The wrapper is the authoritative research-facing analyzer. Patch only the legacy
-# module's numeric-coordinate diagnostic seam; the remaining frozen statistical
-# implementation and its regression surface stay intact.
-legacy._numeric_parameter_diagnostic = _numeric_parameter_diagnostic_exact
-
-
-def _canonical_bytes(value: Any) -> bytes:
-    return json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
-    ).encode("utf-8")
-
-
-def _canonical_sha256(value: Any) -> str:
-    return "sha256:" + hashlib.sha256(_canonical_bytes(value)).hexdigest()
-
-
-def _load(path: Path) -> dict[str, Any]:
-    return legacy._load(path)
-
-
-def _nonempty_string(value: Any, role: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise IdentifiabilityError(f"{role} must be a non-empty string")
-    return value
-
-
-def _effective_structure(point: dict[str, Any]) -> Any:
-    return point["structure"] if "structure" in point else "default"
-
-
-def _raw_design_projection(points: Any) -> list[dict[str, Any]]:
-    if not isinstance(points, list) or not points:
-        raise IdentifiabilityError("points must be a non-empty array")
-    projection: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for index, point in enumerate(points):
-        if not isinstance(point, dict):
-            raise IdentifiabilityError(f"points[{index}] must be an object")
-        point_id = point.get("id")
-        if not isinstance(point_id, str) or not point_id or point_id in seen:
-            raise IdentifiabilityError("point ids must be unique non-empty strings")
-        seen.add(point_id)
-        parameters = point.get("parameters")
-        if not isinstance(parameters, dict):
-            raise IdentifiabilityError(f"point {point_id} requires a parameters object")
-        projection.append(
-            {
-                "id": point_id,
-                "parameters": copy.deepcopy(parameters),
-                "structure": copy.deepcopy(_effective_structure(point)),
-            }
-        )
-    return projection
-
-
-def synthetic_fixture_binding(points: list[dict[str, Any]], fixture_id: str) -> dict[str, Any]:
-    """Return an explicit test-only design binding for a synthetic fixture.
-
-    This helper is intentionally unsuitable for real research execution: the source
-    kind is permanently marked ``synthetic_fixture`` and contains no runner identity.
-    """
-
-    fixture = _nonempty_string(fixture_id, "synthetic fixture id")
-    projection = _raw_design_projection(points)
-    return {
-        "schemaVersion": BINDING_SCHEMA_VERSION,
-        "bindingType": BINDING_TYPE,
-        "sourceKind": SYNTHETIC_SOURCE_KIND,
-        "sourceIdentity": fixture,
-        "pointDigest": _canonical_sha256(projection),
-    }
-
-
-def bind_synthetic_fixture(data: dict[str, Any], fixture_id: str) -> dict[str, Any]:
-    """Attach a digest-bound synthetic design declaration to a copied data table."""
-
-    bound = copy.deepcopy(data)
-    bound["executedDesignBinding"] = synthetic_fixture_binding(bound.get("points"), fixture_id)
-    return bound
-
-
-def _binding_summary(binding: dict[str, Any], *, valid: bool, errors: list[str]) -> dict[str, Any]:
-    points = binding.get("points")
-    execution_count = 0
-    if isinstance(points, list):
-        for point in points:
-            if isinstance(point, dict) and isinstance(point.get("executionIds"), list):
-                execution_count += len(point["executionIds"])
-    return {
-        "schemaVersion": BINDING_SCHEMA_VERSION,
-        "bindingType": BINDING_TYPE,
-        "bindingIdentity": _canonical_sha256(binding),
-        "sourceKind": binding.get("sourceKind"),
-        "sourceIdentity": binding.get("sourceIdentity"),
-        "researchId": binding.get("researchId"),
-        "definitionIdentity": binding.get("definitionIdentity"),
-        "pointCount": len(points) if isinstance(points, list) else None,
-        "executionCount": execution_count if isinstance(points, list) else None,
-        "valid": valid,
-        "validationErrors": errors,
-    }
-
-
-def _validate_binding_shape(binding: Any) -> dict[str, Any]:
-    if not isinstance(binding, dict):
-        raise IdentifiabilityError("executedDesignBinding must be an object")
-    if binding.get("schemaVersion") != BINDING_SCHEMA_VERSION:
-        raise IdentifiabilityError(
-            f"executedDesignBinding must use schemaVersion {BINDING_SCHEMA_VERSION}"
-        )
-    if binding.get("bindingType") != BINDING_TYPE:
-        raise IdentifiabilityError(f"executedDesignBinding.bindingType must be {BINDING_TYPE}")
-    source_kind = binding.get("sourceKind")
-    if source_kind not in {MANIFEST_SOURCE_KIND, SYNTHETIC_SOURCE_KIND}:
-        raise IdentifiabilityError("executedDesignBinding has an unsupported sourceKind")
-    _nonempty_string(binding.get("sourceIdentity"), "executedDesignBinding.sourceIdentity")
-    return binding
-
-
-def _validate_synthetic_binding(data: dict[str, Any], binding: dict[str, Any]) -> list[str]:
-    if set(binding) != {
-        "schemaVersion",
-        "bindingType",
-        "sourceKind",
-        "sourceIdentity",
-        "pointDigest",
-    }:
-        raise IdentifiabilityError(
-            "synthetic executedDesignBinding must contain only schemaVersion, bindingType, sourceKind, sourceIdentity and pointDigest"
-        )
-    digest = binding.get("pointDigest")
-    if not isinstance(digest, str) or not digest.startswith("sha256:"):
-        raise IdentifiabilityError("synthetic executedDesignBinding.pointDigest must be a sha256 identity")
-    actual = _canonical_sha256(_raw_design_projection(data.get("points")))
-    if actual != digest:
-        return ["synthetic_fixture_design_digest_mismatch"]
-    return []
-
-
-def _validate_manifest_binding(data: dict[str, Any], binding: dict[str, Any]) -> list[str]:
-    required = {
-        "schemaVersion",
-        "bindingType",
-        "sourceKind",
-        "sourceIdentity",
-        "researchId",
-        "definitionIdentity",
-        "source",
-        "points",
-    }
-    if set(binding) != required:
-        raise IdentifiabilityError(
-            "manifest-derived executedDesignBinding does not have the exact schema emitted by research-identifiability-bind-design.py"
-        )
-    _nonempty_string(binding.get("researchId"), "executedDesignBinding.researchId")
-    _nonempty_string(binding.get("definitionIdentity"), "executedDesignBinding.definitionIdentity")
-    if not isinstance(binding.get("source"), dict):
-        raise IdentifiabilityError("executedDesignBinding.source must be an object")
-    bound_points = binding.get("points")
-    raw_points = data.get("points")
-    if not isinstance(bound_points, list) or not bound_points:
-        raise IdentifiabilityError("manifest-derived executedDesignBinding.points must be non-empty")
-    if not isinstance(raw_points, list) or not raw_points:
-        raise IdentifiabilityError("points must be a non-empty array")
-
-    errors: list[str] = []
-    if len(raw_points) != len(bound_points):
-        errors.append("point_count_mismatch")
-        return errors
-    seen_execution_ids: set[str] = set()
-    for index, (raw, bound) in enumerate(zip(raw_points, bound_points, strict=True)):
-        if not isinstance(raw, dict) or not isinstance(bound, dict):
-            errors.append(f"point_{index}_shape_mismatch")
-            continue
-        bound_id = bound.get("id")
-        if raw.get("id") != bound_id:
-            errors.append(f"point_{index}_identity_mismatch")
-            continue
-        if raw.get("parameters") != bound.get("parameters"):
-            errors.append(f"point_{bound_id}_parameter_coordinate_mismatch")
-        if _effective_structure(raw) != bound.get("structure"):
-            errors.append(f"point_{bound_id}_structure_coordinate_mismatch")
-        execution_ids = bound.get("executionIds")
-        if (
-            not isinstance(execution_ids, list)
-            or not execution_ids
-            or any(not isinstance(item, str) or not item for item in execution_ids)
-            or len(set(execution_ids)) != len(execution_ids)
-        ):
-            raise IdentifiabilityError(
-                f"executedDesignBinding point {bound_id} has invalid executionIds"
-            )
-        if seen_execution_ids.intersection(execution_ids):
-            raise IdentifiabilityError("executedDesignBinding contains duplicate executionIds")
-        seen_execution_ids.update(execution_ids)
-        raw_execution_ids = raw.get("executionIds")
-        if raw_execution_ids != execution_ids:
-            errors.append(f"point_{bound_id}_execution_identity_mismatch")
-        coordinates = bound.get("coordinates")
-        if not isinstance(coordinates, list):
-            raise IdentifiabilityError(
-                f"executedDesignBinding point {bound_id} coordinates must be an array"
-            )
-    return errors
-
-
-def _claimed_parameters(plan: dict[str, Any]) -> list[str]:
-    claim = plan.get("claim", {})
-    if not isinstance(claim, dict):
-        raise IdentifiabilityError("claim must be an object")
-    claimed = claim.get("parameterIds", [])
-    if not isinstance(claimed, list) or any(not isinstance(item, str) or not item for item in claimed):
-        raise IdentifiabilityError("claim.parameterIds must be an array of non-empty strings")
-    if len(set(claimed)) != len(claimed):
-        raise IdentifiabilityError("claim.parameterIds must not contain duplicates")
-    return claimed
-
-
-def _binding_failure_result(
-    plan: dict[str, Any], data: dict[str, Any], binding: dict[str, Any], errors: list[str]
-) -> dict[str, Any]:
-    claimed = _claimed_parameters(plan)
-    point_ids = [
-        point.get("id")
-        for point in data.get("points", [])
-        if isinstance(point, dict) and isinstance(point.get("id"), str)
-    ]
-    diagnostics = [
+    result = core._binding_failure_result(plan, data, binding, errors)
+    result["researchGate"].update(
         {
-            "parameter": parameter,
-            "kind": "unbound",
-            "identified": False,
-            "reason": "parameter_not_bound_to_executed_design",
-            "fullRange": None,
-            "compatibleRange": None,
-            "normalizedCompatibleWidth": None,
-            "exploredLevelCount": 0,
+            "reason": "authoritative_output_binding_invalid",
+            "executedDesignBound": True,
+            "authoritativeOutputsBound": False,
         }
-        for parameter in claimed
-    ]
-    return {
-        "schemaVersion": SCHEMA_VERSION,
-        "resultType": RESULT_TYPE,
-        "analysisId": plan.get("analysisId"),
-        "researchGate": {
-            "requiredFor": "quantitative calibration/parameter inference and competing-hypothesis claims",
-            "passes": False,
-            "reason": "executed_design_binding_invalid",
-            "simulationUncertaintyResolved": False,
-            "executedDesignBound": False,
-        },
-        "parameterCoordinateSemantics": {
-            "integerCoordinates": "exact_json_integer",
-            "floatingCoordinates": "binary64_approximate",
-            "unsafeMixedIntegerFloatCoordinates": "fail_closed",
-        },
-        "executedDesignBinding": _binding_summary(binding, valid=False, errors=errors),
-        "uncertaintySeparation": {
-            "simulationMonteCarlo": "not evaluated because the executed-design coordinate binding failed",
-            "empiricalOrEvidence": "not evaluated because the executed-design coordinate binding failed",
-        },
-        "monteCarloDiagnosticIdsUsed": [],
-        "evidenceRoles": {"calibration": [], "heldOutCorroboration": []},
-        "acceptableRegion": {"pointCount": 0, "pointIds": [], "fractionOfDesign": 0.0},
-        "unresolvedRegion": {
-            "pointCount": len(point_ids),
-            "pointIds": point_ids,
-            "fractionOfDesign": 1.0 if point_ids else 0.0,
-        },
-        "compatibleRegion": {"pointCount": 0, "pointIds": [], "fractionOfDesign": 0.0},
-        "rejectedPointIds": [],
-        "pointClassifications": [],
-        "parameterDiagnostics": diagnostics,
-        "structuralDiagnostic": {
-            "compatibleStructures": [],
-            "identified": False,
-            "equifinal": False,
-        },
-        "stagedEvidenceDiagnostics": [],
-        "profiles": {},
-        "pairwiseInteractionSurfaces": [],
-        "discriminatingPredictions": [],
-        "equifinality": {
-            "present": False,
-            "parameterCombinationEquifinality": False,
-            "distinctCompatibleParameterCombinationCount": 0,
-            "structuralEquifinality": False,
-            "nuisanceParameterCompensation": {"present": False, "parameterIds": []},
-            "reportingPolicy": "no_identifiability_inference_until_executed_design_binding_is_valid",
-        },
+    )
+    result["executedDesignBinding"] = core._binding_summary(binding, valid=True, errors=[])
+    result["authoritativeOutputBinding"] = summary
+    for diagnostic in result["parameterDiagnostics"]:
+        diagnostic["kind"] = "unbound_output"
+        diagnostic["reason"] = "claim_outputs_not_bound_to_authoritative_executions"
+    result["uncertaintySeparation"] = {
+        "simulationMonteCarlo": "not evaluated because claim-driving deterministic outputs are not authoritatively bound",
+        "empiricalOrEvidence": "not evaluated because claim-driving deterministic outputs are not authoritatively bound",
     }
+    result["equifinality"]["reportingPolicy"] = (
+        "no_identifiability_inference_until_authoritative_output_binding_is_valid"
+    )
+    return result
+
+
+def _legacy_data_after_authoritative_binding(data: dict[str, Any]) -> dict[str, Any]:
+    """Remove only metadata already validated by the AV6-012 authority layer.
+
+    The frozen statistical implementation intentionally accepts deterministic declarations only as
+    ``{\"kind\":\"deterministic\"}``. Real-study derivation metadata is therefore stripped from a
+    private copy *after* the authoritative resolver has validated it. The original downstream table
+    and complete derivation remain untouched and are preserved in ``authoritativeOutputBinding``.
+    """
+
+    legacy_data = copy.deepcopy(data)
+    points = legacy_data.get("points")
+    if not isinstance(points, list):
+        return legacy_data
+    for point in points:
+        if not isinstance(point, dict):
+            continue
+        evidence = point.get("outputEvidence")
+        if not isinstance(evidence, dict):
+            continue
+        for observable, declaration in list(evidence.items()):
+            if (
+                isinstance(declaration, dict)
+                and declaration.get("kind") == "deterministic"
+                and "derivation" in declaration
+            ):
+                evidence[observable] = {"kind": "deterministic"}
+    return legacy_data
 
 
 def analyse(
     plan: dict[str, Any],
     data: dict[str, Any],
     design_binding: dict[str, Any] | None = None,
+    *,
+    authoritative_output_binding: dict[str, Any] | None = None,
+    authoritative_output_errors: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Analyse a design only after validating its executed-coordinate authority."""
+    """Analyse only after both coordinate and, for real studies, output authority are valid."""
 
-    if not isinstance(plan, dict) or not isinstance(data, dict):
-        raise IdentifiabilityError("plan and data roots must be objects")
-    discrimination_tolerance = legacy._number(
-        plan.get("corroborationDiscriminationTolerance", 0.0),
-        "corroborationDiscriminationTolerance",
+    if design_binding is not None and design_binding.get("sourceKind") == core.MANIFEST_SOURCE_KIND:
+        if authoritative_output_binding is None or authoritative_output_errors is None:
+            raise IdentifiabilityError(
+                "real-study identifiability requires authoritative output binding derived from --research-root"
+            )
+        if authoritative_output_errors:
+            return _output_binding_failure_result(
+                plan,
+                data,
+                design_binding,
+                authoritative_output_binding,
+                authoritative_output_errors,
+            )
+
+    core_data = (
+        _legacy_data_after_authoritative_binding(data)
+        if authoritative_output_binding is not None
+        else data
     )
-    if discrimination_tolerance < 0:
-        raise IdentifiabilityError("corroborationDiscriminationTolerance must be >= 0")
-    embedded = data.get("executedDesignBinding")
-    if design_binding is None:
-        if embedded is None:
-            raise IdentifiabilityError(
-                "identifiability data requires executedDesignBinding; real studies must pass --research-root and synthetic fixtures must embed an explicit synthetic binding"
-            )
-        binding = _validate_binding_shape(embedded)
-        if binding["sourceKind"] != SYNTHETIC_SOURCE_KIND:
-            raise IdentifiabilityError(
-                "manifest-derived executedDesignBinding must be regenerated from --research-root rather than trusted from the analysis table"
-            )
-        errors = _validate_synthetic_binding(data, binding)
-    else:
-        binding = _validate_binding_shape(design_binding)
-        if binding["sourceKind"] != MANIFEST_SOURCE_KIND:
-            raise IdentifiabilityError(
-                "an external real-study design binding must be derived from an AnthroSim research manifest"
-            )
-        if embedded is not None and embedded != binding:
-            raise IdentifiabilityError(
-                "embedded executedDesignBinding disagrees with the binding derived from --research-root"
-            )
-        errors = _validate_manifest_binding(data, binding)
-
-    if errors:
-        return _binding_failure_result(plan, data, binding, errors)
-
-    legacy_data = copy.deepcopy(data)
-    legacy_data.pop("executedDesignBinding", None)
-    result = legacy.analyse(plan, legacy_data)
-    result["parameterCoordinateSemantics"] = {
-        "integerCoordinates": "exact_json_integer",
-        "floatingCoordinates": "binary64_approximate",
-        "unsafeMixedIntegerFloatCoordinates": "fail_closed",
-    }
-    result["executedDesignBinding"] = _binding_summary(binding, valid=True, errors=[])
-    result["researchGate"]["executedDesignBound"] = True
+    result = core.analyse(plan, core_data, design_binding)
+    if authoritative_output_binding is not None:
+        result["authoritativeOutputBinding"] = authoritative_output_binding
+        result["researchGate"]["authoritativeOutputsBound"] = True
     return result
 
 
@@ -499,63 +144,40 @@ def analyse_with_research_root(
     plan: dict[str, Any], data: dict[str, Any], research_root: Path
 ) -> dict[str, Any]:
     try:
-        binding = binder.derive_from_root(research_root)
-    except binder.BindingError as error:
-        raise IdentifiabilityError(f"cannot derive immutable executed-design binding: {error}") from error
-    return analyse(plan, data, binding)
+        binding = core.binder.derive_from_root(research_root)
+    except core.binder.BindingError as error:
+        raise IdentifiabilityError(
+            f"cannot derive immutable executed-design binding: {error}"
+        ) from error
+
+    # Coordinate mismatches are reported using the existing AV4-011 fail-closed result before any
+    # output artifact is resolved. This keeps coordinate authority and result authority distinct.
+    coordinate_errors = core._validate_manifest_binding(data, binding)
+    if coordinate_errors:
+        return core._binding_failure_result(plan, data, binding, coordinate_errors)
+
+    try:
+        output_summary, output_errors = output_binder.validate_real_study_outputs(
+            plan, data, binding, research_root
+        )
+    except output_binder.OutputBindingError as error:
+        raise IdentifiabilityError(
+            f"cannot bind identifiability outputs to authoritative executions: {error}"
+        ) from error
+
+    return analyse(
+        plan,
+        data,
+        binding,
+        authoritative_output_binding=output_summary,
+        authoritative_output_errors=output_errors,
+    )
 
 
 def _self_test() -> None:
-    # Preserve the complete pre-AV4-011 statistical regression surface first.
-    legacy._self_test()
-
-    plan = {
-        "schemaVersion": 2,
-        "analysisId": "executed-design-binding-self-test",
-        "calibrationTargets": [{"observable": "score", "target": 0.0, "tolerance": 0.0}],
-        "corroborationObservables": [],
-        "claim": {"parameterIds": ["theta"], "structuralHypothesis": False},
-        "maxNormalizedAcceptableWidth": 0.0,
-    }
-    points = [
-        {
-            "id": "theta-0",
-            "parameters": {"theta": 0},
-            "structure": "same",
-            "outputs": {"score": 0.0},
-            "outputEvidence": {"score": {"kind": "deterministic"}},
-        },
-        {
-            "id": "theta-1",
-            "parameters": {"theta": 1},
-            "structure": "same",
-            "outputs": {"score": 1.0},
-            "outputEvidence": {"score": {"kind": "deterministic"}},
-        },
-    ]
-    data = bind_synthetic_fixture(
-        {"schemaVersion": 2, "monteCarloDiagnostics": {}, "points": points},
-        "identifiability-binding-self-test-v1",
-    )
-    result = analyse(plan, data)
-    assert result["researchGate"]["passes"] is True
-    assert result["researchGate"]["executedDesignBound"] is True
-
-    fabricated = copy.deepcopy(data)
-    for point in fabricated["points"]:
-        point["parameters"]["fabricated_theta"] = 0 if point["id"] == "theta-0" else 1
-    fabricated_plan = copy.deepcopy(plan)
-    fabricated_plan["claim"] = {
-        "parameterIds": ["fabricated_theta"],
-        "structuralHypothesis": False,
-    }
-    rejected = analyse(fabricated_plan, fabricated)
-    assert rejected["researchGate"]["passes"] is False
-    assert rejected["researchGate"]["reason"] == "executed_design_binding_invalid"
-    assert rejected["parameterDiagnostics"][0]["parameter"] == "fabricated_theta"
-    assert rejected["parameterDiagnostics"][0]["identified"] is False
-    assert rejected["profiles"] == {}
-    assert rejected["pairwiseInteractionSurfaces"] == []
+    # The core self-test is entirely synthetic and intentionally retains the historical fixture
+    # contract. Real archive/output binding is covered by the dedicated runner regression.
+    core._self_test()
 
 
 def main() -> int:
@@ -566,7 +188,7 @@ def main() -> int:
     parser.add_argument(
         "--research-root",
         type=Path,
-        help="anthrosim-research root whose immutable manifest/plan define the executed design; required for real-study use",
+        help="anthrosim-research root whose immutable design and completed run artifacts authorize real-study inference",
     )
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
@@ -577,8 +199,8 @@ def main() -> int:
             return 0
         if args.plan is None or args.data is None or args.output is None:
             parser.error("PLAN DATA OUTPUT are required unless --self-test is used")
-        plan = _load(args.plan)
-        data = _load(args.data)
+        plan = core._load(args.plan)
+        data = core._load(args.data)
         if args.research_root is None:
             result = analyse(plan, data)
         else:
