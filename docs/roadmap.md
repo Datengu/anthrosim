@@ -4,7 +4,7 @@
 
 AnthroSim's roadmap is driven by research capability rather than feature count. The project should add new mechanisms or infrastructure when they are needed to ask a clearer question, distinguish competing explanations, expose uncertainty, or make an experiment more reproducible and inspectable.
 
-**Current framework line:** software version `v0.3.6` / current model semantics v35. Immutable `v0.3.5` remains the v33 Audit-v5 discovery/release baseline; immutable `v0.3.4` remains the historical v25 Audit-v4 target. The v0.3.6 release freezes the fully remediated Audit-v5 state without rewriting either historical baseline.
+**Current framework line:** software version `v0.3.6` / current model semantics v36. Immutable `v0.3.6` remains the v35 Scientific-Audit-v6 discovery/release baseline; immutable `v0.3.5` remains the v33 Audit-v5 discovery/release baseline; immutable `v0.3.4` remains the historical v25 Audit-v4 target. Living v36 repairs the Audit-v6 same-day M9/M4 scheduler seam without rewriting any immutable release or audit target.
 
 The long-term direction remains the one described in `docs/vision.md`: build enough defensible lower-level rules that history-like structure can emerge without scripting historical outcomes.
 
@@ -83,7 +83,7 @@ Implemented M9 capability includes:
 - experiment/ensemble/sweep/checkpoint integration;
 - the M9.7 continuous-residence versus intermittent-aggregation benchmark.
 
-The M9.7 benchmark remains **`capability_distinguished`**. Its current checked-in machine reference is on model semantics v35 after the Audit-v5 M9 coupling repairs and reviewed reference rebaseline; earlier v31–v34 references remain historical evidence. That is a capability/regression result, not evidence for a real social motive or archaeological interpretation. See [`research/m9-controlled-aggregation-benchmark-result.md`](research/m9-controlled-aggregation-benchmark-result.md).
+The M9.7 benchmark remains **`capability_distinguished`**. Its checked-in machine reference remains on model semantics v35 after the Audit-v5 M9 coupling repairs and reviewed reference rebaseline; earlier v31–v34 references remain historical evidence. Living v36 changes scheduler phase re-entry semantics rather than the frozen reference artifact. That benchmark is a capability/regression result, not evidence for a real social motive or archaeological interpretation. See [`research/m9-controlled-aggregation-benchmark-result.md`](research/m9-controlled-aggregation-benchmark-result.md).
 
 M9 does not by itself add trade, ritual, feasting, religion, politics, warfare, livestock, settlement institutions, archaeological preservation/detection or empirical calibration.
 
@@ -98,19 +98,19 @@ Milestone identity, software release identity, model-semantics identity and Git 
 - **v0.3.3:** post-Audit-v2 convergence release, immutable model semantics v21; frozen Audit-v3 target.
 - **v0.3.4:** post-Audit-v3 convergence release, immutable model semantics v25; frozen Audit-v4 target.
 - **v0.3.5:** post-Audit-v4 repaired convergence release, immutable model semantics v33; frozen Audit-v5 target.
-- **v0.3.6:** post-Audit-v5 repaired baseline, model semantics v35; no new roadmap milestone and not a P1-clean convergence result.
+- **v0.3.6:** post-Audit-v5 repaired baseline, immutable model semantics v35; frozen Audit-v6 target, no new roadmap milestone and not a P1-clean convergence result.
 
 Scientific Audit v3 challenged immutable v0.3.3/v21, demonstrated 17 findings and produced the repaired v25 line later frozen as v0.3.4.
 
 Scientific Audit v4 then restarted Areas A–N from zero against immutable v0.3.4/v25. It demonstrated **13 P1 and 2 P2 findings**. Post-discovery remediation repaired and independently re-verified/dispositioned all 15 findings. Authoritative repairs advanced the living development line through **model semantics v26–v33** where continuation/scientific meaning changed. The repository-authoritative record is [`research/audit-v4/STATUS.md`](research/audit-v4/STATUS.md).
 
-Audit v4 is complete and historical. Scientific Audit v5 then restarted all Areas A–N from zero against immutable `v0.3.5`/v33. It demonstrated **8 findings: 4 P1 and 4 P2**; all eight are now repaired/dispositioned and closed, with independent post-merge adversarial re-verification for every P1. Causal repairs advanced living semantics through v34 to v35.
+Audit v4 is complete and historical. Scientific Audit v5 then restarted all Areas A–N from zero against immutable `v0.3.5`/v33. It demonstrated **8 findings: 4 P1 and 4 P2**; all eight were repaired/dispositioned and closed, with independent post-merge adversarial re-verification for every P1. Causal repairs advanced living semantics through v34 to v35 and the repaired line was frozen as v0.3.6.
 
-Because Audit v5 discovered new P1 defects, it is a **non-clean convergence pass** even though remediation is complete. The project convergence rule therefore requires another fresh full audit against the newly frozen repaired baseline before the first empirical/site-specific study begins.
+Scientific Audit v6 then independently restarted Areas A–N against immutable `v0.3.6`/v35 and demonstrated **14 findings: 7 P1 and 7 P2**. Discovery is complete and is therefore another **non-clean convergence pass**. Controlled remediation is in progress; authoritative current state is tracked in [`research/audit-v6/STATUS.md`](research/audit-v6/STATUS.md). Living semantics advance only when a repair changes authoritative scientific meaning.
 
 ## Convergence before the first empirical study
 
-No fixed M10 feature list is declared, and no empirical/site-specific question should be started merely because Audit-v5 remediation is finished. Freeze v0.3.6/v35, then run a fresh independent A–N convergence audit against that immutable baseline. If the next audit is also non-clean, repair, freeze a new baseline and repeat. Only after a P1-clean convergence pass should the project move into its first empirical research question.
+No fixed M10 feature list is declared, and no empirical/site-specific question should begin while Audit-v6 findings remain unresolved. The v0.3.6/v35 discovery result is non-clean, so all findings must be dispositioned, P1 repairs independently reverified, the fully repaired line frozen as a new immutable baseline, and another genuinely fresh audit generation completed. Only after a P1-clean convergence pass should the project move into its first empirical research question.
 
 Once that convergence gate is satisfied, a defensible question-led sequence is:
 
