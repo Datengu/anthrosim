@@ -1,0 +1,113 @@
+name: AV6-001 documentation consistency fixup
+
+on:
+  push:
+    branches:
+      - audit/repair-687-av6-001
+
+permissions:
+  contents: write
+
+jobs:
+  fixup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-687-av6-001
+          fetch-depth: 0
+
+      - name: Reconcile living documentation claims
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              actual = text.count(old)
+              if actual < count:
+                  raise SystemExit(f'{path}: expected at least {count} occurrence(s), found {actual}: {old!r}')
+              text = text.replace(old, new, count)
+              p.write_text(text, encoding='utf-8')
+
+          # README: current milestone/audit status and scientific-status handoff.
+          replace(
+              'README.md',
+              '- **Scientific Audit v5:** discovery and remediation complete against immutable `v0.3.5`/v33; 8/8 findings (4 P1, 4 P2) are closed, with P1 post-merge re-verification complete. Because new P1 findings were discovered, Audit v5 is a non-clean convergence pass.\n\nNo fixed M10 feature list is declared. **Do not begin the first empirical/site-specific research question yet:** the project convergence rule requires another fresh full A–N audit after this v0.3.6 freeze because Audit v5 was non-clean. Once a future audit achieves a P1-clean convergence pass, substantive work should return to the question-led strategy and separately establish evidence, calibration/validation, uncertainty, sensitivity, applicability and corroboration appropriate to the intended inference.',
+              '- **Scientific Audit v5:** discovery and remediation complete against immutable `v0.3.5`/v33; 8/8 findings (4 P1, 4 P2) are closed, with P1 post-merge re-verification complete. Because new P1 findings were discovered, Audit v5 is a non-clean convergence pass.\n- **Scientific Audit v6:** discovery complete against immutable `v0.3.6`/v35; 14 findings (7 P1, 7 P2) were demonstrated. Controlled remediation is active on living source, and P1 findings remain open until independent post-merge re-verification succeeds.\n\nNo fixed M10 feature list is declared. **Do not begin the first empirical/site-specific research question yet:** Audit v6 itself is non-clean. Complete all v6 finding dispositions and required P1 re-verifications, freeze the repaired line as a new immutable baseline, then perform another genuinely fresh A–N audit. Only a P1-clean convergence pass permits the project to move into its first empirical question; study-specific evidence, calibration/validation, uncertainty, sensitivity, applicability and corroboration remain separate requirements.',
+          )
+          replace(
+              'README.md',
+              'Five comprehensive audit generations have now completed discovery. Audit v5 challenged immutable `v0.3.5`/v33, demonstrated 8 findings (4 P1 and 4 P2), and all 8 were subsequently repaired/dispositioned and closed on the v35 line with required P1 post-merge adversarial re-verification. Because Audit v5 discovered new P1 defects, it is a non-clean convergence pass; another fresh full audit of the frozen v0.3.6/v35 baseline is required before the first empirical/site-specific study. Repeated audits are evidence about verification maturity rather than proof of correctness.\n\nStrong archaeological or anthropological claims still require question-specific problem formulation, evidence-role separation, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, comparison against independent observations, discriminating predictions and relevant domain review. See [`docs/research/trace.md`](docs/research/trace.md), [`docs/research/audit-v5/STATUS.md`](docs/research/audit-v5/STATUS.md), and [`docs/roadmap.md`](docs/roadmap.md).',
+              'Six comprehensive audit generations have now completed discovery. Audit v6 challenged immutable `v0.3.6`/v35 and demonstrated 14 findings (7 P1 and 7 P2), so it is another non-clean convergence pass. Controlled remediation is active on the living line; P1 findings require independent post-merge adversarial re-verification before closure. After all v6 findings are dispositioned, the repaired line must be frozen and challenged by another genuinely fresh audit before the first empirical/site-specific study. Repeated audits are evidence about verification maturity rather than proof of correctness.\n\nStrong archaeological or anthropological claims still require question-specific problem formulation, evidence-role separation, calibration/validation where appropriate, uncertainty and sensitivity analysis, identifiability/equifinality assessment, comparison against independent observations, discriminating predictions and relevant domain review. See [`docs/research/trace.md`](docs/research/trace.md), [`docs/research/audit-v6/STATUS.md`](docs/research/audit-v6/STATUS.md), and [`docs/roadmap.md`](docs/roadmap.md).',
+          )
+
+          # TRACE summary and current convergence sections.
+          replace('docs/research/trace.md', 'Established for the living v35 framework line', 'Established for the living v36 framework line')
+          replace(
+              'docs/research/trace.md',
+              '| 4. Conceptual model evaluation | Strong framework audit evidence; study-specific evaluation remains required | Scientific Audit v5 completed the fifth independent A–N audit generation against immutable v0.3.5/v33, demonstrated 8 findings (4 P1, 4 P2), and all 8 were repaired/dispositioned with independent post-merge re-verification for every P1. Because new P1 defects were found, the pass is non-clean and another fresh full audit is required before the first empirical/site-specific study. |',
+              '| 4. Conceptual model evaluation | Strong framework audit evidence; study-specific evaluation remains required | Scientific Audit v6 completed fresh A–N discovery against immutable v0.3.6/v35 and demonstrated 14 findings (7 P1, 7 P2). The pass is non-clean and controlled remediation is active; unresolved P1 findings block convergence. |',
+          )
+          replace(
+              'docs/research/trace.md',
+              '| 5. Implementation verification | Strong framework-level verification; convergence gate not yet satisfied | Five comprehensive audit generations have completed discovery. Audit v5 closed 8/8 demonstrated findings after protected production repair and required P1 post-merge adversarial re-verification, producing the v35 line; because the pass discovered four P1 defects, a fresh full audit of v0.3.6/v35 is still required before the first empirical/site-specific study. |',
+              '| 5. Implementation verification | Strong framework-level verification; convergence gate not yet satisfied | Six comprehensive audit generations have completed discovery. Audit v6 found 14 defects on immutable v0.3.6/v35 and remediation is active on living source; every P1 repair must pass independent post-merge adversarial re-verification before closure, and a later fresh P1-clean audit is still required for convergence. |',
+          )
+          replace(
+              'docs/research/trace.md',
+              '**Established for description of the living current model semantics v36 line**, subject to normal documentation/code consistency review. The immutable `v0.3.5` release baseline remains v33, immutable `v0.3.4` remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.',
+              '**Established for description of the living current model semantics v36 line**, subject to normal documentation/code consistency review. The immutable `v0.3.6` release baseline and Audit-v6 discovery target remains v35, immutable `v0.3.5` remains v33, immutable `v0.3.4` remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.',
+          )
+          replace(
+              'docs/research/trace.md',
+              "The repository's adversarial scientific audits provide issue-level evidence that conceptual/causal semantics are actively challenged rather than accepted because code runs reproducibly. Scientific Audit v5 is the latest completed comprehensive framework audit: it restarted A–N coverage from zero against immutable v0.3.5/v33, demonstrated 4 P1 and 4 P2 findings, and the subsequent remediation programme repaired/dispositioned all 8 with independent post-merge adversarial re-verification for every P1. Authoritative M9 coupling repairs advanced the living identity through v34 to v35 where required.\n\nAudit-v5 findings covered M9 household-local and spatially equivariant stochastic coupling, parentage-relatedness scope, spatial history replay seed identity, small-n statistical validity, held-out discrimination tolerance, exact numeric-coordinate fidelity and survivor-window alignment. The final Audit-v5 closure record is [`audit-v5/STATUS.md`](audit-v5/STATUS.md); Audit-v4 remains preserved historical convergence evidence in [`audit-v4/STATUS.md`](audit-v4/STATUS.md).",
+              "The repository's adversarial scientific audits provide issue-level evidence that conceptual/causal semantics are actively challenged rather than accepted because code runs reproducibly. Scientific Audit v6 is the latest completed discovery generation: it restarted A–N coverage from zero against immutable v0.3.6/v35 and demonstrated 7 P1 and 7 P2 findings. Controlled post-discovery remediation is active on living source; causal repairs advance model-semantics identity only when authoritative meaning changes, and each P1 remains open until independent post-merge adversarial re-verification succeeds.\n\nAudit-v6 findings span scheduler ordering, demographic/genealogical semantics, resource and spatial invariance, temporary-mobility observability/coupling, statistical precision, sensitivity adequacy, identifiability/provenance integrity and long-run analysis. The authoritative live record is [`audit-v6/STATUS.md`](audit-v6/STATUS.md); Audit-v5 and Audit-v4 remain preserved historical convergence evidence in their own ledgers.",
+          )
+          replace(
+              'docs/research/trace.md',
+              '**Current assessment:** Framework-level conceptual audit evidence is strong for the repaired v35 line and there are no open Audit-v5 findings. Audit v5 was nevertheless a non-clean convergence pass because it discovered four P1 defects, so another fresh full audit of frozen v0.3.6/v35 is required before the first empirical/site-specific study. Question-specific evidence, calibration/validation, uncertainty, applicability and corroboration remain separate requirements even after that convergence gate is satisfied.',
+              '**Current assessment:** Framework-level conceptual audit evidence is strong, but Audit-v6 convergence is not yet satisfied: discovery on immutable v0.3.6/v35 was non-clean and remediation remains active on the living line. No empirical/site-specific inference should begin until all v6 findings are dispositioned, required P1 re-verifications pass, the repaired line is frozen and a subsequent genuinely fresh audit is P1-clean. Question-specific evidence, calibration/validation, uncertainty, applicability and corroboration remain separate requirements even after that convergence gate is satisfied.',
+          )
+          replace(
+              'docs/research/trace.md',
+              'Four comprehensive independent/adversarial audit generations have now been completed. Audit v4 demonstrated that an additional fresh audit could still find important defects after earlier convergence work, so audit count must not be treated as proof that no defect remains. What Audit-v4 closure establishes is narrower: every demonstrated Audit-v4 finding has a recorded production repair and required independent re-verification/disposition, and no Audit-v4 issue remains open.\n\n**Current assessment:** Strong framework-level implementation convergence on the repaired current model semantics v36 line; never proof of correctness. Empirical inference remains gated by study-specific validation and corroboration.',
+              'Six comprehensive independent/adversarial audit generations have now completed discovery. Repeated non-clean passes demonstrate why audit count must not be treated as proof that no defect remains. Audit v6 is the current generation: its 14 demonstrated findings are being dispositioned under the protected remediation and re-verification protocol.\n\n**Current assessment:** Strong framework-level verification evidence, but Audit-v6 convergence is not yet satisfied on the living v36 remediation line; never proof of correctness. Empirical inference remains gated by completion of v6 remediation/re-verification, a subsequent P1-clean convergence pass, and study-specific validation and corroboration.',
+          )
+
+          # Research index: v6 discovery is complete; remediation is now active.
+          replace(
+              'docs/research/README.md',
+              '- [`audit-v6/STATUS.md`](audit-v6/STATUS.md) — repository-authoritative Audit-v6 ledger; discovery begins at 0/14 Areas A–N and seeks a fresh P1-clean convergence pass.',
+              '- [`audit-v6/STATUS.md`](audit-v6/STATUS.md) — repository-authoritative Audit-v6 ledger; A–N discovery is complete with 14 findings (7 P1, 7 P2), and controlled remediation/re-verification is active.',
+          )
+          replace(
+              'docs/research/README.md',
+              '- [`audit-v6/README.md`](audit-v6/README.md) and [`audit-v6/STATUS.md`](audit-v6/STATUS.md) define the active sixth independent audit against immutable `v0.3.6` / v35. Coverage starts from zero; earlier audit evidence can guide attacks but cannot complete v6 Areas.',
+              '- [`audit-v6/README.md`](audit-v6/README.md) and [`audit-v6/STATUS.md`](audit-v6/STATUS.md) define the sixth independent audit against immutable `v0.3.6` / v35. Fresh A–N discovery completed from zero and demonstrated 14 findings (7 P1, 7 P2); controlled remediation and required P1 re-verification are now active.',
+          )
+          replace(
+              'docs/research/README.md',
+              'dated `trace-audit-*` documents and other audit-area records remain historical evidence and must not be mechanically rewritten to current v35 language.',
+              'dated `trace-audit-*` documents and other audit-area records remain historical evidence and must not be mechanically rewritten to current living-semantics language.',
+          )
+          replace(
+              'docs/research/README.md',
+              '- [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md) — current demographic-baseline/model-analysis record; its checked result is bound to v35 after a 780-run confirmation reproduced the scientific payload, while earlier v33 evidence remains historical.',
+              '- [`general-scientific-demographic-baseline-v1.md`](general-scientific-demographic-baseline-v1.md) — current demographic-baseline/model-analysis record; its checked result is rebound to v36 after a fresh 780-run confirmation reproduced the scientific payload exactly apart from source/semantics provenance, while earlier v35/v33 evidence remains historical.',
+          )
+          replace(
+              'docs/research/README.md',
+              'The desired result is a **P1-clean convergence pass**: no new P0/P1 scientific defects discovered by a genuinely fresh full audit. Prior audits, green CI, release gates, preserved references and regression tests are attack-hypothesis sources rather than completion evidence. Production repair of any v6 finding remains separated from discovery until the full A–N pass is complete.\n\nNo empirical/site-specific study should begin merely because v6 has been initialized. The project convergence gate is satisfied only if the completed audit meets the reusable protocol\'s full completion criteria and is P1-clean; any later empirical work still requires independent question-specific evidence, calibration/parameterization, uncertainty, sensitivity, identifiability/equifinality and domain review.',
+              'Fresh A–N discovery demonstrated **14 findings: 7 P1 and 7 P2**, so Audit v6 is a **non-clean convergence pass**. Prior audits, green CI, release gates, preserved references and regression tests remain attack-hypothesis sources rather than substitutes for v6 evidence. Because discovery is complete, controlled production remediation is now permitted; every P1 remains open until independent post-merge adversarial re-verification succeeds.\n\nNo empirical/site-specific study should begin while v6 findings remain unresolved. After all findings are dispositioned and required P1 re-verifications pass, the repaired line must be frozen as a new immutable baseline and challenged by another genuinely fresh A–N audit. Only a P1-clean convergence pass satisfies the framework gate; any later empirical work still requires independent question-specific evidence, calibration/parameterization, uncertainty, sensitivity, identifiability/equifinality and domain review.',
+          )
+          PY
+
+          git rm .github/workflows/av6-001-doc-consistency-fixup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs(audit-v6): reconcile living remediation status"
+          git push origin HEAD:audit/repair-687-av6-001
