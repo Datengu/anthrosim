@@ -136,9 +136,15 @@ def diagnostic(groups, plan):
         }
         if not is_terminal:
             precision["sufficient"] = False
-            precision["confidenceSemantics"] = (
+            sequential_semantics = (
                 "descriptive_fixed_sample_interval_at_intermediate_predeclared_boundary; "
                 "not valid for inferential early stopping"
+            )
+            existing_semantics = precision.get("confidenceSemantics")
+            precision["confidenceSemantics"] = (
+                f"{existing_semantics}; {sequential_semantics}"
+                if existing_semantics
+                else sequential_semantics
             )
     return precision
 
