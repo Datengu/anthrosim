@@ -38,7 +38,7 @@ fn landscape() -> LandscapeBundle {
             cell_size_x: 1,
             cell_size_y: 1,
             coordinate_unit: "model_cell".to_owned(),
-            spatial_reference: "LOCAL_CS[audit-v6-av6-001-postmerge-reverify]".to_owned(),
+            spatial_reference: "LOCAL_CS[audit-v6-area-a-target-arrival-m4]".to_owned(),
         },
         vec![
             layer(
@@ -57,7 +57,7 @@ fn landscape() -> LandscapeBundle {
 
 fn mechanisms() -> SpatialMechanismConfig {
     SpatialMechanismConfig::new(
-        "audit-v6-av6-001-postmerge-reverify",
+        "audit-v6-area-a-target-arrival-m4",
         vec![
             SpatialFieldTransform::new(
                 SpatialTargetField::MovementCost,
@@ -86,7 +86,7 @@ fn mechanisms() -> SpatialMechanismConfig {
 
 fn founders() -> FounderPopulationDefinition {
     FounderPopulationDefinition::new(
-        "audit-v6-av6-001-postmerge-reverify",
+        "audit-v6-area-a-target-arrival-m4",
         ParameterProvenance::SyntheticValidation,
         FounderGenealogyStatus::Unspecified,
         vec![FounderHousehold {
@@ -155,7 +155,7 @@ fn temporary_mobility(capacity_per_day: u32) -> TemporaryMobilityConfig {
         region,
         schedule,
         TemporaryTravelModel::new(
-            "audit-v6-area-a-postmerge-travel",
+            "audit-v6-area-a-nine-day-travel",
             ParameterProvenance::SyntheticValidation,
             capacity_per_day,
             10_000,
@@ -217,9 +217,9 @@ fn migration_event(
 
 #[test]
 fn preserved_686_boundary_contract_no_longer_allows_m4_then_same_day_m9() {
-    // This is the #686 controlled fixture: Cell 1 is initially M9-unreachable, M4 moves the
-    // household to Cell 2 on day 91, and ceil(1000/112)=9 means target day 100 would require
-    // departure on the already-entered day 91 after that move.
+    // Exact #686 scientific fixture: Cell 1 is initially M9-unreachable, M4 moves the household
+    // to Cell 2 on day 91, and ceil(1000/112)=9 means target day 100 would require departure on
+    // the already-entered day 91 after that move.
     let run = run(112);
     let migration = migration_event(&run);
 
@@ -255,12 +255,16 @@ fn preserved_686_boundary_contract_no_longer_allows_m4_then_same_day_m9() {
         .expect("the exact-boundary target-arrival window must be reported explicitly as missed");
 
     assert!(missed.sequence > migration.sequence);
+    println!(
+        "AV6-001 postmerge boundary: migration_day={} migration_sequence={} same_day_target_departure_present=false missed_day={} missed_sequence={}",
+        migration.day, migration.sequence, missed.day, missed.sequence
+    );
 }
 
 #[test]
 fn neighbouring_future_departure_reconsideration_remains_valid() {
-    // Same controlled fixture, changing only the declared travel capacity. ceil(1000/125)=8,
-    // therefore the post-M4 residence implies a genuinely future departure on day 92.
+    // Same #686 fixture, changing only travel capacity. ceil(1000/125)=8, therefore the post-M4
+    // residence implies a genuinely future departure on day 92 and preserves #197 semantics.
     let run = run(125);
     let migration = migration_event(&run);
     let departure = run
@@ -296,4 +300,8 @@ fn neighbouring_future_departure_reconsideration_remains_valid() {
         !(record.day == FIRST_M4_BOUNDARY
             && matches!(record.event, EventKind::TemporaryJourneyDeparted { .. }))
     }));
+    println!(
+        "AV6-001 future control: migration_day={} migration_sequence={} departure_day={} departure_sequence={} arrival_day={}",
+        migration.day, migration.sequence, departure.day, departure.sequence, TARGET_ARRIVAL_DAY
+    );
 }
