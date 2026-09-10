@@ -97,7 +97,15 @@ use crate::time::DAYS_PER_YEAR;
 /// rather than executed retroactively after M4, while a genuinely future departure remains
 /// eligible and a fresh simulation may still depart on day zero. A v35 checkpoint must not resume
 /// under v36 while silently changing the order or outcome of future M9/M4 boundary interactions.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v36";
+///
+/// v37 removes canonical resource-cell index from the exact equal-remainder award phase in M3
+/// scarce-resource apportionment. Equal fractional remainders remain ordered by persistent
+/// household scientific coupling identity and retain deterministic long-run fairness by rotating
+/// over resource-period sequence only. Pure spatial reflections can therefore no longer change
+/// which scientifically corresponding household receives an indivisible unit merely because its
+/// occupied cell has a different row-major index. A v36 checkpoint must not resume under v37 while
+/// silently changing future scarce-resource allocation and downstream condition trajectories.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

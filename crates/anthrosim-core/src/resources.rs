@@ -288,15 +288,11 @@ fn apportion_resource_claims(
                 .map_err(|_| ResourceError::AccountingOverflow)?;
 
             if awards > 0 {
-                let cell_phase =
-                    u64::try_from(cell_index).map_err(|_| ResourceError::AccountingOverflow)?;
-                let rotation = usize::try_from(
-                    period_sequence
-                        .checked_add(cell_phase)
-                        .ok_or(ResourceError::AccountingOverflow)?
-                        % group_len_u64,
-                )
-                .map_err(|_| ResourceError::AccountingOverflow)?;
+                // Exact-remainder fairness rotates through the scientific household-coupling
+                // order over resource periods only. Canonical cell identity is bookkeeping and
+                // must not alter corresponding allocation under a spatial isomorphism.
+                let rotation = usize::try_from(period_sequence % group_len_u64)
+                    .map_err(|_| ResourceError::AccountingOverflow)?;
 
                 for step in 0..awards {
                     let group_offset = (rotation + step) % group_len;
@@ -1997,6 +1993,49 @@ mod tests {
         }
 
         assert_eq!(totals, [4, 4]);
+    }
+
+    #[test]
+    fn equal_scarcity_remainder_rotation_is_independent_of_cell_index() {
+        let canonical = [
+            ResourceDemandClaim {
+                household_index: 0,
+                household_coupling_key: 10,
+                cell_index: 0,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                household_coupling_key: 20,
+                cell_index: 0,
+                need: 1,
+            },
+        ];
+        let reflected = [
+            ResourceDemandClaim {
+                household_index: 0,
+                household_coupling_key: 10,
+                cell_index: 1,
+                need: 1,
+            },
+            ResourceDemandClaim {
+                household_index: 1,
+                household_coupling_key: 20,
+                cell_index: 1,
+                need: 1,
+            },
+        ];
+
+        for period_sequence in 0..8 {
+            let (canonical_harvest, canonical_cells) =
+                apportion_resource_claims(&canonical, &[2, 0], &[1, 0], period_sequence).unwrap();
+            let (reflected_harvest, reflected_cells) =
+                apportion_resource_claims(&reflected, &[0, 2], &[0, 1], period_sequence).unwrap();
+
+            assert_eq!(canonical_harvest, reflected_harvest);
+            assert_eq!(canonical_cells, vec![1, 0]);
+            assert_eq!(reflected_cells, vec![0, 1]);
+        }
     }
 
     #[test]

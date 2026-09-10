@@ -1,6 +1,6 @@
 # Architecture
 
-**Current framework identity:** software version v0.3.6 / current model semantics v36. The immutable v0.3.6 release remains the frozen v35 Audit-v6 discovery target; immutable v0.3.5/v33 remains the historical Audit-v5 target; immutable v0.3.4/v25 remains the historical Audit-v4 target; other historical release/audit baselines retain their own identities.
+**Current framework identity:** software version v0.3.6 / current model semantics v37. The immutable v0.3.6 release remains the frozen v35 Audit-v6 discovery target; immutable v0.3.5/v33 remains the historical Audit-v5 target; immutable v0.3.4/v25 remains the historical Audit-v4 target; other historical release/audit baselines retain their own identities.
 
 ## Architectural objective
 
@@ -80,6 +80,7 @@ Audit-v4 repairs introduced persistent **scientific stochastic-coupling ranks** 
 - M9 equal-cost destination coupling uses a household-local identity rather than a globally ordinal population rank (v34).
 - M9 equal-cost destination realization is equivariant under the supported grid-reflection group while preserving marginal exchangeability within scientifically indistinguishable alternatives (v35).
 - fixed-day M9/M4 scheduler ordering cannot be re-entered retroactively after a completed positive boundary; future target-arrival reconsideration remains available and day zero remains eligible on fresh execution (v36).
+- scarce-resource exact-remainder awards retain household scientific coupling and temporal fairness rotation while removing canonical cell index from the tie phase, so spatially corresponding scarcity problems allocate equivariantly (v37).
 
 This progression is summarized in `crates/anthrosim-core/src/provenance.rs`, whose `MODEL_SEMANTICS_ID` is the authoritative current compatibility identity.
 
@@ -89,7 +90,7 @@ Randomness is explicit. The master seed derives named deterministic streams; add
 
 M2/M3 use separate streams for background mortality, condition-mediated mortality, fertility, parentage and newborn reproductive sex. M4 uses independent migration choice and uncertainty streams. M9 uses its declared deterministic/tie semantics. Stream separation is necessary but not sufficient: draw **assignment** also follows the scientific coupling rules above so arbitrary storage labels/order do not become hidden causes.
 
-M4 candidate discovery may use deterministic enumeration internally, but under current v36 semantics (rule introduced at v33) candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
+M4 candidate discovery may use deterministic enumeration internally, but under current v37 semantics (rule introduced at v33) candidate enumeration order is not the scientific stochastic-coupling key. Exact deterministic utility and movement distance define exchangeability classes for uncertainty/choice assignment.
 
 Parallelism is introduced only with a declared deterministic strategy. Faster nondeterministic execution may be offered later only as an explicitly separate mode, never silently substituted for research runs.
 
@@ -109,7 +110,7 @@ initial dynamic stock + cumulative regeneration - cumulative harvest = current d
 
 Harvest equals consumption in the current baseline because storage/spoilage/waste are not represented.
 
-Under scarcity, indivisible remainder units are allocated using the current v32 scientific household coupling/fairness rule rather than arbitrary household or claim-vector order. M9 duration-aware accounting charges at-residence person-days to residence, visitor person-days to visitor/focal cells, and transit through the declared home-provisioning proxy because transit has no authoritative world cell. See [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md) and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
+Under scarcity, indivisible remainder units are allocated using the current v37 scientific household-coupling rule with period-only fairness rotation rather than arbitrary household, claim-vector or canonical cell order. M9 duration-aware accounting charges at-residence person-days to residence, visitor person-days to visitor/focal cells, and transit through the declared home-provisioning proxy because transit has no authoritative world cell. See [`research/m3-resource-time-contract-v1.md`](research/m3-resource-time-contract-v1.md) and [`research/m9-duration-aware-resource-semantics-v1.md`](research/m9-duration-aware-resource-semantics-v1.md).
 
 ## Permanent and temporary mobility boundaries
 

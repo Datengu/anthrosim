@@ -50,6 +50,8 @@ pub mod time;
 pub mod world;
 
 #[cfg(test)]
+mod av6_004_resource_cell_reflection_tests;
+#[cfg(test)]
 mod competing_mortality_acceptance_tests;
 #[cfg(test)]
 mod condition_mortality_acceptance_tests;
