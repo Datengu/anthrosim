@@ -7,7 +7,10 @@ fn research_monte_carlo_confirmatory_seed_binding_contract() {
         .parent()
         .and_then(|path| path.parent())
         .expect("anthrosim-cli must live under crates/<name>");
-    let test_script = repo_root.join("scripts/test-research-monte-carlo-confirmatory.py");
+    let test_scripts = [
+        repo_root.join("scripts/test-research-monte-carlo-confirmatory.py"),
+        repo_root.join("scripts/test-research-monte-carlo-sample-binding.py"),
+    ];
 
     let mut candidates = Vec::new();
     if let Some(python) = std::env::var_os("PYTHON") {
@@ -17,26 +20,34 @@ fn research_monte_carlo_confirmatory_seed_binding_contract() {
     candidates.push(PathBuf::from("python"));
 
     for python in candidates {
-        match Command::new(&python).arg(&test_script).output() {
-            Ok(output) => {
-                assert!(
-                    output.status.success(),
-                    "confirmatory Monte Carlo seed-binding suite failed with {}\nstdout:\n{}\nstderr:\n{}",
-                    python.display(),
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                return;
+        let mut interpreter_found = false;
+        for test_script in &test_scripts {
+            match Command::new(&python).arg(test_script).output() {
+                Ok(output) => {
+                    interpreter_found = true;
+                    assert!(
+                        output.status.success(),
+                        "confirmatory Monte Carlo binding suite {} failed with {}\nstdout:\n{}\nstderr:\n{}",
+                        test_script.display(),
+                        python.display(),
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => break,
+                Err(error) => panic!(
+                    "failed to launch confirmatory Monte Carlo binding suite {} with {}: {error}",
+                    test_script.display(),
+                    python.display()
+                ),
             }
-            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
-            Err(error) => panic!(
-                "failed to launch confirmatory Monte Carlo seed-binding suite with {}: {error}",
-                python.display()
-            ),
+        }
+        if interpreter_found {
+            return;
         }
     }
 
     eprintln!(
-        "skipping confirmatory Monte Carlo seed-binding suite because no Python interpreter was found"
+        "skipping confirmatory Monte Carlo binding suites because no Python interpreter was found"
     );
 }
