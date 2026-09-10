@@ -89,7 +89,15 @@ use crate::time::DAYS_PER_YEAR;
 /// Canonical CellId only orders members inside a genuinely indistinguishable equivalence
 /// class. A v34 checkpoint must not resume under v35 while silently changing future tied M9
 /// destinations.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v35";
+///
+/// v36 freezes fixed-day scheduler phase ordering against target-arrival reconsideration. Once a
+/// positive authoritative day has completed its M9 phase, later event-driven scans start on the
+/// following day instead of re-entering that completed day after M4 changes residence. A newly
+/// implied departure on or before the completed boundary is therefore reported as a missed window
+/// rather than executed retroactively after M4, while a genuinely future departure remains
+/// eligible and a fresh simulation may still depart on day zero. A v35 checkpoint must not resume
+/// under v36 while silently changing the order or outcome of future M9/M4 boundary interactions.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v36";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
