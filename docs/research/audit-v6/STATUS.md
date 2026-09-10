@@ -18,15 +18,15 @@ This is the repository-authoritative compact handoff state. Detailed completed-a
 | Target model semantics | `anthrosim-model-semantics-v35` |
 | Discovery coverage | **14/14 Areas A–N complete** |
 | Discovery result | **non-clean convergence pass: 14 findings — 7 P1, 7 P2** |
-| Open Audit-v6 findings | **14** |
-| Open P0/P1 | **7 — AV6-001/#687; AV6-004/#707; AV6-006/#711; AV6-009/#726; AV6-010/#729; AV6-012/#737; AV6-013/#741** |
-| Phase | **discovery complete — remediation/disposition next** |
-| Active ownership | **no discovery Area active; begin controlled finding remediation after this completion record is on protected `main`** |
-| Production remediation | **allowed only after authoritative 14/14 discovery completion; use dedicated repair PRs and preserve original evidence** |
-| Convergence status | **v6 cannot be P1-clean because seven new P1 findings were demonstrated** |
+| Open Audit-v6 findings | **13** |
+| Open P0/P1 | **6 — AV6-001/#687; AV6-004/#707; AV6-006/#711; AV6-009/#726; AV6-010/#729; AV6-012/#737** |
+| Phase | **discovery complete — controlled remediation in progress** |
+| Active ownership | **AV6-012/#737 is the next dependency-appropriate P1 remediation target** |
+| Production remediation | **AV6-013/#741 repaired by #751 and independently reverified by #752; all remaining repairs require dedicated production PRs and preserved original evidence** |
+| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; six P1 findings remain open after one verified repair** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-Protected `main` immediately before final Area-N evidence was `d341d0a6462f175bcfd1f26df148d074e9f80f4a`. Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though audit-only documentation commits advanced `main`.
+Protected `main` immediately before final Area-N evidence was `d341d0a6462f175bcfd1f26df148d074e9f80f4a`. Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though audit documentation and post-discovery remediation commits advance `main`.
 
 ## Completed Areas
 
@@ -71,37 +71,61 @@ Therefore the causally irrelevant impassable padding moves **five actual visitor
 
 Two earlier #749 attempts are excluded from evidence: one compile-only fixture error and one zero-capacity fixture error. The scientific oracle was unchanged. See `area-n-2026-09-09.md` for the full evidence hygiene and integration synthesis.
 
+## Remediation progress
+
+### AV6-013 / #741 P1 — repaired and independently reverified
+
+Production repair PR **#751** merged to protected `main` as `a19fdaf98dc1d5e0bba1ed131347a7803bf8d856`.
+
+The repaired finalized-study root verifier now deterministically reconstructs the canonical `research/analysis/points.json` and `runs.json` tables from immutable research plan/state and requires complete semantic equality before returning a verified root. Existing artifact-digest, producer-defined `resultIdentity`, study/protocol/research lineage and replay/provenance checks remain in force.
+
+PR #751's exact final repair head passed the complete protected/scientific suite before merge, including the dedicated study-result-binding chain and its real `anthrosim-study` producer-to-provenance integration.
+
+Mandatory independent post-merge re-verification used evidence-only PR **#752**, exact head `801f1d9436ff8eda5a71a08945be4e5fc022d849`, based directly on the merged repair. The original #739 discovery workflow, Rust test and helper were restored **byte-for-byte from their original Git blobs**, with no production changes.
+
+Dedicated re-verification run **34425906603**, job **102710963050**, passed. The original self-consistent attack still forged canonical treatment rows from `[4,12]` to `[999,12]`, recomputed both artifact digests and a fresh `resultIdentity`, and preserved immutable execution lineage. The producer continued to reject the forged root, and the repaired root-aware verifier now independently rejected it as well:
+
+```text
+producer_finalize_rejects=true
+root_verifier_accepted=false
+root_verifier_error=research analysis artifact differs from immutable research plan/state: .../research/analysis/points.json
+```
+
+The same evidence head also passed central CI **34425906576** in full, including Quality and tests **102710993310**, release build, core benchmarks, performance/memory acceptance, 1000-run ensemble soak, canonical M7.6 reference and M5/M6 integration. Applicable scientific/security run **34425906837** passed including M8.6 and M9.7, and all other exact-head provenance/determinism/observability/bundle/resume workflows succeeded.
+
+Evidence PR #752 was closed unmerged after classification. Issue #741 was closed completed only after this independent evidence and full exact-head repository validation succeeded.
+
 ## Finding register
 
 | Finding | Severity | Primary / cross-cutting Areas | Issue | State |
 |---|---:|---|---|---|
-| AV6-001 | **P1** | A primary; D/E/F/M/N | #687 | open; remediation next |
-| AV6-002 | **P2** | B primary; C/G/M/N | #694 | open; remediation next |
-| AV6-003 | **P2** | C primary; E/N | #699 | open; remediation next |
-| AV6-004 | **P1** | D primary; E/H/N | #707 | open; remediation next |
-| AV6-005 | **P2** | D primary; C/E/F/N | #708 | open; remediation next |
-| AV6-006 | **P1** | E primary; F/H/I/N | #711 | open; remediation next |
-| AV6-007 | **P2** | F primary; E/L/N | #718 | open; remediation next |
-| AV6-008 | **P2** | G primary; C/M/N | #721 | open; remediation next |
-| AV6-009 | **P1** | H primary; K/L/M/N | #726 | open; remediation next |
-| AV6-010 | **P1** | H primary; K/L/M/N | #729 | open; remediation next |
-| AV6-011 | **P2** | I primary; K/L/M/N | #733 | open; remediation next |
-| AV6-012 | **P1** | J primary; K/L/M/N | #737 | open; remediation next |
-| AV6-013 | **P1** | K primary; J/L/M/N | #741 | open; remediation next |
-| AV6-014 | **P2** | L primary; G/I/M/N | #745 | open; remediation next |
+| AV6-001 | **P1** | A primary; D/E/F/M/N | #687 | open; remediation pending |
+| AV6-002 | **P2** | B primary; C/G/M/N | #694 | open; remediation pending |
+| AV6-003 | **P2** | C primary; E/N | #699 | open; remediation pending |
+| AV6-004 | **P1** | D primary; E/H/N | #707 | open; remediation pending |
+| AV6-005 | **P2** | D primary; C/E/F/N | #708 | open; remediation pending |
+| AV6-006 | **P1** | E primary; F/H/I/N | #711 | open; remediation pending |
+| AV6-007 | **P2** | F primary; E/L/N | #718 | open; remediation pending |
+| AV6-008 | **P2** | G primary; C/M/N | #721 | open; remediation pending |
+| AV6-009 | **P1** | H primary; K/L/M/N | #726 | open; remediation pending |
+| AV6-010 | **P1** | H primary; K/L/M/N | #729 | open; remediation pending |
+| AV6-011 | **P2** | I primary; K/L/M/N | #733 | open; remediation pending |
+| AV6-012 | **P1** | J primary; K/L/M/N | #737 | **open; next active remediation target** |
+| AV6-013 | **P1** | K primary; J/L/M/N | #741 | **closed — repaired by #751; independently reverified by #752** |
+| AV6-014 | **P2** | L primary; G/I/M/N | #745 | open; remediation pending |
 
 ## Discovery conclusion and convergence
 
 Scientific Audit v6 discovery is complete across the required A–N surface.
 
-The result is **non-clean**. Seven P1 findings mean the charter's desired P1-clean convergence pass is impossible for v6, even if every defect is subsequently repaired.
+The discovery result is **non-clean**. Seven P1 findings mean the charter's desired P1-clean convergence pass was not achieved by v6. Post-discovery remediation does not retroactively turn the v6 discovery pass into a clean audit; it establishes a repaired line that must eventually be frozen and freshly audited again.
 
 Required next path:
 
-1. preserve this 14/14 discovery state and all evidence-only PRs/issues;
-2. remediate the 14 findings on dedicated production branches/PRs in dependency/severity order;
+1. preserve the completed 14/14 discovery state and all evidence-only PRs/issues;
+2. remediate the remaining 13 findings on dedicated production branches/PRs in dependency/severity order;
 3. run exact-head protected/scientific CI for each repair;
-4. independently re-run/re-verify the original adversarial contract for every P0/P1 repair, using the version-drift addendum where live repository evolution matters;
+4. independently re-run/re-verify the original adversarial contract for every remaining P0/P1 repair, using the version-drift addendum where live repository evolution matters;
 5. disposition/retest P2 findings explicitly;
 6. freeze the fully repaired line as a new immutable release;
 7. run another genuinely fresh audit generation before the framework-convergence gate for empirical work can be satisfied.
@@ -110,10 +134,12 @@ A completed framework audit does **not** establish empirical or archaeological v
 
 ## Current handoff
 
-Audit-v6 discovery Areas **A–N are complete** with 14 open findings. No discovery Area remains active.
+Audit-v6 discovery Areas **A–N are complete**. One P1 finding, AV6-013/#741, has now been repaired on protected `main`, independently reverified with the original adversary, and closed. **13 findings remain open: 6 P1 and 7 P2.**
 
-Next action: begin **post-Audit-v6 remediation**, starting with the highest-severity/dependency-appropriate unresolved P1 rather than repairing findings in arbitrary issue-number order. Reconstruct live `main`, open PRs/issues and overlap before selecting the first repair.
+Next action: remediate **AV6-012/#737**. Its executed-design binder already proves the authoritative treatment coordinates, structures and execution IDs, but the identifiability wrapper still passes analyst-supplied deterministic `outputs` through to legacy inference without binding those values to the authoritative executions. Preserve the exact #735 truthful/contradictory adversary as the acceptance test, keep externally authored empirical observations distinct from AnthroSim-derived outputs, and independently reverify the P1 repair after merge.
+
+Before creating that production branch, reconstruct current protected `main`, open PRs/issues and overlapping work and treat this ledger as authoritative.
 
 ## Cross-session start instruction
 
-> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v6/README.md`, `docs/research/audit-reverification-version-drift.md`, `docs/research/audit-v6/STATUS.md`, and `docs/research/audit-v6/area-n-2026-09-09.md`. Verify live `main`, all open Audit-v6 finding issues/PRs and overlapping work. Audit-v6 A–N discovery is complete against immutable `v0.3.6`/v35; do not redo discovery. Begin controlled remediation by severity/dependency, preserve original discovery evidence, and independently reverify every P0/P1 repair before closure.
+> Read `docs/research/scientific-audit-protocol.md`, `docs/research/audit-v6/README.md`, `docs/research/audit-reverification-version-drift.md`, and `docs/research/audit-v6/STATUS.md`. Verify live protected `main`, all open Audit-v6 finding issues/PRs and overlapping work. Audit-v6 A–N discovery is complete against immutable `v0.3.6`/v35. AV6-013/#741 has been repaired by #751, independently reverified by evidence-only #752 and closed. Thirteen findings remain open, including six P1s. Continue controlled remediation with AV6-012/#737 unless live dependency/overlap state requires a different ordering; preserve original discovery evidence and independently reverify every P0/P1 repair before closure.
