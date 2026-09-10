@@ -71,6 +71,9 @@ def other_estimator_families_fail_closed_at_intermediate_looks():
     assert mean["precision"]["normalApproximationValidity"]["validForStopping"] is True
     assert mean["precision"]["sufficient"] is False
     assert mean["precision"]["sequentialStoppingValidity"]["validForInferentialStopping"] is False
+    mean_semantics = mean["precision"]["confidenceSemantics"]
+    assert "not a finite-sample distribution-free coverage guarantee" in mean_semantics
+    assert "not valid for inferential early stopping" in mean_semantics
 
     quantile_plan = helpers.make_plan("quantile", [first, second], 100.0, quantile=0.5)
     quantile_rows = [(seed, float(seed)) for seed in first]
