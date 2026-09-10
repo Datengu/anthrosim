@@ -1,0 +1,39 @@
+name: Audit v6 Area J deterministic output binding
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v6-area-j-deterministic-output-binding.py"
+      - ".github/workflows/audit-v6-area-j-deterministic-output-binding.yml"
+      - "scripts/research-identifiability.py"
+      - "scripts/research-identifiability-legacy.py"
+      - "scripts/research-identifiability-bind-design.py"
+      - "crates/anthrosim-cli/src/bin/anthrosim-research.rs"
+      - "crates/anthrosim-core/src/research_experiment.rs"
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-output-binding-adversary:
+    name: Real-study deterministic output-binding adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build authoritative research runner
+        run: cargo build --locked --bin anthrosim-research
+
+      - name: Run deterministic output-binding adversary
+        run: |
+          python3 scripts/audit-v6-area-j-deterministic-output-binding.py \
+            --research-binary target/debug/anthrosim-research
