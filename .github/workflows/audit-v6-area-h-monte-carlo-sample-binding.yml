@@ -1,0 +1,35 @@
+name: Audit v6 Area H Monte Carlo sample binding
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-v6-area-h-monte-carlo-sample-binding.py"
+      - ".github/workflows/audit-v6-area-h-monte-carlo-sample-binding.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sample-binding-adversary:
+    name: Confirmatory Monte Carlo sample-binding adversary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build real study and research runners
+        run: cargo build --locked -p anthrosim-cli --bin anthrosim-study --bin anthrosim-research
+
+      - name: Run canonical sample-binding adversary
+        run: |
+          python3 scripts/audit-v6-area-h-monte-carlo-sample-binding.py \
+            --study-binary target/debug/anthrosim-study \
+            --research-binary target/debug/anthrosim-research
