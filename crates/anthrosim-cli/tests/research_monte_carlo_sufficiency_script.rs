@@ -1,13 +1,12 @@
 use std::{io, path::PathBuf, process::Command};
 
-#[test]
-fn research_monte_carlo_sufficiency_script_contract() {
+fn run_python_regression(script_name: &str) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir
         .parent()
         .and_then(|path| path.parent())
         .expect("anthrosim-cli must live under crates/<name>");
-    let test_script = repo_root.join("scripts/test-research-monte-carlo-sufficiency.py");
+    let test_script = repo_root.join("scripts").join(script_name);
 
     let mut candidates = Vec::new();
     if let Some(python) = std::env::var_os("PYTHON") {
@@ -21,7 +20,7 @@ fn research_monte_carlo_sufficiency_script_contract() {
             Ok(output) => {
                 assert!(
                     output.status.success(),
-                    "research Monte Carlo sufficiency regression suite failed with {}\nstdout:\n{}\nstderr:\n{}",
+                    "research Monte Carlo regression {script_name} failed with {}\nstdout:\n{}\nstderr:\n{}",
                     python.display(),
                     String::from_utf8_lossy(&output.stdout),
                     String::from_utf8_lossy(&output.stderr)
@@ -30,13 +29,21 @@ fn research_monte_carlo_sufficiency_script_contract() {
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
             Err(error) => panic!(
-                "failed to launch research Monte Carlo sufficiency regression suite with {}: {error}",
+                "failed to launch research Monte Carlo regression {script_name} with {}: {error}",
                 python.display()
             ),
         }
     }
 
-    eprintln!(
-        "skipping Monte Carlo sufficiency regression suite because no Python interpreter was found"
-    );
+    eprintln!("skipping {script_name} because no Python interpreter was found");
+}
+
+#[test]
+fn research_monte_carlo_sufficiency_script_contract() {
+    run_python_regression("test-research-monte-carlo-sufficiency.py");
+}
+
+#[test]
+fn research_monte_carlo_sequential_stopping_contract() {
+    run_python_regression("test-research-monte-carlo-sequential-stopping.py");
 }
