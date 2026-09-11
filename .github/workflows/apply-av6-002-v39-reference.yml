@@ -41,7 +41,6 @@ jobs:
           if not evidence.is_file():
               raise SystemExit('missing regenerated expected-result.json')
           result = json.loads(evidence.read_text(encoding='utf-8'))
-
           assert result['schemaVersion'] == 1
           assert result['scientificStatus'] == 'confirmatory_synthetic_model_analysis'
           assert result['modelSemanticsId'] == 'anthrosim-model-semantics-v39'
@@ -53,8 +52,7 @@ jobs:
           for diagnostic in result['monteCarloPrecision'].values():
               assert diagnostic['precision']['sufficient'] is True
 
-          canonical = Path('research/general-demography-baseline-v1/confirmatory-result.json')
-          shutil.copyfile(evidence, canonical)
+          shutil.copyfile(evidence, 'research/general-demography-baseline-v1/confirmatory-result.json')
 
           def pct(value):
               return f'{float(value) * 100:+.3f}'
@@ -78,46 +76,46 @@ jobs:
 
           doc_path = Path('docs/research/general-scientific-demographic-baseline-v1.md')
           doc = doc_path.read_text(encoding='utf-8')
-          doc = re.sub(
+          doc, count = re.subn(
               r'- current model semantics: `anthrosim-model-semantics-v\d+`;',
               f"- current model semantics: `{result['modelSemanticsId']}`;",
               doc,
               count=1,
           )
-          doc = re.sub(
+          assert count == 1
+          doc, count = re.subn(
               r'- current preserved research execution identity: `research-execution-v1-[0-9a-f]{16}`\.',
               f"- current preserved research execution identity: `{result['researchId']}`.",
               doc,
               count=1,
           )
+          assert count == 1
 
-          table_header = (
+          header = (
               '| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N240 | Extinction | Mate limitation |\n'
               '|---|---|---:|---:|---:|---:|\n'
           )
-          table = table_header + '\n'.join(arm_row(arm) for arm in result['arms'])
+          table = header + '\n'.join(arm_row(arm) for arm in result['arms']) + '\n'
           doc, count = re.subn(
               r'\| Demography \| Household lifecycle \| Late growth %/yr \(95% MC CI\) \| Mean N240 \| Extinction \| Mate limitation \|\n'
               r'\|---\|---\|---:\|---:\|---:\|---:\|\n'
               r'(?:\|.*\|\n){6}',
-              table + '\n',
+              table,
               doc,
               count=1,
           )
-          if count != 1:
-              raise SystemExit('failed to replace current demographic table')
+          assert count == 1
 
-          paired_block = '\n'.join(paired_line(effect) for effect in result['pairedHouseholdEffects'])
+          paired = '\n'.join(paired_line(effect) for effect in result['pairedHouseholdEffects']) + '\n'
           doc, count = re.subn(
               r'- `negative_growth_control_v1`: fission-minus-fixed mean N240 = .*?\n'
               r'- `positive_growth_control_v1`: fission-minus-fixed mean N240 = .*?\n'
               r'- `replacement_control_v1`: fission-minus-fixed mean N240 = .*?\n',
-              paired_block + '\n',
+              paired,
               doc,
               count=1,
           )
-          if count != 1:
-              raise SystemExit('failed to replace paired-effect lines')
+          assert count == 1
 
           doc = doc.replace(
               'The current v38 paired effects retain the established directions in all three schedules:',
@@ -128,10 +126,6 @@ jobs:
           by_key = {(a['demography'], a['householdLifecycle']): a for a in result['arms']}
           fixed = by_key[('positive_growth_control_v1', 'fixed_founder_v1')]
           fission = by_key[('positive_growth_control_v1', 'deterministic_dependency_fission_v2')]
-          old_interp = re.compile(
-              r'Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: mean late realized growth changes from .*?\.',
-              re.S,
-          )
           interp = (
               'Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: '
               f"mean late realized growth changes from {float(fixed['lateGrowthRatePerYear']['mean']) * 100:+.3f}%/year under fixed-founder households "
@@ -139,9 +133,14 @@ jobs:
               f"while mate limitation rises from {float(fixed['mateLimitationFraction']['mean']) * 100:.1f}% to {float(fission['mateLimitationFraction']['mean']) * 100:.1f}% "
               f"and mean N240 falls from {float(fixed['terminalPopulation']['mean']):.1f} to {float(fission['terminalPopulation']['mean']):.1f}."
           )
-          doc, count = old_interp.subn(interp, doc, count=1)
-          if count != 1:
-              raise SystemExit('failed to refresh positive-control interpretation')
+          doc, count = re.subn(
+              r'Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: mean late realized growth changes from .*?\.',
+              interp,
+              doc,
+              count=1,
+              flags=re.S,
+          )
+          assert count == 1
 
           counts = result['longRun']['primaryClassificationCounts']
           long_run = (
@@ -158,8 +157,7 @@ jobs:
               count=1,
               flags=re.S,
           )
-          if count != 1:
-              raise SystemExit('failed to refresh long-run narrative')
+          assert count == 1
 
           doc = doc.replace(
               'Fresh v37 issue-304 run `34544291570` produced the current result;',
@@ -172,28 +170,23 @@ jobs:
               1,
           )
 
-          v39_note = '''
-
-### Audit-v6 AV6-002 v39 demographic rebaseline
-
-AV6-002/#694 gives the public male-parent reproductive-age window one time reference: completed male age at the recorded child-birth boundary. Because that authoritative chronology change can alter births and parentage near configured age thresholds, living model semantics advance from v38 to v39 and the current #304 demographic confirmation is **numerically rebaselined rather than metadata-relabelled**.
-
-The exact 780-run regeneration completed in issue-304 workflow run `34563009772`, job `103149422561`, on repair source head `aee176b34525c168305b83fc623b70192ec54c4c`. All three predeclared Monte Carlo precision gates passed. The uploaded evidence artifact is `10185085281`, SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`, and contains the exact `expected-result.json` copied into the current canonical result here. The high-level recommendation remains `no_universal_demographic_baseline`, while quantitative arm summaries, paired household effects and long-run classifications are refreshed to the reproducible v39 outputs.
-'''
+          note = (
+              '\n\n### Audit-v6 AV6-002 v39 demographic rebaseline\n\n'
+              'AV6-002/#694 gives the public male-parent reproductive-age window one time reference: completed male age at the recorded child-birth boundary. Because that authoritative chronology change can alter births and parentage near configured age thresholds, living model semantics advance from v38 to v39 and the current #304 demographic confirmation is **numerically rebaselined rather than metadata-relabelled**.\n\n'
+              'The exact 780-run regeneration completed in issue-304 workflow run `34563009772`, job `103149422561`, on repair source head `aee176b34525c168305b83fc623b70192ec54c4c`. All three predeclared Monte Carlo precision gates passed. The uploaded evidence artifact is `10185085281`, SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`, and contains the exact `expected-result.json` copied into the current canonical result here. The high-level recommendation remains `no_universal_demographic_baseline`, while quantitative arm summaries, paired household effects and long-run classifications are refreshed to the reproducible v39 outputs.\n'
+          )
           if '### Audit-v6 AV6-002 v39 demographic rebaseline' not in doc:
-              doc = doc.rstrip() + v39_note
+              doc = doc.rstrip() + note
           doc_path.write_text(doc.rstrip() + '\n', encoding='utf-8')
 
           trace_path = Path('docs/research/trace-av6-002-male-parent-age-repair-2026-09-11.md')
           trace = trace_path.read_text(encoding='utf-8')
-          provenance_note = '''
-
-## Current demographic reference refresh
-
-The semantics change was propagated through the current #304 confirmatory demographic reference rather than relabelling v38 output. Workflow run `34563009772` / job `103149422561` completed all 780 frozen-design runs and all three Monte Carlo precision gates. Artifact `10185085281` (SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`) contains the exact v39 `expected-result.json` used to refresh `research/general-demography-baseline-v1/confirmatory-result.json`. The recommendation remains `no_universal_demographic_baseline`; quantitative outputs changed and are therefore preserved as a true v39 rebaseline.
-'''
+          trace_note = (
+              '\n\n## Current demographic reference refresh\n\n'
+              'The semantics change was propagated through the current #304 confirmatory demographic reference rather than relabelling v38 output. Workflow run `34563009772` / job `103149422561` completed all 780 frozen-design runs and all three Monte Carlo precision gates. Artifact `10185085281` (SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`) contains the exact v39 `expected-result.json` used to refresh `research/general-demography-baseline-v1/confirmatory-result.json`. The recommendation remains `no_universal_demographic_baseline`; quantitative outputs changed and are therefore preserved as a true v39 rebaseline.\n'
+          )
           if '## Current demographic reference refresh' not in trace:
-              trace = trace.rstrip() + provenance_note
+              trace = trace.rstrip() + trace_note
           trace_path.write_text(trace.rstrip() + '\n', encoding='utf-8')
 
       - name: Verify synchronized current documentation
