@@ -1,7 +1,7 @@
 # AnthroSim ODD+D human decision-making supplement
 
 **Protocol:** ODD+D (Müller et al. 2013)  
-**AnthroSim baseline:** completed M9 / living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v39 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** completed M9 / living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v40 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living supplement to [`odd.md`](odd.md)  
 **Scientific status:** current human-decision mechanisms are synthetic / unvalidated
 
@@ -291,3 +291,7 @@ A missing process may be a valid null assumption. It must be declared, and the a
 ## Reference
 
 Müller, B. et al. (2013). *Describing human decisions in agent-based models – ODD + D, an extension of the ODD protocol.* Environmental Modelling & Software 48:37–48. DOI: `10.1016/j.envsoft.2013.06.003`.
+
+### Current v40 household-fission external-kin context
+
+For the optional `deterministic_dependency_fission_v2` structural treatment, relationship refinement preserves the persistent residence cell of a represented living direct parent outside the source household. That is existing causal model state already consumed by M4 as a reciprocal first-degree kin-location anchor. It is not an empirical residence norm: external PersonId, HouseholdId, packed-record order and global stochastic-coupling rank are excluded from the social assignment key, and external parents sharing one residence remain equivalent. AV6-003/#699 therefore advances living model semantics v39 → v40 without changing package version `0.3.6` or immutable v0.3.6/v35 audit evidence.
