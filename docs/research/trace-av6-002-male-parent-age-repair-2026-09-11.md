@@ -26,3 +26,7 @@ Demography observability replay uses the same birth-boundary male-age rule, so d
 ## Compatibility
 
 Because the repair may add/remove a birth or alter the eligible parent pool near a configured age threshold, authoritative future state can diverge from a v38 checkpoint. Living model semantics therefore advance to `anthrosim-model-semantics-v39`; package version remains `0.3.6` and immutable v0.3.6/v35 evidence is unchanged.
+
+## Current demographic reference refresh
+
+The semantics change was propagated through the current #304 confirmatory demographic reference rather than relabelling v38 output. Workflow run `34563009772` / job `103149422561` completed all 780 frozen-design runs and all three Monte Carlo precision gates. Artifact `10185085281` (SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`) contains the exact v39 `expected-result.json` used to refresh `research/general-demography-baseline-v1/confirmatory-result.json`. The recommendation remains `no_universal_demographic_baseline`; quantitative outputs changed and are therefore preserved as a true v39 rebaseline.
