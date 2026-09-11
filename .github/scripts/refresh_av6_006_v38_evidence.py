@@ -35,8 +35,14 @@ demog_path.write_text(new_demog_path.read_text())
 demog_doc_path = Path("docs/research/general-scientific-demographic-baseline-v1.md")
 demog_doc = demog_doc_path.read_text()
 assert old_demog["researchId"] in demog_doc
-assert "current model semantics v38" in demog_doc.lower()
+assert "current model semantics: `anthrosim-model-semantics-v37`" in demog_doc.lower()
 demog_doc = demog_doc.replace(old_demog["researchId"], new_demog["researchId"])
+demog_doc = demog_doc.replace(
+    "current model semantics: `anthrosim-model-semantics-v37`",
+    "current model semantics: `anthrosim-model-semantics-v38`",
+)
+demog_doc = demog_doc.replace("The current v37 paired effects", "The current v38 paired effects")
+demog_doc = demog_doc.replace("The current v37 long-run analysis", "The current v38 long-run analysis")
 demog_doc += (
     "\n\n### Audit-v6 AV6-006 v38 applicability re-verification\n\n"
     "AV6-006/#711 changes only M9 equal-cost temporary-destination spatial coupling. "
