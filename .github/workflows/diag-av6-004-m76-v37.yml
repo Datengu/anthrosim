@@ -1,0 +1,70 @@
+name: Diagnose AV6-004 M7.6 v37 delta
+
+on:
+  push:
+    branches: ["audit/diag-707-m76-v37"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Download exact-head M7.6 derived artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: m7-6-resource-variability-derived
+          path: /tmp/m76
+          github-token: ${{ github.token }}
+          run-id: 34550568231
+      - name: Compare frozen v36 reference with fresh v37 result
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          reference = json.loads(Path('experiments/v0.1-resource-variability-reference.json').read_text())
+          points = json.loads(Path('/tmp/m76/analysis/points.json').read_text())
+
+          observed = []
+          for row in points:
+              observed.append({
+                  'pointId': row['pointId'],
+                  'resourceProductivityScalePermille': row['resourceProductivityScalePermille'],
+                  'resourceSeasonalityScalePermille': row['resourceSeasonalityScalePermille'],
+                  'migrationEnabled': not row['disableMigration'],
+                  'durationReachedRuns': row['durationReachedRuns'],
+                  'populationExtinctRuns': row['populationExtinctRuns'],
+                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationScientificallyEligibleOnly'],
+                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountScientificallyEligibleOnly'],
+                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleScientificallyEligibleOnly'],
+                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsScientificallyEligibleOnly'],
+                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedScientificallyEligibleOnly'],
+                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesScientificallyEligibleOnly'],
+                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsScientificallyEligibleOnly'],
+                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveScientificallyEligibleOnly'],
+              })
+
+          old = {row['pointId']: row for row in reference['pointResults']}
+          new = {row['pointId']: row for row in observed}
+          assert old.keys() == new.keys()
+          changed = []
+          for point_id in sorted(old):
+              diffs = []
+              for key in old[point_id]:
+                  if old[point_id][key] != new[point_id][key]:
+                      diffs.append((key, old[point_id][key], new[point_id][key]))
+              if diffs:
+                  changed.append(point_id)
+                  print(f'POINT {point_id} changed_fields={len(diffs)} productivity={new[point_id]["resourceProductivityScalePermille"]} seasonality={new[point_id]["resourceSeasonalityScalePermille"]} migration={new[point_id]["migrationEnabled"]}')
+                  for key, before, after in diffs:
+                      print(f'  {key}: {before!r} -> {after!r}')
+          print(f'changed_points={changed!r}')
+          print(f'changed_point_count={len(changed)}')
+          print(f'unchanged_points={[p for p in sorted(old) if p not in changed]!r}')
+          PY
