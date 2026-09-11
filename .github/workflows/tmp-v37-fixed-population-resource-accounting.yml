@@ -1,0 +1,78 @@
+name: Temporary v37 fixed-population resource accounting
+
+on:
+  push:
+    branches:
+      - experiment/v37-fixed-population-resource-accounting
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout harness branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: harness
+
+      - name: Checkout exact v37 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          path: v37
+
+      - name: Prepare runner
+        run: |
+          cp harness/experiment-harness/m3-fixed-population-resource-accounting/runner.rs v37/crates/anthrosim-cli/src/bin/anthrosim-m3-fixed-population-resource-accounting.rs
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build and execute exact-v37 compact experiment
+        working-directory: v37
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-m3-fixed-population-resource-accounting
+          ./target/release/anthrosim-m3-fixed-population-resource-accounting > m3-fixed-population-resource-accounting-results.jsonl
+          python - <<'PY'
+          import json
+          from collections import Counter
+          rows = [json.loads(line) for line in open('m3-fixed-population-resource-accounting-results.jsonl', encoding='utf-8')]
+          assert len(rows) == 180, len(rows)
+          counts = Counter(row['resourcePeriodsPerYear'] for row in rows)
+          assert counts == {1:30,2:30,4:30,8:30,12:30,24:30}, counts
+          assert all(row['configuredResourcePeriodsPerYear'] == row['resourcePeriodsPerYear'] for row in rows)
+          assert all(row['configuredMigrationEnabled'] is False for row in rows)
+          assert all(row['configuredProductivityScalePermille'] == 750 for row in rows)
+          assert all(row['configuredSeasonalityScalePermille'] == 0 for row in rows)
+          assert all(row['configuredAnnualNeedUnitsPerPerson'] == 100 for row in rows)
+          assert all(row['configuredConditionRecoveryPerPeriod'] == 0 for row in rows)
+          assert all(row['configuredMaxConditionLossPerPeriod'] == 0 for row in rows)
+          assert all(row['configuredMaxConditionMortalityProbabilityPerMillion'] == 0 for row in rows)
+          assert all(row['configuredMaxBackgroundMortalityProbabilityPerMillion'] == 0 for row in rows)
+          assert all(row['configuredMaxFertilityProbabilityPerMillion'] == 0 for row in rows)
+          assert all(row['configuredHouseholdLifecycle'] is None for row in rows)
+          assert all(row['configuredTemporaryMobility'] is None for row in rows)
+          assert all(row['finalLivingPopulation'] == 2000 for row in rows)
+          assert all(row['personRecords'] == 2000 for row in rows)
+          assert all(row['conditionMortalityDeaths'] == 0 for row in rows)
+          assert all(row['meanLivingConditionPermille'] == 1000 for row in rows)
+          assert all(row['movesCompleted'] == 0 and row['peopleMoved'] == 0 for row in rows)
+          assert all(row['simulatedDays'] == 36500 for row in rows)
+          assert all(row['stopReason'] == 'durationReached' for row in rows)
+          assert all(row['resourcePeriodsProcessed'] == row['resourcePeriodsPerYear'] * 100 for row in rows)
+          assert all(row['modelSemanticsId'] == 'anthrosim-model-semantics-v37' for row in rows)
+          assert all(row['gitCommit'] == '9f0914e2772cd2f0c6243ab4be8b296f3ce48f30' for row in rows)
+          print('counts=', dict(counts))
+          print('unmet_ranges=', {p:(min(r['resourceUnmetNeed'] for r in rows if r['resourcePeriodsPerYear']==p), max(r['resourceUnmetNeed'] for r in rows if r['resourcePeriodsPerYear']==p)) for p in sorted(counts)})
+          PY
+
+      - name: Upload compact results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: anthrosim-v37-fixed-population-resource-accounting-results
+          retention-days: 1
+          path: v37/m3-fixed-population-resource-accounting-results.jsonl
