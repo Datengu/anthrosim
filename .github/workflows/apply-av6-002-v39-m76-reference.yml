@@ -1,0 +1,223 @@
+name: Apply AV6-002 v39 M7.6 reference refresh
+
+on:
+  push:
+    branches: [audit/repair-694-av6-002]
+    paths:
+      - '.github/workflows/apply-av6-002-v39-m76-reference.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-694-av6-002
+          persist-credentials: true
+
+      - name: Download exact v39 M7.6 evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: m7-6-resource-variability-derived
+          path: /tmp/m76
+          github-token: ${{ github.token }}
+          repository: Datengu/anthrosim
+          run-id: 34606631707
+
+      - name: Refresh M7.6 reference and living narrative
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          evidence = Path('/tmp/m76')
+          points = json.loads((evidence / 'analysis/points.json').read_text(encoding='utf-8'))
+          runs = json.loads((evidence / 'analysis/runs.json').read_text(encoding='utf-8'))
+          summary = json.loads((evidence / 'analysis/summary.json').read_text(encoding='utf-8'))
+          manifest = json.loads((evidence / 'sweep-manifest.json').read_text(encoding='utf-8'))
+          record = json.loads((evidence / 'reproduction-record.json').read_text(encoding='utf-8'))
+
+          assert len(manifest['points']) == 18
+          assert len(runs) == 144
+          assert len(points) == 18
+          assert all(row['state'] == 'completed' for row in runs)
+          assert all(row['completedRuns'] == 8 for row in points)
+          assert all(row['failedRuns'] == 0 for row in points)
+          assert all(row['incompleteRuns'] == 0 for row in points)
+          assert all(row['personRecordLimitReachedRuns'] == 0 for row in points)
+          assert all(row['scientificallyEligibleRuns'] == 8 for row in points)
+          assert all(row['operationallyCensoredRuns'] == 0 for row in points)
+          assert summary['completedRuns'] == 144
+          assert summary['nonCompletedRuns'] == 0
+          assert summary['scientificallyEligibleRuns'] == 144
+          assert summary['operationallyCensoredRuns'] == 0
+          assert record['definitionSha256'] == '3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e'
+          assert record['modelVersion'] == '0.3.6'
+          assert record['gitCommit'] == 'e732870a5860f1b15a74c209c9668b66ad5a42a0'
+
+          def project(row):
+              return {
+                  'pointId': row['pointId'],
+                  'resourceProductivityScalePermille': row['resourceProductivityScalePermille'],
+                  'resourceSeasonalityScalePermille': row['resourceSeasonalityScalePermille'],
+                  'migrationEnabled': not row['disableMigration'],
+                  'durationReachedRuns': row['durationReachedRuns'],
+                  'populationExtinctRuns': row['populationExtinctRuns'],
+                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationScientificallyEligibleOnly'],
+                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountScientificallyEligibleOnly'],
+                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleScientificallyEligibleOnly'],
+                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsScientificallyEligibleOnly'],
+                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedScientificallyEligibleOnly'],
+                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesScientificallyEligibleOnly'],
+                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsScientificallyEligibleOnly'],
+                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveScientificallyEligibleOnly'],
+              }
+
+          observed = [project(row) for row in points]
+          reference_path = Path('experiments/v0.1-resource-variability-reference.json')
+          reference = json.loads(reference_path.read_text(encoding='utf-8'))
+          assert reference['schemaVersion'] == 3
+          assert reference['definitionSha256'] == record['definitionSha256']
+          assert reference['modelSemanticsId'] == 'anthrosim-model-semantics-v38'
+
+          changed_points = sum(a != b for a, b in zip(reference['pointResults'], observed))
+          if changed_points == 0:
+              raise SystemExit('v39 M7.6 artifact unexpectedly reproduces every v38 point result')
+
+          reference['modelVersion'] = record['modelVersion']
+          reference['modelSemanticsId'] = 'anthrosim-model-semantics-v39'
+          reference['referenceCiRunId'] = 34606631707
+          reference['referenceTestMergeCommit'] = 'e732870a5860f1b15a74c209c9668b66ad5a42a0'
+          reference['referenceHeadCommit'] = '1ca04a646bba58175df4b4edd6b73d9d312c8dd4'
+          reference['referenceSweepId'] = record['sweepId']
+          reference['plannedRuns'] = 144
+          reference['completedRuns'] = summary['completedRuns']
+          reference['nonCompletedRuns'] = summary['nonCompletedRuns']
+          reference['pointResults'] = observed
+          reference['referenceTestMergeCommitStatus'] = 'pre-merge-v39-reverification-artifact'
+          note = (
+              ' Audit-v6 AV6-002/#694 changes the temporal meaning of the M2 male-parent age window to completed age at the recorded child-birth boundary. '
+              'Because M7.6 includes live demography, protected exact-head CI run 34606631707 reran all 18 parameter points and 144/144 declared simulations under v39 rather than relabelling v38 output. '
+              f'All runs completed and remained scientifically eligible; {changed_points}/18 point summaries changed under the corrected demography. '
+              'The archived derived artifact is 10266203915 (SHA-256 3e7d40db193a026b8009b06d73f39801d8001c6a358d47899230d020c82fd7d1), built from PR merge ref e732870a5860f1b15a74c209c9668b66ad5a42a0 for branch head 1ca04a646bba58175df4b4edd6b73d9d312c8dd4. '
+              'This is therefore a numerical v39 rebaseline of the unchanged frozen M7.6 design, not a metadata-only semantics rebind.'
+          )
+          if 'protected exact-head CI run 34606631707' not in reference['note']:
+              reference['note'] = reference['note'].rstrip() + note
+          reference_path.write_text(json.dumps(reference, separators=(',', ':')) + '\n', encoding='utf-8')
+
+          def value(v):
+              if v is None:
+                  return '—'
+              if isinstance(v, float):
+                  return f'{v:.6f}'.rstrip('0').rstrip('.')
+              return str(v)
+
+          table = [
+              '| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |',
+              '| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |',
+          ]
+          for row in observed:
+              terminal = f"{row['durationReachedRuns']} duration / {row['populationExtinctRuns']} extinct"
+              distance = row['pooledMeanMigrationDistanceCellsPerMoveCompletedOnly']
+              table.append(
+                  f"| {row['resourceProductivityScalePermille']} | {row['resourceSeasonalityScalePermille']} | "
+                  f"{'on' if row['migrationEnabled'] else 'off'} | {terminal} | "
+                  f"{value(row['meanFinalLivingPopulationCompletedOnly'])} | "
+                  f"{value(row['meanFinalLivingOccupiedCellCountCompletedOnly'])} | "
+                  f"{value(row['meanConditionMortalityDeathsCompletedOnly'])} | "
+                  f"{value(row['meanResourceUnmetNeedCompletedOnly'])} | "
+                  f"{value(row['meanMigrationMovesCompletedOnly'])} | "
+                  f"{('—' if distance is None else f'{float(distance):.3f}')} |"
+              )
+          table_text = '\n'.join(table)
+
+          doc_path = Path('docs/research/resource-variability-v0.1.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          if '## Current v39 reference binding' not in doc:
+              anchor = 'These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.\n'
+              if anchor not in doc:
+                  raise SystemExit('M7.6 living narrative anchor not found')
+              current = (
+                  '\n## Current v39 reference binding\n\n'
+                  'Audit-v6 AV6-002/#694 corrects the configured male-parent age window so it constrains completed male age at the recorded child-birth boundary. M7.6 contains active demography, so the frozen 18-point × 8-seed resource/migration factorial was rerun unchanged instead of assuming the v38 trajectories remained applicable.\n\n'
+                  'Reviewed v39 execution:\n\n'
+                  '- protected CI run: `34606631707`;\n'
+                  '- canonical M7.6 job: `103290914222`;\n'
+                  '- branch head: `1ca04a646bba58175df4b4edd6b73d9d312c8dd4`;\n'
+                  '- pull-request merge ref: `e732870a5860f1b15a74c209c9668b66ad5a42a0`;\n'
+                  '- derived artifact: `10266203915` (`sha256:3e7d40db193a026b8009b06d73f39801d8001c6a358d47899230d020c82fd7d1`);\n'
+                  '- definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;\n'
+                  '- model version: `0.3.6`;\n'
+                  '- model semantics: `anthrosim-model-semantics-v39`;\n'
+                  f'- numerical change: **{changed_points}/18** point summaries differ from the checked v38 reference.\n\n'
+                  'All **144/144** planned runs completed and were scientifically eligible, with no failed, incomplete, record-limit or otherwise operationally censored runs. The design, paired seeds, resource parameters, migration on/off factor, completion rules and endpoints are unchanged; this is a true upstream-demography numerical rebaseline.\n\n'
+                  '## Current point results — v39 numerical rebaseline\n\n'
+                  'The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model\'s condition-mediated mortality path.\n\n'
+                  + table_text + '\n\n'
+                  'The broad synthetic interpretation remains unchanged: productivity is the strongest resource control in this design; every productivity-250 migration-disabled arm still goes extinct in 8/8 seeds while each matched migration-enabled arm reaches the requested duration; migration-enabled arms retain much larger terminal populations across the factorial; and seasonality remains non-monotonic. These are model-mechanism results, not archaeological calibration.\n'
+              )
+              doc = doc.replace(anchor, anchor + current, 1)
+              doc = doc.replace('## Current v35 reference binding', '## Historical v35 reference binding', 1)
+              doc = doc.replace('## Last causal v33 reference and provenance', '## Historical causal v33 reference and provenance', 1)
+              doc = doc.replace('## Preserved point results — last causal rebaseline v33, confirmed under v35', '## Historical v33 point results — confirmed under v35', 1)
+              doc = doc.replace('## Current interpretation — confirmed under v35', '## Historical v33/v35 interpretation', 1)
+          doc_path.write_text(doc.rstrip() + '\n', encoding='utf-8')
+
+          trace_path = Path('research/general-demography-baseline-v1/model-semantics-v39-reverification.md')
+          trace = trace_path.read_text(encoding='utf-8')
+          if '## M7.6 resource-variability refresh' not in trace:
+              trace = trace.rstrip() + (
+                  '\n\n## M7.6 resource-variability refresh\n\n'
+                  f'Protected CI run `34606631707` reran all 18 M7.6 points and 144/144 declared simulations on PR merge ref `e732870a5860f1b15a74c209c9668b66ad5a42a0`. All runs completed and remained scientifically eligible. The v39 outputs changed {changed_points}/18 checked point summaries relative to v38, so `experiments/v0.1-resource-variability-reference.json` is numerically rebaselined from artifact `10266203915` (SHA-256 `3e7d40db193a026b8009b06d73f39801d8001c6a358d47899230d020c82fd7d1`) rather than relabelled. The experimental design and broad synthetic interpretation remain unchanged.\n'
+              )
+          trace_path.write_text(trace.rstrip() + '\n', encoding='utf-8')
+
+      - name: Verify refreshed M7.6 reference
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+          points = json.loads(Path('/tmp/m76/analysis/points.json').read_text())
+          ref = json.loads(Path('experiments/v0.1-resource-variability-reference.json').read_text())
+          assert ref['schemaVersion'] == 3
+          assert ref['modelSemanticsId'] == 'anthrosim-model-semantics-v39'
+          observed = []
+          for row in points:
+              observed.append({
+                  'pointId': row['pointId'],
+                  'resourceProductivityScalePermille': row['resourceProductivityScalePermille'],
+                  'resourceSeasonalityScalePermille': row['resourceSeasonalityScalePermille'],
+                  'migrationEnabled': not row['disableMigration'],
+                  'durationReachedRuns': row['durationReachedRuns'],
+                  'populationExtinctRuns': row['populationExtinctRuns'],
+                  'meanFinalLivingPopulationCompletedOnly': row['meanFinalLivingPopulationScientificallyEligibleOnly'],
+                  'meanFinalLivingOccupiedCellCountCompletedOnly': row['meanFinalLivingOccupiedCellCountScientificallyEligibleOnly'],
+                  'meanLivingConditionPermilleCompletedOnly': row['meanLivingConditionPermilleScientificallyEligibleOnly'],
+                  'meanConditionMortalityDeathsCompletedOnly': row['meanConditionMortalityDeathsScientificallyEligibleOnly'],
+                  'meanResourceUnmetNeedCompletedOnly': row['meanResourceUnmetNeedScientificallyEligibleOnly'],
+                  'meanMigrationMovesCompletedOnly': row['meanMigrationMovesScientificallyEligibleOnly'],
+                  'meanMigrationTotalDistanceCellsCompletedOnly': row['meanMigrationTotalDistanceCellsScientificallyEligibleOnly'],
+                  'pooledMeanMigrationDistanceCellsPerMoveCompletedOnly': row['pooledMeanMigrationDistanceCellsPerMoveScientificallyEligibleOnly'],
+              })
+          assert observed == ref['pointResults']
+          print('M7.6 v39 reference exactly matches archived 144-run evidence.')
+          PY
+          python3 scripts/test-current-model-semantics-docs.py
+          git diff --check
+
+      - name: Commit evidence-bound M7.6 refresh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add experiments/v0.1-resource-variability-reference.json \
+                  docs/research/resource-variability-v0.1.md \
+                  research/general-demography-baseline-v1/model-semantics-v39-reverification.md
+          git diff --cached --check
+          git commit -m "research: rebaseline M7.6 reference for semantics v39"
+          git push origin HEAD:audit/repair-694-av6-002
