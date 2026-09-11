@@ -1,0 +1,51 @@
+name: Temporary v37 M3-only timing experiment
+
+on:
+  push:
+    branches:
+      - experiment/v37-m3-only-timing
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout harness branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: harness
+
+      - name: Checkout exact v37 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          path: v37
+
+      - name: Prepare runner
+        run: |
+          cp harness/experiment-harness/m3-only/runner.rs v37/crates/anthrosim-cli/src/bin/anthrosim-m3-only-timing.rs
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build and execute exact-v37 compact experiment
+        working-directory: v37
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-m3-only-timing
+          ./target/release/anthrosim-m3-only-timing > m3-only-timing-results.jsonl
+          test "$(wc -l < m3-only-timing-results.jsonl)" -eq 180
+          test "$(grep -c '"'"'"configuredMigrationEnabled"'"'":false' m3-only-timing-results.jsonl)" -eq 180
+          for p in 1 2 4 8 12 24; do
+            test "$(grep -c '"'"'"resourcePeriodsPerYear"'"'":'"$p" m3-only-timing-results.jsonl)" -eq 30
+          done
+
+      - name: Upload compact results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: anthrosim-v37-m3-only-timing-results
+          retention-days: 1
+          path: v37/m3-only-timing-results.jsonl
