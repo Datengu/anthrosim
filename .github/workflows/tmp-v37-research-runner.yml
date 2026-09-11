@@ -1,4 +1,4 @@
-name: Temporary v37 research runner build
+name: Temporary v37 travel-cost experiment build
 
 on:
   push:
@@ -19,12 +19,33 @@ jobs:
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
-      - name: Build exact-v37 research runner
+      - name: Add experiment-only travel-condition-cost override
         run: |
-          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
-          cargo build --locked --release -p anthrosim-cli --bin anthrosim-research
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('crates/anthrosim-cli/src/ensemble.rs')
+          text = path.read_text()
+          old = '''    let migration = MigrationConfig::synthetic_validation_v1()
+              .with_enabled(!settings.disable_migration)
+              .with_candidate_radius_cells(settings.migration_radius);'''
+          new = '''    let mut migration = MigrationConfig::synthetic_validation_v1()
+              .with_enabled(!settings.disable_migration)
+              .with_candidate_radius_cells(settings.migration_radius);
+          if let Ok(raw) = std::env::var("ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL") {
+              migration.travel_condition_cost_per_cell = raw
+                  .parse::<u16>()
+                  .expect("ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL must be a u16");
+          }'''
+          if old not in text:
+              raise SystemExit('expected ensemble migration-construction block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Build exact-v37 experimental sweep binary
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30+travel-cost-env-v1"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: anthrosim-v37-research-runner
+          name: anthrosim-v37-travel-cost-sweep
           retention-days: 1
-          path: target/release/anthrosim-research
+          path: target/release/anthrosim
