@@ -26,7 +26,7 @@ This is the repository-authoritative compact handoff state. Detailed discovery e
 | Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; two P1 findings remain open after five verified repairs** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-Protected `main` after the verified AV6-001 production repair is `5c9cc73a26b4e400fbbc90e89ef9c0b4194371ca`. Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though post-discovery remediation advances `main` and living model semantics are now `anthrosim-model-semantics-v36`.
+Protected `main` after the verified AV6-001 production repair is `5c9cc73a26b4e400fbbc90e89ef9c0b4194371ca`. Scientific discovery remains attributed to immutable `v0.3.6` / v35 even though post-discovery remediation advances `main`; the AV6-004 production repair advances the living source branch to `anthrosim-model-semantics-v37` without changing that immutable discovery attribution.
 
 ## Completed Areas
 
