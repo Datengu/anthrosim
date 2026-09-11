@@ -1,7 +1,7 @@
 # AnthroSim TRACE evaluation dossier
 
 **Framework:** TRACE (Grimm et al. 2014)  
-**AnthroSim baseline:** living v0.3.6-source development / current model semantics v40 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** living v0.3.6-source development / current model semantics v41 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** living model-evaluation dossier  
 **Overall scientific status:** **NOT YET EMPIRICALLY RESEARCH-READY**
 
@@ -85,7 +85,7 @@ Provide a detailed, understandable description of what the model is, how it work
 
 ## Current assessment
 
-**Established for description of the living current model semantics v40 line**, subject to normal documentation/code consistency review. The immutable `v0.3.6` release baseline and Audit-v6 discovery target remains v35, immutable `v0.3.5` remains v33, immutable `v0.3.4` remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.
+**Established for description of the living current model semantics v41 line**, subject to normal documentation/code consistency review. The immutable `v0.3.6` release baseline and Audit-v6 discovery target remains v35, immutable `v0.3.5` remains v33, immutable `v0.3.4` remains v25 and immutable `v0.3.3` remains v21; living documentation does not retroactively redefine those releases.
 
 Audit-v4 AV4-015 specifically demonstrated why this distinction matters: stale ODD/ODD+D mortality wording on frozen v0.3.4/v25 was repaired, and a permanent current-document consistency guard now checks the living mortality description. The post-v0.3.4 documentation-consistency audit additionally broadens current-state checks beyond ODD/ODD+D/scientific-model.
 
