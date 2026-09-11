@@ -4,7 +4,7 @@
 
 AnthroSim's roadmap is driven by research capability rather than feature count. The project should add new mechanisms or infrastructure when they are needed to ask a clearer question, distinguish competing explanations, expose uncertainty, or make an experiment more reproducible and inspectable.
 
-**Current framework line:** software version `v0.3.6` / current model semantics v38. Immutable `v0.3.6` remains the v35 Scientific-Audit-v6 discovery/release baseline; immutable `v0.3.5` remains the v33 Audit-v5 discovery/release baseline; immutable `v0.3.4` remains the historical v25 Audit-v4 target. Living v37 retains the v36 same-day M9/M4 scheduler repair and removes canonical resource-cell identity from exact scarce-resource remainder ties without rewriting any immutable release or audit target.
+**Current framework line:** software version `v0.3.6` / current model semantics v39. Immutable `v0.3.6` remains the v35 Scientific-Audit-v6 discovery/release baseline; immutable `v0.3.5` remains the v33 Audit-v5 discovery/release baseline; immutable `v0.3.4` remains the historical v25 Audit-v4 target. Living v37 retains the v36 same-day M9/M4 scheduler repair and removes canonical resource-cell identity from exact scarce-resource remainder ties without rewriting any immutable release or audit target.
 
 The long-term direction remains the one described in `docs/vision.md`: build enough defensible lower-level rules that history-like structure can emerge without scripting historical outcomes.
 

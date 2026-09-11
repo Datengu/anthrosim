@@ -33,7 +33,7 @@ It reconstructs persistent household movement, deaths and births through time. A
 4. apply non-zero age-schedule eligibility;
 5. apply requested-to-executable birth-spacing eligibility;
 6. reconstruct the pre-same-day-M4 persistent-residence parentage pool;
-7. identify local eligible-male availability;
+7. identify local eligible-male availability using male age at the child-birth boundary;
 8. replay the independent `demography/fertility` RNG stream in persisted scientific stochastic-coupling rank order for the exact attempted draws, so canonical `PersonId` labels do not assign fertility realizations;
 9. reconcile draw success/failure with authoritative Birth events and any person-record-limit block; and
 10. reconcile the reconstructed demographic history with final Population state.
