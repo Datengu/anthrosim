@@ -2,12 +2,12 @@
 
 AnthroSim's research documentation is organized around explicit model description, human-decision assumptions, model evaluation, evidence provenance and reproducible experiment records.
 
-**Living framework state:** software version `v0.3.6` / current model semantics v37. Immutable `v0.3.6` is now the Scientific Audit-v6 discovery target at model semantics v35; immutable `v0.3.5` remains the historical Audit-v5 target at model semantics v33; immutable `v0.3.4` remains the historical Audit-v4 target at model semantics v25. Current documentation must not rewrite any historical audit identity.
+**Living framework state:** software version `v0.3.6` / current model semantics v38. Immutable `v0.3.6` is now the Scientific Audit-v6 discovery target at model semantics v35; immutable `v0.3.5` remains the historical Audit-v5 target at model semantics v33; immutable `v0.3.4` remains the historical Audit-v4 target at model semantics v25. Current documentation must not rewrite any historical audit identity.
 
 ## Start here
 
 - [`research-standards.md`](research-standards.md) — formal adoption and maintenance rules for **ODD 2020, ODD+D and TRACE**.
-- [`odd.md`](odd.md) — formal ODD 2020 model description for the living current model semantics v37 line.
+- [`odd.md`](odd.md) — formal ODD 2020 model description for the living current model semantics v38 line.
 - [`odd-d.md`](odd-d.md) — ODD+D human decision-making supplement for the living line.
 - [`trace.md`](trace.md) — living TRACE evaluation / research-readiness dossier.
 - [`../scientific-model.md`](../scientific-model.md) — detailed normative scientific-model specification.
