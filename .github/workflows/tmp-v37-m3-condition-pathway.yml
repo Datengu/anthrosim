@@ -1,0 +1,75 @@
+name: Temporary v37 M3 condition pathway isolation
+
+on:
+  push:
+    branches:
+      - experiment/v37-m3-condition-pathway
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout harness branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: harness
+
+      - name: Checkout exact v37 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          path: v37
+
+      - name: Prepare runner
+        run: |
+          cp harness/experiment-harness/m3-condition-pathway/runner.rs v37/crates/anthrosim-cli/src/bin/anthrosim-m3-condition-pathway.rs
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build and execute exact-v37 compact experiment
+        working-directory: v37
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-m3-condition-pathway
+          ./target/release/anthrosim-m3-condition-pathway > m3-condition-pathway-results.jsonl
+          test "$(wc -l < m3-condition-pathway-results.jsonl)" -eq 360
+          python - <<'PY'
+          import json
+          from collections import Counter
+          rows = [json.loads(line) for line in open('m3-condition-pathway-results.jsonl', encoding='utf-8')]
+          arm_counts = Counter(row['arm'] for row in rows)
+          assert arm_counts == {'mortality_off': 180, 'condition_neutral': 180}, arm_counts
+          for arm in arm_counts:
+              subset = [row for row in rows if row['arm'] == arm]
+              counts = Counter(row['resourcePeriodsPerYear'] for row in subset)
+              assert counts == {1: 30, 2: 30, 4: 30, 8: 30, 12: 30, 24: 30}, (arm, counts)
+          assert all(row['configuredResourcePeriodsPerYear'] == row['resourcePeriodsPerYear'] for row in rows)
+          assert all(row['configuredMigrationEnabled'] is False for row in rows)
+          assert all(row['configuredProductivityScalePermille'] == 750 for row in rows)
+          assert all(row['configuredSeasonalityScalePermille'] == 0 for row in rows)
+          assert all(row['configuredMaxConditionMortalityProbabilityPerMillion'] == 0 for row in rows)
+          mort = [row for row in rows if row['arm'] == 'mortality_off']
+          neutral = [row for row in rows if row['arm'] == 'condition_neutral']
+          assert all(row['configuredConditionRecoveryPerPeriod'] == 25 for row in mort)
+          assert all(row['configuredMaxConditionLossPerPeriod'] == 200 for row in mort)
+          assert all(row['configuredConditionRecoveryPerPeriod'] == 0 for row in neutral)
+          assert all(row['configuredMaxConditionLossPerPeriod'] == 0 for row in neutral)
+          assert all(row['conditionMortalityDeaths'] == 0 for row in rows)
+          assert all(row['movesCompleted'] == 0 for row in rows)
+          assert all(row['modelSemanticsId'] == 'anthrosim-model-semantics-v37' for row in rows)
+          assert all(row['gitCommit'] == '9f0914e2772cd2f0c6243ab4be8b296f3ce48f30' for row in rows)
+          print('arm_counts=', dict(arm_counts))
+          print('stop_reasons=', Counter(row['stopReason'] for row in rows))
+          PY
+
+      - name: Upload compact results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: anthrosim-v37-m3-condition-pathway-results
+          retention-days: 1
+          path: v37/m3-condition-pathway-results.jsonl
