@@ -1,0 +1,1 @@
+Temporary AV6-004 CI retrigger marker. This file is deleted immediately; its only purpose is to move the PR head from the GitHub Actions-authored evidence-refresh commit to a user-authored commit so the protected PR workflow matrix executes normally.
