@@ -43,4 +43,10 @@ The first complete PR execution correctly exposed two reference consequences of 
 - fresh M9.7 run `34555842586` preserved benchmark/definition identity, `capability_distinguished`, aggregate endpoints, both arm configuration identities, every frozen legacy per-seed metric and the independent M9.6 travel-burden reference; only authoritative terminal state digests changed under the new persisted M9 tie-policy/schema identity;
 - fail-closed refresh run `34556757782` then required those bounded contracts to pass before updating the checked references and removed its temporary validation helpers after success.
 
+## Guarded M7.6 applicability re-verification
+
+The complete protected matrix on production candidate `138d489bcb63d8080858ac203e0d8897fb874f0b` reran the canonical M7.6 resource-variability factorial in central CI run `34557084821`. Its derived artifact `10183267124` (SHA-256 `2d9ae421993cf116fe6141e503f8a3a285b3d54f9d574ef683e43e3524a10a2e`; PR merge-ref build `f775c66651d3152210fc09582fae5752eb0767ea`) contained all 18 parameter points and all 144/144 declared simulations completed and scientifically eligible under v38.
+
+Because AV6-006 changes only M9 temporary-destination tie coupling and M7.6 contains no temporary-mobility mechanism, a fail-closed provenance guard required every frozen v37 `pointResults` value to reproduce exactly before permitting any reference edit. Guard run `34558147431` passed that exact-equality test: 18/18 point summaries reproduced without numerical change, with the definition identity, experimental coordinates, completion/extinction classifications, eligibility rules and accounting guards unchanged. The M7.6 checked reference therefore advances only its model-semantics binding from v37 to v38 and records this provenance; no scientific endpoint was rebaselined.
+
 These checks are evidence for the production candidate, not a substitute for exact-head protected validation. Production merge requires the complete final-head matrix, and #711 must remain open after merge until an independent evidence-only derivative re-runs the preserved #710 adversary against the merged production lineage.
