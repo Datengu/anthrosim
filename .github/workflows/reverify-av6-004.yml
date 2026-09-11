@@ -1,0 +1,37 @@
+name: Reverify AV6-004 scarce-resource reflection
+
+on:
+  push:
+    branches: ["audit/reverify-707-av6-004"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  reverify-av6-004:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact evidence head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove merged production lineage and unchanged historical adversary
+        run: |
+          set -euo pipefail
+          production_merge=9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          discovery_head=f8ee562027ae162afb9ce7a5f00a6ca3382b0f33
+          git merge-base --is-ancestor "$production_merge" HEAD
+          git fetch --no-tags origin "$discovery_head"
+          git show "$discovery_head:crates/anthrosim-core/src/audit_v6_area_d_resource_cell_reflection_tests.rs" > /tmp/original-av6-004.rs
+          cmp /tmp/original-av6-004.rs crates/anthrosim-core/src/audit_v6_area_d_resource_cell_reflection_tests.rs
+          grep -F 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37";' crates/anthrosim-core/src/provenance.rs
+          echo "production_merge=$production_merge"
+          echo "historical_discovery_head=$discovery_head"
+          echo "historical_adversary=byte_for_byte_unchanged"
+      - name: Run unchanged #705 scientific adversary
+        run: |
+          set -euo pipefail
+          cargo test -p anthrosim-core scarce_resource_remainder_is_equivariant_under_horizontal_cell_reflection -- --exact --nocapture
