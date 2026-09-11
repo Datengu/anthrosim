@@ -1,4 +1,5 @@
 # Temporary fail-closed evidence refresh; removed automatically after successful validation.
+# Retry after correcting only the demographic result-page shape assertion.
 name: Guard and refresh AV6-006 v38 references
 
 on:
