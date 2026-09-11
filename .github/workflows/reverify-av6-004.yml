@@ -34,4 +34,4 @@ jobs:
       - name: Run unchanged #705 scientific adversary
         run: |
           set -euo pipefail
-          cargo test -p anthrosim-core scarce_resource_remainder_is_equivariant_under_horizontal_cell_reflection -- --exact --nocapture
+          cargo test -p anthrosim-core audit_v6_area_d_resource_cell_reflection_tests::scarce_resource_remainder_is_equivariant_under_horizontal_cell_reflection -- --exact --nocapture
