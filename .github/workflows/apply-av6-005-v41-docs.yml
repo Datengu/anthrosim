@@ -1,0 +1,166 @@
+name: Synchronize AV6-005 v41 living documentation
+
+on:
+  push:
+    branches:
+      - audit/repair-708-av6-005
+
+permissions:
+  contents: write
+
+jobs:
+  synchronize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/repair-708-av6-005
+          fetch-depth: 0
+
+      - name: Verify exact repair ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "5394ab0f7700d56359eb113f4362e3e69e9b48c6" || {
+            echo "unexpected helper parent" >&2
+            exit 1
+          }
+          grep -q 'anthrosim-model-semantics-v41' crates/anthrosim-core/src/provenance.rs
+          grep -q 'fn duration_rounding_tie_visiting_wins(period_sequence: u64)' crates/anthrosim-core/src/resources.rs
+
+      - name: Synchronize current-facing semantics and M9.5 contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          current_docs = [
+              Path('README.md'),
+              Path('docs/architecture.md'),
+              Path('docs/roadmap.md'),
+              Path('docs/scientific-model.md'),
+              Path('docs/research/README.md'),
+              Path('docs/research/trace.md'),
+              Path('docs/research/odd.md'),
+              Path('docs/research/odd-d.md'),
+          ]
+          for path in current_docs:
+              text = path.read_text()
+              if 'current model semantics v40' not in text:
+                  raise SystemExit(f'{path}: expected current-v40 marker missing')
+              text = text.replace('current model semantics v40', 'current model semantics v41')
+              path.write_text(text)
+
+          path = Path('README.md')
+          text = path.read_text()
+          old = ('The immutable `v0.3.6` release remains the Scientific Audit-v6 discovery baseline at model semantics v35; '
+                 'living remediation has since advanced through AV6-006 and AV6-002 to model semantics v39 without rewriting that immutable release.')
+          new = ('The immutable `v0.3.6` release remains the Scientific Audit-v6 discovery baseline at model semantics v35; '
+                 'living remediation has since advanced through AV6-003 to protected-main model semantics v40, with AV6-005 advancing the active repair line to v41 without rewriting that immutable release.')
+          if old not in text:
+              raise SystemExit('README living-line marker missing')
+          text = text.replace(old, new, 1)
+          old = ('Controlled remediation is in progress on living source; P1 repairs require independent post-merge adversarial re-verification before closure.')
+          new = ('Controlled remediation is in progress on living source; all seven P1 repairs have completed required independent post-merge adversarial re-verification and are closed, while five P2 findings remain under controlled remediation.')
+          if old not in text:
+              raise SystemExit('README audit-state marker missing')
+          text = text.replace(old, new, 1)
+          old = ('Controlled remediation is active on living source, and P1 findings remain open until independent post-merge re-verification succeeds.')
+          new = ('Controlled remediation is active on living source; all seven P1 findings are repaired, independently post-merge reverified and closed, with five P2 findings remaining.')
+          if old not in text:
+              raise SystemExit('README v6 milestone marker missing')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          path = Path('docs/roadmap.md')
+          text = path.read_text()
+          old = ('Living v39 retains the v36 same-day M9/M4 scheduler repair, the v37 scarce-resource symmetry repair, '
+                 'the v38 reachable-component M9 destination-coupling repair, and the v39 male-parent age-time repair without rewriting any immutable release or audit target.')
+          new = ('Living v41 retains the v36 same-day M9/M4 scheduler repair, the v37 scarce-resource symmetry repair, '
+                 'the v38 reachable-component M9 destination-coupling repair, the v39 male-parent age-time repair, '
+                 'the v40 external-kin household-fission context repair, and the v41 household-label-neutral M9.5 duration-tie phase without rewriting any immutable release or audit target.')
+          if old not in text:
+              raise SystemExit('roadmap living-line marker missing')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('docs/research/README.md')
+          text = path.read_text()
+          old = ('[`audit-v6/STATUS.md`](audit-v6/STATUS.md) — repository-authoritative Audit-v6 ledger; A–N discovery is complete with 14 findings (7 P1, 7 P2), and controlled remediation/re-verification is active.')
+          new = ('[`audit-v6/STATUS.md`](audit-v6/STATUS.md) — repository-authoritative Audit-v6 ledger; A–N discovery is complete with 14 findings (7 P1, 7 P2), all seven P1 repairs are independently reverified/closed, and five P2 findings remain under controlled remediation.')
+          if old not in text:
+              raise SystemExit('research README audit-state marker missing')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('docs/research/trace.md')
+          text = path.read_text()
+          text = text.replace('Established for the living v36 framework line', 'Established for the living v41 framework line')
+          old = ('Scientific Audit v6 completed fresh A–N discovery against immutable v0.3.6/v35 and demonstrated 14 findings (7 P1, 7 P2). The pass is non-clean and controlled remediation is active; unresolved P1 findings block convergence.')
+          new = ('Scientific Audit v6 completed fresh A–N discovery against immutable v0.3.6/v35 and demonstrated 14 findings (7 P1, 7 P2). The pass is non-clean; all seven P1 findings are repaired, independently reverified and closed, while five P2 findings remain under controlled remediation.')
+          if old not in text:
+              raise SystemExit('TRACE conceptual-state marker missing')
+          text = text.replace(old, new, 1)
+          old = ('Six comprehensive audit generations have completed discovery. Audit v6 found 14 defects on immutable v0.3.6/v35 and remediation is active on living source; every P1 repair must pass independent post-merge adversarial re-verification before closure, and a later fresh P1-clean audit is still required for convergence.')
+          new = ('Six comprehensive audit generations have completed discovery. Audit v6 found 14 defects on immutable v0.3.6/v35; all seven P1 repairs have now passed independent post-merge adversarial re-verification and are closed, five P2 findings remain, and a later fresh P1-clean audit is still required for convergence.')
+          if old not in text:
+              raise SystemExit('TRACE implementation-state marker missing')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('docs/release-versioning.md')
+          text = path.read_text()
+          old = ('AV6-003/#699 extends dependency-aware household-fission relationship refinement to living external-parent persistent-residence context and advances the active repair branch to **`anthrosim-model-semantics-v40`**.')
+          new = ('AV6-003/#699 extended dependency-aware household-fission relationship refinement to living external-parent persistent-residence context and advanced protected `main` to `anthrosim-model-semantics-v40`; AV6-005/#708 removes canonical household identity from the M9.5 exact duration-weighted home/visitor tie phase and advances the active repair branch to **`anthrosim-model-semantics-v41`**.')
+          if old not in text:
+              raise SystemExit('release-versioning v40 marker missing')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('docs/research/m9-duration-aware-resource-semantics-v1.md')
+          text = path.read_text()
+          old = '''Any remaining unit caused by integer division is assigned by descending fractional remainder. When the two fractional remainders are exactly equal, neither semantic side receives permanent priority. The tie is resolved by a deterministic balanced binary rotation keyed only by the household's stable zero-based index and the already-authoritative resource-period sequence. The period phase uses parity of the set bits in the zero-based sequence (the Thue-Morse binary parity sequence); the household key only complements that phase. This makes consecutive power-of-two blocks exactly balanced and avoids the seasonal aliasing that a simple odd/even period rule can create, while retaining bit-for-bit replay without introducing a new RNG stream or mutable rounding carry.
+
+The tie policy is deliberately semantic-side symmetric: relabelling which equal-duration claim is called home versus visitor reverses the awarded side rather than preserving a home preference. Household identity selects only the phase of the balanced rotation, not a rank or a long-run advantage. Every period still conserves `N` exactly.'''
+          new = '''Any remaining unit caused by integer division is assigned by descending fractional remainder. When the two fractional remainders are exactly equal, neither semantic side receives permanent priority. From model semantics v41, the tie is resolved by a deterministic balanced binary rotation keyed **only** by the already-authoritative resource-period sequence. The phase uses parity of the set bits in the zero-based sequence (the Thue-Morse binary parity sequence). This makes consecutive power-of-two blocks exactly balanced and avoids the seasonal aliasing that a simple odd/even period rule can create, while retaining bit-for-bit replay without introducing a new RNG stream or mutable rounding carry.
+
+The tie policy is a numerical apportionment null rule. Canonical `HouseholdId`, packed/storage index, `PersonId` and global stochastic-coupling ordinal are excluded: scientifically equivalent households at the same resource period therefore receive the same semantic-side phase instead of bookkeeping identity deciding which physical cell receives an indivisible unit. This is not an ethnographic home/visitor priority claim. Every period still conserves `N` exactly.'''
+          if old not in text:
+              raise SystemExit('M9.5 exact-tie contract marker missing')
+          text = text.replace(old, new, 1)
+          old = ('The exact-tie rounding rule adds no new mutable carry and consumes no RNG. Its complete continuation key is the stable household index plus `ResourceSystem.periods_processed`, both of which are already preserved by checkpoint state and continuation identity. A checkpoint/resumed run therefore reconstructs the same next tie side without a new checkpoint field or schema change.')
+          new = ('The exact-tie rounding rule adds no new mutable carry and consumes no RNG. From model semantics v41 its complete continuation key is only `ResourceSystem.periods_processed`, which is already preserved by checkpoint state and continuation identity. A checkpoint/resumed run therefore reconstructs the same next tie side without a household-identity phase, new checkpoint field or schema change.')
+          if old not in text:
+              raise SystemExit('M9.5 checkpoint-key marker missing')
+          text = text.replace(old, new, 1)
+          old = ('M9.5 originally changed authoritative resource attribution at model-semantics v5. The post-M9 scientific audit in issue #194 changes the exact-tie allocation meaning again, removing the persistent home preference and advancing `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v19`. The package version remains unchanged.')
+          new = ('M9.5 originally changed authoritative resource attribution at model-semantics v5. The post-M9 scientific audit in issue #194 changed the exact-tie allocation meaning again, removing the persistent home preference and advancing `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v19`. Audit-v6 AV6-005/#708 then demonstrated that the v19 balanced phase still let canonical household identity choose the physical demand side at a fixed period; v41 removes that identity term while retaining the period-balanced null rule. A v40 checkpoint must not continue under v41 while silently changing a future exact-tie home/visitor attribution. The package version remains unchanged.')
+          if old not in text:
+              raise SystemExit('M9.5 semantics-history marker missing')
+          text = text.replace(old, new, 1)
+          old = ('- repeated same-season ties at power-of-two resource-period cadence, guarding against simple parity aliasing;')
+          new = ('- repeated same-season ties at power-of-two resource-period cadence, guarding against simple parity aliasing;\n- pure canonical-household relabelling invariance for exact home/visitor ties;')
+          if old not in text:
+              raise SystemExit('M9.5 acceptance marker missing')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Verify synchronized living documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test-current-model-semantics-docs.py
+          grep -q 'anthrosim-model-semantics-v41' docs/release-versioning.md
+          grep -q 'keyed \*\*only\*\* by the already-authoritative resource-period sequence' docs/research/m9-duration-aware-resource-semantics-v1.md
+          ! grep -q 'Household identity selects only the phase' docs/research/m9-duration-aware-resource-semantics-v1.md
+          git diff --check
+
+      - name: Commit synchronization and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-av6-005-v41-docs.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'docs: synchronize living model semantics v41'
+          git push origin HEAD:audit/repair-708-av6-005
