@@ -25,6 +25,7 @@ jobs:
 
       - name: Verify focused repair
         run: |
+          cargo fmt --all
           cargo fmt --all -- --check
           cargo clippy -p anthrosim-core --tests -- -D warnings
           cargo test -p anthrosim-core --test av6_003_household_fission_external_kin_context
