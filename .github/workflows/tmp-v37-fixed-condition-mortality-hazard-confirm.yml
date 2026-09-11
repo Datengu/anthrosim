@@ -1,0 +1,71 @@
+name: Temporary v37 fixed-condition mortality hazard confirmation
+
+on:
+  push:
+    branches:
+      - experiment/v37-fixed-condition-mortality-hazard-confirm
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout harness branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: harness
+
+      - name: Checkout exact v37 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          path: v37
+
+      - name: Prepare runner
+        shell: bash
+        run: |
+          cp harness/experiment-harness/fixed-condition-mortality-hazard-confirm/runner.rs v37/crates/anthrosim-cli/src/bin/anthrosim-fixed-condition-mortality-hazard-confirm.rs
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build and execute exact-v37 compact confirmation
+        working-directory: v37
+        shell: bash
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-fixed-condition-mortality-hazard-confirm
+          ./target/release/anthrosim-fixed-condition-mortality-hazard-confirm > fixed-condition-mortality-hazard-confirm-results.jsonl
+          test "$(wc -l < fixed-condition-mortality-hazard-confirm-results.jsonl)" -eq 1200
+          python - <<'PY'
+          import json
+          from collections import Counter
+          rows = [json.loads(line) for line in open('fixed-condition-mortality-hazard-confirm-results.jsonl', encoding='utf-8')]
+          assert len(rows) == 1200
+          assert Counter((r['fixedConditionPermille'], r['resourcePeriodsPerYear']) for r in rows) == {
+              (250,1):200, (250,4):200, (250,8):200,
+              (500,1):200, (500,4):200, (500,8):200,
+          }
+          assert all(r['configuredResourcePeriodsPerYear'] == r['resourcePeriodsPerYear'] for r in rows)
+          assert all(r['configuredAnnualNeedUnitsPerPerson'] == 0 for r in rows)
+          assert all(r['configuredConditionRecoveryPerPeriod'] == 0 for r in rows)
+          assert all(r['configuredMaxConditionLossPerPeriod'] == 0 for r in rows)
+          assert all(r['configuredMaxConditionMortalityProbabilityPerMillion'] == 200000 for r in rows)
+          assert all(r['configuredMigrationEnabled'] is False for r in rows)
+          assert all(r['resourceUnmetNeed'] == 0 and r['movesCompleted'] == 0 for r in rows)
+          assert all(r['finalLivingPopulation'] + r['conditionMortalityDeaths'] == 2000 for r in rows)
+          assert all(r['meanLivingConditionPermille'] == r['fixedConditionPermille'] for r in rows if r['finalLivingPopulation'] > 0)
+          assert all(r['stopReason'] == 'durationReached' for r in rows)
+          assert all(r['modelSemanticsId'] == 'anthrosim-model-semantics-v37' for r in rows)
+          assert all(r['gitCommit'] == '9f0914e2772cd2f0c6243ab4be8b296f3ce48f30' for r in rows)
+          print('rows=', len(rows))
+          PY
+
+      - name: Upload compact confirmation results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: anthrosim-v37-fixed-condition-mortality-hazard-confirm-results
+          path: v37/fixed-condition-mortality-hazard-confirm-results.jsonl
+          retention-days: 1
