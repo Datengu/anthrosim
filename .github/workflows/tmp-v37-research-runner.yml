@@ -1,0 +1,30 @@
+name: Temporary v37 research runner build
+
+on:
+  push:
+    branches:
+      - experiment/v37-travel-cost-runner
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+      - run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+      - name: Build exact-v37 research runner
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-research
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: anthrosim-v37-research-runner
+          retention-days: 1
+          path: target/release/anthrosim-research
