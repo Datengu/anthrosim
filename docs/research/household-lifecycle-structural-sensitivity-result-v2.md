@@ -2,35 +2,39 @@
 
 **Scientific status:** synthetic structural sensitivity; not empirical household validation.
 
-The frozen issue #207 design was rerun after the #324 repair: eight paired seeds, 40 years per arm, founder population 120, with all non-household-lifecycle assumptions held fixed. All 16 arm-runs completed and none went extinct.
+## Current living-semantics revalidation — v40
 
-The fixed-founder arm is unchanged from the historical comparison. The alternative is now `deterministic_dependency_fission_v2` (maximum 8 living members; minimum independent age 18 years), which removes stable-PersonId cohort slicing and preferentially keeps dependents with living parents when feasible.
+The frozen issue #207 design was rerun unchanged under `anthrosim-model-semantics-v40` during AV6-003/#699 remediation: eight paired seeds, 40 years per arm, founder population 120, with all non-household-lifecycle assumptions held fixed. All **16/16** arm-runs completed and none went extinct.
 
-| Observable | Fixed founder | Dependency fission v2 | v2 change vs fixed |
+This is a **living-semantics revalidation**, not an attempt to attribute every numerical change since the previous result to AV6-003. The previous checked aggregate was generated at model semantics v21. Both the fixed-founder control and dependency-fission arm have therefore accumulated effects from later authoritative repairs between v21 and v40. The focused #698 relabelling regression isolates the AV6-003 defect itself; this frozen ensemble tests whether the broader #207 structural-sensitivity interpretation still survives on current semantics.
+
+The alternative remains `deterministic_dependency_fission_v2` (maximum 8 living members; minimum independent age 18 years). Under v40 its relationship refinement additionally preserves living external direct-parent persistent-residence context before arbitrary PersonId tie-breaking.
+
+| Observable | Fixed founder | Dependency fission v2 | v40 change vs fixed |
 | --- | ---: | ---: | ---: |
-| Mean terminal living population | 102.125 | 100.375 | -1.7% |
-| Mean terminal active households | 22.000 | 26.750 | +21.6% |
-| Mean terminal largest household | 10.625 | 6.750 | -36.5% |
-| Mean terminal multigenerational households | 16.625 | 20.250 | +21.8% |
-| Mean terminal occupied residence cells | 21.625 | 24.500 | +13.3% |
-| Total unmet resource need | 962 | 118 | -87.7% |
-| Total M4 moves | 85 | 100 | +17.6% |
-| Total people moved by M4 | 704 | 500 | -29.0% |
-| Total M9 departures | 7336 | 8092 | +10.3% |
-| Total M9 visitor person-days | 247348 | 248074 | +0.3% |
-| Total M9 visitor household-days | 51317 | 56616 | +10.3% |
-| Maximum peak simultaneous visitors | 130 | 126 | -3.1% |
+| Mean terminal living population | 109.625 | 105.625 | -3.6% |
+| Mean terminal active households | 22.500 | 28.375 | +26.1% |
+| Mean terminal largest household | 12.375 | 7.125 | -42.4% |
+| Mean terminal multigenerational households | 15.750 | 21.875 | +38.9% |
+| Mean terminal occupied residence cells | 21.875 | 24.750 | +13.1% |
+| Total unmet resource need | 952 | 450 | -52.7% |
+| Total M4 moves | 83 | 108 | +30.1% |
+| Total people moved by M4 | 701 | 522 | -25.5% |
+| Total M9 departures | 7255 | 8215 | +13.2% |
+| Total M9 visitor person-days | 252532 | 252380 | -0.06% |
+| Total M9 visitor household-days | 50771 | 57477 | +13.2% |
+| Maximum peak simultaneous visitors | 133 | 130 | -2.3% |
 
-## Comparison with the historical v1 fission treatment
+The qualitative #207 conclusion survives. Household lifecycle remains a material structural-uncertainty dimension: dependency-aware fission produces substantially more active and multigenerational households, a smaller largest household, lower unmet need, more M4 moves but fewer people moved in aggregate, and more M9 household departures/household-days. Aggregate visitor **person-days remain essentially invariant** in this ensemble (-0.06%).
 
-The #324 repair does not erase the structural-sensitivity conclusion. Relative to the historical `deterministic_size_fission_v1` result, v2 changes terminal living population by -1.6%, active households by +2.9%, M4 moves by +3.1%, people moved by +0.2%, M9 departures by +0.6%, visitor person-days by +0.4%, visitor household-days by +0.6%, and maximum peak visitors by +5.0%.
+These results do **not** establish that dependency-aware fission is historically correct. They show that household lifecycle/composition remains causally consequential under current living semantics and must remain explicit in sensitivity work.
 
-The largest change is resource pressure: total unmet need falls from 449 under the historical PersonId-sliced fission treatment to 118 under dependency-aware v2 (-73.7%). This demonstrates that household **composition**, not merely household count, materially affects M3 sharing outcomes. The repaired treatment therefore strengthens the reason to carry household lifecycle/composition as structural uncertainty rather than treating the original v1 result as a neutral alternative.
+Current machine-readable aggregate: `research/household-lifecycle-sensitivity-v2/reference-result.json`.
 
-M9 remains mixed: household-event frequency and household-days are sensitive, while aggregate visitor person-days are nearly invariant in this ensemble. M4 also remains structurally sensitive, particularly in the number of people grouped into moves.
+Current v40 evidence was first generated by workflow run `34614039366` at head `599fc83201066997e2662603a7a5516126b32972`, artifact `10269147530`, artifact ZIP digest `sha256:1d1d400ba269e8356a55f5e98f52eb4280105367a62a38dfe1010cf74331bc38`, raw JSON SHA-256 `e242f2ed153ca65f4aca4b91d79fdc63c82a6255ef099e505a2a4dc170997d75`. Independent workflow run `34614627601` at head `9a1fda5f6facfc2e948c4f46ba0a33f13cb31c83` reproduced that raw JSON SHA-256 exactly before the living reference was rebound.
 
-These results do not establish that dependency-aware fission is historically correct. They establish that the earlier stable-ID composition rule was scientifically consequential and that the qualitative #207 conclusion—household lifecycle must remain an explicit structural uncertainty dimension—survives its removal.
+## Historical post-#324 reference — v21
 
-Machine-readable aggregate: `research/household-lifecycle-sensitivity-v2/reference-result.json`.
+The previous aggregate is preserved unchanged at `research/household-lifecycle-sensitivity-v2/reference-result-v21.json`. It was generated at `anthrosim-model-semantics-v21` after the #324 dependency-aware fission repair, from workflow run `33272700305`, head `2b8edc9130286ae991dbf76021786418ace79432`, artifact `9720595797`, artifact digest `sha256:11079ddefe586013faf3abf67ea809f49fa4698781a9edb55a2d3f3ff8c0c2f9`.
 
-Artifact provenance: workflow run `33272700305`, head `2b8edc9130286ae991dbf76021786418ace79432`, artifact `9720595797`, artifact digest `sha256:11079ddefe586013faf3abf67ea809f49fa4698781a9edb55a2d3f3ff8c0c2f9`.
+That historical result remains evidence for the repaired v21 treatment and must not be read as a current-v40 numerical oracle. The v40 rerun deliberately preserves the same frozen design so later framework changes remain visible rather than being hidden by relabelling old numbers.
