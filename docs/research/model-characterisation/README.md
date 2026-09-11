@@ -26,10 +26,11 @@ Exploratory numerical results are **not automatically regression expectations**.
 | 2026-09-11 | [Where does the migration buffer fail?](2026-09-11-migration-buffer-transition.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
 | 2026-09-11 | [How does migration search radius affect survival?](2026-09-11-migration-search-radius.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
 | 2026-09-11 | [Does travel-condition cost create the search-radius optimum?](2026-09-11-migration-travel-cost-sensitivity.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
+| 2026-09-11 | [How does migration decision frequency affect survival?](2026-09-11-migration-decision-frequency.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
 
 ## Provenance note
 
-The first three records were executed from the CI-built release binary produced by the code-changing `main` run for commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` (`anthrosim-model-semantics-v37`). The fourth required varying a migration parameter that the ordinary CLI does not expose, so it used a temporary compact experimental runner that checked out the same exact v37 core source commit and called the unchanged core simulation path while retaining only the measurements needed for that sensitivity question. Each record describes its execution boundary explicitly.
+The first three records were executed from the CI-built release binary produced by the code-changing `main` run for commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` (`anthrosim-model-semantics-v37`). The fourth and fifth required varying migration parameters that the ordinary CLI does not expose, so they used temporary compact experimental runners that checked out the same exact v37 core source commit and called the unchanged core simulation path while retaining only the measurements needed for each sensitivity question. Each record describes its execution boundary explicitly.
 
 These experiments therefore characterize that historical model semantics, not whatever semantics are currently at repository `main` when this document is read.
 
