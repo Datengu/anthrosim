@@ -1,4 +1,4 @@
-name: Temporary v37 fixed planning-horizon counterfactual
+name: Temporary v37 fixed planning horizon experiment
 
 on:
   push:
@@ -22,14 +22,46 @@ jobs:
           rustup toolchain install 1.97.1
           rustup default 1.97.1
 
-      - name: Create compact paired runner
+      - name: Apply fixed-quarter planning-horizon intervention
         run: |
-          cat > crates/anthrosim-cli/src/bin/anthrosim-fixed-horizon-counterfactual.rs <<'RS'
-          use std::{env, error::Error, thread};
-          use anthrosim_core::{
-              ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation,
-              WorldConfig,
-          };
+          python - <<'PY'
+          from pathlib import Path
+
+          migration = Path("crates/anthrosim-core/src/migration.rs")
+          text = migration.read_text()
+          start = text.index("        let period_need_per_person = fixed_annual_quantity_for_period(")
+          end_marker = "        self.decision_order.clear();\n"
+          end = text.index(end_marker, start)
+          replacement = '''        // EXPERIMENT-ONLY COUNTERFACTUAL: every M4 evaluation uses a fixed
+          // quarter-year resource-support demand while decision frequency varies.
+          // With annual need = 100 this is exactly 25 units/person per evaluation.
+          let _ = decision_index_in_year;
+          let period_need_per_person = fixed_annual_quantity_for_period(
+              u64::from(annual_food_need),
+              0,
+              4,
+          )
+          .ok_or(MigrationError::InternalInvariant(
+              "fixed-quarter migration planning horizon could not be allocated",
+          ))?;
+
+'''
+          migration.write_text(text[:start] + replacement + text[end:])
+
+          provenance = Path("crates/anthrosim-core/src/provenance.rs")
+          p = provenance.read_text()
+          old = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37";'
+          new = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37-fixed-quarter-horizon-experiment";'
+          if p.count(old) != 1:
+              raise SystemExit("unexpected v37 provenance source")
+          provenance.write_text(p.replace(old, new))
+          PY
+
+      - name: Create compact experiment runner
+        run: |
+          cat > crates/anthrosim-cli/src/bin/anthrosim-fixed-horizon.rs <<'RS'
+          use std::{error::Error, thread};
+          use anthrosim_core::{ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig};
           use serde_json::{Value, json};
 
           fn pick(value: &Value, pointer: &str) -> Value {
@@ -37,12 +69,10 @@ jobs:
           }
 
           fn main() -> Result<(), Box<dyn Error>> {
-              let mode = env::var("EXPERIMENT_MODE").unwrap_or_else(|_| "unknown".to_owned());
               let decisions = [1_u16, 2, 4, 8, 12, 24];
               let mut handles = Vec::new();
 
               for decision_periods in decisions {
-                  let mode = mode.clone();
                   handles.push(thread::spawn(move || -> Result<Vec<Value>, String> {
                       let mut rows = Vec::with_capacity(30);
                       for seed in 5101_u64..=5130_u64 {
@@ -51,34 +81,22 @@ jobs:
                               .with_seasonality_scale_permille(1000)
                               .with_annual_need_units_per_person(100);
                           resources.periods_per_year = 4;
-
                           let migration = MigrationConfig::synthetic_validation_v1()
                               .with_enabled(true)
                               .with_candidate_radius_cells(3)
                               .with_decision_periods_per_year(decision_periods);
-
                           let config = ExperimentConfig::new(seed, 100)
                               .with_world(WorldConfig::new(64, 64))
-                              .with_population(
-                                  PopulationConfig::new(2000)
-                                      .with_target_household_size(5)
-                                      .with_max_person_records(1_000_000),
-                              )
+                              .with_population(PopulationConfig::new(2000).with_target_household_size(5).with_max_person_records(1_000_000))
                               .with_resources(resources)
                               .with_migration(migration);
-
-                          let manifest = Simulation::new(config)
-                              .map_err(|e| e.to_string())?
-                              .run()
-                              .map_err(|e| e.to_string())?;
+                          let manifest = Simulation::new(config).map_err(|e| e.to_string())?.run().map_err(|e| e.to_string())?;
                           let m = serde_json::to_value(&manifest).map_err(|e| e.to_string())?;
-
                           rows.push(json!({
-                              "mode": mode,
                               "seed": seed,
                               "resourcePeriodsPerYear": 4,
                               "decisionPeriodsPerYear": decision_periods,
-                              "fixedPlanningPeriodsPerYear": if mode == "fixed_quarter_horizon" { Value::from(4) } else { Value::Null },
+                              "fixedPlanningPeriodsPerYear": 4,
                               "configuredResourcePeriodsPerYear": pick(&m, "/experiment/resources/periodsPerYear"),
                               "configuredDecisionPeriodsPerYear": pick(&m, "/experiment/migration/decisionPeriodsPerYear"),
                               "configuredRadius": pick(&m, "/experiment/migration/candidateRadiusCells"),
@@ -106,10 +124,7 @@ jobs:
               for handle in handles {
                   rows.extend(handle.join().map_err(|_| "worker thread panicked")??);
               }
-              rows.sort_by_key(|row| (
-                  row["decisionPeriodsPerYear"].as_u64().unwrap_or(0),
-                  row["seed"].as_u64().unwrap_or(0),
-              ));
+              rows.sort_by_key(|row| (row["decisionPeriodsPerYear"].as_u64().unwrap_or(0), row["seed"].as_u64().unwrap_or(0)));
               for row in rows {
                   println!("{}", serde_json::to_string(&row).map_err(|e| e.to_string())?);
               }
@@ -117,82 +132,15 @@ jobs:
           }
           RS
 
-      - name: Build and run canonical v37 arm
-        run: |
-          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
-          cargo build --locked --release -p anthrosim-cli --bin anthrosim-fixed-horizon-counterfactual
-          cp target/release/anthrosim-fixed-horizon-counterfactual /tmp/anthrosim-canonical-v37
-          EXPERIMENT_MODE=canonical_v37 /tmp/anthrosim-canonical-v37 > canonical.jsonl
-          test "$(wc -l < canonical.jsonl)" -eq 180
-
-      - name: Apply experiment-only fixed-quarter planning-horizon intervention
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          migration = Path("crates/anthrosim-core/src/migration.rs")
-          text = migration.read_text()
-          old = '''        let period_need_per_person = fixed_annual_quantity_for_period(
-              u64::from(annual_food_need),
-              decision_index_in_year,
-              decision_periods_per_year,
-          )
-          .ok_or(MigrationError::InternalInvariant(
-              "migration decision interval could not be allocated",
-          ))?;
-          let boundary_need_per_person = fixed_annual_quantity_at_resource_boundary(
-              u64::from(annual_food_need),
-              decision_periods_per_year,
-              day,
-          )
-          .ok_or(MigrationError::InternalInvariant(
-              "migration decision day does not align with its declared schedule",
-          ))?;
-          if boundary_need_per_person != period_need_per_person {
-              return Err(MigrationError::InternalInvariant(
-                  "migration decision index and boundary day disagree",
-              ));
-          }
-'''
-          new = '''        // EXPERIMENT-ONLY COUNTERFACTUAL: keep M4 resource-support demand fixed to one
-          // quarter of annual need while varying decision opportunity frequency. For this study's
-          // annual need of 100, this is exactly 25 units/person at every M4 evaluation.
-          let _ = decision_index_in_year;
-          let period_need_per_person = fixed_annual_quantity_for_period(
-              u64::from(annual_food_need),
-              0,
-              4,
-          )
-          .ok_or(MigrationError::InternalInvariant(
-              "fixed-quarter migration planning horizon could not be allocated",
-          ))?;
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f"expected one migration planning-horizon block, found {text.count(old)}")
-          migration.write_text(text.replace(old, new))
-
-          provenance = Path("crates/anthrosim-core/src/provenance.rs")
-          p = provenance.read_text()
-          old_id = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37";'
-          new_id = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37-fixed-quarter-horizon-experiment";'
-          if p.count(old_id) != 1:
-              raise SystemExit("could not uniquely replace v37 model semantics id")
-          provenance.write_text(p.replace(old_id, new_id))
-          PY
-
-      - name: Build and run fixed-horizon counterfactual arm
+      - name: Build and execute counterfactual
         run: |
           export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30+fixed-quarter-horizon-intervention"
-          cargo build --locked --release -p anthrosim-cli --bin anthrosim-fixed-horizon-counterfactual
-          EXPERIMENT_MODE=fixed_quarter_horizon ./target/release/anthrosim-fixed-horizon-counterfactual > fixed.jsonl
-          test "$(wc -l < fixed.jsonl)" -eq 180
-          cat canonical.jsonl fixed.jsonl > fixed-horizon-paired-results.jsonl
-          test "$(wc -l < fixed-horizon-paired-results.jsonl)" -eq 360
-          test "$(grep -c '"'"'"mode"'"'":"'"'"canonical_v37"'"'"' fixed-horizon-paired-results.jsonl)" -eq 180
-          test "$(grep -c '"'"'"mode"'"'":"'"'"fixed_quarter_horizon"'"'"' fixed-horizon-paired-results.jsonl)" -eq 180
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-fixed-horizon
+          ./target/release/anthrosim-fixed-horizon > fixed-horizon-results.jsonl
+          test "$(wc -l < fixed-horizon-results.jsonl)" -eq 180
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: anthrosim-v37-fixed-planning-horizon-paired-results
+          name: anthrosim-v37-fixed-planning-horizon-results
           retention-days: 1
-          path: fixed-horizon-paired-results.jsonl
+          path: fixed-horizon-results.jsonl
