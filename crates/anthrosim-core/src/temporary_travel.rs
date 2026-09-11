@@ -102,11 +102,17 @@ const GRID_REFLECTIONS: [GridReflection; 4] = [
     GridReflection::Both,
 ];
 
-/// All grid-reflection frames that realize the exact lexicographically minimal focal-region
-/// membership mask and declared model-facing spatial state. More than one frame means the declared state itself has an
-/// automorphism; destinations related inside that automorphism remain one exchangeable class.
+/// All grid-reflection frames that realize the lexicographically minimal declared state of
+/// one origin's reachable traversable component. The component is normalized to its own bounding
+/// box so causally isolated world padding cannot relabel a local M9 tie. More than one retained
+/// reflection means the reachable component itself has an exact automorphism; destinations related
+/// inside that automorphism remain one exchangeable class.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TemporaryDestinationCanonicalFrame {
+    min_x: u32,
+    min_y: u32,
+    width: u32,
+    height: u32,
     reflections: Vec<GridReflection>,
 }
 
@@ -114,14 +120,51 @@ pub(crate) fn destination_canonical_frame(
     world: &World,
     region: &FocalRegion,
     context: TemporaryDestinationCouplingContext,
+    reachable: &[bool],
+    origin: CellId,
 ) -> Option<TemporaryDestinationCanonicalFrame> {
-    if !context.is_valid() || world.width() == 0 || world.height() == 0 {
+    if !context.is_valid()
+        || world.width() == 0
+        || world.height() == 0
+        || reachable.len() != world.cell_count()
+    {
         return None;
     }
+
+    let origin_index = cell_index(origin, world).ok()?;
+    if !reachable[origin_index] {
+        return None;
+    }
+
+    let mut component = vec![false; world.cell_count()];
+    let mut pending = vec![origin];
+    component[origin_index] = true;
+    let (mut min_x, mut min_y) = world.coordinates(origin)?;
+    let (mut max_x, mut max_y) = (min_x, min_y);
+
+    while let Some(cell) = pending.pop() {
+        let (x, y) = world.coordinates(cell)?;
+        min_x = min_x.min(x);
+        min_y = min_y.min(y);
+        max_x = max_x.max(x);
+        max_y = max_y.max(y);
+        for neighbour in world.neighbours4(cell).into_iter().flatten() {
+            let index = cell_index(neighbour, world).ok()?;
+            if reachable[index] && !component[index] {
+                component[index] = true;
+                pending.push(neighbour);
+            }
+        }
+    }
+
+    let width = max_x.checked_sub(min_x)?.checked_add(1)?;
+    let height = max_y.checked_sub(min_y)?.checked_add(1)?;
     let mut best_signature: Option<Vec<u16>> = None;
     let mut reflections = Vec::new();
     for reflection in GRID_REFLECTIONS {
-        let signature = reflected_context_signature(world, region, context, reflection)?;
+        let signature = reflected_local_context_signature(
+            world, region, context, &component, min_x, min_y, width, height, reflection,
+        )?;
         match best_signature.as_ref() {
             None => {
                 best_signature = Some(signature);
@@ -138,7 +181,14 @@ pub(crate) fn destination_canonical_frame(
             },
         }
     }
-    (!reflections.is_empty()).then_some(TemporaryDestinationCanonicalFrame { reflections })
+
+    (!reflections.is_empty()).then_some(TemporaryDestinationCanonicalFrame {
+        min_x,
+        min_y,
+        width,
+        height,
+        reflections,
+    })
 }
 
 pub(crate) fn destination_coupling_classes(
@@ -147,15 +197,31 @@ pub(crate) fn destination_coupling_classes(
     origin: CellId,
     candidates: &[TemporaryTravelDestinationCandidate],
 ) -> Option<Vec<u32>> {
+    let origin_local = local_coordinates(world, frame, origin)?;
     let mut keyed = Vec::with_capacity(candidates.len());
     for (index, candidate) in candidates.iter().enumerate() {
-        let mut best_pair: Option<(u64, u64, u32)> = None;
+        let destination_local = local_coordinates(world, frame, candidate.destination)?;
+        let mut best_pair: Option<(u32, u32, u32, u32, u32)> = None;
         for &reflection in &frame.reflections {
-            let mapped_origin = reflected_cell(world, reflection, origin)?;
-            let mapped_destination = reflected_cell(world, reflection, candidate.destination)?;
+            let mapped_origin = reflected_coordinates(
+                reflection,
+                origin_local.0,
+                origin_local.1,
+                frame.width,
+                frame.height,
+            );
+            let mapped_destination = reflected_coordinates(
+                reflection,
+                destination_local.0,
+                destination_local.1,
+                frame.width,
+                frame.height,
+            );
             let key = (
                 mapped_origin.0,
+                mapped_origin.1,
                 mapped_destination.0,
+                mapped_destination.1,
                 candidate.route_distance_edges,
             );
             best_pair = Some(best_pair.map_or(key, |prior| prior.min(key)));
@@ -177,27 +243,50 @@ pub(crate) fn destination_coupling_classes(
     Some(classes)
 }
 
-fn reflected_context_signature(
+#[allow(clippy::too_many_arguments)]
+fn reflected_local_context_signature(
     world: &World,
     region: &FocalRegion,
     context: TemporaryDestinationCouplingContext,
+    component: &[bool],
+    min_x: u32,
+    min_y: u32,
+    width: u32,
+    height: u32,
     reflection: GridReflection,
 ) -> Option<Vec<u16>> {
-    let fields_per_cell = 2
+    let fields_per_slot = 3
         + if context.include_water_access { 1 } else { 0 }
         + if context.include_base_productivity {
             1
         } else {
             0
         };
-    let capacity = world.cell_count().checked_mul(fields_per_cell)?;
+    let slot_count = usize::try_from(width.checked_mul(height)?).ok()?;
+    let capacity = slot_count.checked_mul(fields_per_slot)?;
     let mut signature = Vec::with_capacity(capacity);
-    for y in 0..world.height() {
-        for x in 0..world.width() {
-            let (source_x, source_y) =
-                reflected_coordinates(reflection, x, y, world.width(), world.height());
-            let source = world.cell_id(source_x, source_y)?;
+
+    for y in 0..height {
+        for x in 0..width {
+            let (source_x, source_y) = reflected_coordinates(reflection, x, y, width, height);
+            let source =
+                world.cell_id(min_x.checked_add(source_x)?, min_y.checked_add(source_y)?)?;
+            let source_index = cell_index(source, world).ok()?;
+            if !component.get(source_index).copied().unwrap_or(false) {
+                signature.push(0);
+                signature.push(0);
+                signature.push(0);
+                if context.include_water_access {
+                    signature.push(0);
+                }
+                if context.include_base_productivity {
+                    signature.push(0);
+                }
+                continue;
+            }
+
             let cell = world.cell(source)?;
+            signature.push(1);
             signature.push(if region.contains(source) { 1 } else { 0 });
             signature.push(cell.movement_cost);
             if context.include_water_access {
@@ -211,10 +300,15 @@ fn reflected_context_signature(
     Some(signature)
 }
 
-fn reflected_cell(world: &World, reflection: GridReflection, cell: CellId) -> Option<CellId> {
+fn local_coordinates(
+    world: &World,
+    frame: &TemporaryDestinationCanonicalFrame,
+    cell: CellId,
+) -> Option<(u32, u32)> {
     let (x, y) = world.coordinates(cell)?;
-    let (x, y) = reflected_coordinates(reflection, x, y, world.width(), world.height());
-    world.cell_id(x, y)
+    let local_x = x.checked_sub(frame.min_x)?;
+    let local_y = y.checked_sub(frame.min_y)?;
+    (local_x < frame.width && local_y < frame.height).then_some((local_x, local_y))
 }
 
 fn reflected_coordinates(
@@ -392,11 +486,8 @@ impl TemporaryTravelModel {
                 return Err(TemporaryTravelModelError::RegionCellImpassable { cell });
             }
         }
-        let canonical_frame =
-            destination_canonical_frame(world, region, destination_coupling_context)
-                .ok_or(TemporaryTravelModelError::InvalidDestinationCouplingContext)?;
-
         let labels = minimum_cost_labels(self, region, world)?;
+        let reachable = labels.iter().map(Option::is_some).collect::<Vec<_>>();
         let mut resolutions = Vec::with_capacity(world.cell_count());
         let mut accumulated_costs = Vec::with_capacity(world.cell_count());
         let mut equal_cost_destinations = Vec::with_capacity(world.cell_count());
@@ -420,6 +511,14 @@ impl TemporaryTravelModel {
                     },
                 )
                 .collect::<Vec<_>>();
+            let canonical_frame = destination_canonical_frame(
+                world,
+                region,
+                destination_coupling_context,
+                &reachable,
+                origin,
+            )
+            .ok_or(TemporaryTravelModelError::DestinationCouplingClassificationFailed { origin })?;
             let classes =
                 destination_coupling_classes(world, &canonical_frame, origin, &candidates).ok_or(
                     TemporaryTravelModelError::DestinationCouplingClassificationFailed { origin },

@@ -23,7 +23,7 @@ const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 pub(crate) const TEMPORARY_EVENT_SCHEMA_VERSION: u32 = 3;
 const M9_DESTINATION_TIE_POLICY_ID: &str =
-    "m9/equal-cost-destination-local-household-spatial-equivalence-v4";
+    "m9/equal-cost-destination-local-household-spatial-equivalence-v5";
 const M9_HOUSEHOLD_COUPLING_POLICY_ID: &str = "m9/household-local-demographic-equivalence-v1";
 
 /// Authoritative M9 physical-presence state for one household.
@@ -322,8 +322,8 @@ pub struct TemporaryTravelDestinationCandidate {
     pub route_distance_edges: u32,
     /// Local scientific equivalence class for keyed M9 destination coupling.
     ///
-    /// The class is derived from an exact canonical reflection frame. Canonical CellId is
-    /// used only to serialize members inside one class, where they are scientifically
+    /// The class is derived from an exact reflection-canonical frame over the origin's reachable
+    /// traversable component. Canonical CellId is used only to serialize members inside one class, where they are scientifically
     /// indistinguishable to the declared ambiguity-coupling context.
     #[serde(default)]
     pub destination_coupling_class: u32,
@@ -362,7 +362,7 @@ pub struct TemporaryTravelTable {
 }
 
 impl TemporaryTravelTable {
-    pub const CURRENT_SCHEMA_VERSION: u32 = 5;
+    pub const CURRENT_SCHEMA_VERSION: u32 = 6;
 
     pub fn new(
         resolutions: Vec<TemporaryTravelResolution>,
@@ -562,8 +562,6 @@ impl TemporaryTravelTable {
                 if !context.is_valid() {
                     return Err(TemporaryMobilityProgramError::InvalidDestinationCouplingContext);
                 }
-                let frame = destination_canonical_frame(world, region, context)
-                    .ok_or(TemporaryMobilityProgramError::InvalidDestinationCouplingContext)?;
                 if costs.len() != world.cell_count() {
                     return Err(
                         TemporaryMobilityProgramError::TravelCostTableShapeMismatch {
@@ -587,7 +585,8 @@ impl TemporaryTravelTable {
                         });
                     }
                 }
-                Some((model, costs, candidates, frame))
+                let reachable = costs.iter().map(Option::is_some).collect::<Vec<_>>();
+                Some((model, costs, candidates, context, reachable))
             }
             _ => {
                 return Err(TemporaryMobilityProgramError::IncompleteTravelCostMetadata);
@@ -620,7 +619,7 @@ impl TemporaryTravelTable {
                 }
             }
 
-            if let Some((model, costs, candidate_rows, frame)) = m9_4.as_ref() {
+            if let Some((model, costs, candidate_rows, context, reachable)) = m9_4.as_ref() {
                 match (*resolution, costs[index], candidate_rows[index].as_slice()) {
                     (TemporaryTravelResolution::Unreachable, None, []) => {}
                     (
@@ -632,8 +631,16 @@ impl TemporaryTravelTable {
                         Some(cost),
                         candidates,
                     ) if !candidates.is_empty() => {
+                        let frame = destination_canonical_frame(
+                            world, region, *context, reachable, origin,
+                        )
+                        .ok_or(
+                            TemporaryMobilityProgramError::InvalidDestinationCouplingClasses {
+                                origin,
+                            },
+                        )?;
                         let expected_classes =
-                            destination_coupling_classes(world, frame, origin, candidates).ok_or(
+                            destination_coupling_classes(world, &frame, origin, candidates).ok_or(
                                 TemporaryMobilityProgramError::InvalidDestinationCouplingClasses {
                                     origin,
                                 },

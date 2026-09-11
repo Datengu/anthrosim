@@ -105,7 +105,14 @@ use crate::time::DAYS_PER_YEAR;
 /// which scientifically corresponding household receives an indivisible unit merely because its
 /// occupied cell has a different row-major index. A v36 checkpoint must not resume under v37 while
 /// silently changing future scarce-resource allocation and downstream condition trajectories.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37";
+///
+/// v38 localizes M9 equal-cost destination spatial coupling to the origin's reachable traversable
+/// component and normalizes that component to local coordinates before reflection canonicalization.
+/// Causally isolated unreachable/impassable world padding therefore cannot relabel an unchanged
+/// local tie, while reachable route-changing extent remains scientifically causal. The persisted M9
+/// travel-table coupling classes and tie-policy identity advance accordingly. A v37 checkpoint must
+/// not resume under v38 while silently changing future tied M9 destinations.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v38";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
