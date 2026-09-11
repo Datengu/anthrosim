@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             for seed in 7201_u64..=7230_u64 {
                 let mut resources = ResourceConfig::synthetic_validation_v1()
                     .with_productivity_scale_permille(750)
-                    .with_seasonality_scale_permille(1000)
+                    .with_seasonality_scale_permille(0)
                     .with_annual_need_units_per_person(100);
                 resources.periods_per_year = resource_periods;
 
@@ -46,6 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     "configuredResourcePeriodsPerYear": pick(&m, "/experiment/resources/periodsPerYear"),
                     "configuredMigrationEnabled": pick(&m, "/experiment/migration/enabled"),
                     "configuredProductivityScalePermille": pick(&m, "/experiment/resources/productivityScalePermille"),
+                    "configuredSeasonalityScalePermille": pick(&m, "/experiment/resources/seasonalityScalePermille"),
                     "finalLivingPopulation": pick(&m, "/population/livingPopulation"),
                     "resourceUnmetNeed": pick(&m, "/resources/unmetNeed"),
                     "conditionMortalityDeaths": pick(&m, "/resources/conditionMortalityDeaths"),
