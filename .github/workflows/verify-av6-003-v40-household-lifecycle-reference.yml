@@ -1,0 +1,52 @@
+name: Verify AV6-003 v40 household lifecycle reference
+
+on:
+  push:
+    branches:
+      - audit/repair-699-av6-003
+    paths:
+      - .github/workflows/verify-av6-003-v40-household-lifecycle-reference.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-699-av6-003
+
+      - name: Execute issue 207 structural sensitivity under v40
+        run: |
+          cargo run --release -p anthrosim-core --example household_lifecycle_sensitivity > /tmp/household-lifecycle-v40.json
+
+      - name: Compare generated scientific aggregate with checked reference
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          generated = json.loads(Path('/tmp/household-lifecycle-v40.json').read_text())
+          reference = json.loads(Path('research/household-lifecycle-sensitivity-v2/reference-result.json').read_text())
+          historical_provenance = reference.pop('provenance', None)
+          if generated != reference:
+              differing = sorted(set(generated) | set(reference))
+              changed = [key for key in differing if generated.get(key) != reference.get(key)]
+              print('v40 household-lifecycle aggregate differs from checked reference.')
+              print('changed top-level fields:', changed)
+              raise SystemExit(2)
+          print('v40 household-lifecycle aggregate exactly matches the checked scientific reference.')
+          print('historical reference provenance retained:', historical_provenance)
+          PY
+
+      - name: Upload exact generated v40 aggregate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: av6-003-v40-household-lifecycle-reference-check
+          path: /tmp/household-lifecycle-v40.json
+          if-no-files-found: error
+          retention-days: 30
