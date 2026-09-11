@@ -24,9 +24,10 @@ Exploratory numerical results are **not automatically regression expectations**.
 |---|---|---|---|
 | 2026-09-11 | [Local migration as a resource-scarcity buffer](2026-09-11-migration-resource-buffer.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
 | 2026-09-11 | [Where does the migration buffer fail?](2026-09-11-migration-buffer-transition.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
+| 2026-09-11 | [How does migration search radius affect survival?](2026-09-11-migration-search-radius.md) | `anthrosim-model-semantics-v37`, commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` | exploratory complete |
 
 ## Provenance note
 
-Both first records were executed from the CI-built release binary produced by the code-changing `main` run for commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` (`anthrosim-model-semantics-v37`). They therefore characterize that historical executable, not whatever semantics are currently at repository `main` when this document is read.
+These first records were executed from the CI-built release binary produced by the code-changing `main` run for commit `9f0914e2772cd2f0c6243ab4be8b296f3ce48f30` (`anthrosim-model-semantics-v37`). They therefore characterize that historical executable, not whatever semantics are currently at repository `main` when this document is read.
 
 The ad-hoc runtime output directories from these conversational exploratory runs were not promoted into repository-authoritative study bundles. The records preserve the experiment design and reported aggregate results. If any result becomes claim-driving, it should be rerun from a checked-in experiment definition with repository-authoritative provenance and artifacts rather than relying on this summary alone.
