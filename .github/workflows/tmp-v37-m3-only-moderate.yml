@@ -1,9 +1,9 @@
-name: Temporary v37 moderate M3 timing experiment
+name: Temporary v37 moderate M3 no-seasonality experiment
 
 on:
   push:
     branches:
-      - experiment/v37-m3-only-moderate
+      - experiment/v37-m3-only-moderate-no-seasonality
 
 permissions:
   contents: read
@@ -36,17 +36,18 @@ jobs:
         run: |
           export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
           cargo build --locked --release -p anthrosim-cli --bin anthrosim-m3-only-moderate
-          ./target/release/anthrosim-m3-only-moderate > m3-only-moderate-results.jsonl
-          test "$(wc -l < m3-only-moderate-results.jsonl)" -eq 180
+          ./target/release/anthrosim-m3-only-moderate > m3-only-moderate-no-seasonality-results.jsonl
+          test "$(wc -l < m3-only-moderate-no-seasonality-results.jsonl)" -eq 180
           python - <<'PY'
           import json
           from collections import Counter
-          rows = [json.loads(line) for line in open('m3-only-moderate-results.jsonl', encoding='utf-8')]
+          rows = [json.loads(line) for line in open('m3-only-moderate-no-seasonality-results.jsonl', encoding='utf-8')]
           counts = Counter(row['resourcePeriodsPerYear'] for row in rows)
           assert counts == {1: 30, 2: 30, 4: 30, 8: 30, 12: 30, 24: 30}, counts
           assert all(row['configuredResourcePeriodsPerYear'] == row['resourcePeriodsPerYear'] for row in rows)
           assert all(row['configuredMigrationEnabled'] is False for row in rows)
           assert all(row['configuredProductivityScalePermille'] == 750 for row in rows)
+          assert all(row['configuredSeasonalityScalePermille'] == 0 for row in rows)
           assert all(row['movesCompleted'] == 0 for row in rows)
           assert all(row['modelSemanticsId'] == 'anthrosim-model-semantics-v37' for row in rows)
           assert all(row['gitCommit'] == '9f0914e2772cd2f0c6243ab4be8b296f3ce48f30' for row in rows)
@@ -57,6 +58,6 @@ jobs:
       - name: Upload compact results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: anthrosim-v37-m3-only-moderate-results
+          name: anthrosim-v37-m3-only-moderate-no-seasonality-results
           retention-days: 1
-          path: v37/m3-only-moderate-results.jsonl
+          path: v37/m3-only-moderate-no-seasonality-results.jsonl
