@@ -28,3 +28,7 @@ The benchmark definitions, criteria, verifiers, declared seed sets and protected
 Protected exact-merge run `34572831776` reran the same M8.6 and M9.7 designs after the references were checked in. M8.6 passed its canonical comparison. M9.7 reproduced the reviewed v39 verifier projection, but the gate exposed a single transcription error in the checked seed-9705 legacy projection: the artifact value is `visitorPersonDays=161820`, while the first checked projection said `161822`. The exact fraction and every other verifier-relevant field already corresponded to `161820`.
 
 The M9 reference is therefore regenerated directly from reviewed artifact `10185319300`; the benchmark definition, criteria, verifier, travel-burden contract and scientific classification are unchanged. The living M8/M9 result pages are also synchronized to identify v39 as their checked current reference.
+
+## M7.6 resource-variability refresh
+
+Protected CI run `34606631707` reran all 18 M7.6 points and 144/144 declared simulations on PR merge ref `e732870a5860f1b15a74c209c9668b66ad5a42a0`. All runs completed and remained scientifically eligible. The v39 outputs changed 18/18 checked point summaries relative to v38, so `experiments/v0.1-resource-variability-reference.json` is numerically rebaselined from artifact `10266203915` (SHA-256 `3e7d40db193a026b8009b06d73f39801d8001c6a358d47899230d020c82fd7d1`) rather than relabelled. The experimental design and broad synthetic interpretation remain unchanged.

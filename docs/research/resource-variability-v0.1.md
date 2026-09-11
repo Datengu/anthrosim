@@ -15,11 +15,56 @@ The canonical definition is unchanged: 100 years, 5,000 founders, 64 × 64 synth
 
 These are synthetic mechanism-testing settings, not reconstructed carrying capacities, climate variability or human energetics.
 
-## Current v35 reference binding
+## Current v39 reference binding
+
+Audit-v6 AV6-002/#694 corrects the configured male-parent age window so it constrains completed male age at the recorded child-birth boundary. M7.6 contains active demography, so the frozen 18-point × 8-seed resource/migration factorial was rerun unchanged instead of assuming the v38 trajectories remained applicable.
+
+Reviewed v39 execution:
+
+- protected CI run: `34606631707`;
+- canonical M7.6 job: `103290914222`;
+- branch head: `1ca04a646bba58175df4b4edd6b73d9d312c8dd4`;
+- pull-request merge ref: `e732870a5860f1b15a74c209c9668b66ad5a42a0`;
+- derived artifact: `10266203915` (`sha256:3e7d40db193a026b8009b06d73f39801d8001c6a358d47899230d020c82fd7d1`);
+- definition SHA-256: `3206a40dba8a29f0e916460277ceea8b1a46363dc97215767cf923c54b67e47e`;
+- model version: `0.3.6`;
+- model semantics: `anthrosim-model-semantics-v39`;
+- numerical change: **18/18** point summaries differ from the checked v38 reference.
+
+All **144/144** planned runs completed and were scientifically eligible, with no failed, incomplete, record-limit or otherwise operationally censored runs. The design, paired seeds, resource parameters, migration on/off factor, completion rules and endpoints are unchanged; this is a true upstream-demography numerical rebaseline.
+
+## Current point results — v39 numerical rebaseline
+
+The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path.
+
+| Productivity | Seasonality | Migration | Terminal outcomes | Final living | Occupied cells | Condition deaths | Unmet need | Migration moves | Move distance |
+| ---: | ---: | :---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 0 | on | 8 duration / 0 extinct | 1680.625 | 349.25 | 264.625 | 36288 | 28927.875 | 2.048 |
+| 250 | 0 | off | 0 duration / 8 extinct | 0 | 0 | 4896.375 | 552108.75 | 0 | — |
+| 250 | 500 | on | 8 duration / 0 extinct | 1706.75 | 345.625 | 302.125 | 38486.625 | 29273 | 2.051 |
+| 250 | 500 | off | 0 duration / 8 extinct | 0 | 0 | 4894.75 | 551500.5 | 0 | — |
+| 250 | 1000 | on | 8 duration / 0 extinct | 1623.75 | 342.375 | 284.25 | 38815.625 | 28442.5 | 2.046 |
+| 250 | 1000 | off | 0 duration / 8 extinct | 0 | 0 | 4897.875 | 548697.375 | 0 | — |
+| 500 | 0 | on | 8 duration / 0 extinct | 1831 | 345.875 | 27.5 | 2154.125 | 6984.375 | 1.979 |
+| 500 | 0 | off | 8 duration / 0 extinct | 22 | 17.875 | 3702.375 | 329399.75 | 0 | — |
+| 500 | 500 | on | 8 duration / 0 extinct | 1897.5 | 351.25 | 25.75 | 2740.5 | 7061.875 | 1.980 |
+| 500 | 500 | off | 8 duration / 0 extinct | 23.625 | 16.125 | 3703.375 | 330622 | 0 | — |
+| 500 | 1000 | on | 8 duration / 0 extinct | 1872.125 | 359.625 | 31.5 | 3363.75 | 7047 | 1.986 |
+| 500 | 1000 | off | 8 duration / 0 extinct | 17.25 | 14.375 | 3748.875 | 341188.875 | 0 | — |
+| 1000 | 0 | on | 8 duration / 0 extinct | 1883.875 | 346.875 | 2.5 | 60.875 | 1147 | 1.891 |
+| 1000 | 0 | off | 8 duration / 0 extinct | 607.625 | 217.5 | 1680.625 | 129267.125 | 0 | — |
+| 1000 | 500 | on | 8 duration / 0 extinct | 1951 | 352.75 | 2.875 | 84.625 | 1171.25 | 1.920 |
+| 1000 | 500 | off | 8 duration / 0 extinct | 646.375 | 226.25 | 1643.875 | 129213.25 | 0 | — |
+| 1000 | 1000 | on | 8 duration / 0 extinct | 1858.125 | 342.875 | 3.375 | 177.625 | 1117.5 | 1.908 |
+| 1000 | 1000 | off | 8 duration / 0 extinct | 598.375 | 221 | 1672.75 | 135118.25 | 0 | — |
+
+The broad synthetic interpretation remains unchanged: productivity is the strongest resource control in this design; every productivity-250 migration-disabled arm still goes extinct in 8/8 seeds while each matched migration-enabled arm reaches the requested duration; migration-enabled arms retain much larger terminal populations across the factorial; and seasonality remains non-monotonic. These are model-mechanism results, not archaeological calibration.
+
+## Historical v35 reference binding
 
 Audit-v5 AV5-001/#606 and AV5-004/#629 changed M9 equal-cost destination coupling but do not participate in this M7.6 M3/M4 resource-variability experiment. During the v35 repair line, protected CI reran all **144/144** canonical M7.6 simulations and reproduced the frozen numerical `pointResults` exactly. The machine reference was therefore rebound to `anthrosim-model-semantics-v35` as current provenance without changing the scientific table or interpretation below. The last causal M7.6 trajectory rebaseline remains the v33 M4 spatial-isomorphism repair recorded next.
 
-## Last causal v33 reference and provenance
+## Historical causal v33 reference and provenance
 
 Audit-v4 AV4-009 / #518 changes causal same-seed M4 candidate-choice coupling: candidate uncertainty and weighted-choice intervals are no longer assigned through arbitrary canonical `CellId` / container ordering. The accepted repair evaluates deterministic utility first, partitions scientifically equivalent candidates by `(total utility, movement distance)`, assigns uncertainty at equivalence-class level, preserves class aggregate proportional weight and samples exact-class members exchangeably. The frozen M7.6 reference was therefore rerun and reviewed rather than forced to reproduce v32 values.
 
@@ -42,7 +87,7 @@ The on/off control is exact and diagnostic for this M4-only repair: all **9/9 mi
 
 The reviewed v33 result preserves the substantive synthetic conclusions: every low-productivity (`250`) migration-disabled arm is extinct in 8/8 seeds while every matched migration-enabled arm reaches the requested duration; at every matched productivity/seasonality point migration-enabled runs retain higher terminal population, lower condition-mediated mortality and lower unmet resource need than migration-disabled controls.
 
-## Preserved point results — last causal rebaseline v33, confirmed under v35
+## Historical v33 point results — confirmed under v35
 
 The table reports descriptive means over the eight scientifically eligible seeds per point. `Move distance` is pooled Manhattan grid-cell distance per completed household move. `Condition deaths` are deaths through the model's condition-mediated mortality path; they are not uniquely attributable to resource scarcity.
 
@@ -69,7 +114,7 @@ The table reports descriptive means over the eight scientifically eligible seeds
 
 Full unrounded point values are preserved in the machine-readable reference.
 
-## Current interpretation — confirmed under v35
+## Historical v33/v35 interpretation
 
 ### Productivity remains the strongest resource control
 
