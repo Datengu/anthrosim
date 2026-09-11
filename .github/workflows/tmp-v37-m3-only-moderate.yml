@@ -1,0 +1,62 @@
+name: Temporary v37 moderate M3 timing experiment
+
+on:
+  push:
+    branches:
+      - experiment/v37-m3-only-moderate
+
+permissions:
+  contents: read
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout harness branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: harness
+
+      - name: Checkout exact v37 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          path: v37
+
+      - name: Prepare runner
+        run: |
+          cp harness/experiment-harness/m3-only-moderate/runner.rs v37/crates/anthrosim-cli/src/bin/anthrosim-m3-only-moderate.rs
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Build and execute exact-v37 compact experiment
+        working-directory: v37
+        run: |
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-m3-only-moderate
+          ./target/release/anthrosim-m3-only-moderate > m3-only-moderate-results.jsonl
+          test "$(wc -l < m3-only-moderate-results.jsonl)" -eq 180
+          python - <<'PY'
+          import json
+          from collections import Counter
+          rows = [json.loads(line) for line in open('m3-only-moderate-results.jsonl', encoding='utf-8')]
+          counts = Counter(row['resourcePeriodsPerYear'] for row in rows)
+          assert counts == {1: 30, 2: 30, 4: 30, 8: 30, 12: 30, 24: 30}, counts
+          assert all(row['configuredResourcePeriodsPerYear'] == row['resourcePeriodsPerYear'] for row in rows)
+          assert all(row['configuredMigrationEnabled'] is False for row in rows)
+          assert all(row['configuredProductivityScalePermille'] == 750 for row in rows)
+          assert all(row['movesCompleted'] == 0 for row in rows)
+          assert all(row['modelSemanticsId'] == 'anthrosim-model-semantics-v37' for row in rows)
+          assert all(row['gitCommit'] == '9f0914e2772cd2f0c6243ab4be8b296f3ce48f30' for row in rows)
+          print('period_counts=', dict(counts))
+          print('stop_reasons=', Counter(row['stopReason'] for row in rows))
+          PY
+
+      - name: Upload compact results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: anthrosim-v37-m3-only-moderate-results
+          retention-days: 1
+          path: v37/m3-only-moderate-results.jsonl
