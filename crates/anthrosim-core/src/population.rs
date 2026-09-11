@@ -970,20 +970,25 @@ impl Population {
                 .iter()
                 .enumerate()
                 .map(|(member_position, &index)| {
-                    let parent_signature = |parent: PersonId| -> (u8, u64) {
+                    let parent_signature = |parent: PersonId| -> (u8, CellId, u64) {
                         if parent == PersonId::INVALID {
-                            return (0, 0);
+                            return (0, CellId::INVALID, 0);
                         }
                         let Some(parent_index) = person_index(parent, person_count) else {
-                            return (1, 0);
+                            return (1, CellId::INVALID, 0);
                         };
                         let position = member_positions[parent_index];
                         if position != usize::MAX {
-                            (3, ranks[parent_index])
+                            (3, CellId::INVALID, ranks[parent_index])
                         } else if self.is_alive_index(parent_index) {
-                            (2, 0)
+                            // Living direct parents outside this source household carry causal
+                            // cross-household context through persistent residence: M4 consumes
+                            // these same residence cells as first-degree kin anchors. Preserve
+                            // that scientific distinction without introducing parent/household
+                            // identity, packed-record order, or a global coupling ordinal.
+                            (2, self.locations[parent_index], 0)
                         } else {
-                            (1, 0)
+                            (1, CellId::INVALID, 0)
                         }
                     };
                     let mut children = child_links[member_position]

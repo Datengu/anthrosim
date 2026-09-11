@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v39 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v40 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
@@ -362,3 +362,7 @@ This completeness declaration means **the model is formally described under ODD*
 ## Reference
 
 Grimm, V. et al. (2020). *The ODD protocol for describing agent-based and other simulation models: A second update to improve clarity, replication, and structural realism.* Journal of Artificial Societies and Social Simulation 23(2):7. DOI: `10.18564/jasss.4259`.
+
+### Current v40 household-fission external-kin context
+
+For the optional `deterministic_dependency_fission_v2` structural treatment, relationship refinement preserves the persistent residence cell of a represented living direct parent outside the source household. That is existing causal model state already consumed by M4 as a reciprocal first-degree kin-location anchor. It is not an empirical residence norm: external PersonId, HouseholdId, packed-record order and global stochastic-coupling rank are excluded from the social assignment key, and external parents sharing one residence remain equivalent. AV6-003/#699 therefore advances living model semantics v39 → v40 without changing package version `0.3.6` or immutable v0.3.6/v35 audit evidence.

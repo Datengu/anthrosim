@@ -118,7 +118,14 @@ use crate::time::DAYS_PER_YEAR;
 /// matches declared-founder genealogy validation and gives one temporal meaning to the public
 /// male-parent age support. A v38 checkpoint must not resume under v39 while silently changing
 /// future births or parentage when a candidate crosses an age threshold during the model year.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v39";
+///
+/// v40 extends dependency-aware household-fission relationship refinement to living direct
+/// parents outside the source household. Their persistent residence cell is causal context
+/// because M4 consumes the same cross-household parent/child residences as first-degree kin
+/// anchors. Canonical PersonId, HouseholdId, packed-record order and global stochastic-coupling
+/// rank remain excluded from this social assignment key. A v39 checkpoint must not resume under
+/// v40 while silently changing which relationship-distinct adults seed daughter households.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v40";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

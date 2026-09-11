@@ -22,11 +22,11 @@ This is the repository-authoritative compact handoff state. Detailed discovery e
 | Open P0/P1 | **0** |
 | Phase | **discovery complete — controlled P2 remediation in progress** |
 | Verified P1 remediations | **7/7 — AV6-013/#741; AV6-012/#737; AV6-010/#729; AV6-009/#726; AV6-001/#687; AV6-004/#707; AV6-006/#711** |
-| Active ownership | **AV6-002/#694 is the active first P2 remediation in PR #771; AV6-003/#699 is next unless live overlap/dependency state changes** |
+| Active ownership | **AV6-003/#699 is the active P2 remediation on `audit/repair-699-av6-003`; AV6-002/#694 is merged/closed via #771** |
 | Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; all seven P1s are now repaired, independently reverified and closed, with seven P2 findings still open** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-Protected `main` after the verified AV6-006 production repair is `e729866f4a46d833a566a557e38570daf854d5ae`, with living model semantics `anthrosim-model-semantics-v38`. Active AV6-002 repair PR #771 advances its branch to `anthrosim-model-semantics-v39`; immutable Audit-v6 discovery remains attributed to `v0.3.6` / v35.
+Protected `main` after merged AV6-002/#694 is `9d9c89495f66e50f30d434255069544cd8dfa866`, with living model semantics `anthrosim-model-semantics-v39`. Active AV6-003/#699 advances this repair branch to `anthrosim-model-semantics-v40`; immutable Audit-v6 discovery remains attributed to `v0.3.6` / v35.
 
 ## Completed Areas
 
@@ -109,8 +109,8 @@ av6_009_reverification=pass
 | Finding | Severity | Primary / cross-cutting Areas | Issue | State |
 |---|---:|---|---|---|
 | AV6-001 | **P1** | A primary; D/E/F/M/N | #687 | **closed — repaired by #762; independently reverified by #763** |
-| AV6-002 | **P2** | B primary; C/G/M/N | #694 | **open — active production repair #771** |
-| AV6-003 | **P2** | C primary; E/N | #699 | open; remediation pending |
+| AV6-002 | **P2** | B primary; C/G/M/N | #694 | **closed — repaired/verified by #771** |
+| AV6-003 | **P2** | C primary; E/N | #699 | **open — active production repair** |
 | AV6-004 | **P1** | D primary; E/H/N | #707 | **closed — repaired by #765; independently reverified by #766** |
 | AV6-005 | **P2** | D primary; C/E/F/N | #708 | open; remediation pending |
 | AV6-006 | **P1** | E primary; F/H/I/N | #711 | **closed — repaired by #768; independently reverified by #769** |

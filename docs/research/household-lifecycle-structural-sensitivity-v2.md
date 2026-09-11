@@ -27,7 +27,7 @@ At each eligible annual household-lifecycle boundary:
 4. living members at or above `minimumIndependentAgeYears` are identified;
 5. the number of daughter groups is limited by the number of independent-age members, so every created group can be seeded by at least one such member;
 6. if fewer than two independent-age members exist, fission is deferred instead of manufacturing an autonomous child-only unit;
-7. independent-age members are assigned deterministically by age, reproductive sex and an ID-independent relationship-role refinement over the living source-household parent/child graph; PersonId is used only as a final tie-break within the same stabilized relationship class;
+7. independent-age members are assigned deterministically by age, reproductive sex and an ID-independent relationship-role refinement over the living source-household parent/child graph plus living direct-parent context outside that household; a living external parent is distinguished only by persistent residence cell, matching the downstream M4 first-degree kin-location state, and PersonId is used only as a final tie-break within the same stabilized scientific context;
 8. dependents are ordered by the same age/sex/relationship-role rule and then assigned deterministically, preferring groups containing their living parent(s) when those parents remain in the source household; remaining target capacity is used as the secondary allocation criterion;
 9. the original household retains group 0 and each remaining group becomes a new household at the same persistent residence;
 10. person identity, parent links and condition remain unchanged, and M3/M4/M9 operate on the resulting households normally.
@@ -48,6 +48,8 @@ Relabelling scientifically equivalent people while preserving their age, sex and
 
 From model semantics v25, the relationship comparison is executable rather than documentary: living members of the source household are partitioned into age/sex role classes, then those classes are iteratively refined by female-parent state, male-parent state and the multiset of living in-household child roles until stable. Only records still in the same stabilized role class may fall through to PersonId. This keeps deterministic replay without allowing canonical record labels to choose between relationship-distinct anchors or dependents.
 
+From model semantics v40, female- and male-parent refinement also preserves one explicit cross-household context for a represented living parent: that parent's persistent residence cell. This is the same causal context M4 exposes as a reciprocal first-degree kin-location anchor after household topology changes. The refinement does **not** use the external parent's PersonId, HouseholdId, packed-record position or global stochastic-coupling rank, and two otherwise equivalent external parents at the same persistent residence remain in the same relationship context. This is a relabelling-invariance rule, not an ethnographic preference for one direction or relative.
+
 ## Downstream integration
 
 After fission, daughter households are first-class households for all household-level mechanisms:
@@ -64,3 +66,5 @@ The old v1 reference remains historical evidence for the original #207 experimen
 ## Interpretation limits
 
 This rule does **not** model marriage, inheritance, residence norms, fosterage, slavery, household headship, culturally defined adulthood, property division, or household economics. The independent-age threshold and parent-aware allocation are transparent safeguards against a demonstrated record-order artefact, not empirical validation of a particular social system.
+
+Model semantics v40 changes authoritative daughter-household membership for the AV6-003/#699 external-kin equivalence case, so v39 checkpoints are not continuation-compatible with v40. Package version remains `0.3.6`, and immutable v0.3.6/v35 Audit-v6 discovery evidence is unchanged.
