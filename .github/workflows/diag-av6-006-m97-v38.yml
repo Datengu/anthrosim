@@ -1,0 +1,68 @@
+name: Diagnose AV6-006 M9.7 v38 delta
+
+on:
+  push:
+    branches: ["audit/diag-711-m97-v38"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Download v38 M9.7 artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: m9-controlled-aggregation-benchmark
+          path: /tmp/m97
+          github-token: ${{ github.token }}
+          run-id: 34555842586
+      - name: Compare reference and v38 aggregate
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          old = json.loads(Path('examples/m9-controlled-aggregation-benchmark/reference-result.json').read_text())
+          new = json.loads(Path('/tmp/m97/m9-benchmark-output/benchmark-summary.json').read_text())
+
+          def walk(a, b, path=''):
+              if type(a) is not type(b):
+                  print(f'{path}: TYPE {type(a).__name__} -> {type(b).__name__}: {a!r} -> {b!r}')
+                  return 1
+              if isinstance(a, dict):
+                  count = 0
+                  for key in sorted(set(a) | set(b)):
+                      p = f'{path}.{key}' if path else key
+                      if key not in a:
+                          print(f'{p}: ADDED {b[key]!r}')
+                          count += 1
+                      elif key not in b:
+                          print(f'{p}: REMOVED {a[key]!r}')
+                          count += 1
+                      else:
+                          count += walk(a[key], b[key], p)
+                  return count
+              if isinstance(a, list):
+                  count = 0
+                  if len(a) != len(b):
+                      print(f'{path}: LENGTH {len(a)} -> {len(b)}')
+                      count += 1
+                  for i, (x, y) in enumerate(zip(a, b)):
+                      count += walk(x, y, f'{path}[{i}]')
+                  return count
+              if a != b:
+                  print(f'{path}: {a!r} -> {b!r}')
+                  return 1
+              return 0
+
+          print('reference_model_semantics=', old.get('modelSemanticsId'))
+          print('actual_model_semantics=', new.get('modelSemanticsId'))
+          total = walk(old, new)
+          print('TOTAL_DIFFERENCES=', total)
+          PY
