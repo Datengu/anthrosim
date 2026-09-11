@@ -1,0 +1,62 @@
+name: Bind AV6-005 v41 demographic confirmation
+
+on:
+  push:
+    branches:
+      - audit/repair-708-av6-005
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  bind-reference:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/repair-708-av6-005
+          fetch-depth: 0
+
+      - name: Verify exact v41 documentation head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 6afd192d37afea0d98a81378a0834c9497473d15 HEAD
+          grep -q 'anthrosim-model-semantics-v41' crates/anthrosim-core/src/provenance.rs
+
+      - name: Download exact v41 confirmation artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/Datengu/anthrosim/actions/artifacts/10272866623/zip' \
+            -o /tmp/issue-304-v41.zip
+
+      - name: Prove exact scientific equivalence and bind v41
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCBjb3B5CmltcG9ydCBoYXNobGliCmltcG9ydCBqc29uCmltcG9ydCB6aXBmaWxlCgphcmNoaXZlID0gUGF0aCgiL3RtcC9pc3N1ZS0zMDQtdjQxLnppcCIpCmFyY2hpdmVfc2hhID0gaGFzaGxpYi5zaGEyNTYoYXJjaGl2ZS5yZWFkX2J5dGVzKCkpLmhleGRpZ2VzdCgpCmV4cGVjdGVkX2FyY2hpdmVfc2hhID0gIjJjMDMxNzE2ZDA2NjVlOGRkNDBhOWFmMTJlMjdiMDg5ZDg0MTczNTA5MzIyZmMxNzM5MTJhNmU0ZDBiMDVkYzQiCmlmIGFyY2hpdmVfc2hhICE9IGV4cGVjdGVkX2FyY2hpdmVfc2hhOgogICAgcmFpc2UgU3lzdGVtRXhpdChmImFydGlmYWN0IFpJUCBoYXNoIG1pc21hdGNoOiB7YXJjaGl2ZV9zaGF9IikKCndpdGggemlwZmlsZS5aaXBGaWxlKGFyY2hpdmUpIGFzIHo6CiAgICBwYXlsb2FkX2J5dGVzID0gei5yZWFkKCJleHBlY3RlZC1yZXN1bHQuanNvbiIpCnBheWxvYWQgPSBqc29uLmxvYWRzKHBheWxvYWRfYnl0ZXMpCgphc3NlcnQgcGF5bG9hZFsibW9kZWxTZW1hbnRpY3NJZCJdID09ICJhbnRocm9zaW0tbW9kZWwtc2VtYW50aWNzLXY0MSIKYXNzZXJ0IHBheWxvYWRbInJ1bkNvdW50Il0gPT0gNzgwCmFzc2VydCBwYXlsb2FkWyJyZWNvbW1lbmRhdGlvbiJdID09ICJub191bml2ZXJzYWxfZGVtb2dyYXBoaWNfYmFzZWxpbmUiCmFzc2VydCBsZW4ocGF5bG9hZFsiYXJtcyJdKSA9PSA2CmFzc2VydCBsZW4ocGF5bG9hZFsicGFpcmVkSG91c2Vob2xkRWZmZWN0cyJdKSA9PSAzCgpub3JtYWxpemVkID0gY29weS5kZWVwY29weShwYXlsb2FkKQpub3JtYWxpemVkWyJtb2RlbFNlbWFudGljc0lkIl0gPSAiYW50aHJvc2ltLW1vZGVsLXNlbWFudGljcy12NDAiCm5vcm1hbGl6ZWRbInJlc2VhcmNoSWQiXSA9ICJyZXNlYXJjaC1leGVjdXRpb24tdjEtOTgzOWQ1YTQ2NDhlN2I5OSIKbm9ybWFsaXplZF9ieXRlcyA9IChqc29uLmR1bXBzKG5vcm1hbGl6ZWQsIGluZGVudD0yLCBzb3J0X2tleXM9VHJ1ZSkgKyAiXG4iKS5lbmNvZGUoKQpub3JtYWxpemVkX3NoYSA9IGhhc2hsaWIuc2hhMjU2KG5vcm1hbGl6ZWRfYnl0ZXMpLmhleGRpZ2VzdCgpCmV4cGVjdGVkX3Y0MF9zaGEgPSAiYzdhMTMxYTg4MTc2Mjk5NjM3NDgzY2Y2M2NjZDkyZWI0Y2IzZmI1MWJmYmU0NWY3ZTQ2MzM5NzJjZjhhZDQzOCIKaWYgbm9ybWFsaXplZF9zaGEgIT0gZXhwZWN0ZWRfdjQwX3NoYToKICAgIHJhaXNlIFN5c3RlbUV4aXQoZiJ2NDEgc2NpZW5jZSBkaWZmZXJzIGZyb20gZnJvemVuIHY0MCByZXN1bHQ6IHtub3JtYWxpemVkX3NoYX0iKQoKdGFyZ2V0ID0gUGF0aCgicmVzZWFyY2gvZ2VuZXJhbC1kZW1vZ3JhcGh5LWJhc2VsaW5lLXYxL2NvbmZpcm1hdG9yeS1yZXN1bHQuanNvbiIpCnRhcmdldC53cml0ZV9ieXRlcyhwYXlsb2FkX2J5dGVzKQpwcmludCgiYXY2XzAwNV92NDFfZGVtb2dyYXBoeV9leGFjdF9zY2llbmNlX21hdGNoPXRydWUiKQpwcmludChmImFydGlmYWN0X3ppcF9zaGEyNTY9e2FyY2hpdmVfc2hhfSIpCnByaW50KGYibm9ybWFsaXplZF92NDBfc2hhMjU2PXtub3JtYWxpemVkX3NoYX0iKQpwcmludChmInY0MV9yZXNlYXJjaF9pZD17cGF5bG9hZFsncmVzZWFyY2hJZCddfSIpCg==' | base64 -d > /tmp/bind-v41-demography.py
+          test "$(sha256sum /tmp/bind-v41-demography.py | cut -d' ' -f1)" = "334a0359ca82fe97fa5181f5ef782d6f32af1ee551e1b5ee7d35c2a2686c11ab"
+          python3 /tmp/bind-v41-demography.py
+          python3 scripts/test-current-model-semantics-docs.py
+          git diff --check
+
+      - name: Commit v41 reference and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-av6-005-v41-demography-reference.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'research: bind demographic confirmation to v41'
+          git push origin HEAD:audit/repair-708-av6-005
