@@ -23,22 +23,29 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           path = Path('crates/anthrosim-cli/src/ensemble.rs')
           text = path.read_text()
-          old = '''    let migration = MigrationConfig::synthetic_validation_v1()
-              .with_enabled(!settings.disable_migration)
-              .with_candidate_radius_cells(settings.migration_radius);'''
-          new = '''    let mut migration = MigrationConfig::synthetic_validation_v1()
-              .with_enabled(!settings.disable_migration)
-              .with_candidate_radius_cells(settings.migration_radius);
-          if let Ok(raw) = std::env::var("ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL") {
-              migration.travel_condition_cost_per_cell = raw
-                  .parse::<u16>()
-                  .expect("ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL must be a u16");
-          }'''
-          if old not in text:
+          pattern = re.compile(
+              r"(\s*)let migration = MigrationConfig::synthetic_validation_v1\(\)\n"
+              r"\s*\.with_enabled\(!settings\.disable_migration\)\n"
+              r"\s*\.with_candidate_radius_cells\(settings\.migration_radius\);"
+          )
+          match = pattern.search(text)
+          if not match:
               raise SystemExit('expected ensemble migration-construction block not found')
-          path.write_text(text.replace(old, new, 1))
+          indent = match.group(1)
+          replacement = (
+              f"{indent}let mut migration = MigrationConfig::synthetic_validation_v1()\n"
+              f"{indent}    .with_enabled(!settings.disable_migration)\n"
+              f"{indent}    .with_candidate_radius_cells(settings.migration_radius);\n"
+              f"{indent}if let Ok(raw) = std::env::var(\"ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL\") {{\n"
+              f"{indent}    migration.travel_condition_cost_per_cell = raw\n"
+              f"{indent}        .parse::<u16>()\n"
+              f"{indent}        .expect(\"ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL must be a u16\");\n"
+              f"{indent}}}"
+          )
+          path.write_text(text[:match.start()] + replacement + text[match.end():])
           PY
       - name: Build exact-v37 experimental sweep binary
         run: |
