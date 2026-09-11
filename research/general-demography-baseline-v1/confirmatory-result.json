@@ -528,7 +528,7 @@
     },
     "stochasticMultiRegimeContextCount": 2
   },
-  "modelSemanticsId": "anthrosim-model-semantics-v40",
+  "modelSemanticsId": "anthrosim-model-semantics-v41",
   "monteCarloPrecision": {
     "positive-fission-extinction-diagnostic": {
       "batchBoundary": 1,
@@ -1152,7 +1152,7 @@
     }
   ],
   "recommendation": "no_universal_demographic_baseline",
-  "researchId": "research-execution-v1-9839d5a4648e7b99",
+  "researchId": "research-execution-v1-893d8b4bac352e6a",
   "runCount": 780,
   "schemaVersion": 1,
   "scientificStatus": "confirmatory_synthetic_model_analysis"
