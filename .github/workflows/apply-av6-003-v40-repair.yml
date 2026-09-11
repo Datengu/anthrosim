@@ -21,7 +21,14 @@ jobs:
           persist-credentials: true
 
       - name: Apply v40 repair
-        run: python3 .github/scripts/apply-av6-003-v40-repair.py
+        run: |
+          python3 .github/scripts/apply-av6-003-v40-repair.py
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('docs/research/odd.md', 'docs/research/odd-d.md', 'docs/research/trace.md'):
+              p = Path(name)
+              p.write_text(p.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
+          PY
 
       - name: Verify focused repair
         run: |
