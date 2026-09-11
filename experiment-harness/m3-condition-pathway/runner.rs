@@ -80,11 +80,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     for handle in handles {
         rows.extend(handle.join().map_err(|_| "worker thread panicked")??);
     }
-    rows.sort_by_key(|row| (
-        row["arm"].as_str().unwrap_or(""),
-        row["resourcePeriodsPerYear"].as_u64().unwrap_or(0),
-        row["seed"].as_u64().unwrap_or(0),
-    ));
+    rows.sort_by_key(|row| {
+        let arm_order = match row["arm"].as_str().unwrap_or("") {
+            "condition_neutral" => 0_u8,
+            "mortality_off" => 1_u8,
+            _ => 2_u8,
+        };
+        (
+            arm_order,
+            row["resourcePeriodsPerYear"].as_u64().unwrap_or(0),
+            row["seed"].as_u64().unwrap_or(0),
+        )
+    });
     for row in rows {
         println!("{}", serde_json::to_string(&row)?);
     }
