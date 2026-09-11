@@ -47,6 +47,20 @@ The run initially failed only because the checked canonical result was still bou
 
 One-shot evidence-binding run `34616008998` downloaded that exact artifact, verified the expected-result hash and scientific disposition, copied the generated result to `research/general-demography-baseline-v1/confirmatory-result.json`, passed the current-semantics guard plus `general_demography_reference_semantics`, and removed its transient helper workflow before committing `d297a2c4f73fc74513e54ec3f93907029d4224a7`.
 
+## M7.6 canonical reference revalidation
+
+The first complete v40 protected-matrix pass reached the canonical M7.6 experiment only after all preceding workspace, benchmark, release-build, performance/memory, M5/M6 integration and 1000-run soak jobs were green. M7.6 completed all **144/144** scientifically eligible runs, but the canonical-reference assertion stopped at the expected semantics-identity mismatch because the checked reference still identified v39.
+
+The generated v40 M7.6 evidence was retained as:
+
+- Artifact: `10271418177`
+- Artifact ZIP SHA-256: `04615ae21dd2bd78c4c38c24f2fb78984012fe2da1e9de921a9a401ba30319c4`
+- Execution: 144/144 declared runs completed.
+
+A fail-closed one-shot verifier reconstructed and compared every canonical point summary before allowing any reference update. All **18/18 point summaries matched the v39 reference exactly**, so the v40 update is a provenance/semantics rebind only: no canonical numerical result changed. Verification workflow run `34618007706` passed and removed its transient helper after binding the reference; the resulting reference commit is `6b6a2795dceb58ba95a5958f386f4130b410a59c`.
+
+This result is consistent with the scope of AV6-003: the repair changes household-fission choice only when otherwise-equivalent source candidates differ in represented living external-parent residence context. The canonical M7.6 design did not produce a numerical change under v40.
+
 ## Other downstream scientific gates
 
 Applicable scientific/security run `34614906592` passed both current v40 scientific references without a numerical rebaseline:
@@ -54,4 +68,4 @@ Applicable scientific/security run `34614906592` passed both current v40 scienti
 - M8.6 terrain null-model benchmark: passed canonical reference and tamper rejection.
 - M9.7 aggregation benchmark: passed deterministic replay, active checkpoint/resume, canonical reference and tamper rejection.
 
-A final complete protected/scientific matrix is still required on the final user-authored PR head before production merge. AV6-003 is P2, so after that exact-head matrix is green it may be merged and closed without a separate mandatory post-merge evidence-only derivative.
+A final complete protected/scientific matrix is still required on the final user-authored PR head after this evidence note is synchronized. AV6-003 is P2, so after that exact-head matrix is green it may be merged and closed without a separate mandatory post-merge evidence-only derivative.
