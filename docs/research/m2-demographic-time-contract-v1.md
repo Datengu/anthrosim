@@ -34,6 +34,8 @@ Consequences:
 
 The final point is a deliberate discretization assumption. AnthroSim does not switch to a new M2 age band part-way through the same model year merely because M3 mortality is evaluated subannually.
 
+The configured **male-parent age window is different in kind from those annual exposure schedules**. `maleParentMinAgeYears` / `maleParentMaxAgeYearsExclusive` constrain the male parent's completed age at the recorded child-birth boundary `t`. This is the authoritative parent-at-child chronology created by M2 and matches the same check for declared founder genealogy. A male who crosses into or out of the configured window during `[t-365,t)` is therefore classified by age at `t`, while the female fertility probability for that birth opportunity remains the interval-start schedule value.
+
 ## 3. Background mortality probability and execution
 
 For a person alive at the start of `[t - 365, t)`, let `p_a` be the configured M2 `annual_probability_per_million` selected from the mortality schedule using age at `t - 365`.

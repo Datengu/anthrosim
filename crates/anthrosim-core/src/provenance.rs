@@ -112,7 +112,13 @@ use crate::time::DAYS_PER_YEAR;
 /// local tie, while reachable route-changing extent remains scientifically causal. The persisted M9
 /// travel-table coupling classes and tie-policy identity advance accordingly. A v37 checkpoint must
 /// not resume under v38 while silently changing future tied M9 destinations.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v38";
+///
+/// v39 makes the configured M2 male-parent age window constrain age at the child's recorded
+/// birth boundary instead of age at the start of the elapsed annual exposure interval. This
+/// matches declared-founder genealogy validation and gives one temporal meaning to the public
+/// male-parent age support. A v38 checkpoint must not resume under v39 while silently changing
+/// future births or parentage when a candidate crosses an age threshold during the model year.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v39";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

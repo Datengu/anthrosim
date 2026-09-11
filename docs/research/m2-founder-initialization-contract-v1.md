@@ -96,6 +96,8 @@ For a declared birth event, age is the exact signed-day difference between the f
 - a declared **male parent** is within `[maleParentMinAgeYears, maleParentMaxAgeYearsExclusive)` at the child's birth day; and
 - a female founder's declared pre-run **`lastBirthDay`** is in a configured fertility age band with positive fertility support.
 
+The male-parent rule is the same temporal contract used for generated M2 births: the public male-parent age window constrains completed age at the child's birth day, rather than at the start of a preceding annual exposure interval.
+
 This is a schedule-consistency and biological-plausibility boundary, not a claim that the configured age ranges are universal or empirically correct. A research configuration that changes reproductive-age assumptions changes which founder histories are admissible, and those assumptions retain the provenance of the declared demographic schedule. The check also does not claim that a pre-run event would have been generated on an exact annual M2 scheduler boundary; founder chronology predates model execution and is validated for reproductive-age support at the declared event day.
 
 The default synthetic validation schedule therefore accepts female reproductive events from completed age 18 through the day before completed age 45, and male parentage from completed age 18 through the day before completed age 70. A one-day-old parent is invalid.

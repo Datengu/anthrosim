@@ -1,7 +1,7 @@
 # AnthroSim ODD+D human decision-making supplement
 
 **Protocol:** ODD+D (Müller et al. 2013)  
-**AnthroSim baseline:** completed M9 / living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v38 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** completed M9 / living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v39 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living supplement to [`odd.md`](odd.md)  
 **Scientific status:** current human-decision mechanisms are synthetic / unvalidated
 

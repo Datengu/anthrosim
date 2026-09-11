@@ -1,6 +1,6 @@
 # Scientific model specification (ODD-oriented)
 
-**Status:** working specification for living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v38 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**Status:** working specification for living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v39 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Scientific status:** exploratory / unvalidated
 
 This document began as the v0.1 ODD-oriented model specification and records the scientific meaning of the implemented baseline plus subsequent post-M9 scientific-hardening semantics. Historical M1–M4 sections remain relevant to the synthetic demographic/resource/permanent-migration baseline; M8 adds evidence-grounded spatial binding, M9 adds a separate temporary-mobility layer, and the hardening line makes previously ambiguous demographic/resource/response timing and condition-mortality causal contracts explicit. Software verification and successful capability benchmarks are not empirical validation of human prehistory.
@@ -251,6 +251,8 @@ The demographic research baseline is `docs/research/demography-v0.1.md`. It esta
 The first executable preset is therefore named `synthetic_validation_v1`, not `hunter_gatherer`. Its qualitative mortality/fertility shapes are evidence-informed, but the complete schedule is not calibrated to a real population and carries provenance status `synthetic_validation`.
 
 Mortality is represented by a transparent piecewise age-specific annual event-probability schedule. Fertility is represented by an age-specific annual live-birth opportunity probability plus explicit minimum birth spacing. Probabilities are integer parts per million. Completed family size, survivorship and life expectancy are outputs/validation quantities rather than values directly forced on individuals.
+
+Annual mortality/female-fertility schedule bands are selected from age at the start of `[t-365,t)`. The configured male-parent age support instead constrains male age at the recorded child-birth boundary `t`, matching declared founder genealogy; this parent-at-child chronology rule is distinct from the pre-same-day-M4 residence snapshot used for parentage locality.
 
 M3 condition-mediated mortality remains separate rather than silently changing baseline demographic schedules. There is no direct food-to-fertility multiplier; introducing one requires an explicit hypothesis/evidence basis.
 

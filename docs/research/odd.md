@@ -1,7 +1,7 @@
 # AnthroSim ODD 2020 model description
 
 **Protocol:** ODD 2020 (Grimm et al. 2020)  
-**AnthroSim baseline:** living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v38 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
+**AnthroSim baseline:** living v0.3.6-source development during Scientific Audit-v6 remediation / current model semantics v39 (immutable v0.3.6 release baseline and Audit-v6 discovery target: v35; immutable v0.3.5 release baseline: v33; immutable v0.3.4 release baseline: v25; immutable v0.3.3 release baseline: v21)
 **Status:** formal living ODD description  
 **Scientific status:** exploratory / unvalidated
 
@@ -85,7 +85,7 @@ M9 focal regions are identity-bearing declared sets of world cells. Temporary jo
 
 Authoritative time is integer days.
 
-- M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality/fertility bands are selected from age at the start of `[t-365,t)`, not age at `t`.
+- M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality and female-fertility schedule bands are selected from age at the start of `[t-365,t)`, not age at `t`. Male-parent age support instead constrains male age at the recorded child-birth boundary `t`, matching declared founder genealogy.
 - M2 background mortality is parameterized annually but executed across elapsed M3 intervals as an order-invariant competing risk with condition-mediated mortality. The year-end M2 stage performs fertility/parentage only after survival through the elapsed year; fertility remains conditional on survival, spacing and parent availability.
 - Declared founders may carry signed pre-run birth-history timing before day 0; this initial-condition chronology can constrain later M2 birth spacing without being recorded as a model-period birth event.
 - For `P = resources.periodsPerYear`, M3 resource interval `i` is the exact half-open interval `[floor(i*365/P), floor((i+1)*365/P))` within the model year. Fixed annual integer quantities are allocated by cumulative elapsed days so their complete-year shares conserve exactly.

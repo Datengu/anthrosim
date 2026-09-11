@@ -6,9 +6,25 @@ This document records the historical M8.6 terrain null-model result and the revi
 
 The current machine-readable reference is `examples/m8-first-evidence-grounded-benchmark/reference-result.json`. Earlier exact references remain preserved below and in Git history.
 
-**Current machine-readable reference: `anthrosim-model-semantics-v33`.**
+**Current machine-readable reference: `anthrosim-model-semantics-v39`.**
 
-## Current regression reference — model semantics v33
+## Current regression reference — model semantics v39
+
+Audit-v6 AV6-002/#694 makes the configured male-parent age window refer to completed age at the recorded child-birth boundary. Because corrected parentage chronology can propagate into genealogy, household and migration histories, the frozen M8.6 design was rerun unchanged and the checked scientific reference was rebaselined from reviewed v39 evidence rather than relabelled.
+
+Reviewed v39 execution:
+
+- workflow run: `34563596919`;
+- artifact: `10185320001`;
+- artifact SHA-256: `3d1ebbde531945d61f698aefac6131669ed863b85679acf91c614fb6952533bb`;
+- reviewed branch head: `ec9829e5902c7b8a4c6a0bd62d56d2dac57dc603`;
+- pull-request merge-ref build: `8f70575b24473376f779e2d73f03e946f5250825`;
+- aggregate canonical SHA-256: `e5d3b6882f4fc35995ba89d7047c97de9347c5e32a35a6621465df6744730c6b`;
+- model semantics: `anthrosim-model-semantics-v39`.
+
+All 32 declared runs completed and all arms remain non-degenerate. The overall benchmark remains **`fragile_spatial_structure`**. Under the unchanged predeclared criteria, `terminalLargestCellSharePermille` is robust in the v39 reference, while migration distance, cell-time occupancy and terminal population Herfindahl remain not distinctive. This is a causal upstream-semantics rebaseline of the same terrain-only null model, not archaeological validation.
+
+## Historical reviewed reference — model semantics v33
 
 Audit-v4 AV4-009 / #518 removes arbitrary canonical M4 spatial-candidate ordering from uncertainty/proportional-choice assignment while preserving deterministic utility/distance semantics and total choice probability for exchangeable candidates. Because this changes authoritative permanent-migration trajectories, the frozen M8.6 experiment was rerun unchanged and independently reviewed before the checked-in scientific reference advanced to v33.
 

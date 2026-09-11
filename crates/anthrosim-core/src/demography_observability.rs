@@ -277,7 +277,7 @@ pub fn derive_demography_observability(
                 &people[..records_at_boundary_start],
                 location,
                 &same_day_origins,
-                interval_start_day,
+                day,
                 config,
             )?;
             if eligible.is_empty() {
@@ -859,7 +859,7 @@ fn eligible_males(
     people: &[ReplayPerson],
     location: CellId,
     same_day_origins: &BTreeMap<HouseholdId, CellId>,
-    interval_start_day: u64,
+    parentage_day: u64,
     config: &DemographyConfig,
 ) -> Result<BTreeSet<PersonId>, DemographyObservabilityError> {
     let mut eligible = BTreeSet::new();
@@ -870,7 +870,7 @@ fn eligible_males(
         if exposure_location(person, same_day_origins) != location {
             continue;
         }
-        let age_years = replay_age(person, interval_start_day)? / DAYS_PER_YEAR;
+        let age_years = replay_age(person, parentage_day)? / DAYS_PER_YEAR;
         if age_years < u64::from(config.male_parent_min_age_years)
             || age_years >= u64::from(config.male_parent_max_age_years_exclusive)
         {

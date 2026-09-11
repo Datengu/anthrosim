@@ -408,7 +408,7 @@ fn process_demographic_year_recorded_internal(
             .get(&parentage_location)
             .map(Vec::as_slice)
             .unwrap_or(&[]);
-        if !has_eligible_male(eligible_males, population, interval_start_day, config) {
+        if !has_eligible_male(eligible_males, population, day, config) {
             continue;
         }
         let female = population.person_id_at_index(female_index).ok_or(
@@ -453,7 +453,7 @@ fn process_demographic_year_recorded_internal(
         let male_parent = select_male_parent(
             eligible_males,
             population,
-            interval_start_day,
+            day,
             config,
             &mut rngs.parentage,
         )
@@ -620,19 +620,19 @@ fn build_parentage_occupancy(
 fn has_eligible_male(
     people: &[PersonId],
     population: &Population,
-    exposure_start_day: u64,
+    parentage_day: u64,
     config: &DemographyConfig,
 ) -> bool {
     people
         .iter()
         .copied()
-        .any(|candidate| male_is_eligible(population, candidate, exposure_start_day, config))
+        .any(|candidate| male_is_eligible(population, candidate, parentage_day, config))
 }
 
 fn select_male_parent<R: Rng + ?Sized>(
     people: &[PersonId],
     population: &Population,
-    exposure_start_day: u64,
+    parentage_day: u64,
     config: &DemographyConfig,
     rng: &mut R,
 ) -> Option<PersonId> {
@@ -640,7 +640,7 @@ fn select_male_parent<R: Rng + ?Sized>(
     let mut eligible_seen = 0_u64;
 
     for &candidate in people {
-        if !male_is_eligible(population, candidate, exposure_start_day, config) {
+        if !male_is_eligible(population, candidate, parentage_day, config) {
             continue;
         }
         eligible_seen = eligible_seen.saturating_add(1);
@@ -654,7 +654,7 @@ fn select_male_parent<R: Rng + ?Sized>(
 fn male_is_eligible(
     population: &Population,
     candidate: PersonId,
-    exposure_start_day: u64,
+    parentage_day: u64,
     config: &DemographyConfig,
 ) -> bool {
     let Some(person) = population.person(candidate) else {
@@ -664,7 +664,7 @@ fn male_is_eligible(
         return false;
     }
 
-    let Some(age_days) = person.age_days_at(SimTime::from_days(exposure_start_day)) else {
+    let Some(age_days) = person.age_days_at(SimTime::from_days(parentage_day)) else {
         return false;
     };
     let age_years = age_days / DAYS_PER_YEAR;
