@@ -183,10 +183,12 @@ jobs:
         run: |
           import json
           from pathlib import Path
-          points = json.loads(Path('/tmp/m76/analysis/points.json').read_text())
-          ref = json.loads(Path('experiments/v0.1-resource-variability-reference.json').read_text())
+
+          points = json.loads(Path('/tmp/m76/analysis/points.json').read_text(encoding='utf-8'))
+          ref = json.loads(Path('experiments/v0.1-resource-variability-reference.json').read_text(encoding='utf-8'))
           assert ref['schemaVersion'] == 3
           assert ref['modelSemanticsId'] == 'anthrosim-model-semantics-v39'
+
           observed = []
           for row in points:
               observed.append({
@@ -207,7 +209,9 @@ jobs:
               })
           assert observed == ref['pointResults']
           print('M7.6 v39 reference exactly matches archived 144-run evidence.')
-          PY
+
+      - name: Verify current-semantics docs and diff hygiene
+        run: |
           python3 scripts/test-current-model-semantics-docs.py
           git diff --check
 
