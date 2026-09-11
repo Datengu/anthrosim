@@ -35,4 +35,12 @@ Before full protected validation, the repaired implementation passed:
 - exact-symmetry exchangeability and deterministic replay controls in that suite;
 - Audit-v4 household-label invariance.
 
-These focused checks do not replace the normal protected/scientific matrix. Production merge requires the complete exact-head matrix, and #711 must remain open after merge until an independent evidence-only derivative re-runs the preserved #710 adversary against the merged production lineage.
+## Guarded v38 scientific-reference reconciliation
+
+The first complete PR execution correctly exposed two reference consequences of the v38 semantics change. They were reconciled only after fresh execution and bounded-delta checks:
+
+- fresh 780-run demographic confirmation run `34555842374` reproduced the normalized v37 demographic scientific result exactly under v38 after excluding execution/model-semantics identity and pre-existing guard-only precision metadata; the recommendation, all six arm summaries, paired effects and long-run classifications were unchanged;
+- fresh M9.7 run `34555842586` preserved benchmark/definition identity, `capability_distinguished`, aggregate endpoints, both arm configuration identities, every frozen legacy per-seed metric and the independent M9.6 travel-burden reference; only authoritative terminal state digests changed under the new persisted M9 tie-policy/schema identity;
+- fail-closed refresh run `34556757782` then required those bounded contracts to pass before updating the checked references and removed its temporary validation helpers after success.
+
+These checks are evidence for the production candidate, not a substitute for exact-head protected validation. Production merge requires the complete final-head matrix, and #711 must remain open after merge until an independent evidence-only derivative re-runs the preserved #710 adversary against the merged production lineage.
