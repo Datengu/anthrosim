@@ -27,6 +27,30 @@ def comparable_science(value):
     return value
 
 
+def diff_values(left, right, path="$"):
+    if type(left) is not type(right):
+        yield path, left, right
+        return
+    if isinstance(left, dict):
+        for key in sorted(set(left) | set(right)):
+            child = f"{path}.{key}"
+            if key not in left:
+                yield child, "<missing>", right[key]
+            elif key not in right:
+                yield child, left[key], "<missing>"
+            else:
+                yield from diff_values(left[key], right[key], child)
+        return
+    if isinstance(left, list):
+        if len(left) != len(right):
+            yield f"{path}.length", len(left), len(right)
+        for index, (left_item, right_item) in enumerate(zip(left, right)):
+            yield from diff_values(left_item, right_item, f"{path}[{index}]")
+        return
+    if left != right:
+        yield path, left, right
+
+
 checked_science = comparable_science(checked)
 expected_science = comparable_science(expected)
 checked_bytes = json.dumps(checked_science, sort_keys=True, separators=(",", ":")).encode()
@@ -34,11 +58,18 @@ expected_bytes = json.dumps(expected_science, sort_keys=True, separators=(",", "
 checked_digest = hashlib.sha256(checked_bytes).hexdigest()
 expected_digest = hashlib.sha256(expected_bytes).hexdigest()
 
+differences = list(diff_values(checked_science, expected_science))
+
 print(f"checked_normalized_sha256={checked_digest}")
 print(f"v37_normalized_sha256={expected_digest}")
 print(f"normalized_scientific_payload_equal={checked_science == expected_science}")
 print(f"checked_research_id={checked['researchId']}")
 print(f"v37_research_id={expected['researchId']}")
+print(f"scientific_difference_count={len(differences)}")
+for path, left, right in differences[:200]:
+    print(f"DIFF {path}: checked={left!r} v37={right!r}")
+if len(differences) > 200:
+    print(f"DIFF ... {len(differences) - 200} additional differences omitted")
 
 assert checked_science == expected_science, (
     "fresh v37 780-run confirmatory result changed scientific payload beyond approved "
