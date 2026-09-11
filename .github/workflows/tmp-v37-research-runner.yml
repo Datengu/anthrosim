@@ -1,4 +1,4 @@
-name: Temporary v37 travel-cost experiment build
+name: Temporary v37 compact travel-cost experiment
 
 on:
   push:
@@ -9,8 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  experiment:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -19,40 +20,104 @@ jobs:
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
-      - name: Add experiment-only travel-condition-cost override
+      - name: Create experiment-only compact runner
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          path = Path('crates/anthrosim-cli/src/ensemble.rs')
-          text = path.read_text()
-          pattern = re.compile(
-              r"(\s*)let migration = MigrationConfig::synthetic_validation_v1\(\)\n"
-              r"\s*\.with_enabled\(!settings\.disable_migration\)\n"
-              r"\s*\.with_candidate_radius_cells\(settings\.migration_radius\);"
-          )
-          match = pattern.search(text)
-          if not match:
-              raise SystemExit('expected ensemble migration-construction block not found')
-          indent = match.group(1)
-          replacement = (
-              f"{indent}let mut migration = MigrationConfig::synthetic_validation_v1()\n"
-              f"{indent}    .with_enabled(!settings.disable_migration)\n"
-              f"{indent}    .with_candidate_radius_cells(settings.migration_radius);\n"
-              f"{indent}if let Ok(raw) = std::env::var(\"ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL\") {{\n"
-              f"{indent}    migration.travel_condition_cost_per_cell = raw\n"
-              f"{indent}        .parse::<u16>()\n"
-              f"{indent}        .expect(\"ANTHROSIM_EXPERIMENT_TRAVEL_CONDITION_COST_PER_CELL must be a u16\");\n"
-              f"{indent}}}"
-          )
-          path.write_text(text[:match.start()] + replacement + text[match.end():])
-          PY
-      - name: Build exact-v37 experimental sweep binary
+          cat > crates/anthrosim-cli/src/bin/anthrosim-travel-cost-compact.rs <<'RS'
+          use std::{error::Error, thread};
+          use anthrosim_core::{
+              ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation,
+              WorldConfig,
+          };
+          use serde_json::{Value, json};
+
+          fn pick(value: &Value, pointer: &str) -> Value {
+              value.pointer(pointer).cloned().unwrap_or(Value::Null)
+          }
+
+          fn main() -> Result<(), Box<dyn Error>> {
+              let costs = [0_u16, 2, 5, 10, 20, 40];
+              let radii = [1_u16, 2, 3, 4, 6];
+              let mut handles = Vec::new();
+
+              for cost in costs {
+                  handles.push(thread::spawn(move || -> Result<Vec<Value>, String> {
+                      let mut rows = Vec::with_capacity(radii.len() * 30);
+                      for radius in radii {
+                          for seed in 4101_u64..=4130_u64 {
+                              let resources = ResourceConfig::synthetic_validation_v1()
+                                  .with_productivity_scale_permille(150)
+                                  .with_seasonality_scale_permille(1000)
+                                  .with_annual_need_units_per_person(100);
+                              let mut migration = MigrationConfig::synthetic_validation_v1()
+                                  .with_enabled(true)
+                                  .with_candidate_radius_cells(radius);
+                              migration.travel_condition_cost_per_cell = cost;
+                              let config = ExperimentConfig::new(seed, 100)
+                                  .with_world(WorldConfig::new(64, 64))
+                                  .with_population(
+                                      PopulationConfig::new(2000)
+                                          .with_target_household_size(5)
+                                          .with_max_person_records(1_000_000),
+                                  )
+                                  .with_resources(resources)
+                                  .with_migration(migration);
+                              let manifest = Simulation::new(config)
+                                  .map_err(|e| e.to_string())?
+                                  .run()
+                                  .map_err(|e| e.to_string())?;
+                              let m = serde_json::to_value(&manifest).map_err(|e| e.to_string())?;
+                              rows.push(json!({
+                                  "travelConditionCostPerCell": cost,
+                                  "migrationRadius": radius,
+                                  "seed": seed,
+                                  "configuredTravelConditionCostPerCell": pick(&m, "/experiment/migration/travelConditionCostPerCell"),
+                                  "configuredMigrationRadius": pick(&m, "/experiment/migration/candidateRadiusCells"),
+                                  "finalLivingPopulation": pick(&m, "/population/livingPopulation"),
+                                  "birthsSinceStart": pick(&m, "/population/birthsSinceStart"),
+                                  "deathsSinceStart": pick(&m, "/population/deathsSinceStart"),
+                                  "livingOccupiedCellCount": pick(&m, "/population/livingOccupiedCellCount"),
+                                  "meanLivingConditionPermille": pick(&m, "/population/meanLivingConditionPermille"),
+                                  "resourceUnmetNeed": pick(&m, "/resources/unmetNeed"),
+                                  "conditionMortalityDeaths": pick(&m, "/resources/conditionMortalityDeaths"),
+                                  "movesCompleted": pick(&m, "/migration/movesCompleted"),
+                                  "peopleMoved": pick(&m, "/migration/peopleMoved"),
+                                  "totalDistanceCells": pick(&m, "/migration/totalDistanceCells"),
+                                  "travelConditionCostTotal": pick(&m, "/migration/travelConditionCostTotal"),
+                                  "meanOriginResourceScorePermille": pick(&m, "/migration/meanOriginResourceScorePermille"),
+                                  "meanDestinationResourceScorePermille": pick(&m, "/migration/meanDestinationResourceScorePermille"),
+                                  "stopReason": pick(&m, "/stopReason"),
+                                  "modelSemanticsId": pick(&m, "/modelSemanticsId"),
+                                  "gitCommit": pick(&m, "/gitCommit")
+                              }));
+                          }
+                      }
+                      Ok(rows)
+                  }));
+              }
+
+              let mut rows = Vec::with_capacity(900);
+              for handle in handles {
+                  rows.extend(handle.join().map_err(|_| "worker thread panicked")??);
+              }
+              rows.sort_by_key(|row| (
+                  row["travelConditionCostPerCell"].as_u64().unwrap_or(0),
+                  row["migrationRadius"].as_u64().unwrap_or(0),
+                  row["seed"].as_u64().unwrap_or(0),
+              ));
+              for row in rows {
+                  println!("{}", serde_json::to_string(&row).map_err(|e| e.to_string())?);
+              }
+              Ok(())
+          }
+          RS
+      - name: Build and execute exact-v37 compact experiment
         run: |
-          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30+travel-cost-env-v1"
-          cargo build --locked --release -p anthrosim-cli --bin anthrosim
+          export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30"
+          cargo build --locked --release -p anthrosim-cli --bin anthrosim-travel-cost-compact
+          ./target/release/anthrosim-travel-cost-compact > travel-cost-results.jsonl
+          test "$(wc -l < travel-cost-results.jsonl)" -eq 900
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: anthrosim-v37-travel-cost-sweep
+          name: anthrosim-v37-travel-cost-compact-results
           retention-days: 1
-          path: target/release/anthrosim
+          path: travel-cost-results.jsonl
