@@ -20,48 +20,36 @@ jobs:
           ref: audit/repair-699-av6-003
           persist-credentials: true
 
-      - name: Execute frozen issue 207 design under v40
+      - name: Independently reproduce frozen issue 207 design under v40
         run: |
           cargo run --release -p anthrosim-core --example household_lifecycle_sensitivity > /tmp/household-lifecycle-v40.json
 
-      - name: Upload exact generated v40 aggregate
-        id: upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: av6-003-v40-household-lifecycle-reference
-          path: /tmp/household-lifecycle-v40.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Preserve v21 evidence and bind living reference to v40 artifact
-        env:
-          RUN_ID: ${{ github.run_id }}
-          RUN_HEAD: ${{ github.sha }}
-          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+      - name: Preserve v21 evidence and bind living reference to reviewed v40 artifact
         run: |
           python3 - <<'PY'
           import hashlib
           import json
-          import os
           from pathlib import Path
 
           current_path = Path('research/household-lifecycle-sensitivity-v2/reference-result.json')
           historical_path = Path('research/household-lifecycle-sensitivity-v2/reference-result-v21.json')
-          result_doc = Path('docs/research/household-lifecycle-structural-sensitivity-result-v2.md')
           raw_path = Path('/tmp/household-lifecycle-v40.json')
 
           historical_bytes = current_path.read_bytes()
           historical = json.loads(historical_bytes)
           old_provenance = historical.get('provenance', {})
-          assert old_provenance.get('workflowHeadSha') == '2b8edc9130286ae991dbf76021786418ace79432'
           assert old_provenance.get('workflowRunId') == 33272700305
+          assert old_provenance.get('workflowHeadSha') == '2b8edc9130286ae991dbf76021786418ace79432'
+          assert old_provenance.get('artifactId') == 9720595797
+
           if not historical_path.exists():
               historical_path.write_bytes(historical_bytes)
           else:
               assert historical_path.read_bytes() == historical_bytes
 
           raw = raw_path.read_bytes()
+          raw_sha = hashlib.sha256(raw).hexdigest()
+          assert raw_sha == 'e242f2ed153ca65f4aca4b91d79fdc63c82a6255ef099e505a2a4dc170997d75'
           generated = json.loads(raw)
           assert generated['schemaVersion'] == 2
           assert generated['seeds'] == [20701, 20702, 20703, 20704, 20705, 20706, 20707, 20708]
@@ -71,88 +59,27 @@ jobs:
           assert generated['baseline']['populationExtinctRuns'] == 0
           assert generated['deterministicSizeFission']['populationExtinctRuns'] == 0
 
-          raw_sha = hashlib.sha256(raw).hexdigest()
-          artifact_digest = os.environ['ARTIFACT_DIGEST']
-          if artifact_digest and not artifact_digest.startswith('sha256:'):
-              artifact_digest = 'sha256:' + artifact_digest
-          generated['provenance'] = {
-              'modelSemanticsId': 'anthrosim-model-semantics-v40',
-              'workflowRunId': int(os.environ['RUN_ID']),
-              'workflowHeadSha': os.environ['RUN_HEAD'],
-              'artifactId': int(os.environ['ARTIFACT_ID']),
-              'artifactDigest': artifact_digest,
-              'rawResultSha256': raw_sha,
-          }
-          current_path.write_text(json.dumps(generated, indent=2) + '\n', encoding='utf-8')
-
           old_science = dict(historical)
           old_science.pop('provenance', None)
-          new_science = dict(generated)
-          new_science.pop('provenance', None)
-          changed = [k for k in sorted(set(old_science) | set(new_science)) if old_science.get(k) != new_science.get(k)]
+          changed = [
+              key for key in sorted(set(old_science) | set(generated))
+              if old_science.get(key) != generated.get(key)
+          ]
           assert changed == ['baseline', 'deterministicSizeFission']
 
-          b = generated['baseline']
-          f = generated['deterministicSizeFission']
-          def mean(key):
-              return b[key] / 8, f[key] / 8
-          def pct(base, alt):
-              return (alt - base) * 100.0 / base
-          rows = []
-          for label, key, is_mean in [
-              ('Mean terminal living population', 'terminalLivingPopulationTotal', True),
-              ('Mean terminal active households', 'terminalActiveHouseholdsTotal', True),
-              ('Mean terminal largest household', 'terminalLargestHouseholdSizeTotal', True),
-              ('Mean terminal multigenerational households', 'terminalMultigenerationalHouseholdsTotal', True),
-              ('Mean terminal occupied residence cells', 'terminalLivingOccupiedCellsTotal', True),
-              ('Total unmet resource need', 'unmetNeedTotal', False),
-              ('Total M4 moves', 'migrationMovesTotal', False),
-              ('Total people moved by M4', 'migrationPeopleMovedTotal', False),
-              ('Total M9 departures', 'temporaryDeparturesTotal', False),
-              ('Total M9 visitor person-days', 'temporaryVisitorPersonDaysTotal', False),
-              ('Total M9 visitor household-days', 'temporaryVisitorHouseholdDaysTotal', False),
-              ('Maximum peak simultaneous visitors', 'temporaryPeakVisitorsMax', False),
-          ]:
-              if is_mean:
-                  bv, fv = mean(key)
-                  rows.append(f'| {label} | {bv:.3f} | {fv:.3f} | {pct(bv, fv):+.1f}% |')
-              else:
-                  bv, fv = b[key], f[key]
-                  rows.append(f'| {label} | {bv} | {fv} | {pct(bv, fv):+.1f}% |')
-
-          doc = f'''# Household lifecycle structural sensitivity — dependency-aware v2 result
-
-**Scientific status:** synthetic structural sensitivity; not empirical household validation.
-
-## Current living-semantics revalidation — v40
-
-The frozen issue #207 design was rerun unchanged under `anthrosim-model-semantics-v40` during AV6-003/#699 remediation: eight paired seeds, 40 years per arm, founder population 120, with all non-household-lifecycle assumptions held fixed. All **16/16** arm-runs completed and none went extinct.
-
-This rerun is a **living-semantics revalidation**, not an attempt to isolate every numerical change to AV6-003. The previous checked aggregate came from model semantics v21. Both the fixed-founder control and dependency-fission arm have therefore accumulated effects from later authoritative model repairs between v21 and v40. The focused #698 relabelling regression isolates the AV6-003 defect itself; this ensemble asks whether the broader #207 structural-sensitivity interpretation still survives on current semantics.
-
-The alternative remains `deterministic_dependency_fission_v2` (maximum 8 living members; minimum independent age 18 years). Under v40 its relationship refinement additionally preserves living external direct-parent persistent-residence context before arbitrary PersonId tie-breaking.
-
-| Observable | Fixed founder | Dependency fission v2 | v40 change vs fixed |
-| --- | ---: | ---: | ---: |
-{chr(10).join(rows)}
-
-The qualitative #207 conclusion survives. Household lifecycle remains a material structural uncertainty dimension: the fission treatment produces substantially more active and multigenerational households, smaller largest households, lower unmet need, more M4 moves but fewer people per aggregate move, and more M9 household departures/household-days. Aggregate visitor **person-days remain nearly invariant** in this ensemble ({pct(b['temporaryVisitorPersonDaysTotal'], f['temporaryVisitorPersonDaysTotal']):+.2f}%).
-
-These results do **not** establish that dependency-aware fission is historically correct. They show that household lifecycle/composition remains causally consequential under current living semantics and must remain explicit in sensitivity work.
-
-Current machine-readable aggregate: `research/household-lifecycle-sensitivity-v2/reference-result.json`.
-
-Current v40 provenance: workflow run `{os.environ['RUN_ID']}`, head `{os.environ['RUN_HEAD']}`, artifact `{os.environ['ARTIFACT_ID']}`, artifact digest `{artifact_digest}`, raw JSON SHA-256 `{raw_sha}`.
-
-## Historical post-#324 reference — v21
-
-The previous aggregate is preserved unchanged at `research/household-lifecycle-sensitivity-v2/reference-result-v21.json`. It was generated at `anthrosim-model-semantics-v21` after the #324 dependency-aware fission repair, from workflow run `33272700305`, head `2b8edc9130286ae991dbf76021786418ace79432`, artifact `9720595797`, artifact digest `sha256:11079ddefe586013faf3abf67ea809f49fa4698781a9edb55a2d3f3ff8c0c2f9`.
-
-That historical result remains evidence for the repaired v21 treatment and must not be read as a current-v40 numerical oracle. The v40 rerun intentionally preserves the same frozen design so changes in the living framework are visible rather than hidden by relabelling old numbers.
-'''
-          result_doc.write_text(doc, encoding='utf-8')
-          print('Preserved exact v21 reference and rebound living #207 aggregate to generated v40 evidence.')
-          print('Changed top-level scientific arms relative to v21:', changed)
+          generated['provenance'] = {
+              'modelSemanticsId': 'anthrosim-model-semantics-v40',
+              'workflowRunId': 34614039366,
+              'workflowHeadSha': '599fc83201066997e2662603a7a5516126b32972',
+              'artifactId': 10269147530,
+              'artifactDigest': 'sha256:1d1d400ba269e8356a55f5e98f52eb4280105367a62a38dfe1010cf74331bc38',
+              'rawResultSha256': raw_sha,
+              'independentReproductionRunId': int('${{ github.run_id }}'),
+              'independentReproductionHeadSha': '${{ github.sha }}',
+          }
+          current_path.write_text(json.dumps(generated, indent=2) + '\n', encoding='utf-8')
+          print('Preserved byte-identical v21 reference and rebound living #207 aggregate to reviewed v40 evidence.')
+          print('Independent v40 rerun reproduced raw JSON SHA-256:', raw_sha)
           PY
 
       - name: Verify rebaseline hygiene
@@ -168,7 +95,6 @@ That historical result remains evidence for the repaired v21 treatment and must 
           git rm .github/workflows/verify-av6-003-v40-household-lifecycle-reference.yml
           git add research/household-lifecycle-sensitivity-v2/reference-result.json
           git add research/household-lifecycle-sensitivity-v2/reference-result-v21.json
-          git add docs/research/household-lifecycle-structural-sensitivity-result-v2.md
           git diff --cached --check
           git commit -m "research: revalidate household lifecycle sensitivity on v40"
           git push origin HEAD:audit/repair-699-av6-003
