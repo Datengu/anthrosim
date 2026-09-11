@@ -13,134 +13,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Checkout harness branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: harness
+
+      - name: Checkout exact v37 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: 9f0914e2772cd2f0c6243ab4be8b296f3ce48f30
+          path: source
 
-      - run: |
+      - name: Prepare counterfactual source
+        run: |
+          python harness/experiment-harness/fixed-horizon/patch.py source
+          cp harness/experiment-harness/fixed-horizon/runner.rs source/crates/anthrosim-cli/src/bin/anthrosim-fixed-horizon.rs
+
+      - name: Build and execute counterfactual
+        working-directory: source
+        run: |
           rustup set profile minimal
           rustup toolchain install 1.97.1
           rustup default 1.97.1
-
-      - name: Apply fixed-quarter planning-horizon intervention
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          migration = Path("crates/anthrosim-core/src/migration.rs")
-          text = migration.read_text()
-          start = text.index("        let period_need_per_person = fixed_annual_quantity_for_period(")
-          end_marker = "        self.decision_order.clear();\n"
-          end = text.index(end_marker, start)
-          replacement = '''        // EXPERIMENT-ONLY COUNTERFACTUAL: every M4 evaluation uses a fixed
-          // quarter-year resource-support demand while decision frequency varies.
-          // With annual need = 100 this is exactly 25 units/person per evaluation.
-          let _ = decision_index_in_year;
-          let period_need_per_person = fixed_annual_quantity_for_period(
-              u64::from(annual_food_need),
-              0,
-              4,
-          )
-          .ok_or(MigrationError::InternalInvariant(
-              "fixed-quarter migration planning horizon could not be allocated",
-          ))?;
-
-'''
-          migration.write_text(text[:start] + replacement + text[end:])
-
-          provenance = Path("crates/anthrosim-core/src/provenance.rs")
-          p = provenance.read_text()
-          old = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37";'
-          new = 'pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v37-fixed-quarter-horizon-experiment";'
-          if p.count(old) != 1:
-              raise SystemExit("unexpected v37 provenance source")
-          provenance.write_text(p.replace(old, new))
-          PY
-
-      - name: Create compact experiment runner
-        run: |
-          cat > crates/anthrosim-cli/src/bin/anthrosim-fixed-horizon.rs <<'RS'
-          use std::{error::Error, thread};
-          use anthrosim_core::{ExperimentConfig, MigrationConfig, PopulationConfig, ResourceConfig, Simulation, WorldConfig};
-          use serde_json::{Value, json};
-
-          fn pick(value: &Value, pointer: &str) -> Value {
-              value.pointer(pointer).cloned().unwrap_or(Value::Null)
-          }
-
-          fn main() -> Result<(), Box<dyn Error>> {
-              let decisions = [1_u16, 2, 4, 8, 12, 24];
-              let mut handles = Vec::new();
-
-              for decision_periods in decisions {
-                  handles.push(thread::spawn(move || -> Result<Vec<Value>, String> {
-                      let mut rows = Vec::with_capacity(30);
-                      for seed in 5101_u64..=5130_u64 {
-                          let mut resources = ResourceConfig::synthetic_validation_v1()
-                              .with_productivity_scale_permille(150)
-                              .with_seasonality_scale_permille(1000)
-                              .with_annual_need_units_per_person(100);
-                          resources.periods_per_year = 4;
-                          let migration = MigrationConfig::synthetic_validation_v1()
-                              .with_enabled(true)
-                              .with_candidate_radius_cells(3)
-                              .with_decision_periods_per_year(decision_periods);
-                          let config = ExperimentConfig::new(seed, 100)
-                              .with_world(WorldConfig::new(64, 64))
-                              .with_population(PopulationConfig::new(2000).with_target_household_size(5).with_max_person_records(1_000_000))
-                              .with_resources(resources)
-                              .with_migration(migration);
-                          let manifest = Simulation::new(config).map_err(|e| e.to_string())?.run().map_err(|e| e.to_string())?;
-                          let m = serde_json::to_value(&manifest).map_err(|e| e.to_string())?;
-                          rows.push(json!({
-                              "seed": seed,
-                              "resourcePeriodsPerYear": 4,
-                              "decisionPeriodsPerYear": decision_periods,
-                              "fixedPlanningPeriodsPerYear": 4,
-                              "configuredResourcePeriodsPerYear": pick(&m, "/experiment/resources/periodsPerYear"),
-                              "configuredDecisionPeriodsPerYear": pick(&m, "/experiment/migration/decisionPeriodsPerYear"),
-                              "configuredRadius": pick(&m, "/experiment/migration/candidateRadiusCells"),
-                              "configuredTravelConditionCostPerCell": pick(&m, "/experiment/migration/travelConditionCostPerCell"),
-                              "finalLivingPopulation": pick(&m, "/population/livingPopulation"),
-                              "resourceUnmetNeed": pick(&m, "/resources/unmetNeed"),
-                              "conditionMortalityDeaths": pick(&m, "/resources/conditionMortalityDeaths"),
-                              "decisionBoundaries": pick(&m, "/migration/decisionBoundaries"),
-                              "householdsEvaluated": pick(&m, "/migration/householdsEvaluated"),
-                              "householdsUnderPressure": pick(&m, "/migration/householdsUnderPressure"),
-                              "movesCompleted": pick(&m, "/migration/movesCompleted"),
-                              "peopleMoved": pick(&m, "/migration/peopleMoved"),
-                              "totalDistanceCells": pick(&m, "/migration/totalDistanceCells"),
-                              "travelConditionCostTotal": pick(&m, "/migration/travelConditionCostTotal"),
-                              "stopReason": pick(&m, "/stopReason"),
-                              "modelSemanticsId": pick(&m, "/modelSemanticsId"),
-                              "gitCommit": pick(&m, "/gitCommit")
-                          }));
-                      }
-                      Ok(rows)
-                  }));
-              }
-
-              let mut rows = Vec::with_capacity(180);
-              for handle in handles {
-                  rows.extend(handle.join().map_err(|_| "worker thread panicked")??);
-              }
-              rows.sort_by_key(|row| (row["decisionPeriodsPerYear"].as_u64().unwrap_or(0), row["seed"].as_u64().unwrap_or(0)));
-              for row in rows {
-                  println!("{}", serde_json::to_string(&row).map_err(|e| e.to_string())?);
-              }
-              Ok(())
-          }
-          RS
-
-      - name: Build and execute counterfactual
-        run: |
           export ANTHROSIM_GIT_COMMIT="9f0914e2772cd2f0c6243ab4be8b296f3ce48f30+fixed-quarter-horizon-intervention"
           cargo build --locked --release -p anthrosim-cli --bin anthrosim-fixed-horizon
           ./target/release/anthrosim-fixed-horizon > fixed-horizon-results.jsonl
           test "$(wc -l < fixed-horizon-results.jsonl)" -eq 180
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Upload compact results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: anthrosim-v37-fixed-planning-horizon-results
           retention-days: 1
-          path: fixed-horizon-results.jsonl
+          path: source/fixed-horizon-results.jsonl
