@@ -1,0 +1,214 @@
+name: Apply AV6-002 v39 reference refresh
+
+on:
+  push:
+    branches: [audit/repair-694-av6-002]
+    paths:
+      - '.github/workflows/apply-av6-002-v39-reference.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-694-av6-002
+          persist-credentials: true
+
+      - name: Download exact regenerated v39 evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: issue-304-demographic-baseline-confirmatory
+          path: /tmp/a304
+          github-token: ${{ github.token }}
+          repository: Datengu/anthrosim
+          run-id: 34563009772
+
+      - name: Refresh canonical result and living narrative
+        shell: python
+        run: |
+          import json
+          import re
+          import shutil
+          from pathlib import Path
+
+          evidence = Path('/tmp/a304/expected-result.json')
+          if not evidence.is_file():
+              raise SystemExit('missing regenerated expected-result.json')
+          result = json.loads(evidence.read_text(encoding='utf-8'))
+
+          assert result['schemaVersion'] == 1
+          assert result['scientificStatus'] == 'confirmatory_synthetic_model_analysis'
+          assert result['modelSemanticsId'] == 'anthrosim-model-semantics-v39'
+          assert result['recommendation'] == 'no_universal_demographic_baseline'
+          assert result['runCount'] == 780
+          assert len(result['arms']) == 6
+          assert len(result['pairedHouseholdEffects']) == 3
+          assert re.fullmatch(r'research-execution-v1-[0-9a-f]{16}', result['researchId'])
+          for diagnostic in result['monteCarloPrecision'].values():
+              assert diagnostic['precision']['sufficient'] is True
+
+          canonical = Path('research/general-demography-baseline-v1/confirmatory-result.json')
+          shutil.copyfile(evidence, canonical)
+
+          def pct(value):
+              return f'{float(value) * 100:+.3f}'
+
+          def arm_row(arm):
+              growth = arm['lateGrowthRatePerYear']
+              return (
+                  f"| `{arm['demography']}` | `{arm['householdLifecycle']}` | "
+                  f"{pct(growth['mean'])} [{pct(growth['ci95Lower'])}, {pct(growth['ci95Upper'])}] | "
+                  f"{float(arm['terminalPopulation']['mean']):.1f} | "
+                  f"{float(arm['extinction']['estimate']) * 100:.1f}% | "
+                  f"{float(arm['mateLimitationFraction']['mean']) * 100:.1f}% |"
+              )
+
+          def paired_line(effect):
+              return (
+                  f"- `{effect['demography']}`: fission-minus-fixed mean N240 = "
+                  f"**{float(effect['fissionMinusFixedTerminalPopulation']['mean']):+.1f} people** "
+                  f"across {int(effect['pairedReplicates'])} same-seed pairs."
+              )
+
+          doc_path = Path('docs/research/general-scientific-demographic-baseline-v1.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          doc = re.sub(
+              r'- current model semantics: `anthrosim-model-semantics-v\d+`;',
+              f"- current model semantics: `{result['modelSemanticsId']}`;",
+              doc,
+              count=1,
+          )
+          doc = re.sub(
+              r'- current preserved research execution identity: `research-execution-v1-[0-9a-f]{16}`\.',
+              f"- current preserved research execution identity: `{result['researchId']}`.",
+              doc,
+              count=1,
+          )
+
+          table_header = (
+              '| Demography | Household lifecycle | Late growth %/yr (95% MC CI) | Mean N240 | Extinction | Mate limitation |\n'
+              '|---|---|---:|---:|---:|---:|\n'
+          )
+          table = table_header + '\n'.join(arm_row(arm) for arm in result['arms'])
+          doc, count = re.subn(
+              r'\| Demography \| Household lifecycle \| Late growth %/yr \(95% MC CI\) \| Mean N240 \| Extinction \| Mate limitation \|\n'
+              r'\|---\|---\|---:\|---:\|---:\|---:\|\n'
+              r'(?:\|.*\|\n){6}',
+              table + '\n',
+              doc,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace current demographic table')
+
+          paired_block = '\n'.join(paired_line(effect) for effect in result['pairedHouseholdEffects'])
+          doc, count = re.subn(
+              r'- `negative_growth_control_v1`: fission-minus-fixed mean N240 = .*?\n'
+              r'- `positive_growth_control_v1`: fission-minus-fixed mean N240 = .*?\n'
+              r'- `replacement_control_v1`: fission-minus-fixed mean N240 = .*?\n',
+              paired_block + '\n',
+              doc,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace paired-effect lines')
+
+          doc = doc.replace(
+              'The current v38 paired effects retain the established directions in all three schedules:',
+              'The current v39 paired effects retain the established directions in all three schedules:',
+              1,
+          )
+
+          by_key = {(a['demography'], a['householdLifecycle']): a for a in result['arms']}
+          fixed = by_key[('positive_growth_control_v1', 'fixed_founder_v1')]
+          fission = by_key[('positive_growth_control_v1', 'deterministic_dependency_fission_v2')]
+          old_interp = re.compile(
+              r'Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: mean late realized growth changes from .*?\.',
+              re.S,
+          )
+          interp = (
+              'Even the positive intrinsic schedule does not remain approximately stationary once the dependency-aware household-fission treatment is enabled: '
+              f"mean late realized growth changes from {float(fixed['lateGrowthRatePerYear']['mean']) * 100:+.3f}%/year under fixed-founder households "
+              f"to {float(fission['lateGrowthRatePerYear']['mean']) * 100:+.3f}%/year under `deterministic_dependency_fission_v2`, "
+              f"while mate limitation rises from {float(fixed['mateLimitationFraction']['mean']) * 100:.1f}% to {float(fission['mateLimitationFraction']['mean']) * 100:.1f}% "
+              f"and mean N240 falls from {float(fixed['terminalPopulation']['mean']):.1f} to {float(fission['terminalPopulation']['mean']):.1f}."
+          )
+          doc, count = old_interp.subn(interp, doc, count=1)
+          if count != 1:
+              raise SystemExit('failed to refresh positive-control interpretation')
+
+          counts = result['longRun']['primaryClassificationCounts']
+          long_run = (
+              f"The current v39 long-run analysis still reports overwhelmingly drifting trajectories ({counts['drifting']} drifting, "
+              f"{counts['insufficient_data']} insufficient-data and {counts['stable']} stable runs) and "
+              f"{result['longRun']['stochasticMultiRegimeContextCount']} treatment contexts meeting the stochastic multi-regime criterion. "
+              'Environment-dependence and initialization-dependence flags remain false. These diagnostics reinforce the same design conclusion: '
+              'there is no defensible universal demographic baseline hidden in the current synthetic controls.'
+          )
+          doc, count = re.subn(
+              r'The current v38 long-run analysis still reports overwhelmingly drifting trajectories \(.*?current synthetic controls\.',
+              long_run,
+              doc,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to refresh long-run narrative')
+
+          doc = doc.replace(
+              'Fresh v37 issue-304 run `34544291570` produced the current result;',
+              'Fresh v37 issue-304 run `34544291570` produced the then-current result;',
+              1,
+          )
+          doc = doc.replace(
+              'The checked result is rebound to the fresh v38 research execution rather than being numerically rebaselined.',
+              'The then-current checked result was rebound to the fresh v38 research execution rather than being numerically rebaselined.',
+              1,
+          )
+
+          v39_note = '''
+
+### Audit-v6 AV6-002 v39 demographic rebaseline
+
+AV6-002/#694 gives the public male-parent reproductive-age window one time reference: completed male age at the recorded child-birth boundary. Because that authoritative chronology change can alter births and parentage near configured age thresholds, living model semantics advance from v38 to v39 and the current #304 demographic confirmation is **numerically rebaselined rather than metadata-relabelled**.
+
+The exact 780-run regeneration completed in issue-304 workflow run `34563009772`, job `103149422561`, on repair source head `aee176b34525c168305b83fc623b70192ec54c4c`. All three predeclared Monte Carlo precision gates passed. The uploaded evidence artifact is `10185085281`, SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`, and contains the exact `expected-result.json` copied into the current canonical result here. The high-level recommendation remains `no_universal_demographic_baseline`, while quantitative arm summaries, paired household effects and long-run classifications are refreshed to the reproducible v39 outputs.
+'''
+          if '### Audit-v6 AV6-002 v39 demographic rebaseline' not in doc:
+              doc = doc.rstrip() + v39_note
+          doc_path.write_text(doc.rstrip() + '\n', encoding='utf-8')
+
+          trace_path = Path('docs/research/trace-av6-002-male-parent-age-repair-2026-09-11.md')
+          trace = trace_path.read_text(encoding='utf-8')
+          provenance_note = '''
+
+## Current demographic reference refresh
+
+The semantics change was propagated through the current #304 confirmatory demographic reference rather than relabelling v38 output. Workflow run `34563009772` / job `103149422561` completed all 780 frozen-design runs and all three Monte Carlo precision gates. Artifact `10185085281` (SHA-256 `989a518b824d2b924152915138d140536b5e846a29e5213fa173746886a1e248`) contains the exact v39 `expected-result.json` used to refresh `research/general-demography-baseline-v1/confirmatory-result.json`. The recommendation remains `no_universal_demographic_baseline`; quantitative outputs changed and are therefore preserved as a true v39 rebaseline.
+'''
+          if '## Current demographic reference refresh' not in trace:
+              trace = trace.rstrip() + provenance_note
+          trace_path.write_text(trace.rstrip() + '\n', encoding='utf-8')
+
+      - name: Verify synchronized current documentation
+        run: |
+          python3 scripts/test-current-model-semantics-docs.py
+          python3 scripts/test-current-demographic-baseline-docs.py
+          git diff --check
+
+      - name: Commit evidence-bound refresh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add research/general-demography-baseline-v1/confirmatory-result.json \
+                  docs/research/general-scientific-demographic-baseline-v1.md \
+                  docs/research/trace-av6-002-male-parent-age-repair-2026-09-11.md
+          git diff --cached --check
+          git commit -m "research: refresh issue 304 reference for semantics v39"
+          git push origin HEAD:audit/repair-694-av6-002
