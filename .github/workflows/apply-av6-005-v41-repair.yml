@@ -1,0 +1,274 @@
+name: Apply AV6-005 v41 repair
+
+on:
+  push:
+    branches:
+      - audit/repair-708-av6-005
+
+permissions:
+  contents: write
+
+jobs:
+  apply-repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/repair-708-av6-005
+          fetch-depth: 0
+
+      - name: Verify production ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 8f69fd951ae62773fa2a1f228efa00d17e9b6e53 HEAD
+
+      - name: Apply representation-invariant duration tie repair
+        shell: python
+        run: |
+          from pathlib import Path
+
+          resources = Path('crates/anthrosim-core/src/resources.rs')
+          text = resources.read_text()
+
+          old = '''#[must_use]
+/// Alternates exact 50/50 one-unit duration ties without storing another mutable rounding phase.
+fn duration_rounding_tie_visiting_wins(household_index: usize, period_sequence: u64) -> bool {
+    ((period_sequence.count_ones() ^ household_index.count_ones()) & 1) == 1
+}
+'''
+          new = '''#[must_use]
+/// Alternates exact 50/50 one-unit duration ties over the persisted resource-period sequence.
+///
+/// This is a numerical null rule between the semantic home/visitor sides. Canonical household
+/// identity must not dephase otherwise equivalent households, because that would let bookkeeping
+/// labels decide which physical cell receives an indivisible unit. The Thue-Morse period phase
+/// retains exact long-run side balance, including recurring same-season ties, without consuming
+/// another RNG stream or introducing a person/household/global-ordinal tie key.
+fn duration_rounding_tie_visiting_wins(period_sequence: u64) -> bool {
+    (period_sequence.count_ones() & 1) == 1
+}
+'''
+          if old not in text:
+              raise SystemExit('expected duration tie helper not found')
+          text = text.replace(old, new, 1)
+
+          old_sig = '''pub(crate) fn duration_weighted_needs(
+    need: u64,
+    presence: &TemporaryResourcePresenceDays,
+    household_index: usize,
+    period_sequence: u64,
+) -> Result<(u64, u64), ResourceError> {'''
+          new_sig = '''pub(crate) fn duration_weighted_needs(
+    need: u64,
+    presence: &TemporaryResourcePresenceDays,
+    _household_index: usize,
+    period_sequence: u64,
+) -> Result<(u64, u64), ResourceError> {'''
+          if old_sig not in text:
+              raise SystemExit('expected duration_weighted_needs signature not found')
+          text = text.replace(old_sig, new_sig, 1)
+
+          old_call = 'duration_rounding_tie_visiting_wins(household_index, period_sequence)'
+          if text.count(old_call) != 1:
+              raise SystemExit(f'expected one household-index duration tie call, found {text.count(old_call)}')
+          text = text.replace(old_call, 'duration_rounding_tie_visiting_wins(period_sequence)', 1)
+
+          old_test = '''    #[test]
+    fn household_phase_spreads_simultaneous_ties_without_long_run_id_advantage() {
+        let presence = fifty_fifty_presence(CellId::new(2));
+
+        for household_index in 0..8 {
+            let mut home_total = 0_u64;
+            let mut visitor_total = 0_u64;
+            for period_sequence in 0..1_024 {
+                let (home, visitor) =
+                    duration_weighted_needs(1, &presence, household_index, period_sequence)
+                        .unwrap();
+                home_total += home;
+                visitor_total += visitor;
+            }
+            assert_eq!((home_total, visitor_total), (512, 512));
+        }
+
+        assert_ne!(
+            duration_weighted_needs(1, &presence, 0, 0).unwrap(),
+            duration_weighted_needs(1, &presence, 1, 0).unwrap()
+        );
+    }
+'''
+          new_test = '''    #[test]
+    fn period_phase_is_household_relabel_invariant_and_long_run_balanced() {
+        let presence = fifty_fifty_presence(CellId::new(2));
+
+        for period_sequence in 0..1_024 {
+            let canonical = duration_weighted_needs(1, &presence, 0, period_sequence).unwrap();
+            for household_index in 1..8 {
+                assert_eq!(
+                    duration_weighted_needs(1, &presence, household_index, period_sequence)
+                        .unwrap(),
+                    canonical
+                );
+            }
+        }
+
+        for household_index in 0..8 {
+            let mut home_total = 0_u64;
+            let mut visitor_total = 0_u64;
+            for period_sequence in 0..1_024 {
+                let (home, visitor) =
+                    duration_weighted_needs(1, &presence, household_index, period_sequence)
+                        .unwrap();
+                home_total += home;
+                visitor_total += visitor;
+            }
+            assert_eq!((home_total, visitor_total), (512, 512));
+        }
+    }
+'''
+          if old_test not in text:
+              raise SystemExit('expected household phase regression not found')
+          text = text.replace(old_test, new_test, 1)
+          resources.write_text(text)
+
+          adversary = Path('crates/anthrosim-core/src/audit_v6_area_d_duration_household_relabel_tests.rs')
+          if adversary.exists():
+              raise SystemExit('promoted AV6-005 adversary unexpectedly already exists')
+          adversary.write_text('''use crate::{
+    ids::CellId, resources::duration_weighted_needs,
+    temporary_resource::TemporaryResourcePresenceDays,
+};
+
+fn split_for_household_index(household_index: usize, period_sequence: u64) -> (u64, u64) {
+    let presence = TemporaryResourcePresenceDays {
+        at_residence_days: 45,
+        outbound_transit_days: 0,
+        visiting_days: 45,
+        return_transit_days: 0,
+        visitor_destination: Some(CellId::new(2)),
+    };
+    duration_weighted_needs(1, &presence, household_index, period_sequence).unwrap()
+}
+
+#[test]
+fn m9_duration_rounding_tie_is_invariant_to_canonical_household_relabelling() {
+    for period_sequence in 0..16_u64 {
+        let canonical = split_for_household_index(0, period_sequence);
+        let relabelled = split_for_household_index(1, period_sequence);
+
+        println!(
+            "duration relabel control: period={period_sequence} canonical={canonical:?} relabelled={relabelled:?}"
+        );
+
+        assert_eq!(
+            canonical, relabelled,
+            "pure canonical HouseholdId/index relabelling must not move an indivisible 50/50 resource-need remainder between home and visitor attribution at period {period_sequence}"
+        );
+        assert_eq!(canonical.0 + canonical.1, 1);
+    }
+}
+''')
+
+          lib = Path('crates/anthrosim-core/src/lib.rs')
+          text = lib.read_text()
+          anchor = '''#[cfg(test)]
+mod av6_004_resource_cell_reflection_tests;
+'''
+          insertion = anchor + '''#[cfg(test)]
+mod audit_v6_area_d_duration_household_relabel_tests;
+'''
+          if anchor not in text:
+              raise SystemExit('lib.rs audit-test anchor missing')
+          text = text.replace(anchor, insertion, 1)
+          lib.write_text(text)
+
+          provenance = Path('crates/anthrosim-core/src/provenance.rs')
+          text = provenance.read_text()
+          marker = '''/// v40 extends dependency-aware household-fission relationship refinement to living direct
+/// parents outside the source household. Their persistent residence cell is causal context
+/// because M4 consumes the same cross-household parent/child residences as first-degree kin
+/// anchors. Canonical PersonId, HouseholdId, packed-record order and global stochastic-coupling
+/// rank remain excluded from this social assignment key. A v39 checkpoint must not resume under
+/// v40 while silently changing which relationship-distinct adults seed daughter households.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v40";
+'''
+          replacement = '''/// v40 extends dependency-aware household-fission relationship refinement to living direct
+/// parents outside the source household. Their persistent residence cell is causal context
+/// because M4 consumes the same cross-household parent/child residences as first-degree kin
+/// anchors. Canonical PersonId, HouseholdId, packed-record order and global stochastic-coupling
+/// rank remain excluded from this social assignment key. A v39 checkpoint must not resume under
+/// v40 while silently changing which relationship-distinct adults seed daughter households.
+///
+/// v41 removes canonical household/storage identity from the M9.5 duration-weighted exact-tie
+/// phase that splits one household's conserved need between home and visitor provisioning cells.
+/// Exact tied rounding now alternates only over the persisted resource-period sequence, retaining
+/// the existing long-run home/visitor balance (including same-season recurrence) without making a
+/// bookkeeping label, person/global ordinal or extra RNG stream decide the physical demand cell.
+/// A v40 checkpoint must not resume under v41 while silently changing future tied resource demand.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v41";
+'''
+          if marker not in text:
+              raise SystemExit('v40 provenance marker missing')
+          provenance.write_text(text.replace(marker, replacement, 1))
+
+          docs = Path('docs/research/resources-v0.1.md')
+          text = docs.read_text()
+          old_doc = '''M9 temporary presence can split one household's period demand between residence and visitor destination according to the existing duration-weighted provisioning contract. That home-versus-visitor split is upstream of cell competition and is deliberately unchanged by v11; its separate exact-tie semantics remain tracked independently by #194.'''
+          new_doc = '''M9 temporary presence can split one household's period demand between residence and visitor destination according to the duration-weighted provisioning contract. For a non-tied fractional split, the larger remainder receives the indivisible unit. For an exact home/visitor fractional tie, v41 uses only the persisted M3 resource-period sequence as a deterministic Thue-Morse side phase: canonical household/storage identity is excluded, no replacement person/global ordinal or extra RNG stream is consumed, and repeated ties remain exactly balanced between the semantic home and visitor sides over the tested complete phase blocks, including recurring same-season ties. This is a numerical rounding null rule, not a claim that households historically alternated provisioning priority in this pattern.'''
+          if old_doc not in text:
+              raise SystemExit('resource duration-tie documentation anchor missing')
+          docs.write_text(text.replace(old_doc, new_doc, 1))
+
+      - name: Synchronize compact Audit-v6 status
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('docs/research/audit-v6/STATUS.md')
+          text = p.read_text()
+          replacements = {
+              '| Open Audit-v6 findings | **7** |': '| Open Audit-v6 findings | **5** |',
+              '| Active ownership | **AV6-003/#699 is the active P2 remediation on `audit/repair-699-av6-003`; AV6-002/#694 is merged/closed via #771** |': '| Active ownership | **AV6-005/#708 is the active P2 remediation on `audit/repair-708-av6-005`; AV6-002/#694 and AV6-003/#699 are merged/closed via #771/#772** |',
+              '| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; all seven P1s are now repaired, independently reverified and closed, with seven P2 findings still open** |': '| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; all seven P1s are now repaired, independently reverified and closed, with five P2 findings still open** |',
+              'Protected `main` after merged AV6-002/#694 is `9d9c89495f66e50f30d434255069544cd8dfa866`, with living model semantics `anthrosim-model-semantics-v39`. Active AV6-003/#699 advances this repair branch to `anthrosim-model-semantics-v40`; immutable Audit-v6 discovery remains attributed to `v0.3.6` / v35.': 'Protected `main` after merged AV6-003/#699 is `8f69fd951ae62773fa2a1f228efa00d17e9b6e53`, with living model semantics `anthrosim-model-semantics-v40`. Active AV6-005/#708 advances this repair branch to `anthrosim-model-semantics-v41`; immutable Audit-v6 discovery remains attributed to `v0.3.6` / v35.',
+              '| AV6-003 | **P2** | C primary; E/N | #699 | **open — active production repair** |': '| AV6-003 | **P2** | C primary; E/N | #699 | **closed — repaired/verified by #772** |',
+              '| AV6-005 | **P2** | D primary; C/E/F/N | #708 | open; remediation pending |': '| AV6-005 | **P2** | D primary; C/E/F/N | #708 | **open — active production repair** |',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'STATUS anchor missing: {old}')
+              text = text.replace(old, new, 1)
+          p.write_text(text)
+
+      - name: Format and focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo clippy -p anthrosim-core --all-targets -- -D warnings
+          cargo test -p anthrosim-core m9_duration_rounding_tie_is_invariant_to_canonical_household_relabelling -- --exact
+          cargo test -p anthrosim-core repeated_fifty_fifty_one_unit_ties_do_not_favour_home
+          cargo test -p anthrosim-core larger_odd_fifty_fifty_demand_is_cumulatively_balanced_and_exact
+          cargo test -p anthrosim-core same_season_ties_do_not_alias_to_one_side_at_power_of_two_cadence
+          cargo test -p anthrosim-core period_phase_is_household_relabel_invariant_and_long_run_balanced
+          cargo test -p anthrosim-core non_tied_duration_remainders_ignore_tie_phase_and_keep_largest_remainder
+          cargo test -p anthrosim-core serialized_resource_period_sequence_preserves_next_tie_decision
+          cargo test -p anthrosim-core exact_tie_phase_moves_real_resource_pressure_between_home_and_destination
+          git diff --check
+
+      - name: Commit repair and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-av6-005-v41-repair.yml
+          git config user.name 'Jack'
+          git config user.email '15160645+Datengu@users.noreply.github.com'
+          git add crates/anthrosim-core/src/resources.rs \
+                  crates/anthrosim-core/src/audit_v6_area_d_duration_household_relabel_tests.rs \
+                  crates/anthrosim-core/src/lib.rs \
+                  crates/anthrosim-core/src/provenance.rs \
+                  docs/research/resources-v0.1.md \
+                  docs/research/audit-v6/STATUS.md \
+                  .github/workflows/apply-av6-005-v41-repair.yml
+          git commit -m 'fix(audit-v6): remove household identity from M9 resource tie phase'
+          git push origin HEAD:audit/repair-708-av6-005
