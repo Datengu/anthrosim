@@ -1,0 +1,204 @@
+name: Apply AV6-002 repair
+
+on:
+  push:
+    branches: [audit/repair-694-av6-002]
+    paths:
+      - '.github/workflows/apply-av6-002-repair.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-694-av6-002
+          persist-credentials: true
+      - name: Apply reviewed semantic repair
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one replacement target, found {count}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          def replace_all(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count == 0:
+                  raise SystemExit(f'{path}: replacement target not found')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          demography = Path('crates/anthrosim-core/src/demography.rs')
+          text = demography.read_text(encoding='utf-8')
+          if text.count('exposure_start_day') != 6:
+              raise SystemExit(f'demography.rs: expected six exposure_start_day references, found {text.count("exposure_start_day")}')
+          text = text.replace('exposure_start_day', 'parentage_day')
+          old = '''        if !has_eligible_male(eligible_males, population, interval_start_day, config) {
+              continue;
+          }'''
+          new = '''        // The male-parent age window constrains parent-at-child chronology at the
+          // recorded birth boundary. Female fertility schedule selection remains interval-start.
+          if !has_eligible_male(eligible_males, population, day, config) {
+              continue;
+          }'''
+          if text.count(old) != 1:
+              raise SystemExit('demography.rs: has_eligible_male call target mismatch')
+          text = text.replace(old, new)
+          old = '''        let male_parent = select_male_parent(
+              eligible_males,
+              population,
+              interval_start_day,
+              config,
+              &mut rngs.parentage,
+          )'''
+          new = '''        let male_parent = select_male_parent(
+              eligible_males,
+              population,
+              day,
+              config,
+              &mut rngs.parentage,
+          )'''
+          if text.count(old) != 1:
+              raise SystemExit('demography.rs: select_male_parent call target mismatch')
+          demography.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'crates/anthrosim-core/src/demography_observability.rs',
+              '''            let eligible = eligible_males(
+                  &people[..records_at_boundary_start],
+                  location,
+                  &same_day_origins,
+                  interval_start_day,
+                  config,
+              )?;''',
+              '''            let eligible = eligible_males(
+                  &people[..records_at_boundary_start],
+                  location,
+                  &same_day_origins,
+                  day,
+                  config,
+              )?;''',
+          )
+          replace_once(
+              'crates/anthrosim-core/src/demography_observability.rs',
+              '''fn eligible_males(
+              people: &[ReplayPerson],
+              location: CellId,
+              same_day_origins: &BTreeMap<HouseholdId, CellId>,
+              interval_start_day: u64,
+              config: &DemographyConfig,
+          ) -> Result<BTreeSet<PersonId>, DemographyObservabilityError> {''',
+              '''fn eligible_males(
+              people: &[ReplayPerson],
+              location: CellId,
+              same_day_origins: &BTreeMap<HouseholdId, CellId>,
+              parentage_day: u64,
+              config: &DemographyConfig,
+          ) -> Result<BTreeSet<PersonId>, DemographyObservabilityError> {''',
+          )
+          replace_once(
+              'crates/anthrosim-core/src/demography_observability.rs',
+              '        let age_years = replay_age(person, interval_start_day)? / DAYS_PER_YEAR;',
+              '        let age_years = replay_age(person, parentage_day)? / DAYS_PER_YEAR;',
+          )
+
+          replace_once(
+              'crates/anthrosim-core/src/provenance.rs',
+              '''/// not resume under v38 while silently changing future tied M9 destinations.
+          pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v38";''',
+              '''/// not resume under v38 while silently changing future tied M9 destinations.
+          ///
+          /// v39 makes the configured M2 male-parent age window constrain age at the child's recorded
+          /// birth boundary instead of age at the start of the elapsed annual exposure interval. This
+          /// matches declared-founder genealogy validation and gives one temporal meaning to the public
+          /// male-parent age support. A v38 checkpoint must not resume under v39 while silently changing
+          /// future births or parentage when a candidate crosses an age threshold during the model year.
+          pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v39";''',
+          )
+
+          replace_once(
+              'docs/research/m2-demographic-time-contract-v1.md',
+              '''The final point is a deliberate discretization assumption. AnthroSim does not switch to a new M2 age band part-way through the same model year merely because M3 mortality is evaluated subannually.''',
+              '''The final point is a deliberate discretization assumption. AnthroSim does not switch to a new M2 age band part-way through the same model year merely because M3 mortality is evaluated subannually.
+
+          The configured **male-parent age window is different in kind from those annual exposure schedules**. `maleParentMinAgeYears` / `maleParentMaxAgeYearsExclusive` constrain the male parent's completed age at the recorded child-birth boundary `t`. This is the authoritative parent-at-child chronology created by M2 and matches the same check for declared founder genealogy. A male who crosses into or out of the configured window during `[t-365,t)` is therefore classified by age at `t`, while the female fertility probability for that birth opportunity remains the interval-start schedule value.''',
+          )
+          replace_once(
+              'docs/research/m2-founder-initialization-contract-v1.md',
+              '''This is a schedule-consistency and biological-plausibility boundary, not a claim that the configured age ranges are universal or empirically correct.''',
+              '''The male-parent rule is the same temporal contract used for generated M2 births: the public male-parent age window constrains completed age at the child's birth day, rather than at the start of a preceding annual exposure interval.
+
+          This is a schedule-consistency and biological-plausibility boundary, not a claim that the configured age ranges are universal or empirically correct.''',
+          )
+          replace_once(
+              'docs/scientific-model.md',
+              '''Mortality is represented by a transparent piecewise age-specific annual event-probability schedule. Fertility is represented by an age-specific annual live-birth opportunity probability plus explicit minimum birth spacing. Probabilities are integer parts per million. Completed family size, survivorship and life expectancy are outputs/validation quantities rather than values directly forced on individuals.''',
+              '''Mortality is represented by a transparent piecewise age-specific annual event-probability schedule. Fertility is represented by an age-specific annual live-birth opportunity probability plus explicit minimum birth spacing. Probabilities are integer parts per million. Completed family size, survivorship and life expectancy are outputs/validation quantities rather than values directly forced on individuals.
+
+          Annual mortality/female-fertility schedule bands are selected from age at the start of `[t-365,t)`. The configured male-parent age support instead constrains male age at the recorded child-birth boundary `t`, matching declared founder genealogy; this parent-at-child chronology rule is distinct from the pre-same-day-M4 residence snapshot used for parentage locality.''',
+          )
+          replace_once(
+              'docs/research/m2-demography-observability-v1.md',
+              '7. identify local eligible-male availability;',
+              '7. identify local eligible-male availability using male age at the child-birth boundary;',
+          )
+
+          odd = Path('docs/research/odd.md')
+          odd_text = odd.read_text(encoding='utf-8')
+          old = '- M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality/fertility bands are selected from age at the start of `[t-365,t)`, not age at `t`.'
+          new = '- M2 baseline demography is an annual discrete transition evaluated at positive multiples of 365 days. At boundary `t`, age-specific mortality and female-fertility schedule bands are selected from age at the start of `[t-365,t)`, not age at `t`. Male-parent age support instead constrains male age at the recorded child-birth boundary `t`, matching declared founder genealogy.'
+          if odd_text.count(old) != 1:
+              raise SystemExit('odd.md: M2 age contract target mismatch')
+          odd.write_text(odd_text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'docs/release-versioning.md',
+              '''Scientific Audit v6 then challenged immutable `v0.3.6` / `anthrosim-model-semantics-v35` and completed fresh A–N discovery with 14 findings (7 P1 and 7 P2). Controlled remediation is active on the living source line. AV6-001 advanced authoritative fixed-day M9/M4 scheduling semantics to v36; AV6-004 removed canonical resource-cell identity from exact scarce-resource remainder ties and advanced living semantics to v37; AV6-006/#711 now localizes M9 equal-cost destination coupling to each origin's reachable traversable component and advances the repair branch to **`anthrosim-model-semantics-v38`**. The package version remains `0.3.6`; these living identities do not rewrite immutable v0.3.6/v35 or its Audit-v6 discovery evidence.''',
+              '''Scientific Audit v6 then challenged immutable `v0.3.6` / `anthrosim-model-semantics-v35` and completed fresh A–N discovery with 14 findings (7 P1 and 7 P2). Controlled remediation is active on the living source line. AV6-001 advanced authoritative fixed-day M9/M4 scheduling semantics to v36; AV6-004 removed canonical resource-cell identity from exact scarce-resource remainder ties and advanced living semantics to v37; AV6-006/#711 localized M9 equal-cost destination coupling to each origin's reachable traversable component and advanced living semantics to v38; AV6-002/#694 then unified male-parent reproductive-age chronology at the child-birth boundary and advances the repair branch to **`anthrosim-model-semantics-v39`**. The package version remains `0.3.6`; these living identities do not rewrite immutable v0.3.6/v35 or its Audit-v6 discovery evidence.''',
+          )
+          replace_once(
+              'docs/release-versioning.md',
+              'AV6-001 at v36, AV6-004 at v37, and AV6-006 at v38.',
+              'AV6-001 at v36, AV6-004 at v37, AV6-006 at v38, and AV6-002 at v39.',
+          )
+
+          current_docs = [
+              'README.md',
+              'docs/architecture.md',
+              'docs/roadmap.md',
+              'docs/scientific-model.md',
+              'docs/research/README.md',
+              'docs/research/trace.md',
+              'docs/research/odd.md',
+              'docs/research/odd-d.md',
+          ]
+          for path in current_docs:
+              replace_all(path, 'current model semantics v38', 'current model semantics v39')
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/anthrosim-core/src/demography.rs \
+                  crates/anthrosim-core/src/demography_observability.rs \
+                  crates/anthrosim-core/src/provenance.rs \
+                  docs/research/m2-demographic-time-contract-v1.md \
+                  docs/research/m2-founder-initialization-contract-v1.md \
+                  docs/research/m2-demography-observability-v1.md \
+                  docs/scientific-model.md docs/research/odd.md \
+                  docs/release-versioning.md README.md docs/architecture.md docs/roadmap.md \
+                  docs/research/README.md docs/research/trace.md docs/research/odd-d.md
+          git diff --cached --check
+          git commit -m "fix(audit-v6): align male parent age at birth"
+          git push origin HEAD:audit/repair-694-av6-002
