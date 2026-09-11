@@ -18,15 +18,15 @@ This is the repository-authoritative compact handoff state. Detailed discovery e
 | Target model semantics | `anthrosim-model-semantics-v35` |
 | Discovery coverage | **14/14 Areas A–N complete** |
 | Discovery result | **non-clean convergence pass: 14 findings — 7 P1, 7 P2** |
-| Open Audit-v6 findings | **7** |
+| Open Audit-v6 findings | **5** |
 | Open P0/P1 | **0** |
 | Phase | **discovery complete — controlled P2 remediation in progress** |
 | Verified P1 remediations | **7/7 — AV6-013/#741; AV6-012/#737; AV6-010/#729; AV6-009/#726; AV6-001/#687; AV6-004/#707; AV6-006/#711** |
-| Active ownership | **AV6-003/#699 is the active P2 remediation on `audit/repair-699-av6-003`; AV6-002/#694 is merged/closed via #771** |
-| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; all seven P1s are now repaired, independently reverified and closed, with seven P2 findings still open** |
+| Active ownership | **AV6-005/#708 is the active P2 remediation on `audit/repair-708-av6-005`; AV6-002/#694 and AV6-003/#699 are merged/closed via #771/#772** |
+| Convergence status | **v6 discovery remains non-clean because seven P1 findings were demonstrated; all seven P1s are now repaired, independently reverified and closed, with five P2 findings still open** |
 | Empirical readiness | **none implied — framework/software scientific verification only** |
 
-Protected `main` after merged AV6-002/#694 is `9d9c89495f66e50f30d434255069544cd8dfa866`, with living model semantics `anthrosim-model-semantics-v39`. Active AV6-003/#699 advances this repair branch to `anthrosim-model-semantics-v40`; immutable Audit-v6 discovery remains attributed to `v0.3.6` / v35.
+Protected `main` after merged AV6-003/#699 is `8f69fd951ae62773fa2a1f228efa00d17e9b6e53`, with living model semantics `anthrosim-model-semantics-v40`. Active AV6-005/#708 advances this repair branch to `anthrosim-model-semantics-v41`; immutable Audit-v6 discovery remains attributed to `v0.3.6` / v35.
 
 ## Completed Areas
 
@@ -110,9 +110,9 @@ av6_009_reverification=pass
 |---|---:|---|---|---|
 | AV6-001 | **P1** | A primary; D/E/F/M/N | #687 | **closed — repaired by #762; independently reverified by #763** |
 | AV6-002 | **P2** | B primary; C/G/M/N | #694 | **closed — repaired/verified by #771** |
-| AV6-003 | **P2** | C primary; E/N | #699 | **open — active production repair** |
+| AV6-003 | **P2** | C primary; E/N | #699 | **closed — repaired/verified by #772** |
 | AV6-004 | **P1** | D primary; E/H/N | #707 | **closed — repaired by #765; independently reverified by #766** |
-| AV6-005 | **P2** | D primary; C/E/F/N | #708 | open; remediation pending |
+| AV6-005 | **P2** | D primary; C/E/F/N | #708 | **open — active production repair** |
 | AV6-006 | **P1** | E primary; F/H/I/N | #711 | **closed — repaired by #768; independently reverified by #769** |
 | AV6-007 | **P2** | F primary; E/L/N | #718 | open; remediation pending |
 | AV6-008 | **P2** | G primary; C/M/N | #721 | open; remediation pending |

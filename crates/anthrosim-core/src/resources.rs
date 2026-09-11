@@ -1667,15 +1667,21 @@ fn validate_temporary_resource_period(
 }
 
 #[must_use]
-/// Alternates exact 50/50 one-unit duration ties without storing another mutable rounding phase.
-fn duration_rounding_tie_visiting_wins(household_index: usize, period_sequence: u64) -> bool {
-    ((period_sequence.count_ones() ^ household_index.count_ones()) & 1) == 1
+/// Alternates exact 50/50 one-unit duration ties over the persisted resource-period sequence.
+///
+/// This is a numerical null rule between the semantic home/visitor sides. Canonical household
+/// identity must not dephase otherwise equivalent households, because that would let bookkeeping
+/// labels decide which physical cell receives an indivisible unit. The Thue-Morse period phase
+/// retains exact long-run side balance, including recurring same-season ties, without consuming
+/// another RNG stream or introducing a person/household/global-ordinal tie key.
+fn duration_rounding_tie_visiting_wins(period_sequence: u64) -> bool {
+    (period_sequence.count_ones() & 1) == 1
 }
 
 pub(crate) fn duration_weighted_needs(
     need: u64,
     presence: &TemporaryResourcePresenceDays,
-    household_index: usize,
+    _household_index: usize,
     period_sequence: u64,
 ) -> Result<(u64, u64), ResourceError> {
     let duration = presence.total_days()?;
@@ -1723,7 +1729,7 @@ pub(crate) fn duration_weighted_needs(
         let visiting_fraction = visiting_numerator % denominator;
         if visiting_fraction > home_fraction
             || (visiting_fraction == home_fraction
-                && duration_rounding_tie_visiting_wins(household_index, period_sequence))
+                && duration_rounding_tie_visiting_wins(period_sequence))
         {
             visiting_need = visiting_need
                 .checked_add(1)
@@ -2723,8 +2729,19 @@ mod tests {
     }
 
     #[test]
-    fn household_phase_spreads_simultaneous_ties_without_long_run_id_advantage() {
+    fn period_phase_is_household_relabel_invariant_and_long_run_balanced() {
         let presence = fifty_fifty_presence(CellId::new(2));
+
+        for period_sequence in 0..1_024 {
+            let canonical = duration_weighted_needs(1, &presence, 0, period_sequence).unwrap();
+            for household_index in 1..8 {
+                assert_eq!(
+                    duration_weighted_needs(1, &presence, household_index, period_sequence)
+                        .unwrap(),
+                    canonical
+                );
+            }
+        }
 
         for household_index in 0..8 {
             let mut home_total = 0_u64;
@@ -2738,11 +2755,6 @@ mod tests {
             }
             assert_eq!((home_total, visitor_total), (512, 512));
         }
-
-        assert_ne!(
-            duration_weighted_needs(1, &presence, 0, 0).unwrap(),
-            duration_weighted_needs(1, &presence, 1, 0).unwrap()
-        );
     }
 
     #[test]

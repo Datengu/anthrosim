@@ -48,9 +48,9 @@ home_floor  = floor(N * H / D)
 visit_floor = floor(N * V / D)
 ```
 
-Any remaining unit caused by integer division is assigned by descending fractional remainder. When the two fractional remainders are exactly equal, neither semantic side receives permanent priority. The tie is resolved by a deterministic balanced binary rotation keyed only by the household's stable zero-based index and the already-authoritative resource-period sequence. The period phase uses parity of the set bits in the zero-based sequence (the Thue-Morse binary parity sequence); the household key only complements that phase. This makes consecutive power-of-two blocks exactly balanced and avoids the seasonal aliasing that a simple odd/even period rule can create, while retaining bit-for-bit replay without introducing a new RNG stream or mutable rounding carry.
+Any remaining unit caused by integer division is assigned by descending fractional remainder. When the two fractional remainders are exactly equal, neither semantic side receives permanent priority. From model semantics v41, the tie is resolved by a deterministic balanced binary rotation keyed **only** by the already-authoritative resource-period sequence. The phase uses parity of the set bits in the zero-based sequence (the Thue-Morse binary parity sequence). This makes consecutive power-of-two blocks exactly balanced and avoids the seasonal aliasing that a simple odd/even period rule can create, while retaining bit-for-bit replay without introducing a new RNG stream or mutable rounding carry.
 
-The tie policy is deliberately semantic-side symmetric: relabelling which equal-duration claim is called home versus visitor reverses the awarded side rather than preserving a home preference. Household identity selects only the phase of the balanced rotation, not a rank or a long-run advantage. Every period still conserves `N` exactly.
+The tie policy is a numerical apportionment null rule. Canonical `HouseholdId`, packed/storage index, `PersonId` and global stochastic-coupling ordinal are excluded: scientifically equivalent households at the same resource period therefore receive the same semantic-side phase instead of bookkeeping identity deciding which physical cell receives an indivisible unit. This is not an ethnographic home/visitor priority claim. Every period still conserves `N` exactly.
 
 Claims with zero attributed need are omitted. A period with no visiting days therefore produces exactly one residence claim, matching the legacy M3 shape.
 
@@ -89,9 +89,9 @@ When temporary mobility is not configured, no M9 resource ledger is active and M
 
 The duration ledger is authoritative model state while M9 is enabled. It is serialized and included in deterministic state identity. At supported annual checkpoint boundaries the immediately preceding resource period has already been settled, so the ledger is expected to be reset at that boundary; resumed execution must nevertheless validate and preserve the serialized ledger exactly.
 
-The exact-tie rounding rule adds no new mutable carry and consumes no RNG. Its complete continuation key is the stable household index plus `ResourceSystem.periods_processed`, both of which are already preserved by checkpoint state and continuation identity. A checkpoint/resumed run therefore reconstructs the same next tie side without a new checkpoint field or schema change.
+The exact-tie rounding rule adds no new mutable carry and consumes no RNG. From model semantics v41 its complete continuation key is only `ResourceSystem.periods_processed`, which is already preserved by checkpoint state and continuation identity. A checkpoint/resumed run therefore reconstructs the same next tie side without a household-identity phase, new checkpoint field or schema change.
 
-M9.5 originally changed authoritative resource attribution at model-semantics v5. The post-M9 scientific audit in issue #194 changes the exact-tie allocation meaning again, removing the persistent home preference and advancing `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v19`. The package version remains unchanged.
+M9.5 originally changed authoritative resource attribution at model-semantics v5. The post-M9 scientific audit in issue #194 changed the exact-tie allocation meaning again, removing the persistent home preference and advancing `MODEL_SEMANTICS_ID` to `anthrosim-model-semantics-v19`. Audit-v6 AV6-005/#708 then demonstrated that the v19 balanced phase still let canonical household identity choose the physical demand side at a fixed period; v41 removes that identity term while retaining the period-balanced null rule. A v40 checkpoint must not continue under v41 while silently changing a future exact-tie home/visitor attribution. The package version remains unchanged.
 
 ## Acceptance
 
@@ -105,6 +105,7 @@ Implemented tests cover:
 - repeated 50/50 one-unit ties with no persistent home advantage;
 - larger odd-demand 50/50 ties with balanced cumulative allocation;
 - repeated same-season ties at power-of-two resource-period cadence, guarding against simple parity aliasing;
+- pure canonical-household relabelling invariance for exact home/visitor ties;
 - non-tied fractional-remainder cases retaining ordinary largest-remainder behaviour;
 - resource-pressure consequences following the side selected by the tie rule;
 - deterministic replay and checkpoint/resume using the checkpointed resource-period sequence;

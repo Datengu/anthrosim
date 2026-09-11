@@ -1,0 +1,55 @@
+name: Verify AV6-005 v41 household lifecycle reference
+
+on:
+  push:
+    branches:
+      - audit/repair-708-av6-005
+    paths:
+      - .github/workflows/verify-av6-005-v41-household-lifecycle-reference.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-708-av6-005
+
+      - name: Execute issue 207 structural sensitivity under v41
+        run: |
+          cargo run --release -p anthrosim-core --example household_lifecycle_sensitivity > /tmp/household-lifecycle-v41.json
+
+      - name: Compare v41 scientific aggregate with checked v40 reference
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          generated = json.loads(Path('/tmp/household-lifecycle-v41.json').read_text())
+          reference = json.loads(Path('research/household-lifecycle-sensitivity-v2/reference-result.json').read_text())
+          historical_provenance = reference.pop('provenance', None)
+          assert generated.get('modelSemanticsId') == 'anthrosim-model-semantics-v41'
+          assert reference.get('modelSemanticsId') == 'anthrosim-model-semantics-v40'
+          generated['modelSemanticsId'] = reference['modelSemanticsId']
+          if generated != reference:
+              differing = sorted(set(generated) | set(reference))
+              changed = [key for key in differing if generated.get(key) != reference.get(key)]
+              print('v41 household-lifecycle science differs from checked v40 reference.')
+              print('changed top-level fields:', changed)
+              raise SystemExit(2)
+          print('v41 household-lifecycle scientific aggregate exactly matches v40 after semantics normalization.')
+          print('historical reference provenance retained:', historical_provenance)
+          PY
+
+      - name: Upload exact generated v41 aggregate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: av6-005-v41-household-lifecycle-reference-check
+          path: /tmp/household-lifecycle-v41.json
+          if-no-files-found: error
+          retention-days: 30
