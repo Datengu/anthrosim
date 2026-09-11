@@ -1,0 +1,78 @@
+name: Apply AV6-003 v40 issue 304 reference
+
+on:
+  push:
+    branches:
+      - audit/repair-699-av6-003
+    paths:
+      - .github/workflows/apply-av6-003-v40-304-reference.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: audit/repair-699-av6-003
+
+      - name: Download exact issue 304 v40 evidence artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue-304-demographic-baseline-confirmatory
+          path: /tmp/a304
+          github-token: ${{ github.token }}
+          repository: Datengu/anthrosim
+          run-id: 34614906438
+
+      - name: Verify evidence identity and scientific disposition
+        run: |
+          set -euo pipefail
+          test -f /tmp/a304/expected-result.json
+          echo 'c7a131a88176299637483cf63ccd92eb4cb3fb51bfbe45f7e4633972cf8ad438  /tmp/a304/expected-result.json' | sha256sum -c -
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('/tmp/a304/expected-result.json')
+          d = json.loads(p.read_text())
+          assert d['modelSemanticsId'] == 'anthrosim-model-semantics-v40'
+          assert d['runCount'] == 780
+          assert d['recommendation'] == 'no_universal_demographic_baseline'
+          assert len(d['arms']) == 6
+          assert len(d['pairedHouseholdEffects']) == 3
+          assert all(x['pairedReplicates'] == 130 for x in d['pairedHouseholdEffects'])
+          precision = d['monteCarloPrecision']
+          assert len(precision) == 3
+          assert all(v['precision']['sufficient'] is True for v in precision.values())
+          print('Exact v40 #304 evidence is complete, precise, and preserves the scientific recommendation.')
+          PY
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.97.1
+          rustup default 1.97.1
+
+      - name: Bind checked reference and verify guards
+        run: |
+          set -euo pipefail
+          cp /tmp/a304/expected-result.json research/general-demography-baseline-v1/confirmatory-result.json
+          python3 scripts/test-current-model-semantics-docs.py
+          cargo test --locked -p anthrosim-cli --test general_demography_reference_semantics
+          git diff --check
+          test "$(sha256sum research/general-demography-baseline-v1/confirmatory-result.json | cut -d' ' -f1)" = 'c7a131a88176299637483cf63ccd92eb4cb3fb51bfbe45f7e4633972cf8ad438'
+
+      - name: Commit evidence-bound reference and remove helper
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-av6-003-v40-304-reference.yml
+          git add research/general-demography-baseline-v1/confirmatory-result.json
+          git diff --cached --check
+          git commit -m 'research: rebaseline demographic confirmation on v40'
+          git push origin HEAD:audit/repair-699-av6-003
