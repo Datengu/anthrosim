@@ -1,0 +1,51 @@
+name: Apply AV6-002 current-doc cleanup
+
+on:
+  push:
+    branches: [audit/repair-694-av6-002]
+    paths:
+      - '.github/workflows/apply-av6-002-current-doc-cleanup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: audit/repair-694-av6-002
+          persist-credentials: true
+      - name: Update current-state wording
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              'README.md': (
+                  'The immutable `v0.3.6` release remains the Scientific Audit-v6 discovery baseline at model semantics v35; living v37 contains post-discovery Audit-v6 remediation through the AV6-004 scarce-resource symmetry repair.',
+                  'The immutable `v0.3.6` release remains the Scientific Audit-v6 discovery baseline at model semantics v35; living remediation has since advanced through AV6-006 and AV6-002 to model semantics v39 without rewriting that immutable release.',
+              ),
+              'docs/roadmap.md': (
+                  'Living v37 retains the v36 same-day M9/M4 scheduler repair and removes canonical resource-cell identity from exact scarce-resource remainder ties without rewriting any immutable release or audit target.',
+                  'Living v39 retains the v36 same-day M9/M4 scheduler repair, the v37 scarce-resource symmetry repair, the v38 reachable-component M9 destination-coupling repair, and the v39 male-parent age-time repair without rewriting any immutable release or audit target.',
+              ),
+          }
+
+          for path, (old, new) in replacements.items():
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one current-state target')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs/roadmap.md
+          git diff --cached --check
+          git commit -m "docs: align living Audit-v6 semantics wording"
+          git push origin HEAD:audit/repair-694-av6-002
