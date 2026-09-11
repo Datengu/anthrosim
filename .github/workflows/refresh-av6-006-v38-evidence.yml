@@ -1,3 +1,4 @@
+# Temporary fail-closed evidence refresh; removed automatically after successful validation.
 name: Guard and refresh AV6-006 v38 references
 
 on:
