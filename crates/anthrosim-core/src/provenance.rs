@@ -125,7 +125,14 @@ use crate::time::DAYS_PER_YEAR;
 /// anchors. Canonical PersonId, HouseholdId, packed-record order and global stochastic-coupling
 /// rank remain excluded from this social assignment key. A v39 checkpoint must not resume under
 /// v40 while silently changing which relationship-distinct adults seed daughter households.
-pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v40";
+///
+/// v41 removes canonical household/storage identity from the M9.5 duration-weighted exact-tie
+/// phase that splits one household's conserved need between home and visitor provisioning cells.
+/// Exact tied rounding now alternates only over the persisted resource-period sequence, retaining
+/// the existing long-run home/visitor balance (including same-season recurrence) without making a
+/// bookkeeping label, person/global ordinal or extra RNG stream decide the physical demand cell.
+/// A v40 checkpoint must not resume under v41 while silently changing future tied resource demand.
+pub const MODEL_SEMANTICS_ID: &str = "anthrosim-model-semantics-v41";
 
 /// Exact software/source identity for one segment of authoritative execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
