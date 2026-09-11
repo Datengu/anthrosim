@@ -22,3 +22,9 @@ M8.6 remains classified `fragile_spatial_structure`, with `terminalLargestCellSh
 ## Gate policy
 
 The benchmark definitions, criteria, verifiers, declared seed sets and protected workflow logic are unchanged. Only canonical expected outputs are rebound to the reviewed v39 execution. PR #771 must rerun the normal exact-head central and protected scientific/security workflows against these references and may merge only if those gates are green.
+
+## Exact-head reference correction
+
+Protected exact-merge run `34572831776` reran the same M8.6 and M9.7 designs after the references were checked in. M8.6 passed its canonical comparison. M9.7 reproduced the reviewed v39 verifier projection, but the gate exposed a single transcription error in the checked seed-9705 legacy projection: the artifact value is `visitorPersonDays=161820`, while the first checked projection said `161822`. The exact fraction and every other verifier-relevant field already corresponded to `161820`.
+
+The M9 reference is therefore regenerated directly from reviewed artifact `10185319300`; the benchmark definition, criteria, verifier, travel-burden contract and scientific classification are unchanged. The living M8/M9 result pages are also synchronized to identify v39 as their checked current reference.

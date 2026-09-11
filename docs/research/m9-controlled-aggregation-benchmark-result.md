@@ -7,9 +7,27 @@
 
 The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`. Earlier reviewed references remain preserved below and in Git history.
 
-**Current machine-readable reference: `anthrosim-model-semantics-v38`.**
+**Current machine-readable reference: `anthrosim-model-semantics-v39`.**
 
-## Current regression reference — model semantics v38
+## Current regression reference — model semantics v39
+
+Audit-v6 AV6-002/#694 corrects the temporal meaning of the male-parent age window. The frozen M9.7 design was therefore rerun unchanged because altered births and genealogy can change the represented population even with permanent migration disabled. The checked reference is bound to the reviewed v39 execution rather than assuming the v38 population history remains authoritative.
+
+Reviewed v39 execution:
+
+- workflow run: `34563596919`;
+- artifact: `10185319300`;
+- artifact SHA-256: `086d639de983fbfdf3521715939af1d5e65124ed782a8bbea042c4f2be27f271`;
+- reviewed branch head: `ec9829e5902c7b8a4c6a0bd62d56d2dac57dc603`;
+- pull-request merge-ref build: `8f70575b24473376f779e2d73f03e946f5250825`;
+- aggregate canonical SHA-256: `95ab89935029a28516c21216b48eb403e943d882342cadba4b7f0a3e55441a09`;
+- reference model semantics: `anthrosim-model-semantics-v39`.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference is **31 permille**, the maximum is **36 permille**, median intermittent peak-visitor share is **433 permille**, and the minimum is **396 permille**. The independently preserved M9.6 travel-burden fields reproduce exactly, and replay plus active-checkpoint/resume equivalence pass in the protected workflow.
+
+A subsequent exact-merge rerun (`34572831776`) reproduced the reviewed v39 verifier projection exactly. It exposed one transcription error in the initially checked seed-9705 legacy projection (`visitorPersonDays` was written as `161822`; the reviewed artifact and exact rerun both contain `161820`). The reference is regenerated from the reviewed artifact here, so no criterion or verifier is weakened.
+
+## Historical reviewed reference — model semantics v38
 
 Audit-v6 AV6-006/#711 changes the spatial equivalence frame used only when M9 must resolve exactly equal-cost temporary destinations. The frozen M9.7 design was rerun unchanged on production PR #768. The v38 execution preserved the complete strict scientific projection and the independent M9.6 travel-burden reference exactly. Only authoritative terminal state digests changed, as expected from the new persisted M9 tie-policy/schema identity; no aggregate capability endpoint or travel-burden value was rebaselined.
 
