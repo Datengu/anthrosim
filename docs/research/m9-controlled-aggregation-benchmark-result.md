@@ -7,9 +7,29 @@
 
 The current machine-readable reference is `examples/m9-controlled-aggregation-benchmark/reference-result.json`. Earlier reviewed references remain preserved below and in Git history.
 
-**Current machine-readable reference: `anthrosim-model-semantics-v35`.**
+**Current machine-readable reference: `anthrosim-model-semantics-v38`.**
 
-## Current regression reference — model semantics v35
+## Current regression reference — model semantics v38
+
+Audit-v6 AV6-006/#711 changes the spatial equivalence frame used only when M9 must resolve exactly equal-cost temporary destinations. The frozen M9.7 design was rerun unchanged on production PR #768. The v38 execution preserved the complete strict scientific projection and the independent M9.6 travel-burden reference exactly. Only authoritative terminal state digests changed, as expected from the new persisted M9 tie-policy/schema identity; no aggregate capability endpoint or travel-burden value was rebaselined.
+
+Reviewed v38 execution:
+
+- workflow run: `34555842586`;
+- artifact: `10182592750`;
+- artifact SHA-256: `bf3c7d6128e24ff60577ab9493d85301315827b10942239dde9742d55ff8b408`;
+- reviewed branch head: `595139a014451154f78e8cda236dd278f8fd4e41`;
+- pull-request merge-ref build: `a9b3cc80fb3ad111a01ecbe0927c92089f412def`;
+- aggregate canonical SHA-256: `840e19aacbd1112aa2477ed29d51c3a9461ccd52d42b9974c0c6ca81ced49408`;
+- reference model semantics: `anthrosim-model-semantics-v38`.
+
+The capability conclusion remains **`capability_distinguished`**: all **8/8** paired seeds pass, median focal-person-day difference remains **31 permille**, the maximum remains **36 permille**, median intermittent peak-visitor share remains **432 permille**, and the minimum remains **396 permille**. Every frozen legacy per-seed scientific metric remains identical. The independent M9.6 travel-burden reference also reproduces exactly for every seed, including planned/observed transit, travel cost and route distance. Exact intermittent replay and active annual checkpoint/resume equivalence passed before the reference comparison.
+
+A fail-closed refresh check substituted only the fresh continuous/intermittent terminal `stateDigests` into the v35 legacy reference and then required the repository's unchanged `verify-m9-aggregation-benchmark-reference.py` to pass. That verifier checks benchmark/definition identity, classification, aggregate endpoints, both arm configuration identities, every legacy pair projection and the independently frozen travel-burden/reconciliation fields. The checked reference therefore advances only terminal state digests and execution provenance to v38.
+
+This is a causal state/provenance refresh required by the repaired M9 tie-state semantics, not empirical calibration or archaeological validation.
+
+## Historical reviewed reference — model semantics v35
 
 Audit-v5 AV5-004 / #629 changes the causal representation used to resolve exactly equal-cost M9 destinations so the same physical tie is equivariant under the supported grid reflections. The frozen M9.7 design was rerun unchanged on production PR #679. The exact v35 execution preserved every frozen scientific projection and the independent M9.6 travel-burden reference, while the model/program identity change produced new authoritative terminal state digests as expected.
 
