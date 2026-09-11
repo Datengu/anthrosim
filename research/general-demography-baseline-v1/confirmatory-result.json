@@ -82,26 +82,26 @@
     },
     {
       "births": {
-        "ci95Lower": 236.4196255314875,
-        "ci95Upper": 265.6572975454356,
-        "mean": 251.03846153846155,
+        "ci95Lower": 235.6454939773647,
+        "ci95Upper": 264.96989063801993,
+        "mean": 250.30769230769232,
         "n": 130,
-        "sd": 85.04257062977467
+        "sd": 85.29482350713843
       },
       "deaths": {
-        "ci95Lower": 344.3436341581153,
-        "ci95Upper": 370.0255966111154,
-        "mean": 357.18461538461537,
+        "ci95Lower": 343.7172047141412,
+        "ci95Upper": 369.48279528585886,
+        "mean": 356.6,
         "n": 130,
-        "sd": 74.70020543285935
+        "sd": 74.94345155003576
       },
       "demography": "negative_growth_control_v1",
       "earlyGrowthRatePerYear": {
-        "ci95Lower": -0.010100468560215703,
-        "ci95Upper": -0.009006438300482639,
-        "mean": -0.009553453430349171,
+        "ci95Lower": -0.010135020252351823,
+        "ci95Upper": -0.00903460145937182,
+        "mean": -0.009584810855861822,
         "n": 130,
-        "sd": 0.003182166678320855
+        "sd": 0.0032007487764309315
       },
       "extinction": {
         "ci95Lower": 0.11449563024308644,
@@ -113,51 +113,51 @@
       "founderAgeCeilingYears": 60,
       "householdLifecycle": "fixed_founder_v1",
       "lateBirthDeathRatio": {
-        "ci95Lower": 0.5990643839029166,
-        "ci95Upper": 0.6848200749238398,
-        "mean": 0.6419422294133782,
+        "ci95Lower": 0.5979883156637679,
+        "ci95Upper": 0.6835263167277416,
+        "mean": 0.6407573161957547,
         "n": 130,
-        "sd": 0.24943451062289995
+        "sd": 0.24880132363282634
       },
       "lateGrowthRatePerYear": {
-        "ci95Lower": -0.01441633471441979,
-        "ci95Upper": -0.010240921573619756,
-        "mean": -0.012328628144019773,
+        "ci95Lower": -0.014444849466179861,
+        "ci95Upper": -0.010273252954383336,
+        "mean": -0.012359051210281599,
         "n": 123,
-        "sd": 0.011813373162122522
+        "sd": 0.011802574886330533
       },
       "mateLimitationFraction": {
-        "ci95Lower": 0.2163558144130477,
-        "ci95Upper": 0.2429868546600245,
-        "mean": 0.2296713345365361,
+        "ci95Lower": 0.21666819782145458,
+        "ci95Upper": 0.24328004809282666,
+        "mean": 0.22997412295714062,
         "n": 130,
-        "sd": 0.0774607540596074
+        "sd": 0.07740493686407378
       },
       "replicates": 130,
       "resourceProductivityScalePermille": 1000,
       "spacingLimitationFraction": {
-        "ci95Lower": 0.29158840411303677,
-        "ci95Upper": 0.30094756477915796,
-        "mean": 0.29626798444609737,
+        "ci95Lower": 0.29137225210622086,
+        "ci95Upper": 0.3007446056210953,
+        "mean": 0.2960584288636581,
         "n": 130,
-        "sd": 0.027222655812142595
+        "sd": 0.027261029379345984
       },
       "terminalMaleFraction": {
-        "ci95Lower": 0.46640685174650065,
-        "ci95Upper": 0.5425966900040643,
-        "mean": 0.5045017708752825,
+        "ci95Lower": 0.46884414662643126,
+        "ci95Upper": 0.545961864259936,
+        "mean": 0.5074030054431836,
         "n": 108,
-        "sd": 0.20199045276873812
+        "sd": 0.20445039729083478
       },
       "terminalPopulation": {
-        "ci95Lower": 11.500554324872418,
-        "ci95Upper": 16.20713798281989,
+        "ci95Lower": 11.357582248860595,
+        "ci95Upper": 16.05780236652402,
         "max": 61,
-        "mean": 13.853846153846154,
+        "mean": 13.707692307692307,
         "median": 9.0,
         "min": 0,
         "n": 130,
-        "sd": 13.689871511144718
+        "sd": 13.67136210917169
       }
     },
     {
@@ -402,18 +402,18 @@
     },
     {
       "births": {
-        "ci95Lower": 424.5717337382752,
-        "ci95Upper": 474.75134318480167,
-        "mean": 449.66153846153844,
+        "ci95Lower": 425.28497289476604,
+        "ci95Upper": 475.29964248984936,
+        "mean": 450.2923076923077,
         "n": 130,
-        "sd": 145.9556348568016
+        "sd": 145.4758802115163
       },
       "deaths": {
-        "ci95Lower": 503.97335167477354,
-        "ci95Upper": 546.5035714021496,
-        "mean": 525.2384615384616,
+        "ci95Lower": 504.5143086043053,
+        "ci95Upper": 546.9010760110793,
+        "mean": 525.7076923076924,
         "n": 130,
-        "sd": 123.70612863225766
+        "sd": 123.28887399922839
       },
       "demography": "replacement_control_v1",
       "earlyGrowthRatePerYear": {
@@ -433,51 +433,51 @@
       "founderAgeCeilingYears": 60,
       "householdLifecycle": "fixed_founder_v1",
       "lateBirthDeathRatio": {
-        "ci95Lower": 0.8178475173113346,
-        "ci95Upper": 0.8796095153622154,
-        "mean": 0.848728516336775,
+        "ci95Lower": 0.8188797300934663,
+        "ci95Upper": 0.8810377962460105,
+        "mean": 0.8499587631697384,
         "n": 130,
-        "sd": 0.17964491423846365
+        "sd": 0.18079694335671395
       },
       "lateGrowthRatePerYear": {
-        "ci95Lower": -0.005899619813412946,
-        "ci95Upper": -0.003658628216640004,
-        "mean": -0.004779124015026475,
+        "ci95Lower": -0.005897087342679994,
+        "ci95Upper": -0.003654951565516857,
+        "mean": -0.004776019454098426,
         "n": 129,
-        "sd": 0.006493173334901177
+        "sd": 0.006496488546618452
       },
       "mateLimitationFraction": {
-        "ci95Lower": 0.17167257091528987,
-        "ci95Upper": 0.19657104456381452,
-        "mean": 0.1841218077395522,
+        "ci95Lower": 0.1712407165335184,
+        "ci95Upper": 0.1959804469953066,
+        "mean": 0.1836105817644125,
         "n": 130,
-        "sd": 0.07242129957604371
+        "sd": 0.0719595689477093
       },
       "replicates": 130,
       "resourceProductivityScalePermille": 1000,
       "spacingLimitationFraction": {
-        "ci95Lower": 0.35835608504873295,
-        "ci95Upper": 0.3671309550726445,
-        "mean": 0.3627435200606887,
+        "ci95Lower": 0.35851684792418304,
+        "ci95Upper": 0.3672666290115104,
+        "mean": 0.3628917384678467,
         "n": 130,
-        "sd": 0.025523150523734935
+        "sd": 0.025450175231431612
       },
       "terminalMaleFraction": {
-        "ci95Lower": 0.5005397635694768,
-        "ci95Upper": 0.5356762073124839,
-        "mean": 0.5181079854409804,
+        "ci95Lower": 0.5000255655187595,
+        "ci95Upper": 0.5352624910494601,
+        "mean": 0.5176440282841098,
         "n": 127,
-        "sd": 0.10101400190299187
+        "sd": 0.1013028776801624
       },
       "terminalPopulation": {
-        "ci95Lower": 39.69505839916104,
-        "ci95Upper": 49.1510954469928,
+        "ci95Lower": 39.85761831118595,
+        "ci95Upper": 49.31161245804481,
         "max": 126,
-        "mean": 44.42307692307692,
+        "mean": 44.58461538461538,
         "median": 42.0,
         "min": 0,
         "n": 130,
-        "sd": 27.504436677939456
+        "sd": 27.49849456496294
       }
     }
   ],
@@ -527,7 +527,7 @@
     },
     "stochasticMultiRegimeContextCount": 2
   },
-  "modelSemanticsId": "anthrosim-model-semantics-v36",
+  "modelSemanticsId": "anthrosim-model-semantics-v37",
   "monteCarloPrecision": {
     "positive-fission-extinction-diagnostic": {
       "batchBoundary": 1,
@@ -715,11 +715,22 @@
       "planIdentity": "monte-carlo-precision-plan-v1-051b8a375e7e2aedb9bf06eb70b53fc851bda5734b4350f3ed6920d9679530a1",
       "precision": {
         "confidenceLevel": 0.95,
+        "confidenceSemantics": "nominal_asymptotic_normal_approximation; not a finite-sample distribution-free coverage guarantee",
         "declaredMaxHalfWidth": 0.001,
         "estimate": -0.0008955170518551497,
         "halfWidth": 0.0004736368817618391,
         "intervalLower": -0.0013691539336169887,
         "intervalUpper": -0.0004218801700933106,
+        "normalApproximationValidity": {
+          "contract": "guarded_asymptotic_normal_approximation_not_finite_sample_distribution_free_coverage",
+          "minimumReplicatesPerGroup": 30,
+          "observedReplicatesPerGroup": [
+            130
+          ],
+          "reasons": [],
+          "requiresPositiveObservedVariance": true,
+          "validForStopping": true
+        },
         "precisionMethod": "normal_clt_mean_se",
         "sufficient": true
       },
@@ -885,11 +896,23 @@
       "planIdentity": "monte-carlo-precision-plan-v1-913330f81cbe98ab1a3f93863bd4fa8be7bfd1c29023a978f4ab239bf17a19d6",
       "precision": {
         "confidenceLevel": 0.95,
+        "confidenceSemantics": "nominal_asymptotic_normal_approximation; not a finite-sample distribution-free coverage guarantee",
         "declaredMaxHalfWidth": 15.0,
         "estimate": -87.87692307692308,
         "halfWidth": 6.628287954132427,
         "intervalLower": -94.50521103105551,
         "intervalUpper": -81.24863512279065,
+        "normalApproximationValidity": {
+          "contract": "guarded_asymptotic_normal_approximation_not_finite_sample_distribution_free_coverage",
+          "minimumReplicatesPerGroup": 30,
+          "observedReplicatesPerGroup": [
+            130,
+            130
+          ],
+          "reasons": [],
+          "requiresPositiveObservedVariance": true,
+          "validForStopping": true
+        },
         "precisionMethod": "normal_clt_paired_seed_difference",
         "sufficient": true
       },
@@ -1043,25 +1066,25 @@
       "demography": "negative_growth_control_v1",
       "fissionHouseholdLifecycle": "deterministic_dependency_fission_v2",
       "fissionMinusFixedLateGrowthRatePerYear": {
-        "ci95Lower": -0.020321928717398033,
-        "ci95Upper": -0.01088636312245526,
-        "mean": -0.015604145919926647,
+        "ci95Lower": -0.020290712513852834,
+        "ci95Upper": -0.010850757234032518,
+        "mean": -0.015570734873942676,
         "n": 112,
-        "sd": 0.025474100789983793
+        "sd": 0.02548595204297775
       },
       "fissionMinusFixedMateLimitationFraction": {
-        "ci95Lower": 0.13178546851557588,
-        "ci95Upper": 0.16218137710260488,
-        "mean": 0.14698342280909038,
+        "ci95Lower": 0.1315108098017452,
+        "ci95Upper": 0.16185045897522646,
+        "mean": 0.14668063438848583,
         "n": 130,
-        "sd": 0.08841149191479458
+        "sd": 0.08824785217124939
       },
       "fissionMinusFixedTerminalPopulation": {
-        "ci95Lower": -13.906636531280126,
-        "ci95Upper": -9.124132699489104,
-        "mean": -11.515384615384615,
+        "ci95Lower": -13.754910937586644,
+        "ci95Upper": -8.983550600874896,
+        "mean": -11.36923076923077,
         "n": 130,
-        "sd": 13.910697804812516
+        "sd": 13.878285119326144
       },
       "fixedHouseholdLifecycle": "fixed_founder_v1",
       "founderAgeCeilingYears": 60,
@@ -1101,25 +1124,25 @@
       "demography": "replacement_control_v1",
       "fissionHouseholdLifecycle": "deterministic_dependency_fission_v2",
       "fissionMinusFixedLateGrowthRatePerYear": {
-        "ci95Lower": -0.016455830334280636,
-        "ci95Upper": -0.011342719028435096,
-        "mean": -0.013899274681357866,
+        "ci95Lower": -0.016459865088375623,
+        "ci95Upper": -0.01134553022920709,
+        "mean": -0.013902697658791357,
         "n": 117,
-        "sd": 0.01410912532255562
+        "sd": 0.014112501597027335
       },
       "fissionMinusFixedMateLimitationFraction": {
-        "ci95Lower": 0.20746385949783064,
-        "ci95Upper": 0.23688569264788806,
-        "mean": 0.22217477607285935,
+        "ci95Lower": 0.20802063783903152,
+        "ci95Upper": 0.23735136625696668,
+        "mean": 0.2226860020479991,
         "n": 130,
-        "sd": 0.08557823353814042
+        "sd": 0.08531324046302433
       },
       "fissionMinusFixedTerminalPopulation": {
-        "ci95Lower": -41.24946633964905,
-        "ci95Upper": -32.47361058342787,
-        "mean": -36.86153846153846,
+        "ci95Lower": -41.41818801238607,
+        "ci95Upper": -32.627965833767774,
+        "mean": -37.02307692307692,
         "n": 130,
-        "sd": 25.52601768804012
+        "sd": 25.56780478691794
       },
       "fixedHouseholdLifecycle": "fixed_founder_v1",
       "founderAgeCeilingYears": 60,
@@ -1128,7 +1151,7 @@
     }
   ],
   "recommendation": "no_universal_demographic_baseline",
-  "researchId": "research-execution-v1-566572eb796304c1",
+  "researchId": "research-execution-v1-c7031680c03d6164",
   "runCount": 780,
   "schemaVersion": 1,
   "scientificStatus": "confirmatory_synthetic_model_analysis"
