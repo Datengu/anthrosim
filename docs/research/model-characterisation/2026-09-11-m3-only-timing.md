@@ -37,7 +37,7 @@ Total runs: **180**.
 
 ## Why this is a useful control
 
-Under v37, changing M3 settlement frequency does not simply multiply annual demand or annual regeneration. The resource mechanism allocates annual food need and seasonal regeneration across the configured intervals, and rescales condition recovery/loss and mortality probability by elapsed interval duration. M3 frequency is therefore intended to behave largely as a temporal-resolution/cadence choice around the same annual quantities.
+Under v37, changing M3 settlement frequency does not simply multiply annual demand or annual regeneration. The resource mechanism allocates annual food need and seasonal regeneration across configured intervals and rescales condition recovery/loss and mortality probability by elapsed interval duration. M3 frequency is therefore intended to behave largely as a temporal-resolution/cadence choice around the same annual quantities.
 
 A large survival change in this control would consequently indicate meaningful within-year path dependence or discretisation sensitivity rather than a trivial multiplication of annual food demand.
 
@@ -81,23 +81,21 @@ Using matched seeds, mean extinction-time differences relative to the default `P
 | P1 − P4 | +2.71 years | −6.87 to +12.29 | 15/30 (1 tie) |
 | P2 − P4 | +1.66 years | −7.10 to +10.42 | 18/30 |
 | P8 − P4 | +1.28 years | −8.00 to +10.56 | 17/30 |
-| P12 − P4 | +0.82 years | −9.28 to +10.91 | 14/30 (2? no; see note below) |
+| P12 − P4 | +0.82 years | −9.28 to +10.91 | 14/30 |
 | P24 − P4 | +3.31 years | −6.47 to +13.09 | 19/30 |
 
-These are descriptive exploratory intervals, not confirmatory inference. The intervals are broad and all include zero. The identity of the longest-lasting treatment also varies across seeds: P24 is longest in 8 seeds, P1 in 6, P12 in 6, P8 in 4, and P2/P4 in 3 each (counting tied maxima where applicable).
-
-**Correction to the table wording:** the matched sign count for P12 versus P4 is 14 higher, 16 lower, with no exact ties. The broad conclusion is unaffected.
+These are descriptive exploratory intervals, not confirmatory inference. All are broad and include zero. The identity of the longest-lasting treatment also varied across seeds rather than concentrating on one M3 frequency.
 
 There is therefore no evidence in this block for a simple rule such as “more frequent M3 settlement always helps” or “the default four/year is intrinsically best.”
 
-### The coarsest clock does show somewhat greater scarcity burden
+### The coarsest clock shows somewhat greater scarcity burden
 
 Although extinction time is not robustly ordered, `P=1` accumulated more unmet resource need and condition-mediated mortality than the default `P=4` across matched seeds:
 
 - unmet need: P1 − P4 = **+8,120** units on average, approximate paired 95% interval **+6,183 to +10,057**, P1 higher in 29/30 seeds;
 - condition-mediated deaths: P1 − P4 = **+16.7** on average, approximate paired 95% interval **+11.4 to +22.0**, P1 higher in 26/30 seeds.
 
-These are cumulative lifetime quantities and should not be interpreted as calibrated rates. Treatment lifetimes differ, births occur before extinction, and the population histories are highly stochastic. They do nevertheless suggest that collapsing the resource system to one large annual settlement changes within-year scarcity/condition dynamics somewhat even though the eventual extinction outcome remains the same.
+These are cumulative lifetime quantities and should not be interpreted as calibrated rates. Treatment lifetimes differ, births occur before extinction, and the population histories are highly stochastic. They nevertheless suggest that collapsing the resource system to one large annual settlement changes within-year scarcity/condition dynamics somewhat even though the eventual extinction outcome remains the same.
 
 Frequencies `P=4, 8, 12, 24` are much closer in cumulative unmet need (about 255k–256k) and condition-mediated deaths (about 1,985–1,991) than `P=1` is to the default.
 
@@ -111,7 +109,7 @@ Plain-language summary:
 
 > M3's clock matters somewhat, especially when made extremely coarse, but **M3 alone does not show anything like the huge timing sensitivity seen when M3 and M4 migration clocks were coupled**.
 
-That is an important control. It strengthens the interpretation that the dramatic clock-alignment effects found previously arise primarily from interaction with M4's decision/planning-horizon semantics rather than from a standalone M3 preference for matching frequencies.
+That strengthens the interpretation that the dramatic clock-alignment effects found previously arise primarily from interaction with M4's decision/planning-horizon semantics rather than from a standalone M3 preference for matching frequencies.
 
 ## What this does not establish
 
